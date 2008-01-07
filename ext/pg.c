@@ -485,7 +485,7 @@ pgconn_port(self)
  * call-seq:
  *    conn.tty()
  *
- * Returns the connected pgtty.
+ * Returns the connected pgtty. (Obsolete)
  */
 static VALUE
 pgconn_tty(self)
@@ -805,7 +805,7 @@ pgconn_exec(argc, argv, self)
 
 /*
  * call-seq:
- *    conn.prepare(sql, stmt_name, param_types) -> PGresult
+ *    conn.prepare(stmt_name, sql [, param_types ] ) -> PGresult
  *
  * Prepares statement _sql_ with name _name_ to be executed later.
  * Returns a PGresult instance on success.
@@ -864,7 +864,7 @@ pgconn_prepare(argc, argv, self)
 
 /*
  * call-seq:
- *    conn.exec_prepared(statement_name, params, result_format) -> PGresult
+ *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PGresult
  *
  * Execute prepared named statement specified by _statement_name_.
  * Returns a PGresult instance on success.
@@ -1282,7 +1282,7 @@ pgconn_send_query(argc, argv, self)
 
 /*
  * call-seq:
- *    conn.send_prepare(sql, stmt_name, param_types) -> nil
+ *    conn.send_prepare( stmt_name, sql [, param_types ] ) -> nil
  *
  * Prepares statement _sql_ with name _name_ to be executed later.
  * Sends prepare command asynchronously, and returns immediately.
@@ -1344,7 +1344,8 @@ pgconn_send_prepare(argc, argv, self)
 
 /*
  * call-seq:
- *    conn.send_query_prepared(statement_name, params, result_format) -> nil
+ *    conn.send_query_prepared( statement_name [, params, result_format ] )
+ *      -> nil
  *
  * Execute prepared named statement specified by _statement_name_
  * asynchronously, and returns immediately.
@@ -2849,7 +2850,7 @@ Init_pg()
     //rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0);
 
 	/******     PGconn INSTANCE METHODS: Command Execution     ******/
-    rb_define_method(rb_cPGconn, "exec", pgconn_exec, 1);
+    rb_define_method(rb_cPGconn, "exec", pgconn_exec, -1);
     rb_define_method(rb_cPGconn, "prepare", pgconn_prepare, -1);
     rb_define_method(rb_cPGconn, "exec_prepared", pgconn_exec_prepared, -1);
     rb_define_method(rb_cPGconn, "describe_prepared", pgconn_describe_prepared, 1);
@@ -2860,15 +2861,15 @@ Init_pg()
     rb_define_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
  
 	/******     PGconn INSTANCE METHODS: Asynchronous Command Processing     ******/
-    rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, 0);
-    rb_define_method(rb_cPGconn, "send_prepare", pgconn_send_prepare, 0);
-    rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, 0);
-    rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 0);
-    rb_define_method(rb_cPGconn, "send_describe_portal", pgconn_send_describe_portal, 0);
+    rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);
+    rb_define_method(rb_cPGconn, "send_prepare", pgconn_send_prepare, -1);
+    rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, -1);
+    rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 1);
+    rb_define_method(rb_cPGconn, "send_describe_portal", pgconn_send_describe_portal, 1);
     rb_define_method(rb_cPGconn, "get_result", pgconn_get_result, 0);
     rb_define_method(rb_cPGconn, "consume_input", pgconn_consume_input, 0);
     rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
-    rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 1);
+    rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 0);
     rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
     rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
 
