@@ -1,0 +1,256 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="ja">
+<head> 
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-2022-jp">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <meta name="Keywords" lang="en" content="Ruby PostgreSQL">
+  <link rev="made" href="mailto:noborus@netlab.jp">
+  <link rel="contents" href="./index.html">
+  <style type="text/css">
+   <!--
+    body {
+        background-color: white;
+        color: black;
+    }
+    address { text-align: right }
+    div.lastmodifed { text-align: right }
+    div.language { text-align: right }    
+    pre {
+        white-space: pre;
+        background-color: antiquewhite;
+        border: inset thin;
+    }
+   -->
+  </style>
+  <title>Postgres reference</title>
+</head>
+<body>
+  <div class = "language">
+    [<a href="postgres.html">English</a> | Japanese]
+  </div>
+  <h1><a name="reference">Postgres reference</a></h1>
+  <div class = "lastmodifed">
+    Last update: Mon,  5 Mar 2001 00:34:55 +0900
+  </div>
+  <hr>
+  <div>
+    <h2><a name="PGconn">PGconn</a></h2>
+    <p>
+PostgreSQLにアクセスするためのクラス。その他のメソッドはlibpqとほぼ同じインタフェースで提供されます。
+    </p>
+    <p>
+例えば、localhost 上の PostgreSQL に接続し、query を出すためには以下のようにして行います。
+    </p>
+    <pre>
+require &quot;postgres&quot;
+conn = PGconn.connect("localhost", 5432, &quot;&quot;, &quot;&quot;, &quot;test1&quot;)
+res = conn.exec(&quot;select * from a;&quot;)
+    </pre>
+    <h3>スーバークラス:</h3>
+    <code>Object</code>
+    <h3>クラスメソッド:</h3>
+    <p>
+      <a name="PGconn.connect"><code>connect(<var>pghost</var>,
+                       <var>pgport</var>, <var>pgoptions</var>,
+                       <var>pgtty</var>, <var>dbname</var>, <var>login</var>,
+                       <var>passwd</var>)</code></a>
+      <a name="PGconn.new"><code>new(<var>pghost</var>,
+                       <var>pgport</var>, <var>pgoptions</var>,
+                       <var>pgtty</var>, <var>dbname</var>, <var>login</var>,
+                       <var>passwd</var>)</code></a>
+      <a name="PGconn.open"><code>open(<var>string</var>)</code></a>
+     </p>
+     <dl>
+       <dt>PostgreSQLサーバと接続します。オプションの意味は以下の通りです。</dt>
+         <dd><var>pghost</var> : サーバのホスト名(文字列)
+         <dd><var>pgport</var> : サーバがlistenしているポート番号(整数)
+         <dd><var>pgoptions</var> : backendを起動する際のオプション(文字列)
+         <dd><var>pgtty</var> : backendがデバッグメッセージを表示するtty(文字列)
+         <dd><var>dbname</var> : 接続するデータベース名(文字列)
+         <dd><var>login</var> : ユーザ名(文字列)
+         <dd><var>passwd</var> : パスワード(文字列)
+       <dt>オプションを文字列で渡す場合のフォーマットです。</dt>
+         <dd><var>host=name</var> : サーバのホスト名(文字列)
+	 <dd><var>hostaddr=addr</var> : サーバのIPアドレス(文字列)
+	 <dd><var>port=number</var> サーバがlistenしているポート番号(整数)
+         <dd><var>options=string</var> : backendを起動する際のオプション(文字列)
+         <dd><var>tty=anything</var> : backendがデバッグメッセージを表示するtty(文字列)
+         <dd><var>dbname=name</var> : 接続するデータベース名(文字列)
+         <dd><var>user=username</var> : ユーザ名(文字列)
+         <dd><var>password=censored</var> : パスワード(文字列)
+	 <dd><var>sslmode=mode</var> : SSLモードの指定(文字列) (disable, allow, prefer, require)
+         <dd><var>service=name</var> : 他のパラメータ用に使用されるサービス名(文字列)
+	 <dd><var>connect_timeout=seconds</var> : 接続タイムアウト時間(整数) 
+     </dl>
+     <p>失敗した場合は <code>PGError</code> 例外が発生します。</p>
+     <h3>methods:</h3>
+     <dl>
+       <dt><a name="db"><code>db</code></a>
+         <dd>接続したデータベース名を返します。
+       <dt><a name="host"><code>host</code></a>
+         <dd>接続したサーバ名を返します。
+       <dt><a name="user"><code>user</code></a>
+         <dd>サーバへ接続時に認証したユーザ名を返します。
+       <dt><a name="options"><code>options</code></a>
+         <dd>backendを起動する際に指定したoptionを返します。
+       <dt><a name="port"><code>port</code></a>
+         <dd>サーバへ接続する際に使用したポート番号を返します。
+       <dt><a name="tty"><code>tty</code></a>
+         <dd>接続しているpgttyを返します。
+       <dt><a name="error"><code>error</code></a>
+         <dd>接続に関するエラーメッセージを返します。
+       <dt> <a name="finish"><code>finish</code></a>
+       <dt> <a name="close"><code>close</code></a>
+         <dd>バックエンドとの接続を終了します。
+       <dt><a name="reset"><code>reset</code></a>
+         <dd>バックエンドとの通信ポートをリセットします。この関数はバックエンドとのソケット接続を終了し、いずれかのバックエンドとの新しい接続の再確立を試みます。
+       <dt><a name="trace"><code>trace(<var>port</var>)</code></a>
+         <dd>バックエンドとのメッセージの受渡しのトレースを有効にします。メッセージは<var>port</var>で指定された File クラスのインスタンスへ書き出されます。
+       <dt><a name="untrace"><code>untrace</code></a>
+         <dd>バックエンドとのメッセージの受渡しのトレースを無効にします。
+       <dt><a name="exec"><code>exec(<var>sql</var>)</code></a>
+         <dd><var>sql</var>で指定されたSQL問い合わせ文をPostgreSQLへ送ります。
+問い合わせが成功した場合には、結果が<a href="#PGresult">PGresult</a>クラスの
+インスタンスとして返され、そうでない場合は例外が発生します。
+       <dt><a name="query"><code>query(<var>sql</var>)</code></a>
+         <dd><var>sql</var>で指定されたSQL問い合わせ文をPostgreSQLへ送ります。
+問い合わせが成功した場合には、結果が Array クラスの
+インスタンスとして返され、そうでない場合は nil が返されます。
+       <dt><a name="async_exec"><code>async_exec(<var>sql</var>)</code></a>
+         <dd><var>sql</var>で指定されたSQL問い合わせ文をPostgreSQLへ
+ 非同期で 送ります。問い合わせが成功した場合には、
+  結果が<a href="#PGresult">PGresult</a>クラスの
+ インスタンスとして返され、そうでない場合は例外が発生します。
+       <dt><a name="async_query"><code>async_query(<var>sql</var>)</code></a>
+         <dd><var>sql</var>で指定されたSQL問い合わせ文をPostgreSQLへ
+ 非同期で 送ります。問い合わせが成功した場合には、結果が Array クラスの
+インスタンスとして返され、そうでない場合は nil が返されます。
+       <dt><a name="get_notify"><code>get_notify</code></a>
+         <dd>バックエンドから未処理の通知リストを得て、Array クラスのインスタンスとして返します。バックエンドからの未処理の通知がない場合には、nil が返されます。
+       <dt><a name="insert_table"><code>insert_table(<var>table</var>,
+	  <var>array</var>)</code></a>
+         <dd><var>table</var>で指定されたテーブルに対し、<var>array</var>の内容を挿入します。<var>array</var>は Array クラスのインスタンスでなければなりません。
+       <dt><a name="getline"><code>getline</code></a>
+         <dd>バックエンドサーバから改行コードで終る行を読み取ります。<code>fgets(3)</code>と同様に、このメソッドは<code>get(3)</code>と同様に終端行をヌルに変換します。getlineはEOFの場合は、nil を、行全体を読み取った場合は0を、まだ改行コードを読み取っていない場合は1を返します。このメソッドを使用する時の注意点は、バックエンドサーバが結果の送信を完了したことを示す単一文字&quot;.&quot;を新規行に送信したことを確認しなければならないことです。<br>
+サンプルコード<a href="../sample/psql.rb">psql.rb</a>は、copyプロトコルを正しく扱うソースを含んでいます。
+       <dt><a name="putline"><code>putline(<var>string</var>)</code></a>
+         <dd><var>string</var>で指定された文字列をバックエンドーサーバへ送信します。使用者はデータの送信が完了したことをバックエンドに示すために、単一文字&quot;.&quot;を明示的に送信しなければなりません。
+       <dt><a name="endcopy"><code>endcopy</code></a>
+         <dd>バックエンドと同期をとります。このメソッドはバックエンドがcopyを完了するまで待ちます。<a href="#putline">putline</a>や<a href="#getline">getline</a>を使用した場合に使用すべきメソッドです。copyがうまく完了した場合には nil が返り、そうでない場合は例外が発生します。
+       <dt><a name="set_client_encoding"><code>set_client_encoding</code></a>
+         <dd>クライアントの文字コードを指定します(文字列)。
+       <dt><a name="client_encoding"><code>client_encoding</code></a>
+         <dd>クライアントの文字コードを返します(文字列)。
+
+       <dt><a name="lo_import"><code>lo_import(<var>file</var>)</code></a>
+         <dd><var>file</var>をラージオブジェクトにインポートします。成功すると<a href="#PGlarge">PGlarge</a>クラスのインスタンスが返されます。失敗すると <code>PGError</code> 例外が発生します。
+       <dt><a name="lo_export"><code>lo_export(<var>oid</var>, <var>file</var>)</code></a>
+         <dd>ラージオブジェクトを <var>file</var> に保存します。
+       <dt><a name="lo_create"><code>lo_create([<var>mode</var>])</code></a>
+         <dd>新しくラージオブジェクトをつくります。成功すると<a href="#PGlarge">PGlarge</a> クラスのインスタンスが返されます。失敗すると <code>PGError</code> 例外が発生します。
+       <dt><a name="lo_open"><code>lo_open(<var>oid</var>, [<var>mode</var>])</code></a>
+         <dd>oid のラージオブジェクトを開きます。成功すると<a href="#PGlarge">PGlarge</a> クラスのインスタンスが返されます。失敗すると <code>PGError</code> 例外が発生します。<var>&quot;INV_READ&quot;</var>,<var>&quot;INV_WRITE&quot;</var>のどちらかのモードを指定します。失敗すると <code>PGError</code> 例外が発生します。モードを省略した場合は<var>&quot;INV_READ&quot;</var>です。
+       <dt><a name="lo_unlink"><code>lo_unlink(<var>oid</var>)</code></a>
+         <dd><var>oid</var>のラージオブジェクトを削除します。
+     </dl>
+   </div>
+   <hr>
+   <div>
+     <h2><a name="PGresult">PGresult</a></h2>
+     <P>
+Queryの結果として得られたタップルをwrapするクラス．このクラス
+のインスタンスは、queryを行うたびに生成されます。故に得られた
+結果が不要になった場合には、clearを呼び出してメモリを解放する
+ようにして下さい。
+     </P>
+     <h3>スーパークラス:</h3>
+     <p>
+       <code>Object</code>
+     </p>
+     <h2>メソッド:</h2>
+     <dl>
+       <dt><a name="status"><code>status</code></a>
+         <dd><dl>
+	      <dt>問い合わせ結果のステータスを返します。ステータスは以下の値のうちのいずれか一つを返します。
+	        <dd>EMPTY_QUERY
+                <dd>COMMAND_OK
+                <dd>TUPLES_OK
+                <dd>COPY_OUT
+                <dd>COPY_IN
+	      </dl>
+       <dt><a name="result"><code>result</code></a>
+         <dd>問い合わせ結果のタップル(インスタンス)を、配列で返します。
+       <dt><a name="fields"><code>fields</code></a>
+         <dd>問い合わせの結果のフィールド(属性)を、配列で返します。
+       <dt><a name="num_tuples"><code>num_tuples</code></a>
+         <dd>問い合わせ結果のタップル(インスタンス)の数を返します。
+       <dt><a name="num_fields"><code>num_fields</code></a>
+         <dd>問い合わせの結果のフィールド(属性)の数を返します。
+       <dt><a name="fieldname"><code>fieldname(<var>index</var>)</code></a>
+         <dd>与えられたフィールド(属性)の索引(field index)に対応するフィールド(属性)の名前を返します。フィールド・インディケータは0から開始されます。
+       <dt><a name="fieldnum"><code>fieldnum(<var>name</var>)</code></a>
+         <dd>与えられたフィールド(属性)の名前に対応する、フィールド(属性)の索引を返します。
+       <dt><a name="type"><code>type(<var>index</var>)</code></a>
+         <dd>与えられたフィールド(属性)に対応するフィールドの型を返します。内部コーディングされている型が整数で返されます。フィールド・インディケータは0から開始されます。
+       <dt><a name="size"><code>size(<var>index</var>)</code></a>
+         <dd>与えられたフィールド(属性)に対応するフィールドのサイズをバイト数で返します。返されるサイズが-1の場合、フィールドは可変長です。フィールド・インディケータは0から開始されます。
+       <dt><a name="getvalue"><code>getvalue(<var>tup_num, field_num</var>)
+	    </code></a>
+         <dd>フィールド(属性)の値を返します。ほとんどの問い合わせに対して、<a href="#getvalue">getvalue</a>によって返される値は、ヌルで終わるASCII文字列で表現されます。問い合わせの結果がバイナリカーソルであった場合、<a href="#getvalue">getvalue</a>によって返される値は、バックエンド・サーバの内部フォーマットに依存したバイナリで表現されます。データを正しいタイプにキャストしたり、変換したりするのはプログラマの責任です。<a href="#PGresult">PGresult</a>のインスタンスはqueryのたびに生成されます。不要になった場合は、プログラマが責任をもって<a href="#clear">clear</a>を呼び出しメモリを解放して下さい。
+       <dt><a name="getlength"><code>getlength(<var>tup_num, field_num</var>)
+	    </code></a>
+         <dd>フィールド(属性)の長さをバイトで返します。
+       <dt><a name="cmdtuples"><code>cmdtuples</code></a>
+         <dd>最後の問い合わせコマンドの影響をうけた行数を返します。
+       <dt><a name="cmdstatus"><code>cmdstatus</code></a>
+         <dd>最後の問い合わせコマンドのコマンドステータスを文字列で返します。
+       <dt><a name="oid"><code>oid</code></a>
+         <dd>挿入された行のOIDを返します。
+       <dt><a name="clear"><code>clear</code></a>
+         <dd>問い合わせの結果生成された<a href="#PGresult">PGresult</a>のインスタンスをクリアします。
+     </dl>
+  </div>
+  <hr>
+  <div>
+  <h2><a name="PGlarge">PGlarge</a></h2>
+     <p>
+ ラージオブジェクトにアクセスするためのクラス。このオブジェクトは <a href="lo_import">lo_import</a>, <a href="lo_create">lo_create</a>, <a href="lo_open">lo_open</a> の結果として返されます。
+     </p>
+     <h3>super class:</h3>
+     <p>
+       <code>Object</code>
+     </p>
+     <h2>methods:</h2>
+     <dl>
+       <dt><a name="open"><code>open([<var>mode</var>])</code></a>
+         <dd>ラージオブジェクトを開きます。 <var>&quot;INV_READ&quot;</var>,<var>&quot;INV_WRITE&quot;</var>のどちらかのモードを指定します。失敗すると <code>PGError</code> 例外が発生します。モードを省略した場合は<var>&quot;INV_READ&quot;</var>です。
+       <dt><a name="close"><code>close</code></a>
+         <dd>ラージオブジェクトを閉じます。以降このオブジェクトに対するアクセスは例外を発生します。
+       <dt><a name="read"><code>read([<var>length</var>])</code></a>
+         <dd><var>length</var> バイト読み込んでその文字列を返します。<var>length</var> が省略された時には、全てのデータを読み込みます。
+       <dt><a name="write"><code>write(<var>str</var>)</code></a>
+         <dd><var>str</var>をラージオブジェクトに書き込みます。書き込んだバイト数を返します。
+       <dt><a name="seek"><code>seek(<var>offset</var>, <var>whence</var>)</code></a>
+         <dd>ラージオブジェクトのポインタを <var>offset</var> 移動します。<var>whence</var> は SEEK_SET, SEEK_CUR, and SEEK_END が指定できます。それぞれ 0,1,2と数字で指定しても構いません。
+       <dt><a name="tell"><code>tell</code></a>
+         <dd>ラージオブジェクトのポインタの現在の位置を返します。
+       <dt><a name="unlink"><code>unlink</code></a>
+         <dd>ラージオブジェクトを削除します。
+       <dt><a name="oid"><code>oid</code></a>
+         <dd>ラージオブジェクトの oid を返します。
+       <dt><a name="size"><code>size</code></a>
+         <dd>ラージオブジェクトのサイズを返します。
+       <dt><a name="export"><code>export(<var>file</var>)</code></a>
+         <dd><var>file</var>にラージオブジェクトを書き出します。
+    </dl>
+  </div>
+  <hr>
+  <address>
+    mailto:
+    <a href="mailto:noborus@netlab.jp">Noboru Saitou</a>
+  </address>
+</body>
+</html>
+
+

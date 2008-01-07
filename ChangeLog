@@ -1,0 +1,261 @@
+Ruby extension library to access PostgreSQL.
+===========================================
+
+Tue Dec 14 2004
+	* set_notice_processor: add methods set_notice_processor.
+	Dennis Vshivkov <walrus@amur.ru>	
+	
+Sat Nov  6 2004
+	* unescape_bytea: add methods unescape_bytea.
+	  patch supplied by "Henry T. So Jr." <henryso@panix.com>
+	
+Sat Oct  9 2004
+	* extconf.rb: VERSION -> RUBY_VERSION. 
+	  add header check.
+	  patch supplied by MoonWolf <moonwolf@moonwolf.com>
+
+Fri Jul  2 2004
+	* open: add methods open.
+	  patch supplied by Leon Brooks <leon-ruby-postgres@cyberknights.com.au>
+	
+Tue Feb 24 2004
+	* postgres.c: add comments.
+	  patch supplied by Gavin Kistner <gavin@refinery.com>
+	
+Fri Nov 23 2003
+	* extconf.rb: add ssl support.
+	  patch supplied by Martin Hedenfalk <mahe@kth.se>
+
+Sat Nov  1 2003
+
+	* oid: add methods oid.
+	  patch supplied by Ceri Storey <cez@compsoc.man.ac.uk>
+ 
+Mon Jan  6 2003 version 0.7.1
+	
+	* async_exec: remove check of PQisBusy.
+	  patch supplied by <m_seki@mva.biglobe.ne.jp>
+	
+Wed Oct 16 2002 version 0.7.0
+	
+	* rename README.jp -> README.ja.
+
+Thu Oct 10 2002
+	
+	* get_notify: bug fix Deletes of unnecessary "free(notify);"
+	  debian bug report.
+	
+Wed Oct  9 2002
+	
+	* query: add pgresult_clear.
+	  patch supplied by "Shirai,Kaoru" <shirai@p1jp.com>
+
+Sat Sep 28 2002
+	
+	* PGconn: add methods escape, quote, escape_bytes. 
+	  patch supplied by MoonWolf <moonwolf@moonwolf.com>
+
+Tue Aug 20 2002 
+
+	* extconf.rb add dir_config('postgres')
+ 	  patch supplied by Nate Haggard <nate@wordplace.com>
+	
+Mon Jun  3 2002 version 0.7.0-pre2
+	
+	* not to use fe_getauthname().
+	  patch supplied by Neil Conway <nconway@klamath.dyndns.org>
+	
+Thu May 30 2002 version 0.7.0-pre1
+	
+	* Fix to insert_table so that nil values in Ruby are inserted
+	  back into the database as nulls.
+	  patch supplied by Jeremy Henty <jeremy@chaos.org.uk>
+
+	* Fix to insert_table to protect characters that Postgres would
+	  otherwise interpret specially.
+	  patch supplied by Jeremy Henty <jeremy@chaos.org.uk>
+	
+Wed Apr 24 2002
+	
+	* Removed unused variables.
+	* Improve notification code.
+	* Add a missing "return Qnil" statement in a function 
+	  declared to return VALUE.
+	* Fix an minor error in pgconn_loopen().
+	  patch supplied by Neil Conway <nconway@klamath.dyndns.org>	
+	
+Tue Mar  5 2002
+	
+	* fix pglarge_write return.
+	  patch supplied by Noboru Matui <silicon@mx1.freemail.ne.jp>
+
+Mon Jan  7 2002
+	
+	* refer to POSTGRES_INCLUDE and POSTGTRES_LIB 
+	  environmental variables.
+	  patch supplied by Neil Conway <nconway@klamath.dyndns.org>
+	
+Sun Dec 16 2001
+	
+	* add methods "getisnull".
+	  patch supplied by Jeremy Henty <jeremy@chaos.org.uk>
+	
+Tue Nov 27 2001
+	
+	* convert NULL => nil .
+	  patch supplied by "Shirai,Kaoru" <shirai@p1jp.com>
+
+Mon Nov 19 2001 version 0.6.5 released
+	
+	* change my address.
+	  Noboru Saitou <noborus@netlab.jp>
+	
+Fri Nov 16 2001	
+	
+	* default encoding set.
+	  Riley <wormwood@speakeasy.org>
+
+Fri Nov 16 2001	
+	
+	* add methods "cmdtuples"
+          Gabriel Emerson <gemerson@evalsoft.com>	
+	  Thanks to greentea@fa2.so-net.ne.jp
+	
+Thu Jul 12 2001
+	
+	* psql.rb $OPT_p => $OPT_p.to_i (bug fix).
+	  Yuta TSUBOI <yuuta-t@is.aist-nara.ac.jp>
+	
+Mon Apr 23 2001 version 0.6.4 released
+	
+	* add include sys/types.h
+          patch supplied by "Akinori MUSHA" <knu@iDaemons.org>.
+	
+Sun Apr 22 2001 version 0.6.3 released
+
+	* document updated.
+	
+Sun Mar 18 2001
+	
+	* extern -> EXTERN changed.
+          shibata <kshibata@vesta.ocn.ne.jp>
+	
+Sun Feb 11 2001
+	
+	* add methods "async_exec" and "async_query.
+	  patch supplied by  Andy Yu <is@gnuchina.org>.
+
+Tue Feb  6 2001 version 0.6.2 released
+	
+	* extconf.rb have_func second argument omit.
+	  (old ruby version support).
+
+Mon Feb  5 2001
+
+	* RSTRING(*)->ptr -> STR2CSTR(*) changed.
+
+Sun Feb  4 2001
+	 
+	* README and README.jp  copying are unified to Ruby's.
+	 
+Wed Jan 31 2001
+	
+	* postgres.html bug fix and better.
+	  patch supplied by Neil Conway <nconway@klamath.dyndns.org>.
+
+	* README bug fix and better.
+	  patch supplied by Neil Conway <nconway@klamath.dyndns.org>.
+	 
+Sat Jan 27 2001
+	
+	* extconf.rb add error message for
+	  Could not find PostgreSQL libraries.
+	  patch supplied by Neil Conway <nconway@klamath.dyndns.org>.
+	 
+Tue Jan 23 2001
+
+	* add methods "initialize".
+	  patch supplied by <matz@zetabits.com>.
+
+Sun Dec 17 2000 
+	
+	* 8192 byte limit removed.
+	
+Tue Oct 11 2000	
+
+	* methods name lo* -> lo_* changed.
+
+	* extconf.rb bug fix.
+	   have_func("PQsetClientEncoding")
+
+Thu Jun 30 2000 version 0.6.1 released
+
+	* change receive parameter with VALUE.
+	  (exec, insert_table, putline)
+
+	* insert_table: remove debug print.
+	
+	* insert_table bug fix.
+	  patch supplied by "Okada Jun" <yun@be-in.org>.
+
+	* extconf.rb ClientEncoding->SetClientEnocoding.
+
+Sun May 21 2000 version 0.6.0 released
+
+	* change the maintainer with 
+	  Noboru Saitou <noborus@mb.kcom.ne.jp>.
+
+	* add provided clientEnocoding and setClientEncoding.
+
+	* replace rb_str_new with rb_tainted_str_new.
+	  ts <decoux@moulon.inra.fr>
+
+	* add provided Large Object support!
+
+	* error message changed PQerrorMessage() use.
+
+Fri Feb 25 2000 version 0.5.4 released
+
+	* PGError should be subclass of StandardError.
+
+Fri Aug  6 1999 version 0.5.3 released
+
+	* use PQsetdbLogin() instead of PQsetdb().
+	  patch supplied by <kasa@air.linkclub.or.jp>.
+
+Tue Jul 30 1999 version 0.5.2 released
+
+	* document updated.
+	* better Ruby 1.3 support.
+
+Tue Jul 13 1999 version 0.5.1 released
+
+	* modified for Ruby 1.3.x or later.
+
+Wed Jan 20 1999 version 0.4.1 released
+
+	* Makefile.rb, extconf.rb: trivial bug fix.
+
+Thu Dec 12 1997 version 0.4 released
+
+	* PGresult: add new method -- each{}, [] --
+	* provided Makefile.rb for ruby-1.1b
+
+Thu Sep 25 1997 version 0.3.1 released
+
+	* extconf.rb bug fix.
+	* documentation about 'How to install' 
+
+Mon Sep 4 1997 version 0.3 released
+
+	* remove restrictions about japanese EUC characters.
+	* parseArgs related bug fix.
+
+Mon Sep 2 1997 version 0.2 released
+
+	* provided psql.rb. (an interactive interface for PostgreSQL)
+	* some bug fixes.
+
+Mon Aug 22 1997 version 0.1 released
+
+	* first release.

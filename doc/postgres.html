@@ -1,0 +1,278 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+    "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head> 
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <meta name="Keywords" lang="en" content="Ruby PostgreSQL">
+  <link rev="made" href="mailto:noborus@netlab.jp">
+  <style type="text/css">
+   <!--
+    body {
+        background-color: white;
+        color: black;
+    }
+    address { text-align: right }
+    div.lastmodifed { text-align: right }
+    div.language { text-align: right }    
+    pre {
+        white-space: pre;
+        background-color: antiquewhite;
+        border: inset thin;
+    }
+   -->
+  </style>
+  <title>Postgres reference</title>
+</head>
+<body>
+  <div class = "language">
+    [English | <a href="postgres.jp.html">Japanese</a>]
+  </div>
+  <h1><a name="reference">Postgres reference</a></h1>
+  <div class = "lastmodifed">
+    Last update: Sun,  4 Mar 2001 15:40:08 +0000
+  </div>
+  <hr>
+  <div>
+    <h2><a name="PGconn">PGconn</a></h2>
+    <p>
+ The class to access PostgreSQL database.  All other functionality of libpq
+save the large object to a file.
+    </p>
+    <p>
+For example, to send query to the database on the localhost.
+    </p>
+    <pre>
+require &quot;postgres&quot;
+conn = PGconn.connect("localhost", 5432, &quot;&quot;, &quot;&quot;, &quot;test1&quot;)
+# or: conn = PGconn.open('dbname=test1')
+res = conn.exec(&quot;select * from a;&quot;)
+    </pre>
+    <h3>super class:</h3>
+    <code>Object</code>
+    <h3>class methods:</h3>
+    <p>
+      <a name="PGconn.connect"><code>connect(<var>pghost</var>,
+                       <var>pgport</var>, <var>pgoptions</var>,
+                       <var>pgtty</var>, <var>dbname</var>, <var>login</var>,
+                       <var>passwd</var>)</code></a>
+      <a name="PGconn.new"><code>new(<var>pghost</var>,
+                       <var>pgport</var>, <var>pgoptions</var>,
+                       <var>pgtty</var>, <var>dbname</var>, <var>login</var>,
+                       <var>passwd</var>)</code></a>
+      <a name="PGconn.open"><code>open(<var>string</var>)</code></a>
+     </p>
+     <dl>
+       <dt>Connect to the PostgreSQL server.  Options are:</dt>
+         <dd><var>pghost</var> : Server hostname(string)
+         <dd><var>pgport</var> : Server port number(integer)
+         <dd><var>pgoptions</var> : backend options(string)
+         <dd><var>pgtty</var> : tty to print backend debug message(string)
+         <dd><var>dbname</var> : connecting database name(string)
+         <dd><var>login</var> : login user name(string)
+         <dd><var>passwd</var> : login password(string)
+       <dt>Options in string format (separated by whitespace) are:</dt>
+         <dd><var>host=name</var> : Server hostname(string) (defaults to localhost)
+	 <dd><var>hostaddr=addr</var> : Server host IP address(string)
+	 <dd><var>port=number</var> : Server port number(integer) (default: 5432)
+         <dd><var>options=string</var> : backend options(string) (sent to server, not well explained)
+         <dd><var>tty=anything</var> : ignored, used to be debug TTY(string)
+         <dd><var>dbname=name</var> : connecting database name(string) (default: your username)
+         <dd><var>user=username</var> : login user name(string) (default: your username)
+         <dd><var>password=censored</var> : login password(string)
+	 <dd><var>sslmode=mode</var> : how to treat SSL(string) (one of disable, allow, prefer, require)
+         <dd><var>service=name</var> : service name in pg_service.conf(string)
+	 <dd><var>connect_timeout=seconds</var> : how long to wait for a connection(integer) (0 means forever)
+     </dl>
+     <p>On failure, it raises <code>PGError</code> exception.</p>
+     <h3>methods:</h3>
+     <dl>
+       <dt><a name="db"><code>db</code></a>
+         <dd>Returns the connected database name.
+       <dt><a name="host"><code>host</code></a>
+         <dd>Returns the connected server name.
+       <dt><a name="user"><code>user</code></a>
+         <dd>Returns the authenticated user name.
+       <dt><a name="options"><code>options</code></a>
+         <dd>Returns backend option string.
+       <dt><a name="port"><code>port</code></a>
+         <dd>Returns the connected server port number.
+       <dt><a name="tty"><code>tty</code></a>
+         <dd>Returns the connected pgtty.
+       <dt><a name="error"><code>error</code></a>
+         <dd>Returns the error message about connection.
+       <dt> <a name="finish"><code>finish</code></a>
+       <dt> <a name="close"><code>close</code></a>
+         <dd>Closes the backend connection.
+       <dt><a name="reset"><code>reset</code></a>
+         <dd>Resets the backend connection.  This method closes the backend
+            connection and tries to re-connect.
+       <dt><a name="trace"><code>trace(<var>port</var>)</code></a>
+         <dd>Enables tracing message passing between backend.  The trace 
+	    message will be written to the port object, which is the
+	    instance of the class File.
+       <dt><a name="untrace"><code>untrace</code></a>
+         <dd>Disables the message tracing.
+       <dt><a name="exec"><code>exec(<var>sql</var>)</code></a>
+         <dd>Sends SQL query request specified by <var>sql</var> to the
+	    PostgreSQL. Returns the <a href="#PGresult">PGresult</a>
+	    instance on success. On failure, it raises <code>PGError</code>
+	    exception.
+       <dt><a name="query"><code>query(<var>sql</var>)</code></a>
+         <dd>Sends SQL query request specified by <var>sql</var> to the
+	    PostgreSQL.Returns an Array as the resulting tuple on success.
+            On failure, it returns nil, and error detail can be obtained
+	    by error.
+       <dt><a name="async_exec"><code>async_exec(<var>sql</var>)</code></a>
+         <dd>Sends SQL asynchronous query request specified by <var>sql</var>
+	    to the PostgreSQL. Returns the <a href="#PGresult">PGresult</a>
+	    instance on success. On failure, it raises <code>PGError</code>
+	    exception.
+       <dt><a name="async_query"><code>async_query(<var>sql</var>)</code></a>
+         <dd>Sends SQL asynchronous query request specified by <var>sql</var>
+	    to the PostgreSQL.Returns an Array as the resulting tuple on
+	    success. On failure, it returns nil, and error detail can be
+	    obtained by error.
+       <dt><a name="get_notify"><code>get_notify</code></a>
+         <dd>Returns the array of the unprocessed notifiers.
+            If there is no unprocessed notifier, it returns nil.
+       <dt><a name="insert_table"><code>insert_table(<var>table</var>,
+	  <var>array</var>)</code></a>
+         <dd>Inserts contents of the <var>array</var> into the
+	    <var>table</var>.
+       <dt><a name="getline"><code>getline</code></a>
+         <dd>Reads a line from the backend server into internal buffer.
+            Returns nil for EOF, 0 for success, 1 for buffer overflowed.
+            You need to ensure single &quot;.&quot; from backend to confirm
+	    transmission completion. The sample program <a href="../sample/psql.rb">psql.rb</a>
+            treats this copy protocol right.
+       <dt><a name="putline"><code>putline(<var>string</var>)</code></a>
+         <dd>Sends the <var>string</var> to the backend server.
+	    Users must send a single &quot;.&quot; to denote the end of data transmission.
+       <dt><a name="endcopy"><code>endcopy</code></a>
+         <dd>Waits until the backend completes the copying.  You should call
+	    this method after putline, or getline.Returns nil on success,
+	    raises an exception otherwise.
+       <dt><a name="set_client_encoding"><code>set_client_encoding</code></a>
+         <dd>Set client encoding(String).
+       <dt><a name="client_encoding"><code>client_encoding</code></a>
+         <dd>Returns client encoding(String).
+       <dt><a name="set_notice_processor"><code>set_notice_processor(proc)</code></a>
+         <dd>Control reporting of notice and warning messages generated by the
+	 backend server (with Proc or anything else responding to :call).
+	 Pass nil to disable processing of the messages.
+
+       <dt><a name="lo_import"><code>lo_import(<var>file</var>)</code></a>
+         <dd>Import a <var>file</var> to a large object. Return the <a href="#PGlarge">PGlarge</a> instance on success. On failure, it raises <code>PGError</code> exception.
+       <dt><a name="lo_export"><code>lo_export(<var>oid</var>, <var>file</var>)</code></a>
+         <dd>Save a large object of oid to a <var>file</var>.
+       <dt><a name="lo_create"><code>lo_create([<var>mode</var>])</code></a>
+         <dd>Return the <a href="#PGlarge">PGlarge</a> instance on success. On failure, it raises <code>PGError</code> exception.
+       <dt><a name="lo_open"><code>lo_open(<var>oid</var>, [<var>mode</var>])</code></a>
+         <dd>Open a large object of oid. Return the <a href="#PGlarge">PGlarge</a> instance on success. The mode argument specifies the mode for the opened large object, which is either <var>&quot;INV_READ&quot;</var>, or <var>&quot;INV_WRITE&quot;</var>. If mode On failure, it raises <code>PGError</code> exception. If mode omitted, the default is <var>&quot;INV_READ&quot;</var>
+       <dt><a name="lo_unlink"><code>lo_unlink(<var>oid</var>)</code></a>
+         <dd>Unlink (deletes) the postgres large object of oid.
+     </dl>
+   </div>
+   <hr>
+   <div>
+     <h2><a name="PGresult">PGresult</a></h2>
+     <P>
+ The class to represent the query result tuples.  The object of this
+class is created as the result of every query.  You may need to invoke
+clear method for the finished object for better memory performance.
+     </P>
+     <h3>super class:</h3>
+     <p>
+       <code>Object</code>
+     </p>
+     <h2>methods:</h2>
+     <dl>
+       <dt><a name="status"><code>status</code></a>
+         <dd><dl>
+	      <dt>Returns the status of the query.  The status value is
+	         either:
+	        <dd>EMPTY_QUERY
+                <dd>COMMAND_OK
+                <dd>TUPLES_OK
+                <dd>COPY_OUT
+                <dd>COPY_IN
+	      </dl>
+       <dt><a name="result"><code>result</code></a>
+         <dd>Returns the query result tuple in the array.
+       <dt><a name="fields"><code>fields</code></a>
+         <dd>Returns the array of the fields of the query result.
+       <dt><a name="num_tuples"><code>num_tuples</code></a>
+         <dd>Returns the number of tuples of the query result.
+       <dt><a name="num_fields"><code>num_fields</code></a>
+         <dd>Returns the number of fields of the query result.
+       <dt><a name="fieldname"><code>fieldname(<var>index</var>)</code></a>
+         <dd>Returns the field name corresponding field index.
+       <dt><a name="fieldnum"><code>fieldnum(<var>name</var>)</code></a>
+         <dd>Returns the index of the <var>name</var>ed field.
+       <dt><a name="type"><code>type(<var>index</var>)</code></a>
+         <dd>Returns the integer corresponding the type of the field.
+	    The field indicator starts from zero.
+       <dt><a name="size"><code>size(<var>index</var>)</code></a>
+         <dd>Returns the size of the field in bytes.
+            Returns <code>-1</code> if the field is variable sized.
+       <dt><a name="getvalue"><code>getvalue(<var>tup_num, field_num</var>)
+	    </code></a>
+         <dd>Returns the field value.
+       <dt><a name="getlength"><code>getlength(<var>tup_num, field_num</var>)
+	    </code></a>
+         <dd>Returns the length of the field in bytes.
+       <dt><a name="cmdstatus"><code>cmdtuples</code></a>
+         <dd>the number of tuples (rows) affected by the SQL command.
+       <dt><a name="cmdstatus"><code>cmdstatus</code></a>
+         <dd>Returns the status string of the last query command.
+       <dt><a name="oid"><code>oid</code></a>
+         <dd>Returns the oid of the inserted row, or <code>nil</code> if
+	 the last statement was not an <code>INSERT</code>
+       <dt><a name="clear"><code>clear</code></a>
+         <dd>Clears the <a href="#PGresult">PGresult</a> object as the result
+	     of the query.
+     </dl>
+  </div>
+  <hr>
+  <div>
+  <h2><a name="PGlarge">PGlarge</a></h2>
+     <P>
+ The class to access large objects. The object of this class is created as the
+ result of <a href="#lo_import">lo_import</a>, <a href="#lo_create">lo_create</a>, and <a href="#lo_open">lo_open</a>.
+     </P>
+     <h3>super class:</h3>
+     <p>
+       <code>Object</code>
+     </p>
+     <h2>methods:</h2>
+     <dl>
+       <dt><a name="open"><code>open([<var>mode</var>])</code></a>
+         <dd>Open a large object. The mode argument specifies the mode for the opened large object, which is either <var>&quot;INV_READ&quot;</var>,<var>&quot;INV_READ&quot;</var>.
+       <dt><a name="close"><code>close</code></a>
+         <dd>Close a large object. Closed when they are garbage-collected.
+       <dt><a name="read"><code>read([<var>length</var>])</code></a>
+         <dd>Attempts to read <var>length</var> bytes from large object. If no <var>length</var> given, reads all data.
+       <dt><a name="write"><code>write(<var>str</var>)</code></a>
+         <dd>Write the string to the large object. Return the number of bytes written.
+       <dt><a name="seek"><code>seek(<var>offset</var>, <var>whence</var>)</code></a>
+         <dd>Move the large object pointer to the <var>offset</var>. The value for <var>whence</var> are SEEK_SET, SEEK_CUR, and SEEK_END.Or it is 0,1,2.
+       <dt><a name="tell"><code>tell</code></a>
+         <dd>Return the current position of the large object pointer.
+       <dt><a name="unlink"><code>unlink</code></a>
+         <dd>Delete large object.
+       <dt><a name="oid"><code>oid</code></a>
+         <dd>Return the large object oid.
+       <dt><a name="size"><code>size</code></a>
+         <dd>Return the size of large object.
+       <dt><a name="export"><code>export(<var>file</var>)</code></a>
+         <dd>Save a large object of oid to a <var>file</var>.
+    </dl>
+  </div>
+  <hr>
+  <address>
+    mailto:
+    <a href="mailto:noborus@netlab.jp">Noboru Saitou</a>
+  </address>
+</body>
+</html>

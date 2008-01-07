@@ -1,0 +1,125 @@
+================================================================================
+ruby-pg: Ruby interface to PostgreSQL RDBMS
+================================================================================
+
+This library is copyrighted by the authors.
+
+Authors:
+  * Yukihiro Matsumoto <matz@ruby-lang.org>
+      Author of Ruby.
+  * Eiji Matsumoto <usagi@ruby.club.or.jp>
+      One of users who loves Ruby.
+  * Jeff Davis <ruby-pg@j-davis.com>
+
+Thanks to:
+  * Noboru Saitou <noborus@netlab.jp>
+      Past maintainer.
+  * Dave Lee
+      Past maintainer.
+  * Guy Decoux   ts <decoux@moulon.inra.fr> 
+  
+Maintainer:
+  Jeff Davis <ruby-pg@j-davis.com>
+
+Copying:
+  You may redistribute this software under the terms of the GPL,
+  included in the file named GPL; or under the same terms as Ruby,
+  included in the file name LICENSE.
+
+- Summary
+
+This is the extension library to access a PostgreSQL database from Ruby.
+This library works with PostgreSQL 7.4 and later.
+
+- Requirements
+
+  Ruby 1.8 or later.
+  PostgreSQL 7.4 or later installed.
+
+  It may work with earlier versions as well, but those are
+  not regularly tested.
+
+- How to install ?
+
+Follow the instructions below to compile and install:
+
+  ruby extconf.rb
+  make
+  su              (if necessary)
+  make install
+
+You may need to specify the directory name for the include files and the
+-lpq library by using
+
+    --with-pgsql-include=<include file directory>
+    --with-pgsql-lib=<library directory>
+
+For example:
+
+  ruby extconf.rb --with-pgsql-include=/usr/local/pgsql/include \
+                  --with-pgsql-lib=/usr/local/pgsql/lib
+
+- Modules
+
+'pg': The 'pg' module is the newer module, that has been greatly improved, and
+  is almost a complete rewrite. It is not backwards compatible. Use this module
+  for newly written code. It should be more stable, less buggy, and has more
+  features.
+
+'postgres': Older module, maintained for backwards compatibility. It 
+  has known flaws that aren't reasonably fixable without breaking backwards
+  compatibility. Use this module if you have code that already works, and 
+  you just want the fixes that I've committed to this module (for instance,
+  this module is compatible with PostgreSQL 8.3).
+
+- How to use ?
+
+This gem builds and installs two PostgreSQL database adapters, 'postgres'
+and 'pg'. 'postgres' is currently (Jan 2008) the recommended PostgreSQL
+adapter for use with Rails.
+
+The standard way to download and install the most current stable  
+version of the postgres gem (from http://gems.rubyforge.org) is to use  
+the RubyGem package manager. You may need to supply RubyGem with the 
+location of the libpq library and the libpq.h and libpq/libpq-fs.h 
+files, and may need to run as root.
+If you installed from source on a Unix system you can locate these  
+libpq files with:
+find <path to install directory> -name "libpq-fe.h" -print
+With binary distributions, you may need to install additional  
+PostgreSQL development libraries to get these files.
+
+Then run:
+sudo gem install postgres -- --with-pgsql-include-dir=<location of  
+Postgresql>/include --with-pgsql-lib-dir=<location of Postgresql/lib
+
+Example:
+on Mac OS X with PostgreSQL in /Library/PostgreSQL8 use
+--with-pgsql-include-dir=/Library/PostgreSQL8/include --with-pgsql-lib- 
+dir=/Library/PostgreSQL8/lib
+
+To use the postgres adapter with Rails:
+refer to it as
+adapter: postgresql
+in your database:yaml file
+
+The pg adapter cannot be used with Rails yet and is available for  
+testing and developer use.
+
+To use these modules in Ruby directly (not Rails), refer to the RDoc
+documentation.
+
+- Acknowledgments
+
+We are thankful to the people at the ruby-list and ruby-dev mailing lists.
+And to the people who developed PostgreSQL.
+
+- Copying
+
+This library is copyrighted by its authors; Yukihiro Matsumoto, and Eiji
+Matsumoto.
+
+Portions copyright Laika, Inc.
+
+
+

@@ -1,0 +1,183 @@
+                  PostgreSQL用拡張ライブラリ  version 0.7.1
+
+                                                             まつもと ゆきひろ
+                                                             まつもと えいじ
+
+                                                  世話人:    斉藤 登
+	
+- What's this ?
+
+本ライブラリは、RubyからPostgreSQLへアクセスするための拡張ライブラリです。
+サポートしているPostgreSQLのバージョンは、6.5/7.0/7.1/7.2 です。6.3以前の
+バージョンでも(ちょっとした変更で)動作すると思いますが、テストしていません。
+
+- How to install ?
+ *** requirement ***
+ PostgreSQL moduleを使うんですから，当然PostgreSQLは必要ですね．今のところ
+ ローカルにPostgreSQLがインストールされていることを前提にしていますが，
+ 必要なヘッダとlibpqさえあれば，サーバは必ずしもローカルで動作している必要
+ はありません．
+
+ デフォルトでは，PostgreSQLが/usr/local/pgsql配下にインストールされている
+ としています．別の場所にインストールしている場合には，環境変数PGLIBにlibpq
+ ライブラリが置いてあるdirectoryに設定して下さい。
+
+ 任意の場所で，このアーカイブを展開してください．後は
+
+  ruby extconf.rb
+  make
+  su               (もし必要なら)
+  make install
+ 
+ とするだけです．PostgreSQLのインクルードファイル、ライブラリファイルの
+ インストール場所が標準の位置ではなくコンパイラが見付けることができない
+ 場合には
+
+    --with-pgsql-include-dir=<インクルードファイルディレクトリ>
+    --with-pgsql-lib-dir=<ライブラリディレクトリ>
+または
+    --with-pgsql-dir=<ディレクトリ>
+          これは以下のように指定したときとおなじです。
+           --with-pgsql-include-dir=<ディレクトリ>/include
+           --with-pgsql-lib-dir=<ディレクトリ>/lib
+
+
+ 例えば
+
+  ruby extconf.rb --with-pgsql-include-dir=/usr/local/pgsql/include \
+                  --with-pgsql-lib-dir=/usr/local/pgsql/lib
+または
+  ruby extconf.rb --with-pgsql-dir=/usr/local/pgsql
+
+ のように指定してください。
+
+- How to use ?
+
+  require "postgres"
+
+としてから御使用下さい。
+
+- What function can I use ?
+
+基本的に、Cのlibpqインタフェースで定義されている関数はサポートしています。
+ver 0.6.0 から新しく Large Object インターフェイスが追加されました。
+
+サポートしているメソッドの一覧は以下の通りです。
+
+PGconnクラス:
+
+ クラスメソッド
+    new
+    connect
+    setdb
+    setdblogin
+    escape
+    quote
+    escape_bytea
+
+ メソッド
+    db
+    host
+    options
+    port
+    tty
+    status
+    error
+    finish
+    close
+    reset
+    user
+    trace
+    untrace
+
+    exec
+    query
+    async_exec
+    async_query
+    get_notify
+    insert_table
+    putline
+    getline
+    endcopy
+    notifies
+
+    lo_import
+    lo_export
+    lo_create
+    lo_open  
+    lo_unlink
+
+    client_encoding
+    set_client_encoding
+
+PGresultクラス:
+
+メソッド
+    each
+    []
+    status
+    result
+    fields
+    num_tuples
+    num_fields
+    fieldname
+    fieldnum
+    type
+    size
+    getvalue
+    getlength
+    cmdstatus
+    print
+    clear
+
+PGlargeクラス:
+
+メソッド
+    open
+    close
+    read
+    write
+    lseek
+    tell
+    unlink
+    oid
+    size
+    export
+    
+- Acknowledgement
+
+本拡張ライブラリを作成するにあたって、ruby-list, ruby-dev,
+ruby-talk,及び pgsql-jpメーリングリストのメンバーに、多くの有益な
+アドバイスを頂きました。ここに感謝の意を表します。
+
+- Copying
+
+本拡張ライブラリの著作権は、まつもと ゆきひろとまつもと えいじが
+保持します。
+
+本拡張ライブラリは、Ruby本体と同じ配布条件に従って再配布すること
+ができます。Ruby本体の配布条件については、Ruby配布物中のREADME.jp
+に書かれています。
+
+現在は斉藤 登が maintainer を承っているので、問い合わせはこちらの方に
+お願いします。
+
+- Author
+
+ まつもと ゆきひろ <matz@ruby-lang.org>
+  Author of Ruby
+
+ まつもと えいじ <usagi@ruby.club.or.jp>
+  One of users who loves Ruby
+
+このふたりは兄弟ではありません。 :-)
+
+- Special Thanks
+
+ Guy Decoux   ts <decoux@moulon.inra.fr>
+
+- maintainer
+
+  斉藤 登 <noborus@netlab.jp>
+  まつもとでなくてすいません :-)
+

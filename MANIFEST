@@ -1,0 +1,14 @@
+MANIFEST
+ChangeLog
+postgres.c
+extconf.rb
+README
+README.ja
+doc/postgres.html
+doc/postgres.jp.html
+sample/psql.rb
+sample/psqlHelp.rb
+sample/test1.rb
+sample/test2.rb
+sample/test4.rb
+sample/losample.rb
