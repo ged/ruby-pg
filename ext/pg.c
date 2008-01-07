@@ -674,56 +674,20 @@ pgconn_connection_used_password(self)
 
 /*
  * call-seq:
- *    conn.exec(sql) -> PGresult
- *
- * Sends SQL query request specified by _sql_ to the PostgreSQL.
- * Returns a PGresult instance on success.
- * On failure, it raises a PGError exception.
- *
- */
-static VALUE
-pgconn_exec(self, in_command)
-    VALUE self, in_command;
-{
-    PGconn *conn = get_pgconn(self);
-    PGresult *result = NULL;
-	VALUE rb_pgresult;
-	VALUE command;
-
-	if(TYPE(in_command) == T_STRING)
-		command = in_command;
-	else
-		command = rb_funcall(in_command, rb_intern("to_s"), 0);
-	Check_Type(command, T_STRING);
-
-	result = PQexec(conn, StringValuePtr(command));
-
-	rb_pgresult = new_pgresult(result);
-	pgresult_check(self, rb_pgresult);
-
-    if (rb_block_given_p()) {
-        return rb_ensure(yield_pgresult, rb_pgresult, 
-			pgresult_clear, rb_pgresult);
-    }
-	return rb_pgresult;
-}
-
-/*
- * call-seq:
- *    conn.exec_params(sql, params, result_format) -> PGresult
+ *    conn.exec(sql [, params, result_format ] ) -> PGresult
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL.
  * Returns a PGresult instance on success.
  * On failure, it raises a PGError exception.
  *
- * +params+ is an array of the bind parameters for the SQL query.
+ * +params+ is an optional array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
  *      :type   => Fixnum (oid of type of bind parameter)
  *      :format => Fixnum (0 for text, 1 for binary)
  *     }
- *   or, it may be a String. If it is a string, that is equivalent to:
+ *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
@@ -740,7 +704,7 @@ pgconn_exec(self, in_command)
  * for binary.
  */
 static VALUE
-pgconn_exec_params(argc, argv, self)
+pgconn_exec(argc, argv, self)
     int argc;
 	VALUE *argv;
 	VALUE self;
@@ -763,13 +727,23 @@ pgconn_exec_params(argc, argv, self)
     rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
 
     Check_Type(command, T_STRING);
+
+	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
-		params = rb_ary_new2(0);
-		resultFormat = 0;
+		result = PQexec(conn, StringValuePtr(command));
+		rb_pgresult = new_pgresult(result);
+		pgresult_check(self, rb_pgresult);
+    	if (rb_block_given_p()) {
+    	    return rb_ensure(yield_pgresult, rb_pgresult, 
+				pgresult_clear, rb_pgresult);
+    	}
+		return rb_pgresult;
 	}
-	else {
-		Check_Type(params, T_ARRAY);
-	}
+
+	/* If called with parameters, and optionally result_format,
+	 * use PQexecParams
+	 */
+	Check_Type(params, T_ARRAY);
 
 	if(NIL_P(in_res_fmt)) {
 		resultFormat = 0;
@@ -902,7 +876,7 @@ pgconn_prepare(argc, argv, self)
  *     {:value  => String (value of bind parameter)
  *      :format => Fixnum (0 for text, 1 for binary)
  *     }
- *   or, it may be a String. If it is a string, that is equivalent to:
+ *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
@@ -1181,43 +1155,20 @@ pgconn_s_unescape_bytea(self, str)
 
 /*
  * call-seq:
- *    conn.send_query( command ) -> nil
- *
- * Asynchronously send _command_ to the server. Does not block. 
- * Use in combination with +conn.get_result+.
- */
-static VALUE
-pgconn_send_query(self, command)
-	VALUE self, command;
-{
-	VALUE error;
-	PGconn *conn = get_pgconn(self);
-	/* returns 0 on failure */
-	if(PQsendQuery(conn,StringValuePtr(command)) == 0) {
-		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
-	return Qnil;
-}
-
-
-/*
- * call-seq:
- *    conn.send_query_params(sql, params, result_format) -> nil
+ *    conn.send_query(sql [, params, result_format ] ) -> nil
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL for
  * asynchronous processing, and immediately returns.
  * On failure, it raises a PGError exception.
  *
- * +params+ is an array of the bind parameters for the SQL query.
+ * +params+ is an optional array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
  *      :type   => Fixnum (oid of type of bind parameter)
  *      :format => Fixnum (0 for text, 1 for binary)
  *     }
- *   or, it may be a String. If it is a string, that is equivalent to:
+ *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
@@ -1234,7 +1185,7 @@ pgconn_send_query(self, command)
  * for binary.
  */
 static VALUE
-pgconn_send_query_params(argc, argv, self)
+pgconn_send_query(argc, argv, self)
     int argc;
 	VALUE *argv;
 	VALUE self;
@@ -1257,13 +1208,20 @@ pgconn_send_query_params(argc, argv, self)
     rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
     Check_Type(command, T_STRING);
 
+	/* If called with no parameters, use PQsendQuery */
 	if(NIL_P(params)) {
-		params = rb_ary_new2(0);
-		resultFormat = 0;
+		if(PQsendQuery(conn,StringValuePtr(command)) == 0) {
+			error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
+			rb_iv_set(error, "@connection", self);
+			rb_exc_raise(error);
+		}
+		return Qnil;
 	}
-	else {
-		Check_Type(params, T_ARRAY);
-	}
+
+	/* If called with parameters, and optionally result_format,
+	 * use PQsendQueryParams
+	 */
+	Check_Type(params, T_ARRAY);
 
 	if(NIL_P(in_res_fmt)) {
 		resultFormat = 0;
@@ -1398,7 +1356,7 @@ pgconn_send_prepare(argc, argv, self)
  *     {:value  => String (value of bind parameter)
  *      :format => Fixnum (0 for text, 1 for binary)
  *     }
- *   or, it may be a String. If it is a string, that is equivalent to:
+ *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
@@ -2892,7 +2850,6 @@ Init_pg()
 
 	/******     PGconn INSTANCE METHODS: Command Execution     ******/
     rb_define_method(rb_cPGconn, "exec", pgconn_exec, 1);
-    rb_define_method(rb_cPGconn, "exec_params", pgconn_exec_params, -1);
     rb_define_method(rb_cPGconn, "prepare", pgconn_prepare, -1);
     rb_define_method(rb_cPGconn, "exec_prepared", pgconn_exec_prepared, -1);
     rb_define_method(rb_cPGconn, "describe_prepared", pgconn_describe_prepared, 1);
@@ -2904,7 +2861,6 @@ Init_pg()
  
 	/******     PGconn INSTANCE METHODS: Asynchronous Command Processing     ******/
     rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, 0);
-    rb_define_method(rb_cPGconn, "send_query_params", pgconn_send_query_params, 0);
     rb_define_method(rb_cPGconn, "send_prepare", pgconn_send_prepare, 0);
     rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, 0);
     rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 0);
