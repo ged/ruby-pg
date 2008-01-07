@@ -2,7 +2,7 @@ require 'rubygems'
 require 'date'
 
 SPEC = Gem::Specification.new do |s|
-  s.name              = 'postgres'
+  s.name              = 'ruby-pg'
   s.rubyforge_project = 'ruby-pg'
   s.version           = "0.7.9.#{Date.today}".tr('-', '.')
   s.summary           = 'Ruby extension library providing an API to PostgreSQL'
@@ -22,7 +22,7 @@ SPEC = Gem::Specification.new do |s|
     s.platform        = Gem::Platform::WIN32
   else
     s.platform        = Gem::Platform::RUBY
-    s.extensions      = ['ext/extconf.rb', 'compat-ruby-postgres/extconf.rb']
+    s.extensions      = ['ext/extconf.rb']
   end
 
   FILES = [
@@ -35,10 +35,8 @@ SPEC = Gem::Specification.new do |s|
 	]
 
   EXT_FILES = Dir['ext/*.[ch]']
-  COMPAT_FILES = Dir['compat-ruby-postgres/*.[ch]']
 
-
-  s.files = FILES + EXT_FILES + COMPAT_FILES
+  s.files = FILES + EXT_FILES
 
 end
 
