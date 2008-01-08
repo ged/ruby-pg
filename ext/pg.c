@@ -29,7 +29,7 @@ static VALUE rb_ePGError;
 
 /* The following functions are part of libpq, but not
  * available from ruby-pg, because they are deprecated,
- * obsolete, or generally not useful.
+ * obsolete, or generally not useful:
  *
  * * PQfreemem -- unnecessary: copied to ruby object, then
  *                freed. Ruby object's memory is freed when
@@ -1871,21 +1871,21 @@ pgconn_untrace(self)
 
 //TODO set_notice_processor
 
-/*TODO
+/*
  * call-seq:
- *    conn.client_encoding() -> String
+ *    conn.get_client_encoding() -> String
  * 
  * Returns the client encoding as a String.
  */
 static VALUE
-pgconn_client_encoding(self)
+pgconn_get_client_encoding(self)
     VALUE self;
 {
     char *encoding = (char *)pg_encoding_to_char(PQclientEncoding(get_pgconn(self)));
     return rb_tainted_str_new2(encoding);
 }
 
-/*TODO
+/*
  * call-seq:
  *    conn.set_client_encoding( encoding )
  * 
@@ -1897,7 +1897,7 @@ pgconn_set_client_encoding(self, str)
 {
     Check_Type(str, T_STRING);
     if ((PQsetClientEncoding(get_pgconn(self), StringValuePtr(str))) == -1){
-        rb_raise(rb_ePGError, "invalid encoding name %s",StringValuePtr(str));
+        rb_raise(rb_ePGError, "invalid encoding name: %s",StringValuePtr(str));
     }
     return Qnil;
 }
@@ -2950,7 +2950,7 @@ Init_pg()
     rb_define_method(rb_cPGconn, "set_notice_processor", pgconn_set_notice_processor, 0);
 
 	/******     PGconn INSTANCE METHODS: Other TODO    ******/
-    rb_define_method(rb_cPGconn, "client_encoding", pgconn_client_encoding, 0);
+    rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
     rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 
 	/******     PGconn INSTANCE METHODS: Large Object Support     ******/
