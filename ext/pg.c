@@ -709,8 +709,8 @@ pgconn_exec(argc, argv, self)
 	VALUE *argv;
 	VALUE self;
 {
-    PGconn *conn = get_pgconn(self);
-    PGresult *result = NULL;
+	PGconn *conn = get_pgconn(self);
+	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE command, params, in_res_fmt;
 	VALUE param, param_type, param_value, param_format;
@@ -829,8 +829,8 @@ pgconn_prepare(argc, argv, self)
 	VALUE *argv;
 	VALUE self;
 {
-    PGconn *conn = get_pgconn(self);
-    PGresult *result = NULL;
+	PGconn *conn = get_pgconn(self);
+	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE name, command, in_paramtypes;
 	VALUE param;
@@ -892,8 +892,8 @@ pgconn_exec_prepared(argc, argv, self)
     VALUE *argv;
     VALUE self;
 {
-    PGconn *conn = get_pgconn(self);
-    PGresult *result = NULL;
+	PGconn *conn = get_pgconn(self);
+	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE name, params, in_res_fmt;
 	VALUE param, param_value, param_format;
@@ -982,9 +982,9 @@ static VALUE
 pgconn_describe_prepared(self, stmt_name)
 	VALUE self, stmt_name;
 {
-	PGconn *conn = get_pgconn(self);
 	PGresult *result;
 	VALUE rb_pgresult;
+	PGconn *conn = get_pgconn(self);
 	char *stmt;
 	if(stmt_name == Qnil) {
 		stmt = NULL;
@@ -1010,9 +1010,9 @@ static VALUE
 pgconn_describe_portal(self, stmt_name)
 	VALUE self, stmt_name;
 {
-	PGconn *conn = get_pgconn(self);
 	PGresult *result;
 	VALUE rb_pgresult;
+	PGconn *conn = get_pgconn(self);
 	char *stmt;
 	if(stmt_name == Qnil) {
 		stmt = NULL;
@@ -1028,7 +1028,32 @@ pgconn_describe_portal(self, stmt_name)
 }
 
 
-// TODO make_empty_pgresult
+/*
+ * call-seq:
+ *    conn.make_empty_pgresult( status ) -> PGresult
+ *
+ * Constructs and empty PGresult with status _status_.
+ * _status_ may be one of:
+ * * +PGRES_EMPTY_QUERY+
+ * * +PGRES_COMMAND_OK+
+ * * +PGRES_TUPLES_OK+
+ * * +PGRES_COPY_OUT+
+ * * +PGRES_COPY_IN+
+ * * +PGRES_BAD_RESPONSE+
+ * * +PGRES_NONFATAL_ERROR+
+ * * +PGRES_FATAL_ERROR+
+ */
+static VALUE
+pgconn_make_empty_pgresult(VALUE self, VALUE status)
+{
+	PGresult *result;
+	VALUE rb_pgresult;
+	PGconn *conn = get_pgconn(self);
+	result = PQmakeEmptyPGresult(conn, NUM2INT(status));
+	rb_pgresult = new_pgresult(result);
+	pgresult_check(self, rb_pgresult);
+	return rb_pgresult;
+}
 
 
 /*
@@ -1604,19 +1629,30 @@ pgconn_isnonblocking(self)
 	return PQisnonblocking(get_pgconn(self)) ? Qtrue : Qfalse;
 }
 
-/*TODO
+/*
  * call-seq:
  *    conn.flush() -> Boolean
  *
- * Returns +true+ if a command is busy, that is, if
- * PQgetResult would block. Otherwise returns +false+.
+ * Attempts to flush any queued output data to the server.
+ * Returns +true+ if data is successfully flushed, +false+
+ * if not (can only return +false+ if connection is
+ * nonblocking.
+ * Raises PGError exception if some other failure occurred.
  */
 static VALUE
 pgconn_flush(self)
 	VALUE self;
 {
-	//if(PQflush(get_pgconn(self))) 
-	return Qnil;
+	PGconn *conn = get_pgconn(self);
+	int ret;
+	VALUE error;
+	ret = PQflush(conn);
+	if(ret == -1) {
+		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
+		rb_iv_set(error, "@connection", self);
+		rb_exc_raise(error);
+	}
+	return (ret) ? Qfalse : Qtrue;
 }
 
 //TODO get_cancel
@@ -1646,10 +1682,8 @@ pgconn_notifies(self)
 	sym_be_pid = ID2SYM(rb_intern("be_pid"));
 	sym_extra = ID2SYM(rb_intern("extra"));
 
-    /* gets notify and builds result */
     notify = PQnotifies(conn);
     if (notify == NULL) {
-        /* there are no unhandled notifications */
         return Qnil;
     }
 	
@@ -1663,8 +1697,6 @@ pgconn_notifies(self)
 	rb_hash_aset(hash, sym_extra, extra);
 
     PQfreemem(notify);
-
-    /* returns result */
     return hash;
 }
 
@@ -1781,7 +1813,23 @@ pgconn_get_copy_data( argc, argv, self )
 	return rb_str_new(buffer, ret);
 }
 
-//TODO set_error_verbosity
+/*
+ * call-seq:
+ *    conn.set_error_verbosity( verbosity ) -> Fixnum
+ *
+ * Sets connection's verbosity to _verbosity_ and returns
+ * the previous setting. Available settings are:
+ * * PQERRORS_TERSE
+ * * PQERRORS_DEFAULT
+ * * PQERRORS_VERBOSE
+ */
+static VALUE
+pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
+{
+	PGconn *conn = get_pgconn(self);
+	PGVerbosity verbosity = NUM2INT(in_verbosity);
+	return INT2FIX(PQsetErrorVerbosity(conn, verbosity));
+}
 
 /*TODO
  * call-seq:
@@ -2817,6 +2865,11 @@ Init_pg()
 	rb_define_const(rb_cPGconn, "PQTRANS_INERROR", INT2FIX(PQTRANS_INERROR));
 	rb_define_const(rb_cPGconn, "PQTRANS_UNKNOWN", INT2FIX(PQTRANS_UNKNOWN));
 
+	/******     PGconn CLASS CONSTANTS: Error Verbosity     ******/
+	rb_define_const(rb_cPGconn, "PQERRORS_TERSE", INT2FIX(PQERRORS_TERSE));
+	rb_define_const(rb_cPGconn, "PQERRORS_DEFAULT", INT2FIX(PQERRORS_DEFAULT));
+	rb_define_const(rb_cPGconn, "PQERRORS_VERBOSE", INT2FIX(PQERRORS_VERBOSE));
+
 	/******     PGconn CLASS CONSTANTS: Large Objects     ******/
     rb_define_const(rb_cPGconn, "INV_WRITE", INT2FIX(INV_WRITE));
     rb_define_const(rb_cPGconn, "INV_READ", INT2FIX(INV_READ));
@@ -2855,6 +2908,7 @@ Init_pg()
     rb_define_method(rb_cPGconn, "exec_prepared", pgconn_exec_prepared, -1);
     rb_define_method(rb_cPGconn, "describe_prepared", pgconn_describe_prepared, 1);
     rb_define_method(rb_cPGconn, "describe_portal", pgconn_describe_portal, 1);
+    rb_define_method(rb_cPGconn, "make_empty_pgresult", pgconn_make_empty_pgresult, 1);
     rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	rb_define_alias(rb_cPGconn, "escape", "escape_string");
     rb_define_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
@@ -2887,7 +2941,7 @@ Init_pg()
     rb_define_method(rb_cPGconn, "get_copy_data", pgconn_get_copy_data, -1);
 
 	/******     PGconn INSTANCE METHODS: Control Functions     ******/
-    //rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 0);
+    rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 1);
     rb_define_method(rb_cPGconn, "trace", pgconn_trace, 1);
     rb_define_method(rb_cPGconn, "untrace", pgconn_untrace, 0);
 
@@ -2961,6 +3015,7 @@ Init_pg()
     rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
     rb_define_method(rb_cPGresult, "result_error_message", pgresult_result_error_message, 0);
     rb_define_method(rb_cPGresult, "result_error_field", pgresult_result_error_field, 0);
+    rb_define_method(rb_cPGresult, "clear", pgresult_clear, 0);
     rb_define_method(rb_cPGresult, "ntuples", pgresult_ntuples, 0);
     rb_define_method(rb_cPGresult, "nfields", pgresult_nfields, 0);
     rb_define_method(rb_cPGresult, "fname", pgresult_fname, 1);
@@ -2979,7 +3034,6 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "cmd_status", pgresult_cmd_status, 0);
 	rb_define_method(rb_cPGresult, "cmd_tuples", pgresult_cmd_tuples, 0);
 	rb_define_method(rb_cPGresult, "oid_value", pgresult_oid_value, 0);
-    rb_define_method(rb_cPGresult, "clear", pgresult_clear, 0);
 
 	/******     PGresult INSTANCE METHODS: other     ******/
     rb_define_method(rb_cPGresult, "[]", pgresult_aref, 1);
