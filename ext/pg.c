@@ -1902,6 +1902,51 @@ pgconn_set_client_encoding(self, str)
     return Qnil;
 }
 
+/*
+ * call-seq:
+ *    conn.transaction { |conn| ... } -> nil
+ *
+ * Executes a +BEGIN+ at the start of the block,
+ * and a +COMMIT+ at the end of the block, or 
+ * +ROLLBACK+ if any exception occurs.
+ */
+static VALUE
+pgconn_transaction(VALUE self)
+{
+	PGconn *conn = get_pgconn(self);
+	PGresult *result;
+	VALUE rb_pgresult;
+	int status;
+	
+	if (rb_block_given_p()) {
+		result = PQexec(conn, "BEGIN");
+		rb_pgresult = new_pgresult(result);
+		pgresult_check(self, rb_pgresult);
+		fprintf(stderr,"BEGIN\n");
+		rb_protect(rb_yield, self, &status);
+		if(status == 0) {
+			result = PQexec(conn, "COMMIT");
+			rb_pgresult = new_pgresult(result);
+			pgresult_check(self, rb_pgresult);
+			fprintf(stderr,"COMMIT\n");
+		}
+		else {
+			/* exception occurred, ROLLBACK and re-raise */
+			result = PQexec(conn, "ROLLBACK");
+			rb_pgresult = new_pgresult(result);
+			pgresult_check(self, rb_pgresult);
+			fprintf(stderr,"ROLLBACK\n");
+			rb_jump_tag(status);
+		}
+			
+	}
+	else {
+		/* no block supplied? */
+		rb_raise(rb_eArgError, "Must supply block for PGconn#transaction");
+	}
+	return Qnil;
+}
+
 /*TODO */
 static void
 notice_proxy(self, message)
@@ -2949,9 +2994,10 @@ Init_pg()
     //rb_define_method(rb_cPGconn, "set_notice_receiver", pgconn_set_notice_receiver, 0);
     rb_define_method(rb_cPGconn, "set_notice_processor", pgconn_set_notice_processor, 0);
 
-	/******     PGconn INSTANCE METHODS: Other TODO    ******/
+	/******     PGconn INSTANCE METHODS: Other    ******/
     rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
     rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
+	rb_define_method(rb_cPGconn, "transaction", pgconn_transaction, 0);
 
 	/******     PGconn INSTANCE METHODS: Large Object Support     ******/
     rb_define_method(rb_cPGconn, "lo_creat", pgconn_locreat, -1);
