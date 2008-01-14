@@ -1690,7 +1690,7 @@ pgconn_notifies(self)
 	hash = rb_hash_new();
 	relname = rb_tainted_str_new2(notify->relname);
 	be_pid = INT2NUM(notify->be_pid);
-	extra = rb_tainted_str_new2(notify->extra);
+	extra = rb_tainted_str_new2(PGNOTIFY_EXTRA(notify));
 	
     rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);

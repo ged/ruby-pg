@@ -12,25 +12,206 @@
   $Date: 2007-12-04 14:25:44 -0800 (Tue, 04 Dec 2007) $
 ************************************************/
 
+#include <ctype.h>
 #include "compat.h"
 
-#ifndef HAVE_PQDESCRIBEPREPARED
+#ifdef PG_BEFORE_080300
+int
+PQconnectionNeedsPassword(PGconn *conn)
+{
+	rb_raise(rb_eStandardError, 
+		"PQconnectionNeedsPassword not supported by this client version.");
+}
+
+int
+PQconnectionUsedPassword(PGconn *conn)
+{
+	rb_raise(rb_eStandardError, 
+		"PQconnectionUsedPassword not supported by this client version.");
+}
+
+int
+lo_truncate(PGconn *conn, int fd, size_t len)
+{
+	rb_raise(rb_eStandardError, "lo_truncate not supported by this client version.");
+}
+#endif /* PG_BEFORE_080300 */
+
+#ifdef PG_BEFORE_080200
+int
+PQisthreadsafe()
+{
+	return Qfalse;
+}
+
+int
+PQnparams(const PGresult *res)
+{
+	rb_raise(rb_eStandardError, "PQnparams not supported by this client version.");
+}
+
+Oid
+PQparamtype(const PGresult *res, int param_number)
+{
+	rb_raise(rb_eStandardError, "PQparamtype not supported by this client version.");
+}
+
 PGresult *
 PQdescribePrepared(PGconn *conn, const char *stmtName)
 {
 	rb_raise(rb_eStandardError, "PQdescribePrepared not supported by this client version.");
 }
-#endif /* HAVE_PQDESCRIBEPREPARED */
 
-#ifndef HAVE_PQDESCRIBEPORTAL
 PGresult *
 PQdescribePortal(PGconn *conn, const char *portalName)
 {
 	rb_raise(rb_eStandardError, "PQdescribePortal not supported by this client version.");
 }
-#endif /* HAVE_PQDESCRIBEPORTAL */
 
-#ifndef HAVE_PQESCAPESTRINGCONN
+int
+PQsendDescribePrepared(PGconn *conn, const char *stmtName)
+{
+	rb_raise(rb_eStandardError, "PQsendDescribePrepared not supported by this client version.");
+}
+
+int
+PQsendDescribePortal(PGconn *conn, const char *portalName)
+{
+	rb_raise(rb_eStandardError, "PQsendDescribePortal not supported by this client version.");
+}
+
+char *
+PQencryptPassword(const char *passwd, const char *user)
+{
+	rb_raise(rb_eStandardError, "PQencryptPassword not supported by this client version.");
+}
+#endif /* PG_BEFORE_080200 */
+
+#ifdef PG_BEFORE_080100
+Oid
+lo_create(PGconn *conn, Oid lobjId)
+{
+	rb_raise(rb_eStandardError, "lo_create not supported by this client version.");
+}
+#endif /* PG_BEFORE_080100 */
+
+#ifdef PG_BEFORE_080000
+PGresult *
+PQprepare(PGconn *conn, const char *stmtName, const char *query,
+	int nParams, const Oid *paramTypes)
+{
+	rb_raise(rb_eStandardError, "PQprepare not supported by this client version.");
+}
+
+int
+PQsendPrepare(PGconn *conn, const char *stmtName, const char *query,
+	int nParams, const Oid *paramTypes)
+{
+	rb_raise(rb_eStandardError, "PQsendPrepare not supported by this client version.");
+}
+
+int
+PQserverVersion(const PGconn* conn)
+{
+	rb_raise(rb_eStandardError, "PQserverVersion not supported by this client version.");
+}
+#endif /* PG_BEFORE_080000 */
+
+#ifdef PG_BEFORE_070400
+PGresult *
+PQexecParams(PGconn *conn, const char *command, int nParams, 
+	const Oid *paramTypes, const char * const * paramValues, const int *paramLengths, 
+	const int *paramFormats, int resultFormat)
+{
+	rb_raise(rb_eStandardError, "PQexecParams not supported by this client version.");
+}
+
+PGTransactionStatusType 
+PQtransactionStatus(const PGconn *conn)
+{
+	rb_raise(rb_eStandardError, "PQtransactionStatus not supported by this client version.");
+}
+
+char *
+PQparameterStatus(const PGconn *conn, const char *paramName)
+{
+	rb_raise(rb_eStandardError, "PQparameterStatus not supported by this client version.");
+}
+
+int
+PQprotocolVersion(const PGconn *conn)
+{
+	rb_raise(rb_eStandardError, "PQprotocolVersion not supported by this client version.");
+}
+
+PGresult
+*PQexecPrepared(PGconn *conn, const char *stmtName, int nParams, 
+	const char * const *ParamValues, const int *paramLengths, const int *paramFormats,
+	int resultFormat)
+{
+	rb_raise(rb_eStandardError, "PQexecPrepared not supported by this client version.");
+}
+
+int
+PQsendQueryParams(PGconn *conn, const char *command, int nParams,
+	const Oid *paramTypes, const char * const * paramValues, const int *paramLengths, 
+	const int *paramFormats, int resultFormat)
+{
+	rb_raise(rb_eStandardError, "PQsendQueryParams not supported by this client version.");
+}
+
+int
+PQsendQueryPrepared(PGconn *conn, const char *stmtName, int nParams, 
+	const char * const *ParamValues, const int *paramLengths, const int *paramFormats,
+	int resultFormat)
+{
+	rb_raise(rb_eStandardError, "PQsendQueryPrepared not supported by this client version.");
+}
+
+int
+PQputCopyData(PGconn *conn, const char *buffer, int nbytes)
+{
+	rb_raise(rb_eStandardError, "PQputCopyData not supported by this client version.");
+}
+
+int
+PQputCopyEnd(PGconn *conn, const char *errormsg)
+{
+	rb_raise(rb_eStandardError, "PQputCopyEnd not supported by this client version.");
+}
+
+int
+PQgetCopyData(PGconn *conn, char **buffer, int async)
+{
+	rb_raise(rb_eStandardError, "PQgetCopyData not supported by this client version.");
+}
+
+PGVerbosity
+PQsetErrorVerbosity(PGconn *conn, PGVerbosity verbosity)
+{
+	rb_raise(rb_eStandardError, "PQsetErrorVerbosity not supported by this client version.");
+}
+
+Oid
+PQftable(const PGresult *res, int column_number)
+{
+	rb_raise(rb_eStandardError, "PQftable not supported by this client version.");
+}
+
+int
+PQftablecol(const PGresult *res, int column_number)
+{
+	rb_raise(rb_eStandardError, "PQftablecol not supported by this client version.");
+}
+
+int
+PQfformat(const PGresult *res, int column_number)
+{
+	rb_raise(rb_eStandardError, "PQfformat not supported by this client version.");
+}
+#endif /* PG_BEFORE_070400 */
+
+#ifdef PG_BEFORE_070300
 size_t
 PQescapeStringConn(PGconn *conn, char *to, const char *from, 
 	size_t length, int *error)
@@ -44,157 +225,12 @@ PQescapeByteaConn(PGconn *conn, const unsigned char *from,
 {
 	return PQescapeBytea(from, from_length, to_length);
 }
-#endif /* HAVE_PQESCAPESTRINGCONN */
-
-#ifndef HAVE_PQPREPARE
-PGresult *
-PQprepare(PGconn *conn, const char *stmtName, const char *query,
-	int nParams, const Oid *paramTypes)
-{
-	rb_raise(rb_eStandardError, "PQprepare not supported by this client version.");
-}
-#endif /* HAVE_PQPREPARE */
-
-#ifndef HAVE_PQCONNECTIONNEEDSPASSWORD
-int
-PQconnectionNeedsPassword(PGconn *conn)
-{
-	rb_raise(rb_eStandardError, 
-		"PQconnectionNeedsPassword not supported by this client version.");
-}
-#endif /* HAVE_PQCONNECTIONUSEDPASSWORD */
-
-#ifndef HAVE_PQCONNECTIONUSEDPASSWORD
-int
-PQconnectionUsedPassword(PGconn *conn)
-{
-	rb_raise(rb_eStandardError, 
-		"PQconnectionUsedPassword not supported by this client version.");
-}
-#endif /* HAVE_PQCONNECTIONUSEDPASSWORD */
-
-#ifndef HAVE_PQISTHREADSAFE
-int
-PQisthreadsafe()
-{
-	return Qfalse;
-}
-#endif /* HAVE_PQISTHREADSAFE */
-
-#ifndef HAVE_LO_TRUNCATE
-int
-lo_truncate(PGconn *conn, int fd, size_t len)
-{
-	rb_raise(rb_eStandardError, "lo_truncate not supported by this client version.");
-}
-#endif /* HAVE_LO_TRUNCATE */
-
-#ifndef HAVE_LO_CREATE
-Oid
-lo_create(PGconn *conn, Oid lobjId)
-{
-	rb_raise(rb_eStandardError, "lo_create not supported by this client version.");
-}
-#endif /* HAVE_LO_CREATE */
-
-#ifndef HAVE_PQNPARAMS
-int
-PQnparams(const PGresult *res)
-{
-	rb_raise(rb_eStandardError, "PQnparams not supported by this client version.");
-}
-#endif /* HAVE_PQNPARAMS */
-
-#ifndef HAVE_PQPARAMTYPE
-Oid
-PQparamtype(const PGresult *res, int param_number)
-{
-	rb_raise(rb_eStandardError, "PQparamtype not supported by this client version.");
-}
-#endif /* HAVE_PQPARAMTYPE */
-
-#ifndef HAVE_PQSERVERVERSION
-int
-PQserverVersion(const PGconn* conn)
-{
-	rb_raise(rb_eStandardError, "PQserverVersion not supported by this client version.");
-}
-#endif /* HAVE_PQSERVERVERSION */
-
-#ifndef HAVE_PQSENDDESCRIBEPREPARED
-int
-PQsendDescribePrepared(PGconn *conn, const char *stmtName)
-{
-	rb_raise(rb_eStandardError, "PQsendDescribePrepared not supported by this client version.");
-}
-#endif /* HAVE_PQSENDDESCRIBEPREPARED */
-
-#ifndef HAVE_PQSENDDESCRIBEPORTAL
-int
-PQsendDescribePortal(PGconn *conn, const char *portalName)
-{
-	rb_raise(rb_eStandardError, "PQsendDescribePortal not supported by this client version.");
-}
-#endif /* HAVE_PQSENDDESCRIBEPORTAL */
-
-#ifndef HAVE_PQSENDPREPARE
-int
-PQsendPrepare(PGconn *conn, const char *stmtName, const char *query,
-	int nParams, const Oid *paramTypes)
-{
-	rb_raise(rb_eStandardError, "PQsendPrepare not supported by this client version.");
-}
-#endif /* HAVE_PQSENDPREPARE */
-
-#ifndef HAVE_PQENCRYPTPASSWORD
-char *
-PQencryptPassword(const char *passwd, const char *user)
-{
-	rb_raise(rb_eStandardError, "PQencryptPassword not supported by this client version.");
-}
-#endif /* HAVE_PQENCRYPTPASSWORD */
-
-#ifndef HAVE_PQEXECPARAMS
-PGresult *
-PQexecParams(PGconn *conn, const char *command, int nParams, 
-	const Oid *paramTypes, const char * const * paramValues, const int *paramLengths, 
-	const int *paramFormats, int resultFormat)
-{
-	rb_raise(rb_eStandardError, "PQexecParams not supported by this client version.");
-}
-
-#define BIND_PARAM_PATTERN "\\$(\\d+)"
-#include <ruby.h>
-#include <re.h>
-PGresult *
-PQexecParams_compat(PGconn *conn, VALUE command, VALUE values)
-{
-    VALUE bind_param_re = rb_reg_new(BIND_PARAM_PATTERN, 7, 0);
-    VALUE result = rb_str_buf_new(RSTRING(command)->len);
-    char* ptr = RSTRING(command)->ptr;
-    int scan = 0;
-    while ((scan = rb_reg_search(bind_param_re, command, scan, 0)) > 0) {
-        VALUE match = rb_backref_get();
-        int pos = BindParamNumber(match);
-        if (pos < RARRAY(values)->len) {
-            rb_str_buf_cat(result, ptr, scan - (ptr - RSTRING(command)->ptr));
-            ptr = RSTRING(command)->ptr + scan;
-            rb_str_buf_append(result, RARRAY(values)->ptr[pos]);
-        }
-        scan += RSTRING(rb_reg_nth_match(0, match))->len;
-        ptr += RSTRING(rb_reg_nth_match(0, match))->len;
-    }
-    rb_str_buf_cat(result, ptr, RSTRING(command)->len - (ptr - RSTRING(command)->ptr));
-
-    return PQexec(conn, StringValuePtr(result));
-}
-#endif /* HAVE_PQEXECPARAMS */
+#endif /* PG_BEFORE_070300 */
 
 
 /**************************************************************************
 
 IF ANY CODE IS COPIED FROM POSTGRESQL, PLACE IT AFTER THIS COMMENT.
-THE BSD LICENSE REQUIRES THAT YOU MAINTAIN THIS COPYRIGHT NOTICE.
 
 ***************************************************************************
 
@@ -227,7 +263,6 @@ PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 **************************************************************************/
 
 #ifndef HAVE_PQSETCLIENTENCODING
-
 int
 PQsetClientEncoding(PGconn *conn, const char *encoding)
 {

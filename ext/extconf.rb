@@ -20,26 +20,15 @@ end
 dir_config('pgsql', config_value('include'), config_value('lib'))
 
 desired_functions = %w(
-	PQsetClientEncoding 
-	PQfreemem 
-	PQescapeStringConn
-	PQprepare
-	PQescapeString
-	PQexecParams
 	PQconnectionUsedPassword
-	PQconnectionNeedsPassword
 	PQisthreadsafe
-	PQnparams
-	PQparamtype
-	PQsendDescribePrepared
-	PQsendDescribePortal
-	PQsendPrepare
-	PQencryptPassword
-	PQdescribePrepared
-	PQdescribePortal
+	PQprepare
+	PQexecParams
+	PQescapeString
+	PQescapeStringConn
 	lo_create
-	lo_truncate
 	pg_encoding_to_char 
+	PQsetClientEncoding 
 )
 
 if have_build_env

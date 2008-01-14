@@ -4,48 +4,39 @@
 
 #include <stdlib.h>
 
-#include "ruby.h"
-#include "rubyio.h"
 #include "libpq-fe.h"
 #include "libpq/libpq-fs.h"              /* large-object interface */
 
+#include "ruby.h"
 
+/* pg_config.h does not exist in older versions of
+ * PostgreSQL, so I can't effectively use PG_VERSION_NUM
+ * Instead, I create some #defines to help organization.
+ */
 #ifndef HAVE_PQCONNECTIONUSEDPASSWORD
-#define POSTGRES_BEFORE_83
+#define PG_BEFORE_080300
 #endif
 
-#if RUBY_VERSION_CODE < 180
-#define rb_check_string_type(x) rb_check_convert_type(x, T_STRING, "String", "to_str")
-#endif /* RUBY_VERSION_CODE < 180 */
+#ifndef HAVE_PQISTHREADSAFE
+#define PG_BEFORE_080200
+#endif
 
-#ifndef RARRAY_LEN
-#define RARRAY_LEN(x) RARRAY((x))->len
-#endif /* RARRAY_LEN */
+#ifndef HAVE_LOCREATE
+#define PG_BEFORE_080100
+#endif
 
-#ifndef RSTRING_LEN
-#define RSTRING_LEN(x) RSTRING((x))->len
-#endif /* RSTRING_LEN */
+#ifndef HAVE_PQPREPARE
+#define PG_BEFORE_080000
+#endif
 
-#ifndef RSTRING_PTR
-#define RSTRING_PTR(x) RSTRING((x))->ptr
-#endif /* RSTRING_PTR */
+#ifndef HAVE_PQEXECPARAMS
+#define PG_BEFORE_070400
+#endif
 
-#ifndef StringValuePtr
-#define StringValuePtr(x) STR2CSTR(x)
-#endif /* StringValuePtr */
-
-#ifdef POSTGRES_BEFORE_83
-#ifndef HAVE_PG_ENCODING_TO_CHAR
-#define pg_encoding_to_char(x) "SQL_ASCII"
-#else
- /* Some versions ofPostgreSQL prior to 8.3 define
-  * pg_encoding_to_char but do not declare it
-  * in a header file, so this declaration will
-  * eliminate an unecessary warning
-  */
-extern char* pg_encoding_to_char(int);
-#endif /* HAVE_PG_ENCODING_TO_CHAR */
-#endif /* POSTGRES_BEFORE_83 */
+#ifndef HAVE_PQESCAPESTRINGCONN
+#define PG_BEFORE_070300
+#error PostgreSQL client version too old, requires 7.3 or later.
+#endif
 
 #ifndef PG_DIAG_INTERNAL_POSITION
 #define PG_DIAG_INTERNAL_POSITION 'p'
@@ -55,94 +46,123 @@ extern char* pg_encoding_to_char(int);
 #define PG_DIAG_INTERNAL_QUERY  'q'
 #endif /* PG_DIAG_INTERNAL_QUERY */
 
-#ifndef HAVE_PQFREEMEM
+#ifdef PG_BEFORE_080300
+
+#ifndef HAVE_PG_ENCODING_TO_CHAR
+#define pg_encoding_to_char(x) "SQL_ASCII"
+#else
+ /* Some versions ofPostgreSQL prior to 8.3 define pg_encoding_to_char
+  * but do not declare it in a header file, so this declaration will
+  * eliminate an unecessary warning
+  */
+extern char* pg_encoding_to_char(int);
+#endif /* HAVE_PG_ENCODING_TO_CHAR */
+
+int PQconnectionNeedsPassword(PGconn *conn);
+int PQconnectionUsedPassword(PGconn *conn);
+int lo_truncate(PGconn *conn, int fd, size_t len);
+
+#endif /* PG_BEFORE_080300 */
+
+#ifdef PG_BEFORE_080200
+int PQisthreadsafe(void);
+int PQnparams(const PGresult *res);
+Oid PQparamtype(const PGresult *res, int param_number);
+PGresult * PQdescribePrepared(PGconn *conn, const char *stmtName);
+PGresult * PQdescribePortal(PGconn *conn, const char *portalName);
+int PQsendDescribePrepared(PGconn *conn, const char *stmtName);
+int PQsendDescribePortal(PGconn *conn, const char *portalName);
+char *PQencryptPassword(const char *passwd, const char *user);
+#endif /* PG_BEFORE_080200 */
+
+#ifdef PG_BEFORE_080100
+Oid lo_create(PGconn *conn, Oid lobjId);
+#endif /* PG_BEFORE_080100 */
+
+#ifdef PG_BEFORE_080000
+PGresult *PQprepare(PGconn *conn, const char *stmtName, const char *query,
+	int nParams, const Oid *paramTypes);
+int PQsendPrepare(PGconn *conn, const char *stmtName, const char *query,
+	int nParams, const Oid *paramTypes);
+int PQserverVersion(const PGconn* conn);
+#endif /* PG_BEFORE_080000 */
+
+#ifdef PG_BEFORE_070400
+
+#define PG_DIAG_SEVERITY        'S'
+#define PG_DIAG_SQLSTATE        'C'
+#define PG_DIAG_MESSAGE_PRIMARY 'M'
+#define PG_DIAG_MESSAGE_DETAIL  'D'
+#define PG_DIAG_MESSAGE_HINT    'H'
+#define PG_DIAG_STATEMENT_POSITION 'P'
+#define PG_DIAG_CONTEXT         'W'
+#define PG_DIAG_SOURCE_FILE     'F'
+#define PG_DIAG_SOURCE_LINE     'L'
+#define PG_DIAG_SOURCE_FUNCTION 'R'
+
 #define PQfreemem(ptr) free(ptr)
-#endif /* HAVE_PQFREEMEM */
+#define PGNOTIFY_EXTRA(notify) ""
 
-#ifndef HAVE_PQSETCLIENTENCODING
+/* CONNECTION_SSL_STARTUP was added to an enum type
+ * after 7.3. For 7.3 in order to compile, we just need
+ * it to evaluate to something that is not present in that
+ * enum.
+ */
+#define CONNECTION_SSL_STARTUP 1000000
+
+typedef enum
+{
+	PQERRORS_TERSE,		/* single-line error messages */
+	PQERRORS_DEFAULT,	/* recommended style */
+	PQERRORS_VERBOSE	/* all the facts, ma'am */
+} PGVerbosity;
+
+typedef enum
+{
+	PQTRANS_IDLE,		/* connection idle */
+	PQTRANS_ACTIVE,		/* command in progress */
+	PQTRANS_INTRANS,	/* idle, within transaction block */
+	PQTRANS_INERROR,	/* idle, within failed transaction */
+	PQTRANS_UNKNOWN		/* cannot determine status */
+} PGTransactionStatusType;
+
+PGresult *PQexecParams(PGconn *conn, const char *command, int nParams, 
+	const Oid *paramTypes, const char * const * paramValues, const int *paramLengths, 
+	const int *paramFormats, int resultFormat);
+PGTransactionStatusType PQtransactionStatus(const PGconn *conn);
+char *PQparameterStatus(const PGconn *conn, const char *paramName);
+int PQprotocolVersion(const PGconn *conn);
+PGresult *PQexecPrepared(PGconn *conn, const char *stmtName, int nParams, 
+	const char * const *ParamValues, const int *paramLengths, const int *paramFormats,
+	int resultFormat);
+int PQsendQueryParams(PGconn *conn, const char *command, int nParams,
+	const Oid *paramTypes, const char * const * paramValues, const int *paramLengths, 
+	const int *paramFormats, int resultFormat);
+int PQsendQueryPrepared(PGconn *conn, const char *stmtName, int nParams, 
+	const char * const *ParamValues, const int *paramLengths, const int *paramFormats,
+	int resultFormat);
+int PQputCopyData(PGconn *conn, const char *buffer, int nbytes);
+int PQputCopyEnd(PGconn *conn, const char *errormsg);
+int PQgetCopyData(PGconn *conn, char **buffer, int async);
+PGVerbosity PQsetErrorVerbosity(PGconn *conn, PGVerbosity verbosity);
+Oid PQftable(const PGresult *res, int column_number);
+int PQftablecol(const PGresult *res, int column_number);
+int PQfformat(const PGresult *res, int column_number);
+
+#else
+#define PGNOTIFY_EXTRA(notify) ((notify)->extra)
+#endif /* PG_BEFORE_070400 */
+
+#ifdef PG_BEFORE_070300
+#error unsupported postgresql version, requires 7.3 or later.
 int PQsetClientEncoding(PGconn *conn, const char *encoding)
-#endif /* HAVE_PQSETCLIENTENCODING */
-
-#ifndef HAVE_PQESCAPESTRING
 size_t PQescapeString(char *to, const char *from, size_t length);
 unsigned char * PQescapeBytea(const unsigned char *bintext, size_t binlen, size_t *bytealen);
 unsigned char * PQunescapeBytea(const unsigned char *strtext, size_t *retbuflen);
-#endif /* HAVE_PQESCAPESTRING */
-
-#ifndef HAVE_PQESCAPESTRINGCONN
 size_t PQescapeStringConn(PGconn *conn, char *to, const char *from, 
 	size_t length, int *error);
 unsigned char *PQescapeByteaConn(PGconn *conn, const unsigned char *from, 
 	size_t from_length, size_t *to_length);
-#endif /* HAVE_PQESCAPESTRINGCONN */
-
-#ifndef HAVE_PQPREPARE
-PGresult *PQprepare(PGconn *conn, const char *stmtName, const char *query,
-	int nParams, const Oid *paramTypes);
-#endif /* HAVE_PQPREPARE */
-
-#ifndef HAVE_PQDESCRIBEPREPARED
-PGresult * PQdescribePrepared(PGconn *conn, const char *stmtName);
-#endif /* HAVE_PQDESCRIBEPREPARED */
-
-#ifndef HAVE_PQDESCRIBEPORTAL
-PGresult * PQdescribePortal(PGconn *conn, const char *portalName);
-#endif /* HAVE_PQDESCRIBEPORTAL */
-
-#ifndef HAVE_PQCONNECTIONNEEDSPASSWORD
-int PQconnectionNeedsPassword(PGconn *conn);
-#endif /* HAVE_PQCONNECTIONNEEDSPASSWORD */
-
-#ifndef HAVE_PQCONNECTIONUSEDPASSWORD
-int PQconnectionUsedPassword(PGconn *conn);
-#endif /* HAVE_PQCONNECTIONUSEDPASSWORD */
-
-#ifndef HAVE_PQISTHREADSAFE
-int PQisthreadsafe(void);
-#endif /* HAVE_PQISTHREADSAFE */
-
-#ifndef HAVE_LO_TRUNCATE
-int lo_truncate(PGconn *conn, int fd, size_t len);
-#endif /* HAVE_LO_TRUNCATE */
-
-#ifndef HAVE_LO_CREATE
-Oid lo_create(PGconn *conn, Oid lobjId);
-#endif /* HAVE_LO_CREATE */
-
-#ifndef HAVE_PQNPARAMS
-int PQnparams(const PGresult *res);
-#endif /* HAVE_PQNPARAMS */
-
-#ifndef HAVE_PQPARAMTYPE
-Oid PQparamtype(const PGresult *res, int param_number);
-#endif /* HAVE_PQPARAMTYPE */
-
-#ifndef HAVE_PQSERVERVERSION
-int PQserverVersion(const PGconn* conn);
-#endif /* HAVE_PQSERVERVERSION */
-
-#ifndef HAVE_PQEXECPARAMS
-PGresult *PQexecParams(PGconn *conn, const char *command, int nParams, 
-	const Oid *paramTypes, const char * const * paramValues, const int *paramLengths, 
-	const int *paramFormats, int resultFormat);
-PGresult *PQexecParams_compat(PGconn *conn, VALUE command, VALUE values);
-#endif /* HAVE_PQEXECPARAMS */
-
-#ifndef HAVE_PQSENDDESCRIBEPREPARED
-int PQsendDescribePrepared(PGconn *conn, const char *stmtName);
-#endif /* HAVE_PQSENDDESCRIBEPREPARED */
-
-#ifndef HAVE_PQSENDDESCRIBEPORTAL
-int PQsendDescribePortal(PGconn *conn, const char *portalName);
-#endif /* HAVE_PQSENDDESCRIBEPORTAL */
-
-#ifndef HAVE_PQSENDPREPARE
-int PQsendPrepare(PGconn *conn, const char *stmtName, const char *query,
-	int nParams, const Oid *paramTypes);
-#endif /* HAVE_PQSENDPREPARE */
-
-#ifndef HAVE_PQENCRYPTPASSWORD
-char *PQencryptPassword(const char *passwd, const char *user);
-#endif /* HAVE_PQENCRYPTPASSWORD */
+#endif /* PG_BEFORE_070300 */
 
 #endif /* __compat_h */
