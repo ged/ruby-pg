@@ -1947,6 +1947,47 @@ pgconn_transaction(VALUE self)
 	return Qnil;
 }
 
+/*
+ * call-seq:
+ *    conn.block( [ timeout ] ) -> Boolean
+ *
+ * Blocks until the server is no longer busy, or if the 
+ * optional _timeout_ is reached.
+ * 
+ * Returns +false+ if _timeout_ is reached, +true+ otherwise.
+ * 
+ * If +true+ is returned, +conn.is_busy+ will return +false+
+ * and +conn.get_result+ will not block.
+ */
+static VALUE
+pgconn_block(int argc, VALUE *argv, VALUE self)
+{
+	PGconn *conn = get_pgconn(self);
+	struct timeval tv_start, tv_current;
+	double start, current;
+	double timeout;
+	VALUE timeout_in;
+
+	if (rb_scan_args(argc, argv, "01", &timeout_in) == 1)
+		timeout = NUM2DBL(timeout_in);
+	else
+		timeout = 1e9;
+
+	gettimeofday(&tv_start, NULL);
+	start = (double)tv_start.tv_sec + ((double)tv_start.tv_usec * 1e-6);
+	PQconsumeInput(conn);
+	while(PQisBusy(conn)) {
+		rb_thread_polling();
+		usleep(1);
+		gettimeofday(&tv_current, NULL);
+		current = (double)tv_current.tv_sec + ((double)tv_current.tv_usec * 1e-6);
+		if((current - start) > timeout)
+			return Qfalse;
+		PQconsumeInput(conn);
+	}
+	return Qtrue;
+}
+
 /*TODO */
 static void
 notice_proxy(self, message)
@@ -2998,6 +3039,7 @@ Init_pg()
     rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
     rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 	rb_define_method(rb_cPGconn, "transaction", pgconn_transaction, 0);
+	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
 
 	/******     PGconn INSTANCE METHODS: Large Object Support     ******/
     rb_define_method(rb_cPGconn, "lo_creat", pgconn_locreat, -1);
