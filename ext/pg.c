@@ -1788,6 +1788,7 @@ pgconn_get_copy_data( argc, argv, self )
 {
     VALUE async_in;
 	VALUE error;
+	VALUE result_str;
 	int ret;
 	int async;
 	char *buffer;
@@ -1810,7 +1811,9 @@ pgconn_get_copy_data( argc, argv, self )
 	if(ret == 0) { // would block
 		return Qfalse;
 	}
-	return rb_str_new(buffer, ret);
+	result_str = rb_str_new(buffer, ret);
+	PQfreemem(buffer);
+	return result_str;
 }
 
 /*
