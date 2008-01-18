@@ -2970,6 +2970,7 @@ Init_pg()
     rb_define_method(rb_cPGconn, "initialize", pgconn_init, -1);
     rb_define_method(rb_cPGconn, "reset", pgconn_reset, 0);
     rb_define_method(rb_cPGconn, "finish", pgconn_finish, 0);
+    rb_define_alias(rb_cPGconn, "close", "finish");
 
 	/******     PGconn INSTANCE METHODS: Connection Status     ******/
     rb_define_method(rb_cPGconn, "db", pgconn_db, 0);

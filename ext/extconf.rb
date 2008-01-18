@@ -34,7 +34,6 @@ desired_functions = %w(
 if have_build_env
   desired_functions.each(&method(:have_func))
   $OBJS = ['pg.o','compat.o']
-  $CFLAGS << ' -Wall -Wmissing-prototypes'
   create_makefile("pg")
 else
   puts 'Could not find PostgreSQL build environment (libraries & headers): Makefile not created'
