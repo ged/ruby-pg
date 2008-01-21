@@ -1966,28 +1966,32 @@ static VALUE
 pgconn_block(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = get_pgconn(self);
-	struct timeval tv_start, tv_current;
-	double start, current;
-	double timeout;
+	int sd = PQsocket(conn);
+	int ret;
+	struct timeval timeout;
+	struct timeval *ptimeout = NULL;
 	VALUE timeout_in;
+	double timeout_sec;
+	fd_set sd_rset;
 
-	if (rb_scan_args(argc, argv, "01", &timeout_in) == 1)
-		timeout = NUM2DBL(timeout_in);
-	else
-		timeout = 1e9;
+	if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
+		timeout_sec = NUM2DBL(timeout_in);
+		timeout.tv_sec = (long)timeout_sec;
+		timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
+		ptimeout = &timeout;
+	}
 
-	gettimeofday(&tv_start, NULL);
-	start = (double)tv_start.tv_sec + ((double)tv_start.tv_usec * 1e-6);
 	PQconsumeInput(conn);
 	while(PQisBusy(conn)) {
-		rb_thread_polling();
-		usleep(1);
-		gettimeofday(&tv_current, NULL);
-		current = (double)tv_current.tv_sec + ((double)tv_current.tv_usec * 1e-6);
-		if((current - start) > timeout)
+		FD_ZERO(&sd_rset);
+		FD_SET(sd, &sd_rset);
+		ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
+		/* if select() times out, return false */
+		if(ret == 0) 
 			return Qfalse;
 		PQconsumeInput(conn);
-	}
+	} 
+
 	return Qtrue;
 }
 
