@@ -1,3 +1,8 @@
+if(PLATFORM =~ /darwin/) then
+  arch = (IO.popen("uname -m").readline.chomp rescue nil)
+  ENV['ARCHFLAGS'] = " -arch #{arch} "
+end
+
 if RUBY_VERSION < '1.3'
   puts 'This library is for ruby-1.3 or higher.'
   exit 1

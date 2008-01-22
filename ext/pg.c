@@ -627,7 +627,7 @@ pgconn_error_message(self)
 
 /*
  * call-seq:
- *    conn.backed_pid() -> Fixnum
+ *    conn.backend_pid() -> Fixnum
  *
  * Returns the process ID of the backend server
  * process for this connection.
@@ -1954,8 +1954,9 @@ pgconn_transaction(VALUE self)
  * call-seq:
  *    conn.block( [ timeout ] ) -> Boolean
  *
- * Blocks until the server is no longer busy, or if the 
- * optional _timeout_ is reached.
+ * Blocks until the server is no longer busy, or until the 
+ * optional _timeout_ is reached, whichever comes first.
+ * _timeout_ is measured in seconds and can be fractional.
  * 
  * Returns +false+ if _timeout_ is reached, +true+ otherwise.
  * 
