@@ -2999,6 +2999,7 @@ Init_pg()
 
 	/******     PGconn INSTANCE METHODS: Command Execution     ******/
     rb_define_method(rb_cPGconn, "exec", pgconn_exec, -1);
+	rb_define_alias(rb_cPGconn, "query", "exec");
     rb_define_method(rb_cPGconn, "prepare", pgconn_prepare, -1);
     rb_define_method(rb_cPGconn, "exec_prepared", pgconn_exec_prepared, -1);
     rb_define_method(rb_cPGconn, "describe_prepared", pgconn_describe_prepared, 1);
