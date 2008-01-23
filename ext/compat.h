@@ -38,6 +38,14 @@
 #error PostgreSQL client version too old, requires 7.3 or later.
 #endif
 
+/* This is necessary because NAMEDATALEN is defined in 
+ * pg_config_manual.h in 8.3, and that include file doesn't
+ * exist before 7.4
+ */
+#ifndef PG_BEFORE_070400
+#include "pg_config_manual.h"
+#endif
+
 #ifndef PG_DIAG_INTERNAL_POSITION
 #define PG_DIAG_INTERNAL_POSITION 'p'
 #endif /* PG_DIAG_INTERNAL_POSITION */
