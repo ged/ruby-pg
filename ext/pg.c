@@ -1952,6 +1952,51 @@ pgconn_transaction(VALUE self)
 
 /*
  * call-seq:
+ *    PGconn.quote_ident( str ) -> String
+ *    conn.quote_ident( str ) -> String
+ *
+ * Returns a string that is safe for inclusion in a SQL query
+ * as an identifier. Note: this is not a quote function for values,
+ * but for identifiers.
+ * 
+ * For example, in a typical SQL query: +SELECT FOO FROM MYTABLE+
+ * The identifier +FOO+ is folded to lower case, so it actually means
+ * +foo+. If you really want to access the case-sensitive field name
+ * +FOO+, use this function like +PGconn.quote_ident('FOO')+, which
+ * will return +"FOO"+ (with double-quotes). PostgreSQL will see the
+ * double-quotes, and it will not fold to lower case.
+ *
+ * Similarly, this function also protects against special characters,
+ * and other things that might allow SQL injection if the identifier
+ * comes from an untrusted source.
+ */
+static VALUE
+pgconn_s_quote_ident(VALUE self, VALUE in_str)
+{
+	char *str = StringValuePtr(in_str);
+	/* result size at most NAMEDATALEN*2 plus surrounding
+     * double-quotes. */
+	char buffer[NAMEDATALEN*2+2];
+	int i=0,j=0;
+	
+	if(strlen(str) >= NAMEDATALEN) {
+		rb_raise(rb_eArgError, 
+			"Input string is longer than NAMEDATALEN-1 (%d)",
+			NAMEDATALEN-1);
+	}
+	buffer[j++] = '"';
+	for(i = 0; i < strlen(str) && str[i]; i++) {
+		if(str[i] == '"') 
+			buffer[j++] = '"';
+		buffer[j++] = str[i];
+	}
+	buffer[j++] = '"';
+	return rb_str_new(buffer,j);
+}
+
+
+/*
+ * call-seq:
  *    conn.block( [ timeout ] ) -> Boolean
  *
  * Blocks until the server is no longer busy, or until the 
@@ -2933,6 +2978,7 @@ Init_pg()
     rb_define_singleton_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
     rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
     rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 0);
+	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
     rb_define_const(rb_cPGconn, "CONNECTION_OK", INT2FIX(CONNECTION_OK));
@@ -3050,6 +3096,7 @@ Init_pg()
     rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 	rb_define_method(rb_cPGconn, "transaction", pgconn_transaction, 0);
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
+	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 
 	/******     PGconn INSTANCE METHODS: Large Object Support     ******/
     rb_define_method(rb_cPGconn, "lo_creat", pgconn_locreat, -1);
