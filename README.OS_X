@@ -1,0 +1,16 @@
+
+If you are building ruby-pg on OS X, read this file.
+
+OS X supports both architecture-specific binaries (e.g. i386), as well
+as universal binaries (i.e. i386 & ppc). If ruby is built as a universal 
+binary and postgresql is not, you need to set the environment variable
+ARCHFLAGS appropriately.
+
+For example, if ruby is a universal binary, and postgresql is an i386
+binary (and you are on i386 architecture), you need to:
+
+(in bash) $ export ARCHFLAGS='-arch i386'
+(in tcsh) % setenv ARCHFLAGS '-arch i386'
+
+Then try building again (re-run extconf.rb).
+

@@ -1,0 +1,13 @@
+
+If you are trying to build this extension on windows, please read this.
+
+Currently, it takes a little work to build this extension on windows. This
+is because I haven't received enough feedback to resolve the problems. If
+you have trouble building the extension on windows, please join the mailing 
+list:
+
+	ruby-pg-general@rubyforge.org
+
+And submit questions, problems, or solutions, so that it can be improved.
+
+

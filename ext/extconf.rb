@@ -22,7 +22,7 @@ if(PLATFORM =~ /darwin/) then
 
 		For example:
 		(in bash) $ export ARCHFLAGS='-arch #{arch}'
-		(in tcsh) $ setenv ARCHFLAGS '-arch #{arch}'
+		(in tcsh) % setenv ARCHFLAGS '-arch #{arch}'
 
 		Then try building again.
 
@@ -34,7 +34,7 @@ end
 
 # windows compatibility, need different library name
 if(PLATFORM =~ /mingw|mswin/) then
-	$libname = '/ms/libpq.lib'
+	$libname = '/ms/libpq'
 else
 	$libname = 'pq'
 end
