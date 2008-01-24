@@ -1,9 +1,36 @@
 require 'mkmf'
 
-# OS X compatibility, need to set ARCHFLAGS
+# OS X compatibility
 if(PLATFORM =~ /darwin/) then
-	arch = (IO.popen("uname -m").readline.chomp rescue nil)
-	ENV['ARCHFLAGS'] = " -arch #{arch} "
+	# test if postgresql is probably universal
+	bindir = (IO.popen("pg_config --bindir").readline.chomp rescue nil)
+	filetype = (IO.popen("file #{bindir}/pg_config").
+		readline.chomp rescue nil)
+	# if it's not universal, ARCHFLAGS should be set
+	if((filetype !~ /universal binary/) && ENV['ARCHFLAGS'].nil?) then
+		arch = (IO.popen("uname -m").readline.chomp rescue nil)
+		$stderr.write %{
+		===========   WARNING   ===========
+		
+		You are building this extension on OS X without setting the 
+		ARCHFLAGS environment variable, and PostgreSQL does not appear 
+		to have been built as a universal binary. If you are seeing this 
+		message, that means that the build will probably fail.
+
+		Try setting the environment variable ARCHFLAGS 
+		to '-arch #{arch}' before building.
+
+		For example:
+		(in bash) $ export ARCHFLAGS='-arch #{arch}'
+		(in tcsh) $ setenv ARCHFLAGS '-arch #{arch}'
+
+		Then try building again.
+
+		===================================
+		}
+		end
+		# We don't exit here. Who knows? It might build.
+	end
 end
 
 # windows compatibility, need different library name
@@ -14,7 +41,7 @@ else
 end
 
 if RUBY_VERSION < '1.8'
-	puts 'This library is for ruby-1.3 or higher.'
+	puts 'This library is for ruby-1.8 or higher.'
 	exit 1
 end
 
