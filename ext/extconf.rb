@@ -28,7 +28,6 @@ if(PLATFORM =~ /darwin/) then
 
 		===================================
 		}
-		end
 		# We don't exit here. Who knows? It might build.
 	end
 end
