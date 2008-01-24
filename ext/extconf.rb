@@ -34,7 +34,7 @@ end
 
 # windows compatibility, need different library name
 if(PLATFORM =~ /mingw|mswin/) then
-	$libname = 'ms/libpq.lib'
+	$libname = '/ms/libpq.lib'
 else
 	$libname = 'pq'
 end
