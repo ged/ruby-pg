@@ -1525,20 +1525,25 @@ pgconn_send_describe_portal(self, portal)
  * call-seq:
  *    conn.get_result() -> PGresult
  *
- * Asynchronously send _command_ to the server. Does not block. 
- * Use in combination with +conn.get_result+.
+ * Blocks waiting for the next result from a call to
+ * +PGconn#send_query+ (or another asynchronous command), 
+ * and returns it. Returns +nil+ if no more results are 
+ * available.
+ *
+ * Note: call this function repeatedly until it returns +nil+,
+ * or else you will not be able to issue further commands.
  */
 static VALUE
 pgconn_get_result(self)
 	VALUE self;
 {
+	PGconn *conn = get_pgconn(self);
 	PGresult *result;
 	VALUE rb_pgresult;
-
-	result = PQgetResult(get_pgconn(self));
+	
+	result = PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
-	
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
     if (rb_block_given_p()) {
@@ -2039,6 +2044,53 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 	} 
 
 	return Qtrue;
+}
+
+/*
+ * call-seq:
+ *    conn.get_last_result( ) -> PGresult
+ *
+ * This function retrieves all available results
+ * on the current connection (from previously issued
+ * asynchronous commands like +send_query()+) and
+ * returns the last non-NULL result, or +nil+ if no
+ * results are available.
+ *
+ * This function is similar to +PGconn#get_result+
+ * except that it is designed to get one and only
+ * one result.
+ */
+static VALUE
+pgconn_get_last_result(VALUE self)
+{
+	VALUE ret, result;
+	int result_found = 0;
+	while((result = pgconn_get_result(self)) != Qnil) {
+		ret = result;
+		result_found = 1;
+	}
+	if(!result_found)
+		return Qnil;
+	return ret;
+} 
+
+
+/*
+ * call-seq:
+ *    conn.async_exec(sql [, params, result_format ] ) -> PGresult
+ *
+ * This function has the same behavior as +PGconn#exec()+,
+ * except that it's implemented using asynchronous command 
+ * processing and ruby's +rb_thread_select()+ in order to 
+ * allow other threads to process while waiting for the
+ * server to complete the request.
+ */
+static VALUE
+pgconn_async_exec(int argc, VALUE *argv, VALUE self)
+{
+	pgconn_send_query(argc, argv, self);
+	pgconn_block(0, NULL, self);
+	return pgconn_get_last_result(self);
 }
 
 /*TODO */
@@ -2708,7 +2760,8 @@ pgresult_fsize(self, index)
  * call-seq:
  *    res.getvalue( tup_num, field_num )
  *
- * Returns the value in tuple number _tup_num_, field _field_num_. 
+ * Returns the value in tuple number _tup_num_, field _field_num_,
+ * or +nil+ if the field is +NULL+.
  */
 static VALUE
 pgresult_getvalue(self, tup_num, field_num)
@@ -2725,6 +2778,8 @@ pgresult_getvalue(self, tup_num, field_num)
    	if(j < 0 || j >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
    	}
+	if(PQgetisnull(result, i, j))
+		return Qnil;
 	return rb_str_new2(PQgetvalue(result, i, j));
 }
 
@@ -2884,6 +2939,8 @@ pgresult_aref(self, index)
 	VALUE fname,val;
 	VALUE tuple;
 
+	if(tuple_num >= PQntuples(result))
+		rb_raise(rb_eIndexError, "Index %d is out of range", tuple_num);
 	tuple = rb_hash_new();
 	for(field_num = 0; field_num < PQnfields(result); field_num++) {
 		fname = rb_str_new2(PQfname(result,field_num));
@@ -3097,6 +3154,9 @@ Init_pg()
 	rb_define_method(rb_cPGconn, "transaction", pgconn_transaction, 0);
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
+	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
+	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
+	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
 
 	/******     PGconn INSTANCE METHODS: Large Object Support     ******/
     rb_define_method(rb_cPGconn, "lo_creat", pgconn_locreat, -1);
