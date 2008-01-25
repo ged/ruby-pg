@@ -3162,7 +3162,9 @@ Init_pg()
     rb_define_method(rb_cPGresult, "result_error_field", pgresult_result_error_field, 0);
     rb_define_method(rb_cPGresult, "clear", pgresult_clear, 0);
     rb_define_method(rb_cPGresult, "ntuples", pgresult_ntuples, 0);
+    rb_define_alias(rb_cPGresult, "num_tuples", "ntuples");
     rb_define_method(rb_cPGresult, "nfields", pgresult_nfields, 0);
+    rb_define_alias(rb_cPGresult, "num_fields", "nfields");
     rb_define_method(rb_cPGresult, "fname", pgresult_fname, 1);
     rb_define_method(rb_cPGresult, "fnumber", pgresult_fnumber, 1);
     rb_define_method(rb_cPGresult, "ftable", pgresult_ftable, 1);
