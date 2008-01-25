@@ -3180,6 +3180,7 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "paramtype", pgresult_paramtype, 0);
 	rb_define_method(rb_cPGresult, "cmd_status", pgresult_cmd_status, 0);
 	rb_define_method(rb_cPGresult, "cmd_tuples", pgresult_cmd_tuples, 0);
+    rb_define_alias(rb_cPGresult, "cmdtuples", "cmd_tuples");
 	rb_define_method(rb_cPGresult, "oid_value", pgresult_oid_value, 0);
 
 	/******     PGresult INSTANCE METHODS: other     ******/
