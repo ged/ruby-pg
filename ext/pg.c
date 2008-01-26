@@ -123,7 +123,7 @@ get_pgconn(VALUE self)
 {
 	PGconn *conn;
 	Data_Get_Struct(self, PGconn, conn);
-	if (conn == NULL) rb_raise(rb_eStandardError, "not connected");
+	if (conn == NULL) rb_raise(rb_ePGError, "not connected");
 	return conn;
 }
 
@@ -132,7 +132,7 @@ get_pgresult(VALUE self)
 {
     PGresult *result;
     Data_Get_Struct(self, PGresult, result);
-    if (result == NULL) rb_raise(rb_eStandardError, "result has been cleared");
+    if (result == NULL) rb_raise(rb_ePGError, "result has been cleared");
     return result;
 }
 
