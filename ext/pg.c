@@ -1816,7 +1816,7 @@ pgconn_get_copy_data( argc, argv, self )
 	if(ret == 0) { // would block
 		return Qfalse;
 	}
-	result_str = rb_str_new(buffer, ret);
+	result_str = rb_tainted_str_new(buffer, ret);
 	PQfreemem(buffer);
 	return result_str;
 }
@@ -1978,6 +1978,7 @@ pgconn_transaction(VALUE self)
 static VALUE
 pgconn_s_quote_ident(VALUE self, VALUE in_str)
 {
+	VALUE ret;
 	char *str = StringValuePtr(in_str);
 	/* result size at most NAMEDATALEN*2 plus surrounding
      * double-quotes. */
@@ -1996,7 +1997,9 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 		buffer[j++] = str[i];
 	}
 	buffer[j++] = '"';
-	return rb_str_new(buffer,j);
+	ret = rb_str_new(buffer,j);
+	OBJ_INFECT(ret, in_str);
+	return ret;
 }
 
 
@@ -2491,7 +2494,7 @@ static VALUE
 pgresult_res_status(self,status)
     VALUE self,status;
 {
-    return rb_str_new2(PQresStatus(NUM2INT(status)));
+    return rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
 }
 
 /*
@@ -2504,7 +2507,7 @@ static VALUE
 pgresult_result_error_message(self)
     VALUE self;
 {
-    return rb_str_new2(PQresultErrorMessage(get_pgresult(self)));
+    return rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
 }
 
 /*
@@ -2531,7 +2534,7 @@ static VALUE
 pgresult_result_error_field(self)
     VALUE self;
 {
-    return rb_str_new2(PQresultErrorMessage(get_pgresult(self)));
+    return rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
 }
 
 /*
@@ -2780,7 +2783,7 @@ pgresult_getvalue(self, tup_num, field_num)
    	}
 	if(PQgetisnull(result, i, j))
 		return Qnil;
-	return rb_str_new2(PQgetvalue(result, i, j));
+	return rb_tainted_str_new2(PQgetvalue(result, i, j));
 }
 
 /*
@@ -2943,7 +2946,7 @@ pgresult_aref(self, index)
 		rb_raise(rb_eIndexError, "Index %d is out of range", tuple_num);
 	tuple = rb_hash_new();
 	for(field_num = 0; field_num < PQnfields(result); field_num++) {
-		fname = rb_str_new2(PQfname(result,field_num));
+		fname = rb_tainted_str_new2(PQfname(result,field_num));
 		if(PQgetisnull(result, tuple_num, field_num)) {
 			rb_hash_aset(tuple, fname, Qnil);
 		}
