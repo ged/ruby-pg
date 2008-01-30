@@ -14,13 +14,6 @@
 
 #include "pg.h"
 
-#define AssignCheckedStringValue(cstring, rstring) do { \
-    if (!NIL_P(temp = rstring)) { \
-        Check_Type(temp, T_STRING); \
-        cstring = StringValuePtr(temp); \
-    } \
-} while (0)
-
 #define rb_define_singleton_alias(klass,new,old) rb_define_alias(rb_singleton_class(klass),new,old)
 
 static VALUE rb_cPGconn;
@@ -104,6 +97,13 @@ build_key_value_string(hash, conninfo_rstr, key)
 			rb_hash_aref(hash, ID2SYM(rb_intern(key))))));
 	}
 	return;
+}
+
+static char *
+value_as_cstring(VALUE in_str)
+{
+	VALUE rstring = rb_obj_as_string(in_str);
+	return StringValuePtr(rstring);
 }
 
 static void
@@ -301,13 +301,13 @@ pgconn_init(argc, argv, self)
 		conn = PQconnectdb(conninfo);
     }
 	else if (RARRAY_LEN(args) == 7) {
-		AssignCheckedStringValue(host, rb_ary_entry(args, 0));
-		AssignCheckedStringValue(port, rb_obj_as_string(rb_ary_entry(args, 1)));
-		AssignCheckedStringValue(opt, rb_ary_entry(args, 2));
-		AssignCheckedStringValue(tty, rb_ary_entry(args, 3));
-		AssignCheckedStringValue(dbname, rb_ary_entry(args, 4));
-		AssignCheckedStringValue(login, rb_ary_entry(args, 5));
-		AssignCheckedStringValue(pwd, rb_ary_entry(args, 6));
+		host = value_as_cstring(rb_ary_entry(args,0));
+		port = value_as_cstring(rb_ary_entry(args,1));
+		opt = value_as_cstring(rb_ary_entry(args,2));
+		tty = value_as_cstring(rb_ary_entry(args,3));
+		dbname = value_as_cstring(rb_ary_entry(args,4));
+		login = value_as_cstring(rb_ary_entry(args,5));
+		pwd = value_as_cstring(rb_ary_entry(args,6));
 
 		conn = PQsetdbLogin(host, port, opt, tty, dbname, login, pwd);
 	}
@@ -331,7 +331,54 @@ pgconn_init(argc, argv, self)
     return self;
 }
 
-//TODO PGconn.conndefaults
+/*
+ * call-seq:
+ *    PGconn.conndefaults() -> Array
+ *
+ * Returns an array of hashes. Each hash has the keys:
+ * * +:keyword+ - the name of the option
+ * * +:envvar+ - the environment variable to fall back to
+ * * +:compiled+ - the compiled in option as a secondary fallback
+ * * +:val+ - the option's current value, or +nil+ if not known
+ * * +:label+ - the label for the field
+ * * +:dispchar+ - "" for normal, "D" for debug, and "*" for password
+ * * +:dispsize+ - field size
+ */
+static VALUE
+pgconn_s_conndefaults(VALUE self)
+{
+	PQconninfoOption *options = PQconndefaults();
+	VALUE ary = rb_ary_new();
+	VALUE hash;
+	int i = 0;
+	
+	for(i = 0; options[i].keyword != NULL; i++) {
+		hash = rb_hash_new();
+		if(options[i].keyword)
+			rb_hash_aset(hash, ID2SYM(rb_intern("keyword")), 
+				rb_str_new2(options[i].keyword));
+		if(options[i].envvar)
+			rb_hash_aset(hash, ID2SYM(rb_intern("envvar")), 
+				rb_str_new2(options[i].envvar));
+		if(options[i].compiled)
+			rb_hash_aset(hash, ID2SYM(rb_intern("compiled")), 
+				rb_str_new2(options[i].compiled));
+		if(options[i].val)
+			rb_hash_aset(hash, ID2SYM(rb_intern("val")), 
+				rb_str_new2(options[i].val));
+		if(options[i].label)
+			rb_hash_aset(hash, ID2SYM(rb_intern("label")), 
+				rb_str_new2(options[i].label));
+		if(options[i].dispchar)
+			rb_hash_aset(hash, ID2SYM(rb_intern("dispchar")), 
+				rb_str_new2(options[i].dispchar));
+		rb_hash_aset(hash, ID2SYM(rb_intern("dispsize")), 
+			INT2NUM(options[i].dispsize));
+		rb_ary_push(ary, hash);
+	}
+	PQconninfoFree(options);
+	return ary;
+}
 
 
 /*
@@ -2082,9 +2129,9 @@ pgconn_get_last_result(VALUE self)
  * call-seq:
  *    conn.async_exec(sql [, params, result_format ] ) -> PGresult
  *
- * This function has the same behavior as +PGconn#exec()+,
+ * This function has the same behavior as +PGconn#exec+,
  * except that it's implemented using asynchronous command 
- * processing and ruby's +rb_thread_select()+ in order to 
+ * processing and ruby's +rb_thread_select+ in order to 
  * allow other threads to process while waiting for the
  * server to complete the request.
  */
@@ -3039,6 +3086,7 @@ Init_pg()
     rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
     rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 0);
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
+	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
     rb_define_const(rb_cPGconn, "CONNECTION_OK", INT2FIX(CONNECTION_OK));
@@ -3080,6 +3128,7 @@ Init_pg()
 	/******     PGconn INSTANCE METHODS: Connection Control     ******/
     rb_define_method(rb_cPGconn, "initialize", pgconn_init, -1);
     rb_define_method(rb_cPGconn, "reset", pgconn_reset, 0);
+	rb_define_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
     rb_define_method(rb_cPGconn, "finish", pgconn_finish, 0);
     rb_define_alias(rb_cPGconn, "close", "finish");
 
