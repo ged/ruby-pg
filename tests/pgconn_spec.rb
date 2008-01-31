@@ -1,5 +1,7 @@
 require 'rubygems'
 require 'spec'
+
+$LOAD_PATH.unshift('../ext')
 require 'pg'
 
 describe PGconn do
