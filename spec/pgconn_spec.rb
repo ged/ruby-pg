@@ -1,15 +1,13 @@
 require 'rubygems'
 require 'spec'
 
-$LOAD_PATH.unshift('../ext')
+$LOAD_PATH.unshift('ext')
 require 'pg'
 
 describe PGconn do
 
 	before( :all ) do
-		puts "----------------"
-		puts "Testing PGconn"
-		puts "----------------"
+		puts "======  TESTING PGconn  ======"
 		@test_directory = "#{Dir.getwd}/tmp_test_#{rand}"
 		@test_pgdata = @test_directory + '/data'
 		if File.exists?(@test_directory) then
@@ -33,9 +31,27 @@ describe PGconn do
 		@conn = PGconn.connect(@conninfo)
 	end
 
-	it "should connect successfully" do
+	it "should connect successfully with connection string" do
 		tmpconn = PGconn.connect(@conninfo)
 		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn.db.should== 'test'
+		tmpconn.finish
+	end
+
+	it "should connect using 7 arguments converted to strings" do
+		tmpconn = PGconn.connect(@test_directory, 5432, nil, nil, :test, nil, nil)
+		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn.db.should== 'test'
+		tmpconn.finish
+	end
+
+	it "should connect using hash" do
+		tmpconn = PGconn.connect(
+			:host => @test_directory,
+			:port => 5432,
+			:dbname => :test)
+		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn.db.should== 'test'
 		tmpconn.finish
 	end
 
@@ -47,6 +63,8 @@ describe PGconn do
 	end
 
 	after( :all ) do
+		puts ""
+		puts "====== COMPLETED TESTING PGconn  ======"
 		@conn.finish
 		cmds = []
 		cmds << "pg_ctl -D '#{@test_pgdata}' stop"

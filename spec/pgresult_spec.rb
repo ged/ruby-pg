@@ -1,13 +1,13 @@
 require 'rubygems'
 require 'spec'
+
+$LOAD_PATH.unshift('ext')
 require 'pg'
 
 describe PGconn do
 
 	before( :all ) do
-		puts "----------------"
-		puts "Testing PGresult"
-		puts "----------------"
+		puts "======  TESTING PGresult  ======"
 		@test_directory = "#{Dir.getwd}/tmp_test_#{rand}"
 		@test_pgdata = @test_directory + '/data'
 		if File.exists?(@test_directory) then
@@ -28,23 +28,24 @@ describe PGconn do
 				raise "Error executing cmd: #{cmd}: #{$?}"
 			end
 		end
+		puts "\n\n"
 		@conn = PGconn.connect(@conninfo)
 	end
 
-	it "should connect successfully" do
-		tmpconn = PGconn.connect(@conninfo)
-		tmpconn.status.should== PGconn::CONNECTION_OK
-		tmpconn.finish
+	it "should act as an array of hashes" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		res[0]['a'].should== '1'
+		res[0]['b'].should== '2'
 	end
 
-	it "should not leave stale server connections after finish" do
-		PGconn.connect(@conninfo).finish
-		res = @conn.exec("SELECT pg_stat_get_backend_idset()")
-		# there's still the global @conn, but should be no more
-		res.ntuples.should== 1
+	it "should return NULL as nil" do
+		res = @conn.exec("SELECT 1 AS a, NULL AS b")
+		res[0]['b'].should == nil
 	end
 
 	after( :all ) do
+		puts ""
+		puts "======  COMPLETED TESTING PGresult  ======"
 		@conn.finish
 		cmds = []
 		cmds << "pg_ctl -D '#{@test_pgdata}' stop"
