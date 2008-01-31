@@ -6,7 +6,7 @@ describe PGconn do
 
 	before( :all ) do
 		puts "----------------"
-		puts "Testing PGconn"
+		puts "Testing PGresult"
 		puts "----------------"
 		@test_directory = "#{Dir.getwd}/tmp_test_#{rand}"
 		@test_pgdata = @test_directory + '/data'
