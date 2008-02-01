@@ -2,7 +2,7 @@
 #
 # original file src/test/examples/testlibpq.c
 # 
-require 'postgres'
+require 'pg'
 
 def main
   pghost = nil

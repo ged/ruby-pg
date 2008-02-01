@@ -30,7 +30,6 @@ static VALUE rb_ePGError;
  * * PQbinaryTuples -- better to use PQfformat
  * * PQprint -- not very useful
  * * PQsetdb -- not very useful
- * * PQsetdbLogin -- not very useful
  * * PQoidStatus -- deprecated, use PQoidValue
  * * PQrequestCancel -- deprecated, use PQcancel
  * * PQfn -- use a prepared statement instead

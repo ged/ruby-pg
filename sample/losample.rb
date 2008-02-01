@@ -1,4 +1,4 @@
-require "postgres"
+require "pg"
 
 def main
   conn = PGconn.connect("localhost",5432,"","")

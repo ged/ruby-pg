@@ -3,7 +3,7 @@
 # original file src/test/examples/testlibpq4.c
 #     this test programs shows to use LIBPQ to make multiple backend
 #
-require 'postgres'
+require 'pg'
 
 def main
   if (ARGV.size != 4)

@@ -16,9 +16,9 @@
 # $Id: psql.rb,v 1.1.1.3 2002/04/24 05:46:44 noboru Exp $
 #
 
-require "postgres"
-require "parsearg.rb"
-require "psqlHelp.rb"
+require "pg"
+require "parsearg"
+require "psqlHelp"
 
 PROMPT           = "=> "
 MAX_QUERY_BUFFER = 20000

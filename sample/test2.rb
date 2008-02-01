@@ -11,7 +11,7 @@
 # INSERT INTO TBL1 values (10);
 
 
-require 'postgres'
+require 'pg'
 
 def main
   pghost = nil
