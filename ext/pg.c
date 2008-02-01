@@ -197,7 +197,9 @@ static VALUE yield_pgresult(VALUE rb_pgresult)
  * For example, to send query to the database on the localhost:
  *    require 'pg'
  *    conn = PGconn.open(:dbname => 'test')
- *    res  = conn.exec('select * from a')
+ *    res = conn.exec('SELECT $1 AS a, $2 AS b, $3 AS c',[1, 2, nil])
+ *    # Equivalent to:
+ *    #  res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
  *
  * See the PGresult class for information on working with the results of a query.
  *
@@ -738,7 +740,7 @@ pgconn_connection_used_password(self)
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
- * to $1, the 1st element is bound to $2, etc.
+ * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  * 
  * If the types are not specified, they will be inferred by PostgreSQL.
  * Instead of specifying type oids, it's recommended to simply add
@@ -811,24 +813,30 @@ pgconn_exec(argc, argv, self)
 		if (TYPE(param) == T_HASH) {
 			param_type = rb_hash_aref(param, sym_type);
 			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(TYPE(param_value_tmp) == T_STRING)
+			if(param_value_tmp == Qnil)
 				param_value = param_value_tmp;
 			else
-				param_value = rb_funcall(param_value_tmp, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param_value_tmp);
 			param_format = rb_hash_aref(param, sym_format);
 		}
 		else {
 			param_type = INT2NUM(0);
-			if(TYPE(param) == T_STRING)
+			if(param == Qnil)
 				param_value = param;
 			else
-				param_value = rb_funcall(param, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param);
 			param_format = INT2NUM(0);
 		}
-		Check_Type(param_value, T_STRING);
 		paramTypes[i] = NUM2INT(param_type);
-		paramValues[i] = RSTRING_PTR(param_value);
-		paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		if(param_value == Qnil) {
+			paramValues[i] = NULL;
+			paramLengths[i] = 0;
+		}
+		else {
+			Check_Type(param_value, T_STRING);
+			paramValues[i] = StringValuePtr(param_value);
+			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		}
 		paramFormats[i] = NUM2INT(param_format);
 	}
 	
@@ -927,7 +935,7 @@ pgconn_prepare(argc, argv, self)
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
- * to $1, the 1st element is bound to $2, etc.
+ * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
@@ -981,22 +989,28 @@ pgconn_exec_prepared(argc, argv, self)
 		param = rb_ary_entry(params, i);
 		if (TYPE(param) == T_HASH) {
 			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(TYPE(param_value_tmp) == T_STRING)
+			if(param_value_tmp == Qnil)
 				param_value = param_value_tmp;
 			else
-				param_value = rb_funcall(param_value_tmp, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param_value_tmp);
 			param_format = rb_hash_aref(param, sym_format);
 		}
 		else {
-			if(TYPE(param) == T_STRING)
+			if(param == Qnil)
 				param_value = param;
 			else
-				param_value = rb_funcall(param, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param);
 			param_format = INT2NUM(0);
 		}
-		Check_Type(param_value, T_STRING);
-		paramValues[i] = RSTRING_PTR(param_value);
-		paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		if(param_value == Qnil) {
+			paramValues[i] = NULL;
+			paramLengths[i] = 0;
+		}
+		else {
+			Check_Type(param_value, T_STRING);
+			paramValues[i] = StringValuePtr(param_value);
+			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		}
 		paramFormats[i] = NUM2INT(param_format);
 	}
 	
@@ -1244,7 +1258,7 @@ pgconn_s_unescape_bytea(self, str)
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
- * to $1, the 1st element is bound to $2, etc.
+ * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  * 
  * If the types are not specified, they will be inferred by PostgreSQL.
  * Instead of specifying type oids, it's recommended to simply add
@@ -1314,24 +1328,30 @@ pgconn_send_query(argc, argv, self)
 		if (TYPE(param) == T_HASH) {
 			param_type = rb_hash_aref(param, sym_type);
 			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(TYPE(param_value_tmp) == T_STRING)
+			if(param_value_tmp == Qnil)
 				param_value = param_value_tmp;
 			else
-				param_value = rb_funcall(param_value_tmp, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param_value_tmp);
 			param_format = rb_hash_aref(param, sym_format);
 		}
 		else {
 			param_type = INT2NUM(0);
-			if(TYPE(param) == T_STRING)
+			if(param == Qnil)
 				param_value = param;
 			else
-				param_value = rb_funcall(param, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param);
 			param_format = INT2NUM(0);
 		}
-		Check_Type(param_value, T_STRING);
 		paramTypes[i] = NUM2INT(param_type);
-		paramValues[i] = RSTRING_PTR(param_value);
-		paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		if(param_value == Qnil) {
+			paramValues[i] = NULL;
+			paramLengths[i] = 0;
+		}
+		else {
+			Check_Type(param_value, T_STRING);
+			paramValues[i] = StringValuePtr(param_value);
+			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		}
 		paramFormats[i] = NUM2INT(param_format);
 	}
 	
@@ -1433,7 +1453,7 @@ pgconn_send_prepare(argc, argv, self)
  * 
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
- * to $1, the 1st element is bound to $2, etc.
+ * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
@@ -1486,22 +1506,28 @@ pgconn_send_query_prepared(argc, argv, self)
 		param = rb_ary_entry(params, i);
 		if (TYPE(param) == T_HASH) {
 			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(TYPE(param_value_tmp) == T_STRING)
+			if(param_value_tmp == Qnil)
 				param_value = param_value_tmp;
 			else
-				param_value = rb_funcall(param_value_tmp, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param_value_tmp);
 			param_format = rb_hash_aref(param, sym_format);
 		}
 		else {
-			if(TYPE(param) == T_STRING)
+			if(param == Qnil)
 				param_value = param;
 			else
-				param_value = rb_funcall(param, rb_intern("to_s"), 0);
+				param_value = rb_obj_as_string(param);
 			param_format = INT2NUM(0);
 		}
-		Check_Type(param_value, T_STRING);
-		paramValues[i] = RSTRING_PTR(param_value);
-		paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		if(param_value == Qnil) {
+			paramValues[i] = NULL;
+			paramLengths[i] = 0;
+		}
+		else {
+			Check_Type(param_value, T_STRING);
+			paramValues[i] = StringValuePtr(param_value);
+			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+		}
 		paramFormats[i] = NUM2INT(param_format);
 	}
 	
@@ -2502,6 +2528,15 @@ pgconn_lounlink(self, in_oid)
  * An instance of this class is created as the result of every query.
  * You may need to invoke the #clear method of the instance when finished with
  * the result for better memory performance.
+ *
+ * Example:
+ *    require 'pg'
+ *    conn = PGconn.open(:dbname => 'test')
+ *    res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.getvalue(0,0) # '1'
+ *    res[0]['b']       # '2'
+ *    res[0]['c']       # nil
+ *  
  */
 
 /**************************************************************************

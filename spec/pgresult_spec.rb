@@ -38,9 +38,9 @@ describe PGconn do
 		res[0]['b'].should== '2'
 	end
 
-	it "should return NULL as nil" do
-		res = @conn.exec("SELECT 1 AS a, NULL AS b")
-		res[0]['b'].should == nil
+	it "should insert nil AS NULL and return NULL as nil" do
+		res = @conn.exec("SELECT $1::int AS n", [nil])
+		res[0]['n'].should == nil
 	end
 
 	after( :all ) do
