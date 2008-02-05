@@ -21,7 +21,7 @@
 #define PG_BEFORE_080200
 #endif
 
-#ifndef HAVE_LOCREATE
+#ifndef HAVE_LO_CREATE
 #define PG_BEFORE_080100
 #endif
 
