@@ -2864,7 +2864,8 @@ pgresult_getvalue(self, tup_num, field_num)
    	}
 	if(PQgetisnull(result, i, j))
 		return Qnil;
-	return rb_tainted_str_new2(PQgetvalue(result, i, j));
+	return rb_tainted_str_new(PQgetvalue(result, i, j), 
+				PQgetlength(result, i, j));
 }
 
 /*
@@ -3032,7 +3033,8 @@ pgresult_aref(self, index)
 			rb_hash_aset(tuple, fname, Qnil);
 		}
 		else {
-			val = rb_tainted_str_new2(PQgetvalue(result, tuple_num, field_num));
+			val = rb_tainted_str_new(PQgetvalue(result, tuple_num, field_num),
+				PQgetlength(result, tuple_num, field_num));
 			rb_hash_aset(tuple, fname, val);
 		}
 	}
