@@ -1,13 +1,36 @@
 
-If you are trying to build this extension on windows, please read this.
+In order to build this extension on MS Windows you will need a couple things.
 
-Currently, it takes a little work to build this extension on windows. This
-is because I haven't received enough feedback to resolve the problems. If
-you have trouble building the extension on windows, please join the mailing 
-list:
+First, a compiler. For the one click installer this means you should either
+use VC++ 6.0 or the compiler that comes with cygwin or mingw if you're
+building on that platform.
+
+If you've built Ruby yourself, you should use the same compiler to build
+this library that you used to build Ruby.
+
+Second, PostgreSQL. Be sure you installed it with the development header
+files if you installed it using the standard PostgreSQL installer for
+Windows. If you didn't, you can run the installer again, select "modify",
+and then select the 'development headers' option to install them.
+
+I recommend making sure that 'pg_config.exe' is in your PATH. The PostgreSQL
+installer for Windows does not necessarily update your PATH when it installs
+itself, so you may need to do this manually. This isn't strictly necessary,
+however.
+
+In order to build ruby-pg, just run 'rake'. If the pg_config.exe executable
+is not in your PATH, you'll need to explicitly point ruby-pg to where your
+PostgreSQL headers and libraries are with something like this:
+
+   rake --with-pg-dir=c:/progra~1/postgr~1/8.3
+
+Adjust your path accordingly. BE SURE TO USE THE SHORT PATH NAMES! If you
+try to use a path with spaces in it, the nmake.exe program will choke.
+
+If you have any problems you can submit them on the "Forum" on the
+RubyForge project page at http://www.rubyforge.org/projects/ruby-pg. Or
+you can join the mailing list:
 
 	ruby-pg-general@rubyforge.org
 
 And submit questions, problems, or solutions, so that it can be improved.
-
-

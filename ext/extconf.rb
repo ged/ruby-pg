@@ -32,13 +32,6 @@ if(PLATFORM =~ /darwin/) then
 	end
 end
 
-# windows compatibility, need different library name
-if(PLATFORM =~ /mingw|mswin/) then
-	$libname = '/ms/libpq'
-else
-	$libname = 'pq'
-end
-
 if RUBY_VERSION < '1.8'
 	puts 'This library is for ruby-1.8 or higher.'
 	exit 1
@@ -53,10 +46,11 @@ def pg_config(type)
 end
 
 def have_build_env
-	have_library($libname) && have_header('libpq-fe.h') && have_header('libpq/libpq-fs.h')
+	(have_library('pq') || have_library('libpq') || have_library('ms/libpq')) &&
+   have_header('libpq-fe.h') && have_header('libpq/libpq-fs.h')
 end
 
-dir_config('pgsql', config_value('include'), config_value('lib'))
+dir_config('pg', config_value('include'), config_value('lib'))
 
 desired_functions = %w(
 	PQconnectionUsedPassword
