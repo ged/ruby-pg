@@ -19,7 +19,8 @@ describe PGconn do
 		cmds = []
 		cmds << "initdb -D '#{@test_pgdata}'"
 		cmds << "pg_ctl -D '#{@test_pgdata}' " + 
-			%!-o "--unix-socket-directory='#{@test_directory}'" ! + 
+			%!-o "--unix-socket-directory='#{@test_directory}' ! + 
+			%!--listen-addresses=''" ! + 
 			"start"
 		cmds << "sleep 2"
 		cmds << "createdb -h '#{@test_directory}' test"
@@ -34,14 +35,12 @@ describe PGconn do
 	it "should connect successfully with connection string" do
 		tmpconn = PGconn.connect(@conninfo)
 		tmpconn.status.should== PGconn::CONNECTION_OK
-		tmpconn.db.should== 'test'
 		tmpconn.finish
 	end
 
 	it "should connect using 7 arguments converted to strings" do
 		tmpconn = PGconn.connect(@test_directory, 5432, nil, nil, :test, nil, nil)
 		tmpconn.status.should== PGconn::CONNECTION_OK
-		tmpconn.db.should== 'test'
 		tmpconn.finish
 	end
 
@@ -51,15 +50,15 @@ describe PGconn do
 			:port => 5432,
 			:dbname => :test)
 		tmpconn.status.should== PGconn::CONNECTION_OK
-		tmpconn.db.should== 'test'
 		tmpconn.finish
 	end
 
 	it "should not leave stale server connections after finish" do
 		PGconn.connect(@conninfo).finish
-		res = @conn.exec("SELECT pg_stat_get_backend_idset()")
+		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
+							WHERE usename IS NOT NULL])
 		# there's still the global @conn, but should be no more
-		res.ntuples.should== 1
+		res[0]['n'].should== '1'
 	end
 
 	after( :all ) do

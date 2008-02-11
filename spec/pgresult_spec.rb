@@ -19,7 +19,8 @@ describe PGconn do
 		cmds = []
 		cmds << "initdb -D '#{@test_pgdata}'"
 		cmds << "pg_ctl -D '#{@test_pgdata}' " + 
-			%!-o "--unix-socket-directory='#{@test_directory}'" ! + 
+			%!-o "--unix-socket-directory='#{@test_directory}' ! + 
+			%!--listen-addresses=''" ! +
 			"start"
 		cmds << "sleep 2"
 		cmds << "createdb -h '#{@test_directory}' test"
