@@ -17,12 +17,13 @@ $functions = %w[
 # OS X compatibility
 if(PLATFORM =~ /darwin/) then
 	# test if postgresql is probably universal
-	bindir = (IO.popen("pg_config --bindir").readline.chomp rescue nil)
-	filetype = (IO.popen("file #{bindir}/pg_config").
-		readline.chomp rescue nil)
+	bindir = "'" + IO.popen("pg_config --bindir").readline.chomp + "'"
+	Open3.popen3('file',"#{bindir}/pg_config") do |the_in, the_out, the_err|
+		filetype = the_out.readline.chomp
+	end
 	# if it's not universal, ARCHFLAGS should be set
 	if((filetype !~ /universal binary/) && ENV['ARCHFLAGS'].nil?) then
-		arch = (IO.popen("uname -m").readline.chomp rescue nil)
+		arch = IO.popen("uname -m").readline.chomp
 		$stderr.write %{
 		===========   WARNING   ===========
 		
@@ -52,7 +53,7 @@ if RUBY_VERSION < '1.8'
 end
 
 def pg_config(type)
-	IO.popen("pg_config --#{type}dir").readline.chomp rescue nil
+	IO.popen("pg_config --#{type}dir").readline.chomp
 end
 
 def config_value(type)
