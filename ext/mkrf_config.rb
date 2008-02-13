@@ -56,10 +56,8 @@ def pg_config(type)
 end
 
 def config_value(type)
-	ENV["POSTGRES_#{type.upcase}"] || pg_config(type)
+	"'" + (ENV["POSTGRES_#{type.upcase}"] || pg_config(type)) + "'"
 end
-
-p ARGV
 
 Mkrf::Generator.new('pg', '*.c', 
 		{
