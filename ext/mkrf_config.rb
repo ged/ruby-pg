@@ -17,7 +17,7 @@ $functions = %w[
 # OS X compatibility
 if(PLATFORM =~ /darwin/) then
 	# test if postgresql is probably universal
-	bindir = "'" + IO.popen("pg_config --bindir").readline.chomp + "'"
+	bindir = escape_path(IO.popen("pg_config --bindir").readline.chomp)
 	Open3.popen3('file',"#{bindir}/pg_config") do |the_in, the_out, the_err|
 		filetype = the_out.readline.chomp
 	end
@@ -52,12 +52,16 @@ if RUBY_VERSION < '1.8'
 	exit 1
 end
 
+def escape_path(path)
+	path.gsub(%r{([^a-zA-Z0-9/._-])}, "\\\\\\1")
+end
+
 def pg_config(type)
 	IO.popen("pg_config --#{type}dir").readline.chomp
 end
 
 def config_value(type)
-	"'" + (ENV["POSTGRES_#{type.upcase}"] || pg_config(type)) + "'"
+	escape_path(ENV["POSTGRES_#{type.upcase}"] || pg_config(type))
 end
 
 Mkrf::Generator.new('pg', '*.c', 

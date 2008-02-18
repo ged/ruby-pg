@@ -207,17 +207,13 @@ static VALUE yield_pgresult(VALUE rb_pgresult)
 
 #ifdef HAVE_RB_DEFINE_ALLOC_FUNC
 static VALUE
-pgconn_alloc(klass)
-    VALUE klass;
+pgconn_alloc(VALUE klass)
 {
 	return Data_Wrap_Struct(klass, NULL, free_pgconn, NULL);
 }
 #else
 static VALUE
-pgconn_s_new(argc, argv, klass)
-    int argc;
-    VALUE *argv;
-    VALUE klass;
+pgconn_s_new(int argc, VALUE *argv, VALUE klass)
 {
     VALUE self = rb_obj_alloc(klass);
     rb_obj_call_init(self, argc, argv);
@@ -269,7 +265,6 @@ pgconn_init(argc, argv, self)
 	char *conninfo = NULL;
 	VALUE conninfo_rstr;
 	VALUE error;
-	VALUE temp;
 	char *host, *port, *opt, *tty, *dbname, *login, *pwd;
 	host=port=opt=tty=dbname=login=pwd=NULL;
 
@@ -2055,7 +2050,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	/* result size at most NAMEDATALEN*2 plus surrounding
      * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
-	int i=0,j=0;
+	unsigned int i=0,j=0;
 	
 	if(strlen(str) >= NAMEDATALEN) {
 		rb_raise(rb_eArgError, 
@@ -2139,13 +2134,10 @@ static VALUE
 pgconn_get_last_result(VALUE self)
 {
 	VALUE ret, result;
-	int result_found = 0;
+	ret = Qnil;
 	while((result = pgconn_get_result(self)) != Qnil) {
 		ret = result;
-		result_found = 1;
 	}
-	if(!result_found)
-		return Qnil;
 	return ret;
 } 
 
@@ -2193,8 +2185,7 @@ notice_proxy(self, message)
  * function.
  */
 static VALUE
-pgconn_set_notice_processor(self)
-    VALUE self;
+pgconn_set_notice_processor(VALUE self)
 {
     VALUE block = rb_block_proc();
     PGconn *conn = get_pgconn(self);
