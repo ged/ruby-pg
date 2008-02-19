@@ -53,7 +53,11 @@ if RUBY_VERSION < '1.8'
 end
 
 def escape_path(path)
-	path.gsub(%r{([^a-zA-Z0-9/._-])}, "\\\\\\1")
+	if(PLATFORM =~ /mswin/ || PLATFORM =~ /mingw/) then
+		'"' + path + '"'
+	else
+		path.gsub(%r{([^a-zA-Z0-9/._-])}, "\\\\\\1")
+	end
 end
 
 def pg_config(type)
