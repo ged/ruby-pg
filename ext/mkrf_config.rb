@@ -53,7 +53,7 @@ if RUBY_VERSION < '1.8'
 end
 
 def escape_path(path)
-	if(PLATFORM =~ /mswin/ || PLATFORM =~ /mingw/) then
+	if(PLATFORM =~ /mswin|mingw/) then
 		'"' + path + '"'
 	else
 		path.gsub(%r{([^a-zA-Z0-9/._-])}, "\\\\\\1")
