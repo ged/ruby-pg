@@ -1936,31 +1936,28 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 	return INT2FIX(PQsetErrorVerbosity(conn, verbosity));
 }
 
-/*TODO
+/*
  * call-seq:
- *    conn.trace( port )
+ *    conn.trace( port ) -> nil
  * 
  * Enables tracing message passing between backend.
  * The trace message will be written to the _port_ object,
  * which is an instance of the class +File+.
  */
 static VALUE
-pgconn_trace(self, port)
-    VALUE self, port;
+pgconn_trace(VALUE self, VALUE file)
 {
-    //OpenFile* fp;
+    FILE *fp;
 
-    Check_Type(port, T_FILE);
-    //GetOpenFile(port, fp);
-
-    //PQtrace(get_pgconn(self), fp->f2?fp->f2:fp->f);
-
-    return self;
+    Check_Type(file, T_FILE);
+	fp = rb_io_stdio_file(RFILE(file)->fptr);
+    PQtrace(get_pgconn(self), fp);
+    return Qnil;
 }
 
 /*
  * call-seq:
- *    conn.untrace()
+ *    conn.untrace() -> nil
  * 
  * Disables the message tracing.
  */
@@ -1969,7 +1966,7 @@ pgconn_untrace(self)
     VALUE self;
 {
     PQuntrace(get_pgconn(self));
-    return self;
+	return Qnil;
 }
 
 /*

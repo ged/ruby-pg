@@ -9,9 +9,9 @@
 
 #include "compat.h"
 
-#if RUBY_VERSION_CODE < 180
-#define rb_check_string_type(x) rb_check_convert_type(x, T_STRING, "String", "to_str")
-#endif /* RUBY_VERSION_CODE < 180 */
+#if RUBY_VM != 1
+#define RUBY_18_COMPAT
+#endif
 
 #ifndef RARRAY_LEN
 #define RARRAY_LEN(x) RARRAY((x))->len
@@ -28,6 +28,10 @@
 #ifndef StringValuePtr
 #define StringValuePtr(x) STR2CSTR(x)
 #endif /* StringValuePtr */
+
+#ifdef RUBY_18_COMPAT
+#define rb_io_stdio_file GetWriteFile
+#endif
 
 void Init_pg(void);
 
