@@ -1,6 +1,12 @@
 require 'rubygems'
 require 'mkrf'
 
+unless system("pg_config --bindir > /dev/null")
+	$stderr.write("ERROR: can't find pg_config.\n")
+	$stderr.write("HINT: Make sure pg_config is in your PATH\n")
+	exit 1
+end
+
 $functions = %w[
 	lo_create
     PQconnectionUsedPassword
@@ -23,7 +29,12 @@ if(PLATFORM =~ /darwin/) then
 	end
 	# if it's not universal, ARCHFLAGS should be set
 	if((filetype !~ /universal binary/) && ENV['ARCHFLAGS'].nil?) then
-		arch = IO.popen("uname -m").readline.chomp
+		arch_tmp = (IO.popen("uname -p").readline.chomp rescue nil)
+		if(arch_tmp == 'powerpc')
+			arch = 'ppc'
+		else
+			arch = 'i386'
+		end
 		$stderr.write %{
 		===========   WARNING   ===========
 		
