@@ -845,14 +845,19 @@ pgconn_exec(argc, argv, self)
 			param_format = rb_hash_aref(param, sym_format);
 		}
 		else {
-			param_type = INT2NUM(0);
+			param_type = Qnil;
 			if(param == Qnil)
 				param_value = param;
 			else
 				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
+			param_format = Qnil;
 		}
-		paramTypes[i] = NUM2INT(param_type);
+
+		if(param_type == Qnil)
+			paramTypes[i] = 0;
+		else
+			paramTypes[i] = NUM2INT(param_type);
+
 		if(param_value == Qnil) {
 			paramValues[i] = NULL;
 			paramLengths[i] = 0;
@@ -860,9 +865,13 @@ pgconn_exec(argc, argv, self)
 		else {
 			Check_Type(param_value, T_STRING);
 			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+			paramLengths[i] = RSTRING_LEN(param_value);
 		}
-		paramFormats[i] = NUM2INT(param_format);
+
+		if(param_format == Qnil)
+			paramFormats[i] = 0;
+		else
+			paramFormats[i] = NUM2INT(param_format);
 	}
 	
 	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes, 
@@ -928,7 +937,10 @@ pgconn_prepare(argc, argv, self)
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
 			Check_Type(param, T_FIXNUM);
-			paramTypes[i] = NUM2INT(param);
+			if(param == Qnil)
+				paramTypes[i] = 0;
+			else
+				paramTypes[i] = NUM2INT(param);
 		}
 	}
 	result = PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
@@ -1034,9 +1046,13 @@ pgconn_exec_prepared(argc, argv, self)
 		else {
 			Check_Type(param_value, T_STRING);
 			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+			paramLengths[i] = RSTRING_LEN(param_value);
 		}
-		paramFormats[i] = NUM2INT(param_format);
+
+		if(param_format == Qnil)
+			paramFormats[i] = 0;
+		else
+			paramFormats[i] = NUM2INT(param_format);
 	}
 	
 	result = PQexecPrepared(conn, StringValuePtr(name), nParams, 
@@ -1367,7 +1383,12 @@ pgconn_send_query(argc, argv, self)
 				param_value = rb_obj_as_string(param);
 			param_format = INT2NUM(0);
 		}
-		paramTypes[i] = NUM2INT(param_type);
+
+		if(param_type == Qnil)
+			paramTypes[i] = 0;
+		else
+			paramTypes[i] = NUM2INT(param_type);
+
 		if(param_value == Qnil) {
 			paramValues[i] = NULL;
 			paramLengths[i] = 0;
@@ -1375,9 +1396,13 @@ pgconn_send_query(argc, argv, self)
 		else {
 			Check_Type(param_value, T_STRING);
 			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+			paramLengths[i] = RSTRING_LEN(param_value);
 		}
-		paramFormats[i] = NUM2INT(param_format);
+
+		if(param_format == Qnil)
+			paramFormats[i] = 0;
+		else
+			paramFormats[i] = NUM2INT(param_format);
 	}
 	
 	result = PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes, 
@@ -1442,7 +1467,10 @@ pgconn_send_prepare(argc, argv, self)
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
 			Check_Type(param, T_FIXNUM);
-			paramTypes[i] = NUM2INT(param);
+			if(param == Qnil)
+				paramTypes[i] = 0;
+			else
+				paramTypes[i] = NUM2INT(param);
 		}
 	}
 	result = PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
@@ -1544,6 +1572,7 @@ pgconn_send_query_prepared(argc, argv, self)
 				param_value = rb_obj_as_string(param);
 			param_format = INT2NUM(0);
 		}
+
 		if(param_value == Qnil) {
 			paramValues[i] = NULL;
 			paramLengths[i] = 0;
@@ -1551,9 +1580,13 @@ pgconn_send_query_prepared(argc, argv, self)
 		else {
 			Check_Type(param_value, T_STRING);
 			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = RSTRING_LEN(param_value) + 1;
+			paramLengths[i] = RSTRING_LEN(param_value);
 		}
-		paramFormats[i] = NUM2INT(param_format);
+
+		if(param_format == Qnil)
+			paramFormats[i] = 0;
+		else
+			paramFormats[i] = NUM2INT(param_format);
 	}
 	
 	result = PQsendQueryPrepared(conn, StringValuePtr(name), nParams, 
