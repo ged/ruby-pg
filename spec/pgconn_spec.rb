@@ -61,9 +61,25 @@ describe PGconn do
 		res[0]['n'].should== '1'
 	end
 
+	it "should trace and untrace client-server communication" do
+		# be careful to explicitly close files so that the 
+		# directory can be removed and we don't have to wait for
+		# the GC to run.
+		expected_trace_data = open('spec/data/expected_trace.out').read
+		trace_file = open("#{@test_directory}/test_trace.out", 'w')
+		@conn.trace(trace_file)
+		trace_file.close
+		res = @conn.exec("SELECT 1 AS one")
+		@conn.untrace
+		res = @conn.exec("SELECT 2 AS two")
+		trace_file = open("#{@test_directory}/test_trace.out")
+		trace_data = trace_file.read
+		trace_file.close
+		trace_data.should == expected_trace_data
+	end
+
 	after( :all ) do
 		puts ""
-		puts "====== COMPLETED TESTING PGconn  ======"
 		@conn.finish
 		cmds = []
 		cmds << "pg_ctl -D '#{@test_pgdata}' stop"
@@ -73,5 +89,7 @@ describe PGconn do
 				raise "Error executing cmd: #{cmd}: #{$?}"
 			end
 		end
+		puts "====== COMPLETED TESTING PGconn  ======"
+		puts ""
 	end
 end

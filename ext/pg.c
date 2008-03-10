@@ -1987,7 +1987,12 @@ pgconn_trace(VALUE self, VALUE stream)
 	int old_fd, new_fd;
 	VALUE new_file;
 
+	if(rb_respond_to(stream,rb_intern("fileno")) == Qfalse)
+		rb_raise(rb_eArgError, "stream does not respond to method: fileno");
+
 	fileno = rb_funcall(stream, rb_intern("fileno"), 0);
+	if(fileno == Qnil)
+		rb_raise(rb_eArgError, "can't get file descriptor from stream");
 
 	/* Duplicate the file descriptor and re-open
 	 * it. Then, make it into a ruby File object
@@ -2019,7 +2024,11 @@ static VALUE
 pgconn_untrace(self)
     VALUE self;
 {
-    PQuntrace(get_pgconn(self));
+	VALUE trace_stream;
+	PQuntrace(get_pgconn(self));
+	trace_stream = rb_iv_get(self, "@trace_stream");
+	rb_funcall(trace_stream, rb_intern("close"), 0);
+	rb_iv_set(self, "@trace_stream", Qnil);
 	return Qnil;
 }
 

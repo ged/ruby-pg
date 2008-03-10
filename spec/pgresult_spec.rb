@@ -46,7 +46,6 @@ describe PGconn do
 
 	after( :all ) do
 		puts ""
-		puts "======  COMPLETED TESTING PGresult  ======"
 		@conn.finish
 		cmds = []
 		cmds << "pg_ctl -D '#{@test_pgdata}' stop"
@@ -56,5 +55,7 @@ describe PGconn do
 				raise "Error executing cmd: #{cmd}: #{$?}"
 			end
 		end
+		puts "======  COMPLETED TESTING PGresult  ======"
+		puts ""
 	end
 end
