@@ -1947,12 +1947,30 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 static VALUE
 pgconn_trace(VALUE self, VALUE file)
 {
-    FILE *fp;
+	FILE *fp;
+	FILE *old_fp, *new_fp;
+	int old_fd, new_fd;
+	VALUE new_file;
 
     Check_Type(file, T_FILE);
-	fp = rb_io_stdio_file(RFILE(file)->fptr);
-    PQtrace(get_pgconn(self), fp);
-    return Qnil;
+	Check_Type(file, T_FILE);
+
+	/* Duplicate the file descriptor and re-open
+	 * it. Then, make it into a ruby File object
+	 * and assign it to an instance variable.
+	 * This prevents a problem when the File
+	 * object passed to this function is closed
+	 * before the connection object is. */
+	old_fp = rb_io_stdio_file(RFILE(file)->fptr);
+	old_fd = fileno(old_fp);
+	new_fd = dup(old_fd);
+	new_fp = fdopen(new_fd, "w");
+
+	new_file = rb_funcall(rb_cIO, rb_intern("new"), 1, INT2NUM(new_fd));
+	rb_iv_set(self, "@trace_file", new_file);
+
+	PQtrace(get_pgconn(self), new_fp);
+	return Qnil;
 }
 
 /*
