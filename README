@@ -22,9 +22,13 @@ Maintainer:
   Jeff Davis <ruby-pg@j-davis.com>
 
 Copying:
-  You may redistribute this software under the terms of the GPL,
-  included in the file named GPL; or under the same terms as Ruby,
-  included in the file name LICENSE.
+  You may redistribute this software under the terms of the Ruby license,
+  included in the file "LICENSE". The Ruby license also allows distribution
+  under the terms of the GPL, included in the file "COPYING.txt" and the
+  file "GPL".
+
+  Portions of the code are from the PostgreSQL project, and are distributed
+  under the terms of the BSD license, included in the file "BSD".
 
 - Summary
 
@@ -34,7 +38,7 @@ This library works with PostgreSQL 7.4 and later.
 - Requirements
 
   Ruby 1.8 or later.
-  PostgreSQL 7.4 or later installed.
+  PostgreSQL 7.3 or later installed.
 
   It may work with earlier versions as well, but those are
   not regularly tested.

@@ -218,6 +218,20 @@ notice_processor_proxy(void *arg, const char *message)
 }
 
 /********************************************************************
+ *
+ * Document-class: PGError
+ *
+ * This is the exception class raised when an error is returned from
+ * a libpq API call.
+ * 
+ * The attributes +connection+ and +result+ are set to the connection
+ * object and result set object, respectively.
+ *
+ * If the connection object or result set object is not available from
+ * the context in which the error was encountered, it is +nil+.
+ */
+
+/********************************************************************
  * 
  * Document-class: PGconn
  *
