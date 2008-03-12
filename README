@@ -79,8 +79,7 @@ For example:
 - How to use ?
 
 This gem builds and installs two PostgreSQL database adapters, 'postgres'
-and 'pg'. 'postgres' is currently (Jan 2008) the recommended PostgreSQL
-adapter for use with Rails.
+and 'pg'. 
 
 The standard way to download and install the most current stable  
 version of the postgres gem (from http://gems.rubyforge.org) is to use  
@@ -102,13 +101,10 @@ on Mac OS X with PostgreSQL in /Library/PostgreSQL8 use
 --with-pgsql-include-dir=/Library/PostgreSQL8/include --with-pgsql-lib- 
 dir=/Library/PostgreSQL8/lib
 
-To use the postgres adapter with Rails:
+To use the module with Rails:
 refer to it as
 adapter: postgresql
 in your database:yaml file
-
-The pg adapter cannot be used with Rails yet and is available for  
-testing and developer use.
 
 To use these modules in Ruby directly (not Rails), refer to the RDoc
 documentation.
