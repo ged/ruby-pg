@@ -371,6 +371,17 @@ pgconn_init(argc, argv, self)
     return self;
 }
 
+/*TODO
+ * call-seq:
+ *    PGconn.connect_start( ... ) -> PGconn
+ */
+static VALUE
+pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
+{
+	rb_raise(rb_eRuntimeError, "PGconn.connect_start unimplemented.");
+	return Qnil;
+}
+
 /*
  * call-seq:
  *    PGconn.conndefaults() -> Array
@@ -461,6 +472,20 @@ pgconn_s_isthreadsafe(self)
  * PGconn INSTANCE METHODS
  **************************************************************************/
 
+/*TODO
+ * call-seq:
+ *    conn.connect_poll() -> Fixnum
+ *
+ * 
+ */
+static VALUE
+pgconn_connect_poll(VALUE self)
+{
+	PostgresPollingStatusType status;
+	status = PQconnectPoll(get_pgconn(self));
+	return INT2FIX((int)status);
+}
+
 /*
  * call-seq:
  *    conn.finish()
@@ -480,7 +505,8 @@ pgconn_finish(self)
  * call-seq:
  *    conn.reset()
  *
- * Resets the backend connection. This method closes the backend connection and tries to re-connect.
+ * Resets the backend connection. This method closes the 
+ * backend connection and tries to re-connect.
  */
 static VALUE
 pgconn_reset(self)
@@ -490,9 +516,39 @@ pgconn_reset(self)
     return self;
 }
 
-//TODO conn.reset_start
+/*
+ * call-seq:
+ *    conn.reset_start() -> nil
+ *
+ * Initiate a connection reset in a nonblocking manner.
+ * This will close the current connection and attempt to
+ * reconnect using the same connection parameters.
+ * Use PGconn#reset_poll to check the status of the 
+ * connection reset.
+ */
+static VALUE
+pgconn_reset_start(VALUE self)
+{
+	if(PQresetStart(get_pgconn(self)) == 0)
+		rb_raise(rb_ePGError, "reset has failed");
+	return Qnil;
+}
 
-//TODO conn.reset_poll
+/*
+ * call-seq:
+ *    conn.reset_poll -> Fixnum
+ *
+ * Checks the status of a connection reset operation.
+ * See PGconn#connect_start and PGconn#connect_poll for
+ * usage information and return values.
+ */
+static VALUE
+pgconn_reset_poll(VALUE self)
+{
+	PostgresPollingStatusType status;
+	status = PQresetPoll(get_pgconn(self));
+	return INT2FIX((int)status);
+}
 
 /*
  * call-seq:
@@ -702,14 +758,20 @@ pgconn_error_message(self)
     return rb_tainted_str_new2(error);
 }
 
-//TODO PQsocket
 /*
  * call-seq:
- *    conn.socket() -> TCPSocket
+ *    conn.socket() -> Fixnum
  *
- * Returns the socket file descriptor of this
- * connection.
+ * Returns the socket's file descriptor for this connection.
  */
+static VALUE
+pgconn_socket(VALUE self)
+{
+	int sd;
+	if( (sd = PQsocket(get_pgconn(self))) < 0)
+		rb_raise(rb_ePGError, "Can't get socket descriptor");
+	return INT2NUM(sd);
+}
 
 
 /*
@@ -3263,6 +3325,7 @@ Init_pg()
 	rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
 	rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 0);
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
+	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
@@ -3304,9 +3367,12 @@ Init_pg()
 
 	/******     PGconn INSTANCE METHODS: Connection Control     ******/
 	rb_define_method(rb_cPGconn, "initialize", pgconn_init, -1);
-	rb_define_method(rb_cPGconn, "reset", pgconn_reset, 0);
-	rb_define_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
+	rb_define_method(rb_cPGconn, "connect_poll", pgconn_connect_poll, 0);
 	rb_define_method(rb_cPGconn, "finish", pgconn_finish, 0);
+	rb_define_method(rb_cPGconn, "reset", pgconn_reset, 0);
+	rb_define_method(rb_cPGconn, "reset_start", pgconn_reset_start, 0);
+	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
+	rb_define_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
 
 	/******     PGconn INSTANCE METHODS: Connection Status     ******/
@@ -3323,7 +3389,7 @@ Init_pg()
 	rb_define_method(rb_cPGconn, "protocol_version", pgconn_protocol_version, 0);
 	rb_define_method(rb_cPGconn, "server_version", pgconn_server_version, 0);
 	rb_define_method(rb_cPGconn, "error_message", pgconn_error_message, 0);
-	//rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
+	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);
