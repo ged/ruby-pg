@@ -7,7 +7,7 @@ unless system("pg_config --bindir > /dev/null")
 end
 
 # OS X compatibility
-if(PLATFORM =~ /darwin/) then
+if(RUBY_PLATFORM =~ /darwin/) then
 	# test if postgresql is probably universal
 	bindir = (IO.popen("pg_config --bindir").readline.chomp rescue nil)
 	filetype = (IO.popen("file #{bindir}/pg_config").

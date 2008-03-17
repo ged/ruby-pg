@@ -209,6 +209,18 @@ PQfformat(const PGresult *res, int column_number)
 {
 	rb_raise(rb_eStandardError, "PQfformat not supported by this client version.");
 }
+
+PQnoticeReceiver 
+PQsetNoticeReceiver(PGconn *conn, PQnoticeReceiver proc, void *arg)
+{
+	rb_raise(rb_eStandardError, "PQsetNoticeReceiver not supported by this client version.");
+}
+
+char *
+PQresultErrorField(const PGresult *res, int fieldcode)
+{
+	rb_raise(rb_eStandardError, "PQresultErrorField not supported by this client version.");
+}
 #endif /* PG_BEFORE_070400 */
 
 #ifdef PG_BEFORE_070300

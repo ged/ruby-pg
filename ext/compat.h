@@ -118,6 +118,8 @@ int PQserverVersion(const PGconn* conn);
  */
 #define CONNECTION_SSL_STARTUP 1000000
 
+typedef void (*PQnoticeReceiver) (void *arg, const PGresult *res);
+
 typedef enum
 {
 	PQERRORS_TERSE,		/* single-line error messages */
@@ -156,6 +158,8 @@ PGVerbosity PQsetErrorVerbosity(PGconn *conn, PGVerbosity verbosity);
 Oid PQftable(const PGresult *res, int column_number);
 int PQftablecol(const PGresult *res, int column_number);
 int PQfformat(const PGresult *res, int column_number);
+char *PQresultErrorField(const PGresult *res, int fieldcode);
+PQnoticeReceiver PQsetNoticeReceiver(PGconn *conn, PQnoticeReceiver proc, void *arg);
 
 #else
 #define PGNOTIFY_EXTRA(notify) ((notify)->extra)

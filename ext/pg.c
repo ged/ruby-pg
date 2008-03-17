@@ -378,7 +378,7 @@ pgconn_init(argc, argv, self)
 static VALUE
 pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
 {
-	rb_raise(rb_eRuntimeError, "PGconn.connect_start unimplemented.");
+	rb_raise(rb_eStandardError, "PGconn.connect_start unimplemented.");
 	return Qnil;
 }
 

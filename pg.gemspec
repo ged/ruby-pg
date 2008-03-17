@@ -26,12 +26,12 @@ SPEC = Gem::Specification.new do |s|
   end
 
   FILES = [
-	'COPYING',
+	'README',
+	'LICENSE',
 	'COPYING.txt',
 	'Contributors',
 	'GPL',
-	'LICENSE',
-	'README',
+	'BSD',
 	]
 
   EXT_FILES = Dir['ext/*.[ch]']
