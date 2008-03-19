@@ -60,8 +60,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
  * when building the connection string.
  */
 static VALUE
-pgconn_s_quote_connstr(string)
-    VALUE string;
+pgconn_s_quote_connstr(VALUE string)
 {
 	char *str,*ptr;
 	int i,j=0,len;
@@ -87,9 +86,7 @@ pgconn_s_quote_connstr(string)
  * Appends key='hash[key]' to conninfo_rstr
  */
 static void
-build_key_value_string(hash, conninfo_rstr, key)
-	VALUE hash, conninfo_rstr;
-	char *key;
+build_key_value_string(VALUE hash, VALUE conninfo_rstr, char *key)
 {
 	if(rb_funcall(hash, rb_intern("has_key?"), 1, ID2SYM(rb_intern(key)))) {
 		rb_str_cat2(conninfo_rstr, " ");
@@ -134,16 +131,16 @@ get_pgconn(VALUE self)
 static PGresult*
 get_pgresult(VALUE self)
 {
-    PGresult *result;
-    Data_Get_Struct(self, PGresult, result);
-    if (result == NULL) rb_raise(rb_ePGError, "result has been cleared");
-    return result;
+	PGresult *result;
+	Data_Get_Struct(self, PGresult, result);
+	if (result == NULL) rb_raise(rb_ePGError, "result has been cleared");
+	return result;
 }
 
 static VALUE
 new_pgresult(PGresult *result)
 {
-    return Data_Wrap_Struct(rb_cPGresult, NULL, free_pgresult, result);
+	return Data_Wrap_Struct(rb_cPGresult, NULL, free_pgresult, result);
 }
 
 /*
@@ -259,9 +256,9 @@ pgconn_alloc(VALUE klass)
 static VALUE
 pgconn_s_new(int argc, VALUE *argv, VALUE klass)
 {
-    VALUE self = rb_obj_alloc(klass);
-    rb_obj_call_init(self, argc, argv);
-    return self;
+	VALUE self = rb_obj_alloc(klass);
+	rb_obj_call_init(self, argc, argv);
+	return self;
 }
 #endif
 
@@ -299,21 +296,18 @@ pgconn_s_new(int argc, VALUE *argv, VALUE klass)
  */
 
 static VALUE
-pgconn_init(argc, argv, self)
-    int argc;
-    VALUE *argv;
-    VALUE self;
+pgconn_init(int argc, VALUE *argv, VALUE self)
 {
-    VALUE args,arg;
-    PGconn *conn = NULL;
+	VALUE args,arg;
+	PGconn *conn = NULL;
 	char *conninfo = NULL;
 	VALUE conninfo_rstr;
 	VALUE error;
 	char *host, *port, *opt, *tty, *dbname, *login, *pwd;
 	host=port=opt=tty=dbname=login=pwd=NULL;
 
-    rb_scan_args(argc, argv, "0*", &args); 
-    if (RARRAY_LEN(args) == 1) { 
+	rb_scan_args(argc, argv, "0*", &args); 
+	if (RARRAY_LEN(args) == 1) { 
 		arg = rb_ary_entry(args,0);
 		if(TYPE(arg) == T_HASH) {
 			conninfo_rstr = rb_str_new2("");
@@ -339,7 +333,7 @@ pgconn_init(argc, argv, self)
 				"Expecting String or Hash as single argument");
 		}
 		conn = PQconnectdb(conninfo);
-    }
+	}
 	else if (RARRAY_LEN(args) == 7) {
 		host = value_as_cstring(rb_ary_entry(args,0));
 		port = value_as_cstring(rb_ary_entry(args,1));
@@ -356,19 +350,19 @@ pgconn_init(argc, argv, self)
 			"Expected connection info string, hash, or 7 separate arguments.");
 	}
 
-    if (PQstatus(conn) == CONNECTION_BAD) {
-        error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
-        rb_iv_set(error, "@connection", self);
-        rb_exc_raise(error);
-    }
+	if (PQstatus(conn) == CONNECTION_BAD) {
+		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
+		rb_iv_set(error, "@connection", self);
+		rb_exc_raise(error);
+	}
 
 	Check_Type(self, T_DATA);
 	DATA_PTR(self) = conn;
 	
-    if (rb_block_given_p()) {
-        return rb_ensure(rb_yield, self, pgconn_finish, self);
-    }
-    return self;
+	if (rb_block_given_p()) {
+		return rb_ensure(rb_yield, self, pgconn_finish, self);
+	}
+	return self;
 }
 
 /*TODO
@@ -444,8 +438,7 @@ pgconn_s_conndefaults(VALUE self)
  * Return value is the encrypted password.
  */
 static VALUE
-pgconn_s_encrypt_password(self, password, username)
-	VALUE self, password, username;
+pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 {
 	char *ret;
 	Check_Type(password, T_STRING);
@@ -462,8 +455,7 @@ pgconn_s_encrypt_password(self, password, username)
  * Returns +true+ if libpq is thread safe, +false+ otherwise.
  */
 static VALUE
-pgconn_s_isthreadsafe(self)
-	VALUE self;
+pgconn_s_isthreadsafe(VALUE self)
 {
 	return PQisthreadsafe() ? Qtrue : Qfalse;
 }
@@ -493,12 +485,11 @@ pgconn_connect_poll(VALUE self)
  * Closes the backend connection.
  */
 static VALUE
-pgconn_finish(self)
-    VALUE self;
+pgconn_finish(VALUE self)
 {
-    PQfinish(get_pgconn(self));
-    DATA_PTR(self) = NULL;
-    return Qnil;
+	PQfinish(get_pgconn(self));
+	DATA_PTR(self) = NULL;
+	return Qnil;
 }
 
 /*
@@ -509,11 +500,10 @@ pgconn_finish(self)
  * backend connection and tries to re-connect.
  */
 static VALUE
-pgconn_reset(self)
-    VALUE self;
+pgconn_reset(VALUE self)
 {
-    PQreset(get_pgconn(self));
-    return self;
+	PQreset(get_pgconn(self));
+	return self;
 }
 
 /*
@@ -557,12 +547,11 @@ pgconn_reset_poll(VALUE self)
  * Returns the connected database name.
  */
 static VALUE
-pgconn_db(self)
-    VALUE self;
+pgconn_db(VALUE self)
 {
-    char *db = PQdb(get_pgconn(self));
-    if (!db) return Qnil;
-    return rb_tainted_str_new2(db);
+	char *db = PQdb(get_pgconn(self));
+	if (!db) return Qnil;
+	return rb_tainted_str_new2(db);
 }
 
 /*
@@ -572,12 +561,11 @@ pgconn_db(self)
  * Returns the authenticated user name.
  */
 static VALUE
-pgconn_user(self)
-    VALUE self;
+pgconn_user(VALUE self)
 {
-    char *user = PQuser(get_pgconn(self));
-    if (!user) return Qnil;
-    return rb_tainted_str_new2(user);
+	char *user = PQuser(get_pgconn(self));
+	if (!user) return Qnil;
+	return rb_tainted_str_new2(user);
 }
 
 /*
@@ -587,12 +575,11 @@ pgconn_user(self)
  * Returns the authenticated user name.
  */
 static VALUE
-pgconn_pass(self)
-    VALUE self;
+pgconn_pass(VALUE self)
 {
-    char *user = PQpass(get_pgconn(self));
-    if (!user) return Qnil;
-    return rb_tainted_str_new2(user);
+	char *user = PQpass(get_pgconn(self));
+	if (!user) return Qnil;
+	return rb_tainted_str_new2(user);
 }
 
 /*
@@ -602,12 +589,11 @@ pgconn_pass(self)
  * Returns the connected server name.
  */
 static VALUE
-pgconn_host(self)
-    VALUE self;
+pgconn_host(VALUE self)
 {
-    char *host = PQhost(get_pgconn(self));
-    if (!host) return Qnil;
-    return rb_tainted_str_new2(host);
+	char *host = PQhost(get_pgconn(self));
+	if (!host) return Qnil;
+	return rb_tainted_str_new2(host);
 }
 
 /*
@@ -617,11 +603,10 @@ pgconn_host(self)
  * Returns the connected server port number.
  */
 static VALUE
-pgconn_port(self)
-    VALUE self;
+pgconn_port(VALUE self)
 {
-    char* port = PQport(get_pgconn(self));
-    return INT2NUM(atol(port));
+	char* port = PQport(get_pgconn(self));
+	return INT2NUM(atol(port));
 }
 
 /*
@@ -631,12 +616,11 @@ pgconn_port(self)
  * Returns the connected pgtty. (Obsolete)
  */
 static VALUE
-pgconn_tty(self)
-    VALUE self;
+pgconn_tty(VALUE self)
 {
-    char *tty = PQtty(get_pgconn(self));
-    if (!tty) return Qnil;
-    return rb_tainted_str_new2(tty);
+	char *tty = PQtty(get_pgconn(self));
+	if (!tty) return Qnil;
+	return rb_tainted_str_new2(tty);
 }
 
 /*
@@ -646,12 +630,11 @@ pgconn_tty(self)
  * Returns backend option string.
  */
 static VALUE
-pgconn_options(self)
-    VALUE self;
+pgconn_options(VALUE self)
 {
-    char *options = PQoptions(get_pgconn(self));
-    if (!options) return Qnil;
-    return rb_tainted_str_new2(options);
+	char *options = PQoptions(get_pgconn(self));
+	if (!options) return Qnil;
+	return rb_tainted_str_new2(options);
 }
 
 /*
@@ -661,10 +644,9 @@ pgconn_options(self)
  * Returns status of connection : CONNECTION_OK or CONNECTION_BAD
  */
 static VALUE
-pgconn_status(self)
-    VALUE self;
+pgconn_status(VALUE self)
 {
-    return INT2NUM(PQstatus(get_pgconn(self)));
+	return INT2NUM(PQstatus(get_pgconn(self)));
 }
 
 /*
@@ -679,10 +661,9 @@ pgconn_status(self)
  *   PQTRANS_UNKNOWN = 4 (cannot determine status)
  */
 static VALUE
-pgconn_transaction_status(self)
-    VALUE self;
+pgconn_transaction_status(VALUE self)
 {
-    return INT2NUM(PQtransactionStatus(get_pgconn(self)));
+	return INT2NUM(PQtransactionStatus(get_pgconn(self)));
 }
 
 /*
@@ -704,8 +685,7 @@ pgconn_transaction_status(self)
  * Returns nil if the value of the parameter is not known.
  */
 static VALUE
-pgconn_parameter_status(self, param_name)
-	VALUE self, param_name;
+pgconn_parameter_status(VALUE self, VALUE param_name)
 {
 	const char *ret = PQparameterStatus(get_pgconn(self), 
 			StringValuePtr(param_name));
@@ -724,10 +704,9 @@ pgconn_parameter_status(self, param_name)
  * obsolete and not supported by libpq.)
  */
 static VALUE
-pgconn_protocol_version(self)
-    VALUE self;
+pgconn_protocol_version(VALUE self)
 {
-    return INT2NUM(PQprotocolVersion(get_pgconn(self)));
+	return INT2NUM(PQprotocolVersion(get_pgconn(self)));
 }
 
 /*
@@ -737,10 +716,9 @@ pgconn_protocol_version(self)
  * The number is formed by converting the major, minor, and revision numbers into two-decimal-digit numbers and appending them together. For example, version 7.4.2 will be returned as 70402, and version 8.1 will be returned as 80100 (leading zeroes are not shown). Zero is returned if the connection is bad.
  */
 static VALUE
-pgconn_server_version(self)
-    VALUE self;
+pgconn_server_version(VALUE self)
 {
-    return INT2NUM(PQserverVersion(get_pgconn(self)));
+	return INT2NUM(PQserverVersion(get_pgconn(self)));
 }
 
 /*
@@ -750,12 +728,11 @@ pgconn_server_version(self)
  * Returns the error message about connection.
  */
 static VALUE
-pgconn_error_message(self)
-    VALUE self;
+pgconn_error_message(VALUE self)
 {
-    char *error = PQerrorMessage(get_pgconn(self));
-    if (!error) return Qnil;
-    return rb_tainted_str_new2(error);
+	char *error = PQerrorMessage(get_pgconn(self));
+	if (!error) return Qnil;
+	return rb_tainted_str_new2(error);
 }
 
 /*
@@ -783,8 +760,7 @@ pgconn_socket(VALUE self)
  * Note that this is a PID on database server host.
  */
 static VALUE
-pgconn_backend_pid(self)
-	VALUE self;
+pgconn_backend_pid(VALUE self)
 {
 	return INT2NUM(PQbackendPID(get_pgconn(self)));
 }
@@ -797,8 +773,7 @@ pgconn_backend_pid(self)
  * password, but none was available. +false+ otherwise.
  */
 static VALUE
-pgconn_connection_needs_password(self)
-	VALUE self;
+pgconn_connection_needs_password(VALUE self)
 {
 	return PQconnectionNeedsPassword(get_pgconn(self)) ? Qtrue : Qfalse;
 }
@@ -811,8 +786,7 @@ pgconn_connection_needs_password(self)
  * a caller-supplied password, +false+ otherwise.
  */
 static VALUE
-pgconn_connection_used_password(self)
-	VALUE self;
+pgconn_connection_used_password(VALUE self)
 {
 	return PQconnectionUsedPassword(get_pgconn(self)) ? Qtrue : Qfalse;
 }
@@ -853,10 +827,7 @@ pgconn_connection_used_password(self)
  * for binary.
  */
 static VALUE
-pgconn_exec(argc, argv, self)
-    int argc;
-	VALUE *argv;
-	VALUE self;
+pgconn_exec(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = get_pgconn(self);
 	PGresult *result = NULL;
@@ -873,19 +844,19 @@ pgconn_exec(argc, argv, self)
 	int *paramFormats;
 	int resultFormat;
 
-    rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
 
-    Check_Type(command, T_STRING);
+	Check_Type(command, T_STRING);
 
 	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
 		result = PQexec(conn, StringValuePtr(command));
 		rb_pgresult = new_pgresult(result);
 		pgresult_check(self, rb_pgresult);
-    	if (rb_block_given_p()) {
-    	    return rb_ensure(yield_pgresult, rb_pgresult, 
+		if (rb_block_given_p()) {
+			return rb_ensure(yield_pgresult, rb_pgresult, 
 				pgresult_clear, rb_pgresult);
-    	}
+		}
 		return rb_pgresult;
 	}
 
@@ -960,10 +931,10 @@ pgconn_exec(argc, argv, self)
 
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
-    if (rb_block_given_p()) {
-        return rb_ensure(yield_pgresult, rb_pgresult, 
+	if (rb_block_given_p()) {
+		return rb_ensure(yield_pgresult, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
-    }
+	}
 	return rb_pgresult;
 }
 
@@ -988,10 +959,7 @@ pgconn_exec(argc, argv, self)
  * inside the SQL query.
  */
 static VALUE
-pgconn_prepare(argc, argv, self)
-    int argc;
-	VALUE *argv;
-	VALUE self;
+pgconn_prepare(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = get_pgconn(self);
 	PGresult *result = NULL;
@@ -1002,9 +970,9 @@ pgconn_prepare(argc, argv, self)
 	int nParams = 0;
 	Oid *paramTypes = NULL;
 
-    rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
+	rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
 	Check_Type(name, T_STRING);
-    Check_Type(command, T_STRING);
+	Check_Type(command, T_STRING);
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
@@ -1054,10 +1022,7 @@ pgconn_prepare(argc, argv, self)
  * for binary.
  */
 static VALUE
-pgconn_exec_prepared(argc, argv, self)
-    int argc;
-    VALUE *argv;
-    VALUE self;
+pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = get_pgconn(self);
 	PGresult *result = NULL;
@@ -1074,7 +1039,7 @@ pgconn_exec_prepared(argc, argv, self)
 	int resultFormat;
 
 
-    rb_scan_args(argc, argv, "12", &name, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "12", &name, &params, &in_res_fmt);
 	Check_Type(name, T_STRING);
 
 	if(NIL_P(params)) {
@@ -1141,10 +1106,10 @@ pgconn_exec_prepared(argc, argv, self)
 
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
-    if (rb_block_given_p()) {
-        return rb_ensure(yield_pgresult, rb_pgresult, 
+	if (rb_block_given_p()) {
+		return rb_ensure(yield_pgresult, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
-    }
+	}
 	return rb_pgresult;
 }
 
@@ -1156,8 +1121,7 @@ pgconn_exec_prepared(argc, argv, self)
  * _statement_name_.
  */
 static VALUE
-pgconn_describe_prepared(self, stmt_name)
-	VALUE self, stmt_name;
+pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 {
 	PGresult *result;
 	VALUE rb_pgresult;
@@ -1250,30 +1214,28 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * inside of SQL commands.
  */
 static VALUE
-pgconn_s_escape(self, string)
-    VALUE self;
-    VALUE string;
+pgconn_s_escape(VALUE self, VALUE string)
 {
-    char *escaped;
-    int size,error;
-    VALUE result;
+	char *escaped;
+	int size,error;
+	VALUE result;
 
-    Check_Type(string, T_STRING);
-    
-    escaped = ALLOCA_N(char, RSTRING_LEN(string) * 2 + 1);
-    if(CLASS_OF(self) == rb_cPGconn) {
-    	size = PQescapeStringConn(get_pgconn(self), escaped, 
+	Check_Type(string, T_STRING);
+
+	escaped = ALLOCA_N(char, RSTRING_LEN(string) * 2 + 1);
+	if(CLASS_OF(self) == rb_cPGconn) {
+		size = PQescapeStringConn(get_pgconn(self), escaped, 
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
 			rb_raise(rb_ePGError, PQerrorMessage(get_pgconn(self)));
 		}
-    } else {
-    	size = PQescapeString(escaped, RSTRING_PTR(string),
+	} else {
+		size = PQescapeString(escaped, RSTRING_PTR(string),
 			RSTRING_LEN(string));
-    }
-    result = rb_str_new(escaped, size);
-    OBJ_INFECT(result, string);
-    return result;
+	}
+	result = rb_str_new(escaped, size);
+	OBJ_INFECT(result, string);
+	return result;
 }
 
 /*
@@ -1302,28 +1264,26 @@ pgconn_s_escape(self, string)
  * SQL commands.
  */
 static VALUE
-pgconn_s_escape_bytea(self, str)
-    VALUE self;
-    VALUE str;
+pgconn_s_escape_bytea(VALUE self, VALUE str)
 {
-    unsigned char *from, *to;
-    size_t from_len, to_len;
-    VALUE ret;
-    
-    Check_Type(str, T_STRING);
-    from      = (unsigned char*)RSTRING_PTR(str);
-    from_len  = RSTRING_LEN(str);
-    
-    if(CLASS_OF(self) == rb_cPGconn) {
+	unsigned char *from, *to;
+	size_t from_len, to_len;
+	VALUE ret;
+
+	Check_Type(str, T_STRING);
+	from      = (unsigned char*)RSTRING_PTR(str);
+	from_len  = RSTRING_LEN(str);
+
+	if(CLASS_OF(self) == rb_cPGconn) {
 		to = PQescapeByteaConn(get_pgconn(self), from, from_len, &to_len);
-    } else {
+	} else {
 		to = PQescapeBytea( from, from_len, &to_len);
-    }
-    
-    ret = rb_str_new((char*)to, to_len - 1);
-    OBJ_INFECT(ret, str);
-    PQfreemem(to);
-    return ret;
+	}
+
+	ret = rb_str_new((char*)to, to_len - 1);
+	OBJ_INFECT(ret, str);
+	PQfreemem(to);
+	return ret;
 }
 
 
@@ -1337,22 +1297,21 @@ pgconn_s_escape_bytea(self, str)
  *
  */
 static VALUE
-pgconn_s_unescape_bytea(self, str)
-    VALUE self, str;
+pgconn_s_unescape_bytea(VALUE self, VALUE str)
 {
-    unsigned char *from, *to;
-    size_t to_len;
-    VALUE ret;
+	unsigned char *from, *to;
+	size_t to_len;
+	VALUE ret;
 
-    Check_Type(str, T_STRING);
-    from = (unsigned char*)StringValuePtr(str);
+	Check_Type(str, T_STRING);
+	from = (unsigned char*)StringValuePtr(str);
 
-    to = PQunescapeBytea(from, &to_len);
+	to = PQunescapeBytea(from, &to_len);
 
-    ret = rb_str_new((char*)to, to_len);
-    OBJ_INFECT(ret, str);
-    PQfreemem(to);
-    return ret;
+	ret = rb_str_new((char*)to, to_len);
+	OBJ_INFECT(ret, str);
+	PQfreemem(to);
+	return ret;
 }
 
 /*
@@ -1387,13 +1346,10 @@ pgconn_s_unescape_bytea(self, str)
  * for binary.
  */
 static VALUE
-pgconn_send_query(argc, argv, self)
-    int argc;
-	VALUE *argv;
-	VALUE self;
+pgconn_send_query(int argc, VALUE *argv, VALUE self)
 {
-    PGconn *conn = get_pgconn(self);
-    int result;
+	PGconn *conn = get_pgconn(self);
+	int result;
 	VALUE command, params, in_res_fmt;
 	VALUE param, param_type, param_value, param_format;
 	VALUE param_value_tmp;
@@ -1407,8 +1363,8 @@ pgconn_send_query(argc, argv, self)
 	int *paramFormats;
 	int resultFormat;
 
-    rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
-    Check_Type(command, T_STRING);
+	rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
+	Check_Type(command, T_STRING);
 
 	/* If called with no parameters, use PQsendQuery */
 	if(NIL_P(params)) {
@@ -1518,12 +1474,9 @@ pgconn_send_query(argc, argv, self)
  * inside the SQL query.
  */
 static VALUE
-pgconn_send_prepare(argc, argv, self)
-    int argc;
-	VALUE *argv;
-	VALUE self;
+pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 {
-    PGconn *conn = get_pgconn(self);
+	PGconn *conn = get_pgconn(self);
 	int result;
 	VALUE name, command, in_paramtypes;
 	VALUE param;
@@ -1532,9 +1485,9 @@ pgconn_send_prepare(argc, argv, self)
 	int nParams = 0;
 	Oid *paramTypes = NULL;
 
-    rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
+	rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
 	Check_Type(name, T_STRING);
-    Check_Type(command, T_STRING);
+	Check_Type(command, T_STRING);
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
@@ -1588,13 +1541,10 @@ pgconn_send_prepare(argc, argv, self)
  * for binary.
  */
 static VALUE
-pgconn_send_query_prepared(argc, argv, self)
-    int argc;
-    VALUE *argv;
-    VALUE self;
+pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 {
-    PGconn *conn = get_pgconn(self);
-    int result;
+	PGconn *conn = get_pgconn(self);
+	int result;
 	VALUE name, params, in_res_fmt;
 	VALUE param, param_value, param_format;
 	VALUE param_value_tmp;
@@ -1607,7 +1557,7 @@ pgconn_send_query_prepared(argc, argv, self)
 	int *paramFormats;
 	int resultFormat;
 
-    rb_scan_args(argc, argv, "12", &name, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "12", &name, &params, &in_res_fmt);
 	Check_Type(name, T_STRING);
 
 	if(NIL_P(params)) {
@@ -1689,8 +1639,7 @@ pgconn_send_query_prepared(argc, argv, self)
  * Use in combination with +conn.get_result+.
  */
 static VALUE
-pgconn_send_describe_prepared(self, stmt_name)
-	VALUE self, stmt_name;
+pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 {
 	VALUE error;
 	PGconn *conn = get_pgconn(self);
@@ -1712,8 +1661,7 @@ pgconn_send_describe_prepared(self, stmt_name)
  * Use in combination with +conn.get_result+.
  */
 static VALUE
-pgconn_send_describe_portal(self, portal)
-	VALUE self, portal;
+pgconn_send_describe_portal(VALUE self, VALUE portal)
 {
 	VALUE error;
 	PGconn *conn = get_pgconn(self);
@@ -1740,8 +1688,7 @@ pgconn_send_describe_portal(self, portal)
  * or else you will not be able to issue further commands.
  */
 static VALUE
-pgconn_get_result(self)
-	VALUE self;
+pgconn_get_result(VALUE self)
 {
 	PGconn *conn = get_pgconn(self);
 	PGresult *result;
@@ -1752,10 +1699,10 @@ pgconn_get_result(self)
 		return Qnil;
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
-    if (rb_block_given_p()) {
-        return rb_ensure(yield_pgresult, rb_pgresult, 
+	if (rb_block_given_p()) {
+		return rb_ensure(yield_pgresult, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
-    }
+	}
 	return rb_pgresult;
 }
 
@@ -1880,12 +1827,11 @@ pgconn_flush(self)
  * If there is no unprocessed notifier, it returns +nil+.
  */
 static VALUE
-pgconn_notifies(self)
-    VALUE self;
+pgconn_notifies(VALUE self)
 {
-    PGconn* conn = get_pgconn(self);
-    PGnotify *notify;
-    VALUE hash;
+	PGconn* conn = get_pgconn(self);
+	PGnotify *notify;
+	VALUE hash;
 	VALUE sym_relname, sym_be_pid, sym_extra;
 	VALUE relname, be_pid, extra;
 
@@ -1893,22 +1839,22 @@ pgconn_notifies(self)
 	sym_be_pid = ID2SYM(rb_intern("be_pid"));
 	sym_extra = ID2SYM(rb_intern("extra"));
 
-    notify = PQnotifies(conn);
-    if (notify == NULL) {
-        return Qnil;
-    }
+	notify = PQnotifies(conn);
+	if (notify == NULL) {
+		return Qnil;
+	}
 	
 	hash = rb_hash_new();
 	relname = rb_tainted_str_new2(notify->relname);
 	be_pid = INT2NUM(notify->be_pid);
 	extra = rb_tainted_str_new2(PGNOTIFY_EXTRA(notify));
 	
-    rb_hash_aset(hash, sym_relname, relname);
+	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
 	rb_hash_aset(hash, sym_extra, extra);
 
-    PQfreemem(notify);
-    return hash;
+	PQfreemem(notify);
+	return hash;
 }
 
 
@@ -1957,23 +1903,20 @@ pgconn_put_copy_data(self, buffer)
  * is in nonblocking mode, and this command would block).
  */ 
 static VALUE
-pgconn_put_copy_end(argc, argv, self)
-	int argc;
-	VALUE *argv;
-	VALUE self;
+pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 {
-    VALUE str;
+	VALUE str;
 	VALUE error;
 	int ret;
 	char *error_message = NULL;
-    PGconn *conn = get_pgconn(self);
-    
-    if (rb_scan_args(argc, argv, "01", &str) == 0)
-        error_message = NULL;
-    else
-        error_message = StringValuePtr(str);
-  
-  	ret = PQputCopyEnd(conn, error_message);
+	PGconn *conn = get_pgconn(self);
+
+	if (rb_scan_args(argc, argv, "01", &str) == 0)
+		error_message = NULL;
+	else
+		error_message = StringValuePtr(str);
+
+	ret = PQputCopyEnd(conn, error_message);
 	if(ret == -1) {
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -1992,25 +1935,22 @@ pgconn_put_copy_end(argc, argv, self)
  *
  */
 static VALUE
-pgconn_get_copy_data( argc, argv, self )
-	int argc;
-	VALUE *argv;
-	VALUE self;
+pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 {
-    VALUE async_in;
+	VALUE async_in;
 	VALUE error;
 	VALUE result_str;
 	int ret;
 	int async;
 	char *buffer;
-    PGconn *conn = get_pgconn(self);
-    
-    if (rb_scan_args(argc, argv, "01", &async_in) == 0)
-        async = 0;
-    else
+	PGconn *conn = get_pgconn(self);
+
+	if (rb_scan_args(argc, argv, "01", &async_in) == 0)
+		async = 0;
+	else
 		async = (async_in == Qfalse || async_in == Qnil) ? 0 : 1;
 
-  	ret = PQgetCopyData(conn, &buffer, async);
+	ret = PQgetCopyData(conn, &buffer, async);
 	if(ret == -2) { // error
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2097,8 +2037,7 @@ pgconn_trace(VALUE self, VALUE stream)
  * Disables the message tracing.
  */
 static VALUE
-pgconn_untrace(self)
-    VALUE self;
+pgconn_untrace(VALUE self)
 {
 	VALUE trace_stream;
 	PQuntrace(get_pgconn(self));
@@ -2129,8 +2068,8 @@ pgconn_untrace(self)
 static VALUE
 pgconn_set_notice_receiver(VALUE self)
 {
-    VALUE proc, old_proc;
-    PGconn *conn = get_pgconn(self);
+	VALUE proc, old_proc;
+	PGconn *conn = get_pgconn(self);
 
 	/* If default_notice_receiver is unset, assume that the current 
 	 * notice receiver is the default, and save it to a global variable. 
@@ -2175,8 +2114,8 @@ pgconn_set_notice_receiver(VALUE self)
 static VALUE
 pgconn_set_notice_processor(VALUE self)
 {
-    VALUE proc, old_proc;
-    PGconn *conn = get_pgconn(self);
+	VALUE proc, old_proc;
+	PGconn *conn = get_pgconn(self);
 
 	/* If default_notice_processor is unset, assume that the current 
 	 * notice processor is the default, and save it to a global variable. 
@@ -2206,11 +2145,10 @@ pgconn_set_notice_processor(VALUE self)
  * Returns the client encoding as a String.
  */
 static VALUE
-pgconn_get_client_encoding(self)
-    VALUE self;
+pgconn_get_client_encoding(VALUE self)
 {
-    char *encoding = (char *)pg_encoding_to_char(PQclientEncoding(get_pgconn(self)));
-    return rb_tainted_str_new2(encoding);
+	char *encoding = (char *)pg_encoding_to_char(PQclientEncoding(get_pgconn(self)));
+	return rb_tainted_str_new2(encoding);
 }
 
 /*
@@ -2220,14 +2158,13 @@ pgconn_get_client_encoding(self)
  * Sets the client encoding to the _encoding_ String.
  */
 static VALUE
-pgconn_set_client_encoding(self, str)
-    VALUE self, str;
+pgconn_set_client_encoding(VALUE self, VALUE str)
 {
-    Check_Type(str, T_STRING);
-    if ((PQsetClientEncoding(get_pgconn(self), StringValuePtr(str))) == -1){
-        rb_raise(rb_ePGError, "invalid encoding name: %s",StringValuePtr(str));
-    }
-    return Qnil;
+	Check_Type(str, T_STRING);
+	if ((PQsetClientEncoding(get_pgconn(self), StringValuePtr(str))) == -1){
+		rb_raise(rb_ePGError, "invalid encoding name: %s",StringValuePtr(str));
+	}
+	return Qnil;
 }
 
 /*
@@ -2298,7 +2235,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	VALUE ret;
 	char *str = StringValuePtr(in_str);
 	/* result size at most NAMEDATALEN*2 plus surrounding
-     * double-quotes. */
+	 * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
 	unsigned int i=0,j=0;
 	
@@ -2422,26 +2359,23 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
  * On failure, it raises PGError exception.
  */
 static VALUE
-pgconn_locreat(argc, argv, self)
-    int argc;
-    VALUE *argv;
-    VALUE self;
+pgconn_locreat(int argc, VALUE *argv, VALUE self)
 {
-    Oid lo_oid;
-    int mode;
-    VALUE nmode;
-    PGconn *conn = get_pgconn(self);
-    
-    if (rb_scan_args(argc, argv, "01", &nmode) == 0)
-        mode = INV_READ;
-    else
-        mode = NUM2INT(nmode);
-  
-    lo_oid = lo_creat(conn, mode);
-    if (lo_oid == 0)
-        rb_raise(rb_ePGError, "lo_creat failed");
+	Oid lo_oid;
+	int mode;
+	VALUE nmode;
+	PGconn *conn = get_pgconn(self);
 
-    return INT2FIX(lo_oid);
+	if (rb_scan_args(argc, argv, "01", &nmode) == 0)
+		mode = INV_READ;
+	else
+		mode = NUM2INT(nmode);
+
+	lo_oid = lo_creat(conn, mode);
+	if (lo_oid == 0)
+		rb_raise(rb_ePGError, "lo_creat failed");
+
+	return INT2FIX(lo_oid);
 }
 
 /*
@@ -2452,18 +2386,17 @@ pgconn_locreat(argc, argv, self)
  * On failure, it raises PGError exception.
  */
 static VALUE
-pgconn_locreate(self, in_lo_oid)
-    VALUE self, in_lo_oid;
+pgconn_locreate(VALUE self, VALUE in_lo_oid)
 {
-    Oid ret, lo_oid;
-    PGconn *conn = get_pgconn(self);
+	Oid ret, lo_oid;
+	PGconn *conn = get_pgconn(self);
 	lo_oid = NUM2INT(in_lo_oid);
-    
-    ret = lo_create(conn, in_lo_oid);
-    if (ret == InvalidOid)
-        rb_raise(rb_ePGError, "lo_create failed");
 
-    return INT2FIX(ret);
+	ret = lo_create(conn, in_lo_oid);
+	if (ret == InvalidOid)
+		rb_raise(rb_ePGError, "lo_create failed");
+
+	return INT2FIX(ret);
 }
 
 /*
@@ -2475,20 +2408,19 @@ pgconn_locreate(self, in_lo_oid)
  * On failure, it raises a PGError exception.
  */
 static VALUE
-pgconn_loimport(self, filename)
-    VALUE self, filename;
+pgconn_loimport(VALUE self, VALUE filename)
 {
-    Oid lo_oid;
+	Oid lo_oid;
 
-    PGconn *conn = get_pgconn(self);
+	PGconn *conn = get_pgconn(self);
 
-    Check_Type(filename, T_STRING);
+	Check_Type(filename, T_STRING);
 
-    lo_oid = lo_import(conn, StringValuePtr(filename));
-    if (lo_oid == 0) {
-        rb_raise(rb_ePGError, PQerrorMessage(conn));
-    }
-    return INT2FIX(lo_oid);
+	lo_oid = lo_import(conn, StringValuePtr(filename));
+	if (lo_oid == 0) {
+		rb_raise(rb_ePGError, PQerrorMessage(conn));
+	}
+	return INT2FIX(lo_oid);
 }
 
 /*
@@ -2498,22 +2430,21 @@ pgconn_loimport(self, filename)
  * Saves a large object of _oid_ to a _file_.
  */
 static VALUE
-pgconn_loexport(self, lo_oid,filename)
-    VALUE self, lo_oid, filename;
+pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 {
-    PGconn *conn = get_pgconn(self);
-    int oid;
-    Check_Type(filename, T_STRING);
+	PGconn *conn = get_pgconn(self);
+	int oid;
+	Check_Type(filename, T_STRING);
 
-    oid = NUM2INT(lo_oid);
-    if (oid < 0) {
-        rb_raise(rb_ePGError, "invalid large object oid %d",oid);
-    }
+	oid = NUM2INT(lo_oid);
+	if (oid < 0) {
+		rb_raise(rb_ePGError, "invalid large object oid %d",oid);
+	}
 
-    if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
-        rb_raise(rb_ePGError, PQerrorMessage(conn));
-    }
-    return Qnil;
+	if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
+		rb_raise(rb_ePGError, PQerrorMessage(conn));
+	}
+	return Qnil;
 }
 
 /*
@@ -2527,27 +2458,24 @@ pgconn_loexport(self, lo_oid,filename)
  * If _mode_ is omitted, the default is +INV_READ+.
  */
 static VALUE
-pgconn_loopen(argc, argv, self)
-    int argc;
-    VALUE *argv;
-    VALUE self;
+pgconn_loopen(int argc, VALUE *argv, VALUE self)
 {
-    Oid lo_oid;
-    int fd, mode;
-    VALUE nmode, selfid;
-    PGconn *conn = get_pgconn(self);
+	Oid lo_oid;
+	int fd, mode;
+	VALUE nmode, selfid;
+	PGconn *conn = get_pgconn(self);
 
-    rb_scan_args(argc, argv, "11", &selfid, &nmode);
-    lo_oid = NUM2INT(selfid);
+	rb_scan_args(argc, argv, "11", &selfid, &nmode);
+	lo_oid = NUM2INT(selfid);
 	if(NIL_P(nmode))
-    	mode = INV_READ;
-    else
+		mode = INV_READ;
+	else
 		mode = NUM2INT(nmode);
 
-    if((fd = lo_open(conn, lo_oid, mode)) < 0) {
-        rb_raise(rb_ePGError, "can't open large object");
-    }
-    return INT2FIX(fd);
+	if((fd = lo_open(conn, lo_oid, mode)) < 0) {
+		rb_raise(rb_ePGError, "can't open large object");
+	}
+	return INT2FIX(fd);
 }
 
 /*
@@ -2558,24 +2486,23 @@ pgconn_loopen(argc, argv, self)
  * Returns the number of bytes written.
  */
 static VALUE
-pgconn_lowrite(self, in_lo_desc, buffer)
-    VALUE self, buffer;
+pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 {
-    int n;
-    PGconn *conn = get_pgconn(self);
+	int n;
+	PGconn *conn = get_pgconn(self);
 	int fd = NUM2INT(in_lo_desc);
 
-    Check_Type(buffer, T_STRING);
+	Check_Type(buffer, T_STRING);
 
-    if( RSTRING_LEN(buffer) < 0) {
-        rb_raise(rb_ePGError, "write buffer zero string");
-    }
-    if((n = lo_write(conn, fd, StringValuePtr(buffer), 
+	if( RSTRING_LEN(buffer) < 0) {
+		rb_raise(rb_ePGError, "write buffer zero string");
+	}
+	if((n = lo_write(conn, fd, StringValuePtr(buffer), 
 				RSTRING_LEN(buffer))) < 0) {
-        rb_raise(rb_ePGError, "lo_write failed");
-    }
-  
-    return INT2FIX(n);
+		rb_raise(rb_ePGError, "lo_write failed");
+	}
+
+	return INT2FIX(n);
 }
 
 /*
@@ -2586,12 +2513,11 @@ pgconn_lowrite(self, in_lo_desc, buffer)
  * returns resulting data.
  */
 static VALUE
-pgconn_loread(self, in_lo_desc, in_len)
-    VALUE self, in_lo_desc, in_len;
+pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 {
-    int ret;
-    PGconn *conn = get_pgconn(self);
-    int len = NUM2INT(in_len);
+	int ret;
+	PGconn *conn = get_pgconn(self);
+	int len = NUM2INT(in_len);
 	int lo_desc = NUM2INT(in_lo_desc);
 	VALUE str;
 	char *buffer;
@@ -2599,13 +2525,13 @@ pgconn_loread(self, in_lo_desc, in_len)
 	buffer = malloc(len);
 	if(buffer == NULL)
 		rb_raise(rb_eNoMemError, "Malloc failed!");
-    
-    if (len < 0){
-        rb_raise(rb_ePGError,"nagative length %d given", len);
-    }
 
-    if((ret = lo_read(conn, lo_desc, buffer, len)) < 0)
-        rb_raise(rb_ePGError, "lo_read failed");
+	if (len < 0){
+		rb_raise(rb_ePGError,"nagative length %d given", len);
+	}
+
+	if((ret = lo_read(conn, lo_desc, buffer, len)) < 0)
+		rb_raise(rb_ePGError, "lo_read failed");
 
 	if(ret == 0) {
 		free(buffer);
@@ -2615,7 +2541,7 @@ pgconn_loread(self, in_lo_desc, in_len)
 	str = rb_tainted_str_new(buffer, len);
 	free(buffer);
 
-    return str;
+	return str;
 }
 
 
@@ -2628,18 +2554,17 @@ pgconn_loread(self, in_lo_desc, in_len)
  * (Or 0, 1, or 2.)
  */
 static VALUE
-pgconn_lolseek(self, in_lo_desc, offset, whence)
-    VALUE self, in_lo_desc, offset, whence;
+pgconn_lolseek(VALUE self, VALUE in_lo_desc, VALUE offset, VALUE whence)
 {
-    PGconn *conn = get_pgconn(self);
+	PGconn *conn = get_pgconn(self);
 	int lo_desc = NUM2INT(in_lo_desc);
-    int ret;
-    
-    if((ret = lo_lseek(conn, lo_desc, NUM2INT(offset), NUM2INT(whence))) < 0) {
-        rb_raise(rb_ePGError, "lo_lseek failed");
-    }
+	int ret;
 
-    return INT2FIX(ret);
+	if((ret = lo_lseek(conn, lo_desc, NUM2INT(offset), NUM2INT(whence))) < 0) {
+		rb_raise(rb_ePGError, "lo_lseek failed");
+	}
+
+	return INT2FIX(ret);
 }
 
 /*
@@ -2649,17 +2574,16 @@ pgconn_lolseek(self, in_lo_desc, offset, whence)
  * Returns the current position of the large object _lo_desc_.
  */
 static VALUE
-pgconn_lotell(self,in_lo_desc)
-    VALUE self, in_lo_desc;
+pgconn_lotell(VALUE self, VALUE in_lo_desc)
 {
-    int position;
+	int position;
 	PGconn *conn = get_pgconn(self);
 	int lo_desc = NUM2INT(in_lo_desc);
 
 	if((position = lo_tell(conn, lo_desc)) < 0)
 		rb_raise(rb_ePGError,"lo_tell failed");
 
-    return INT2FIX(position);
+	return INT2FIX(position);
 }
 
 /*
@@ -2669,17 +2593,16 @@ pgconn_lotell(self,in_lo_desc)
  * Truncates the large object _lo_desc_ to size _len_.
  */
 static VALUE
-pgconn_lotruncate(self, in_lo_desc, in_len)
-    VALUE self, in_lo_desc, in_len;
+pgconn_lotruncate(VALUE self, VALUE in_lo_desc, VALUE in_len)
 {
-    PGconn *conn = get_pgconn(self);
-    int lo_desc = NUM2INT(in_lo_desc);
+	PGconn *conn = get_pgconn(self);
+	int lo_desc = NUM2INT(in_lo_desc);
 	size_t len = NUM2INT(in_len);
-    
-    if(lo_truncate(conn,lo_desc,len) < 0)
+
+	if(lo_truncate(conn,lo_desc,len) < 0)
 		rb_raise(rb_ePGError,"lo_truncate failed");
 
-    return Qnil;
+	return Qnil;
 }
 
 /*
@@ -2689,16 +2612,15 @@ pgconn_lotruncate(self, in_lo_desc, in_len)
  * Closes the postgres large object of _lo_desc_.
  */
 static VALUE
-pgconn_loclose(self, in_lo_desc)
-    VALUE self, in_lo_desc;
+pgconn_loclose(VALUE self, VALUE in_lo_desc)
 {
-    PGconn *conn = get_pgconn(self);
-    int lo_desc = NUM2INT(in_lo_desc);
-    
-    if(lo_unlink(conn,lo_desc) < 0)
+	PGconn *conn = get_pgconn(self);
+	int lo_desc = NUM2INT(in_lo_desc);
+
+	if(lo_unlink(conn,lo_desc) < 0)
 		rb_raise(rb_ePGError,"lo_close failed");
 
-    return Qnil;
+	return Qnil;
 }
 
 /*
@@ -2708,19 +2630,18 @@ pgconn_loclose(self, in_lo_desc)
  * Unlinks (deletes) the postgres large object of _oid_.
  */
 static VALUE
-pgconn_lounlink(self, in_oid)
-    VALUE self, in_oid;
+pgconn_lounlink(VALUE self, VALUE in_oid)
 {
-    PGconn *conn = get_pgconn(self);
-    int oid = NUM2INT(in_oid);
-    
-    if (oid < 0)
-        rb_raise(rb_ePGError, "invalid oid %d",oid);
+	PGconn *conn = get_pgconn(self);
+	int oid = NUM2INT(in_oid);
 
-    if(lo_unlink(conn,oid) < 0)
+	if (oid < 0)
+		rb_raise(rb_ePGError, "invalid oid %d",oid);
+
+	if(lo_unlink(conn,oid) < 0)
 		rb_raise(rb_ePGError,"lo_unlink failed");
 
-    return Qnil;
+	return Qnil;
 }
 
 /********************************************************************
@@ -2761,10 +2682,9 @@ pgconn_lounlink(self, in_oid)
  * * +PGRES_FATAL_ERROR+
  */
 static VALUE
-pgresult_result_status(self)
-    VALUE self;
+pgresult_result_status(VALUE self)
 {
-    return INT2FIX(PQresultStatus(get_pgresult(self)));
+	return INT2FIX(PQresultStatus(get_pgresult(self)));
 }
 
 /*
@@ -2775,10 +2695,9 @@ pgresult_result_status(self)
  *
 */
 static VALUE
-pgresult_res_status(self,status)
-    VALUE self,status;
+pgresult_res_status(VALUE self, VALUE status)
 {
-    return rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
+	return rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
 }
 
 /*
@@ -2788,10 +2707,9 @@ pgresult_res_status(self,status)
  * Returns the error message of the command as a string. 
  */
 static VALUE
-pgresult_result_error_message(self)
-    VALUE self;
+pgresult_result_error_message(VALUE self)
 {
-    return rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
+	return rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
 }
 
 /*
@@ -2819,7 +2737,7 @@ pgresult_result_error_field(VALUE self, VALUE field)
 {
 	PGresult *result = get_pgresult(self);
 	int fieldcode = NUM2INT(field);
-    return rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
+	return rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
 }
 
 /*
@@ -2829,12 +2747,11 @@ pgresult_result_error_field(VALUE self, VALUE field)
  * Clears the PGresult object as the result of the query.
  */
 static VALUE
-pgresult_clear(self)
-    VALUE self;
+pgresult_clear(VALUE self)
 {
-    PQclear(get_pgresult(self));
-    DATA_PTR(self) = NULL;
-    return Qnil;
+	PQclear(get_pgresult(self));
+	DATA_PTR(self) = NULL;
+	return Qnil;
 }
 
 /*
@@ -2844,10 +2761,9 @@ pgresult_clear(self)
  * Returns the number of tuples in the query result.
  */
 static VALUE
-pgresult_ntuples(self)
-    VALUE self;
+pgresult_ntuples(VALUE self)
 {
-    return INT2FIX(PQntuples(get_pgresult(self)));
+	return INT2FIX(PQntuples(get_pgresult(self)));
 }
 
 /*
@@ -2857,10 +2773,9 @@ pgresult_ntuples(self)
  * Returns the number of columns in the query result.
  */
 static VALUE
-pgresult_nfields(self)
-    VALUE self;
+pgresult_nfields(VALUE self)
 {
-    return INT2NUM(PQnfields(get_pgresult(self)));
+	return INT2NUM(PQnfields(get_pgresult(self)));
 }
 
 /*
@@ -2870,17 +2785,16 @@ pgresult_nfields(self)
  * Returns the name of the column corresponding to _index_.
  */
 static VALUE
-pgresult_fname(self, index)
-    VALUE self, index;
+pgresult_fname(VALUE self, VALUE index)
 {
-    PGresult *result;
+	PGresult *result;
 	int i = NUM2INT(index);
 
-    result = get_pgresult(self);
-    if (i < 0 || i >= PQnfields(result)) {
-        rb_raise(rb_eArgError,"invalid field number %d", i);
-    }
-    return rb_tainted_str_new2(PQfname(result, i));
+	result = get_pgresult(self);
+	if (i < 0 || i >= PQnfields(result)) {
+		rb_raise(rb_eArgError,"invalid field number %d", i);
+	}
+	return rb_tainted_str_new2(PQfname(result, i));
 }
 
 /*
@@ -2893,18 +2807,17 @@ pgresult_fname(self, index)
  * raises a TypeError if _name_ is not a String.
  */
 static VALUE
-pgresult_fnumber(self, name)
-    VALUE self, name;
+pgresult_fnumber(VALUE self, VALUE name)
 {
-    int n;
-    
-    Check_Type(name, T_STRING);
-    
-    n = PQfnumber(get_pgresult(self), StringValuePtr(name));
-    if (n == -1) {
-        rb_raise(rb_eArgError,"Unknown field: %s", StringValuePtr(name));
-    }
-    return INT2FIX(n);
+	int n;
+
+	Check_Type(name, T_STRING);
+
+	n = PQfnumber(get_pgresult(self), StringValuePtr(name));
+	if (n == -1) {
+		rb_raise(rb_eArgError,"Unknown field: %s", StringValuePtr(name));
+	}
+	return INT2FIX(n);
 }
 
 /*
@@ -2918,15 +2831,14 @@ pgresult_fnumber(self, name)
  * the Oid is undefined for that column.
  */
 static VALUE
-pgresult_ftable(self, column_number)
-    VALUE self, column_number;
+pgresult_ftable(VALUE self, VALUE column_number)
 {
 	Oid n = PQftable(get_pgresult(self), NUM2INT(column_number));
-    if (n == InvalidOid) {
-        rb_raise(rb_eArgError,"Oid is undefined for column: %d", 
+	if (n == InvalidOid) {
+		rb_raise(rb_eArgError,"Oid is undefined for column: %d", 
 			NUM2INT(column_number));
-    }
-    return INT2FIX(n);
+	}
+	return INT2FIX(n);
 }
 
 /*
@@ -2940,16 +2852,15 @@ pgresult_ftable(self, column_number)
  * the column number from its table is undefined for that column.
  */
 static VALUE
-pgresult_ftablecol(self, column_number)
-    VALUE self, column_number;
+pgresult_ftablecol(VALUE self, VALUE column_number)
 {
 	int n = PQftablecol(get_pgresult(self), NUM2INT(column_number));
-    if (n == 0) {
-        rb_raise(rb_eArgError,
+	if (n == 0) {
+		rb_raise(rb_eArgError,
 			"Column number from table is undefined for column: %d", 
 			NUM2INT(column_number));
-    }
-    return INT2FIX(n);
+	}
+	return INT2FIX(n);
 }
 
 /*
@@ -2962,15 +2873,14 @@ pgresult_ftablecol(self, column_number)
  * Raises ArgumentError if _column_number_ is out of range.
  */
 static VALUE
-pgresult_fformat(self, column_number)
-    VALUE self, column_number;
+pgresult_fformat(VALUE self, VALUE column_number)
 {
 	PGresult *result = get_pgresult(self);
 	int fnumber = NUM2INT(column_number);
-    if (fnumber >= PQnfields(result)) {
-        rb_raise(rb_eArgError, "Column number is out of range: %d", 
+	if (fnumber >= PQnfields(result)) {
+		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
-    }
+	}
 	return INT2FIX(PQfformat(result, fnumber));
 }
 
@@ -2983,15 +2893,14 @@ pgresult_fformat(self, column_number)
  * The integer returned is the internal +OID+ number (in PostgreSQL) of the type.
  */
 static VALUE
-pgresult_ftype(self, index)
-    VALUE self, index;
+pgresult_ftype(VALUE self, VALUE index)
 {
-    PGresult* result = get_pgresult(self);
-    int i = NUM2INT(index);
-    if (i < 0 || i >= PQnfields(result)) {
-        rb_raise(rb_eArgError, "invalid field number %d", i);
-    }
-    return INT2NUM(PQftype(result, i));
+	PGresult* result = get_pgresult(self);
+	int i = NUM2INT(index);
+	if (i < 0 || i >= PQnfields(result)) {
+		rb_raise(rb_eArgError, "invalid field number %d", i);
+	}
+	return INT2NUM(PQftype(result, i));
 }
 
 /*
@@ -3003,16 +2912,15 @@ pgresult_ftype(self, index)
  * Raises ArgumentError if _column_number_ is out of range.
  */
 static VALUE
-pgresult_fmod(self, column_number)
-    VALUE self, column_number;
+pgresult_fmod(VALUE self, VALUE column_number)
 {
 	PGresult *result = get_pgresult(self);
 	int fnumber = NUM2INT(column_number);
 	int modifier;
-    if (fnumber >= PQnfields(result)) {
-        rb_raise(rb_eArgError, "Column number is out of range: %d", 
+	if (fnumber >= PQnfields(result)) {
+		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
-    }
+	}
 	if((modifier = PQfmod(result,fnumber)) == -1)
 		rb_raise(rb_eArgError, 
 			"No modifier information available for column: %d", 
@@ -3031,17 +2939,16 @@ pgresult_fmod(self, column_number)
  *   res.size(1) => -1
  */
 static VALUE
-pgresult_fsize(self, index)
-    VALUE self, index;
+pgresult_fsize(VALUE self, VALUE index)
 {
-    PGresult *result;
-    int i = NUM2INT(index);
+	PGresult *result;
+	int i = NUM2INT(index);
 
-    result = get_pgresult(self);
-    if (i < 0 || i >= PQnfields(result)) {
-        rb_raise(rb_eArgError,"invalid field number %d", i);
-    }
-    return INT2NUM(PQfsize(result, i));
+	result = get_pgresult(self);
+	if (i < 0 || i >= PQnfields(result)) {
+		rb_raise(rb_eArgError,"invalid field number %d", i);
+	}
+	return INT2NUM(PQfsize(result, i));
 }
 
 /*
@@ -3052,20 +2959,19 @@ pgresult_fsize(self, index)
  * or +nil+ if the field is +NULL+.
  */
 static VALUE
-pgresult_getvalue(self, tup_num, field_num)
-    VALUE self, tup_num, field_num;
+pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 {
-    PGresult *result;
-    int i = NUM2INT(tup_num);
-    int j = NUM2INT(field_num);
+	PGresult *result;
+	int i = NUM2INT(tup_num);
+	int j = NUM2INT(field_num);
 
-    result = get_pgresult(self);
+	result = get_pgresult(self);
 	if(i < 0 || i >= PQntuples(result)) {
 		rb_raise(rb_eArgError,"invalid tuple number %d", i);
 	}
-   	if(j < 0 || j >= PQnfields(result)) {
+	if(j < 0 || j >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
-   	}
+	}
 	if(PQgetisnull(result, i, j))
 		return Qnil;
 	return rb_tainted_str_new(PQgetvalue(result, i, j), 
@@ -3079,21 +2985,20 @@ pgresult_getvalue(self, tup_num, field_num)
  * Returns +true+ if the specified value is +nil+; +false+ otherwise.
  */
 static VALUE
-pgresult_getisnull(self, tup_num, field_num)
-    VALUE self, tup_num, field_num;
+pgresult_getisnull(VALUE self, VALUE tup_num, VALUE field_num)
 {
-    PGresult *result;
-    int i = NUM2INT(tup_num);
-    int j = NUM2INT(field_num);
+	PGresult *result;
+	int i = NUM2INT(tup_num);
+	int j = NUM2INT(field_num);
 
-    result = get_pgresult(self);
-    if (i < 0 || i >= PQntuples(result)) {
-        rb_raise(rb_eArgError,"invalid tuple number %d", i);
-    }
-    if (j < 0 || j >= PQnfields(result)) {
-        rb_raise(rb_eArgError,"invalid field number %d", j);
-    }
-    return PQgetisnull(result, i, j) ? Qtrue : Qfalse;
+	result = get_pgresult(self);
+	if (i < 0 || i >= PQntuples(result)) {
+		rb_raise(rb_eArgError,"invalid tuple number %d", i);
+	}
+	if (j < 0 || j >= PQnfields(result)) {
+		rb_raise(rb_eArgError,"invalid field number %d", j);
+	}
+	return PQgetisnull(result, i, j) ? Qtrue : Qfalse;
 }
 
 /*
@@ -3105,21 +3010,20 @@ pgresult_getisnull(self, tup_num, field_num)
  * Equivalent to <tt>res.value(<i>tup_num</i>,<i>field_num</i>).length</tt>.
  */
 static VALUE
-pgresult_getlength(self, tup_num, field_num)
-    VALUE self, tup_num, field_num;
+pgresult_getlength(VALUE self, VALUE tup_num, VALUE field_num)
 {
-    PGresult *result;
-    int i = NUM2INT(tup_num);
-    int j = NUM2INT(field_num);
+	PGresult *result;
+	int i = NUM2INT(tup_num);
+	int j = NUM2INT(field_num);
 
-    result = get_pgresult(self);
-    if (i < 0 || i >= PQntuples(result)) {
-        rb_raise(rb_eArgError,"invalid tuple number %d", i);
-    }
-    if (j < 0 || j >= PQnfields(result)) {
-        rb_raise(rb_eArgError,"invalid field number %d", j);
-    }
-    return INT2FIX(PQgetlength(result, i, j));
+	result = get_pgresult(self);
+	if (i < 0 || i >= PQntuples(result)) {
+		rb_raise(rb_eArgError,"invalid tuple number %d", i);
+	}
+	if (j < 0 || j >= PQnfields(result)) {
+		rb_raise(rb_eArgError,"invalid field number %d", j);
+	}
+	return INT2FIX(PQgetlength(result, i, j));
 }
 
 /*
@@ -3130,13 +3034,12 @@ pgresult_getlength(self, tup_num, field_num)
  * Only useful for the result returned by conn.describePrepared
  */
 static VALUE
-pgresult_nparams(self)
-    VALUE self;
+pgresult_nparams(VALUE self)
 {
-    PGresult *result;
+	PGresult *result;
 
-    result = get_pgresult(self);
-    return INT2FIX(PQnparams(result));
+	result = get_pgresult(self);
+	return INT2FIX(PQnparams(result));
 }
 
 /*
@@ -3147,13 +3050,12 @@ pgresult_nparams(self)
  * Only useful for the result returned by conn.describePrepared
  */
 static VALUE
-pgresult_paramtype(self, param_number)
-    VALUE self, param_number;
+pgresult_paramtype(VALUE self, VALUE param_number)
 {
-    PGresult *result;
+	PGresult *result;
 
-    result = get_pgresult(self);
-    return INT2FIX(PQparamtype(result,NUM2INT(param_number)));
+	result = get_pgresult(self);
+	return INT2FIX(PQparamtype(result,NUM2INT(param_number)));
 }
 
 /*
@@ -3163,10 +3065,9 @@ pgresult_paramtype(self, param_number)
  * Returns the status string of the last query command.
  */
 static VALUE
-pgresult_cmd_status(self)
-    VALUE self;
+pgresult_cmd_status(VALUE self)
 {
-    return rb_tainted_str_new2(PQcmdStatus(get_pgresult(self)));
+	return rb_tainted_str_new2(PQcmdStatus(get_pgresult(self)));
 }
 
 /*
@@ -3184,12 +3085,11 @@ pgresult_cmd_status(self)
  * or if no tuples were affected, <tt>0</tt> is returned.
  */
 static VALUE
-pgresult_cmd_tuples(self)
-    VALUE self;
+pgresult_cmd_tuples(VALUE self)
 {
-    long n;
-    n = strtol(PQcmdTuples(get_pgresult(self)),NULL, 10);
-    return INT2NUM(n);
+	long n;
+	n = strtol(PQcmdTuples(get_pgresult(self)),NULL, 10);
+	return INT2NUM(n);
 }
 
 /*
@@ -3200,14 +3100,13 @@ pgresult_cmd_tuples(self)
  * otherwise +nil+.
  */
 static VALUE
-pgresult_oid_value(self)
-    VALUE self;
+pgresult_oid_value(VALUE self)
 {
-    Oid n = PQoidValue(get_pgresult(self));
-    if (n == InvalidOid)
-        return Qnil;
-    else
-        return INT2FIX(n);
+	Oid n = PQoidValue(get_pgresult(self));
+	if (n == InvalidOid)
+		return Qnil;
+	else
+		return INT2FIX(n);
 }
 
 /* Utility methods not in libpq */
@@ -3219,8 +3118,7 @@ pgresult_oid_value(self)
  * Returns tuple _n_ as a hash. 
  */
 static VALUE
-pgresult_aref(self, index)
-	VALUE self, index;
+pgresult_aref(VALUE self, VALUE index)
 {
 	PGresult *result = get_pgresult(self);
 	int tuple_num = NUM2INT(index);
@@ -3252,8 +3150,7 @@ pgresult_aref(self, index)
  * Invokes block for each tuple in the result set.
  */
 static VALUE
-pgresult_each(self)
-	VALUE self;
+pgresult_each(VALUE self)
 {
 	PGresult *result = get_pgresult(self);
 	int tuple_num;
@@ -3271,20 +3168,19 @@ pgresult_each(self)
  * Returns an array of Strings representing the names of the fields in the result.
  */
 static VALUE
-pgresult_fields(self)
-    VALUE self;
+pgresult_fields(VALUE self)
 {
-    PGresult *result;
-    VALUE ary;
-    int n, i;
+	PGresult *result;
+	VALUE ary;
+	int n, i;
 
-    result = get_pgresult(self);
-    n = PQnfields(result);
-    ary = rb_ary_new2(n);
-    for (i=0;i<n;i++) {
-        rb_ary_push(ary, rb_tainted_str_new2(PQfname(result, i)));
-    }
-    return ary;
+	result = get_pgresult(self);
+	n = PQnfields(result);
+	ary = rb_ary_new2(n);
+	for (i=0;i<n;i++) {
+		rb_ary_push(ary, rb_tainted_str_new2(PQfname(result, i)));
+	}
+	return ary;
 }
 
 /**************************************************************************/
