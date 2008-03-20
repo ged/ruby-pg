@@ -74,7 +74,7 @@ describe PGconn do
 	end
 
 	it "should detect division by zero as SQLSTATE 22012" do
-		sqlstate = 0
+		sqlstate = nil
 		begin
 			res = @conn.exec("SELECT 1/0")
 		rescue PGError => e
@@ -96,7 +96,7 @@ describe PGconn do
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
 							WHERE usename IS NOT NULL])
 		# there's still the global @conn, but should be no more
-		res[0]['n'].should== '1'
+		res[0]['n'].should == '1'
 	end
 
 	it "should trace and untrace client-server communication" do
@@ -114,6 +114,18 @@ describe PGconn do
 		trace_data = trace_file.read
 		trace_file.close
 		trace_data.should == expected_trace_data
+	end
+
+	it "should cancel a query" do
+		error = false
+		@conn.send_query("SELECT pg_sleep(1000)")
+		@conn.cancel
+		begin
+			tmpres = @conn.get_result
+		rescue PGError => e
+			error = true
+		end
+		error.should == true
 	end
 
 	after( :all ) do

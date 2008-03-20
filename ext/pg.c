@@ -1882,11 +1882,37 @@ pgconn_flush(self)
 	return (ret) ? Qfalse : Qtrue;
 }
 
-//TODO get_cancel
+/*
+ * call-seq:
+ *    conn.cancel() -> String
+ *
+ * Requests cancellation of the command currently being
+ * processed.
+ *
+ * Returns +nil+ on success, or a string containing the
+ * error message if a failure occurs.
+ */
+static VALUE
+pgconn_cancel(VALUE self)
+{
+	char errbuf[256];
+	PGcancel *cancel;
+	VALUE retval;
+	int ret;
 
-//TODO free_cancel
+	cancel = PQgetCancel(get_pgconn(self));
+	if(cancel == NULL)
+		rb_raise(rb_ePGError,"Invalid connection!");
 
-//TODO cancel
+	ret = PQcancel(cancel, errbuf, 256);
+	if(ret == 1) 
+		retval = Qnil;
+	else
+		retval = rb_str_new2(errbuf);
+
+	PQfreeCancel(cancel);
+	return retval;
+}
 
 /*
  * call-seq:
@@ -3383,9 +3409,7 @@ Init_pg()
 	rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
 
 	/******     PGconn INSTANCE METHODS: Cancelling Queries in Progress     ******/
-	//rb_define_method(rb_cPGconn, "get_cancel", pgconn_get_result, 0);
-	//rb_define_method(rb_cPGconn, "free_cancel", pgconn_get_result, 0);
-	//rb_define_method(rb_cPGconn, "cancel", pgconn_get_result, 0);
+	rb_define_method(rb_cPGconn, "cancel", pgconn_cancel, 0);
 
 	/******     PGconn INSTANCE METHODS: NOTIFY     ******/
 	rb_define_method(rb_cPGconn, "notifies", pgconn_notifies, 0);
