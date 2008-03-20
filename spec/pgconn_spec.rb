@@ -53,6 +53,26 @@ describe PGconn do
 		tmpconn.finish
 	end
 
+	it "should connect asynchronously" do
+		tmpconn = PGconn.connect_start(@conninfo)
+		socket = IO.for_fd(tmpconn.socket)
+		status = tmpconn.connect_poll
+		while(status != PGconn::PGRES_POLLING_OK) do
+			if(status == PGconn::PGRES_POLLING_READING)
+				if(not select([socket],[],[],5.0))
+					raise "Asynchronous connection timed out!"
+				end
+			elsif(status == PGconn::PGRES_POLLING_WRITING)
+				if(not select([],[socket],[],5.0))
+					raise "Asynchronous connection timed out!"
+				end
+			end
+			status = tmpconn.connect_poll
+		end
+		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn.finish
+	end
+
 	it "should detect division by zero as SQLSTATE 22012" do
 		sqlstate = 0
 		begin
