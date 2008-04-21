@@ -1,8 +1,8 @@
 require 'mkmf'
 
 begin
-	`pg_config --version`
-rescue Errno::ENOENT
+	IO.popen("pg_config --version").readline.chomp
+rescue
 	$stderr.write("ERROR: can't find pg_config.\n")
 	$stderr.write("HINT: Make sure pg_config is in your PATH\n")
 	exit 1
