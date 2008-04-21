@@ -1,6 +1,8 @@
 require 'mkmf'
 
-unless system("pg_config --bindir > /dev/null")
+begin
+	`pg_config --version`
+rescue Errno::ENOENT
 	$stderr.write("ERROR: can't find pg_config.\n")
 	$stderr.write("HINT: Make sure pg_config is in your PATH\n")
 	exit 1
