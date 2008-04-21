@@ -73,24 +73,6 @@ describe PGconn do
 		tmpconn.finish
 	end
 
-	it "should detect division by zero as SQLSTATE 22012" do
-		sqlstate = nil
-		begin
-			res = @conn.exec("SELECT 1/0")
-		rescue PGError => e
-			sqlstate = e.result.result_error_field(
-				PGresult::PG_DIAG_SQLSTATE).to_i
-		end
-		sqlstate.should == 22012
-	end
-
-	it "should return the same bytes in binary format that are sent in binary format" do
-		bytes = "\x00\x00"
-		res = @conn.exec('VALUES ($1::bytea)', 
-			[ { :value => bytes, :format => 1 } ], 1)
-		res[0]['column1'].should== bytes
-	end
-
 	it "should not leave stale server connections after finish" do
 		PGconn.connect(@conninfo).finish
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity

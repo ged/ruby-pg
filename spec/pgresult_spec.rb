@@ -44,6 +44,53 @@ describe PGconn do
 		res[0]['n'].should == nil
 	end
 
+	it "should detect division by zero as SQLSTATE 22012" do
+		sqlstate = nil
+		begin
+			res = @conn.exec("SELECT 1/0")
+		rescue PGError => e
+			sqlstate = e.result.result_error_field(
+				PGresult::PG_DIAG_SQLSTATE).to_i
+		end
+		sqlstate.should == 22012
+	end
+
+	it "should return the same bytes in binary format that are sent in binary format" do
+		bytes = File.open('spec/data/random_binary_data').read
+		res = @conn.exec('VALUES ($1::bytea)', 
+			[ { :value => bytes, :format => 1 } ], 1)
+		res[0]['column1'].should== bytes
+	end
+
+	it "should return the same bytes in binary format that are sent as inline text" do
+		in_bytes = File.open('spec/data/random_binary_data').read
+		out_bytes = nil
+		@conn.transaction do |conn|
+			conn.exec("SET standard_conforming_strings=on")
+			res = conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 1)
+			out_bytes = res[0]['column1']
+		end
+		out_bytes.should== in_bytes
+	end
+
+	it "should return the same bytes in text format that are sent in binary format" do
+		bytes = File.open('spec/data/random_binary_data').read
+		res = @conn.exec('VALUES ($1::bytea)', 
+			[ { :value => bytes, :format => 1 } ])
+		PGconn.unescape_bytea(res[0]['column1']).should== bytes
+	end
+
+	it "should return the same bytes in text format that are sent as inline text" do
+		in_bytes = File.open('spec/data/random_binary_data').read
+		out_bytes = nil
+		@conn.transaction do |conn|
+			conn.exec("SET standard_conforming_strings=on")
+			res = conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 0)
+			out_bytes = PGconn.unescape_bytea(res[0]['column1'])
+		end
+		out_bytes.should== in_bytes
+	end
+
 	after( :all ) do
 		puts ""
 		@conn.finish
