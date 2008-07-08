@@ -242,8 +242,10 @@ parse_connect_args(int argc, VALUE *argv, VALUE self)
 				rb_hash_aref(arg, ID2SYM(rb_intern("user"))));
 			build_key_value_string(conninfo_rstr, "password", 
 				rb_hash_aref(arg, ID2SYM(rb_intern("password"))));
-			build_key_value_string(conninfo_rstr, "opt", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("opt"))));
+			build_key_value_string(conninfo_rstr, "connect_timeout", 
+				rb_hash_aref(arg, ID2SYM(rb_intern("connect_timeout"))));
+			build_key_value_string(conninfo_rstr, "options", 
+				rb_hash_aref(arg, ID2SYM(rb_intern("options"))));
 			build_key_value_string(conninfo_rstr, "tty", 
 				rb_hash_aref(arg, ID2SYM(rb_intern("tty"))));
 			build_key_value_string(conninfo_rstr, "sslmode", 
