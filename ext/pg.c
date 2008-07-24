@@ -1818,10 +1818,19 @@ pgconn_is_busy(self)
 
 /*
  * call-seq:
- *    conn.setnonblocking() -> Boolean
+ *    conn.setnonblocking(Boolean) -> nil
  *
- * Returns +true+ if a command is busy, that is, if
- * PQgetResult would block. Otherwise returns +false+.
+ * Sets the nonblocking status of the connection. 
+ * In the blocking state, calls to PGconn#send_query
+ * will block until the message is sent to the server,
+ * but will not wait for the query results.
+ * In the nonblocking state, calls to PGconn#send_query
+ * will return an error if the socket is not ready for
+ * writing.
+ * Note: This function does not affect PGconn#exec, because
+ * that function doesn't return until the server has 
+ * processed the query and returned the results.
+ * Returns +nil+.
  */
 static VALUE
 pgconn_setnonblocking(self, state)
@@ -3408,7 +3417,7 @@ Init_pg()
 	rb_define_method(rb_cPGconn, "get_result", pgconn_get_result, 0);
 	rb_define_method(rb_cPGconn, "consume_input", pgconn_consume_input, 0);
 	rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
-	rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 0);
+	rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 1);
 	rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
 	rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
 
