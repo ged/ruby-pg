@@ -70,7 +70,7 @@ pgconn_s_quote_connstr(VALUE string)
 
 	ptr = RSTRING_PTR(string);
 	len = RSTRING_LEN(string);
-	str = ALLOCA_N(char, len * 2 + 2 + 1);
+	str = ALLOC_N(char, len * 2 + 2 + 1);
 	str[j++] = '\'';
 	for(i = 0; i < len; i++) {
 		if(ptr[i] == '\'' || ptr[i] == '\\')
@@ -79,6 +79,7 @@ pgconn_s_quote_connstr(VALUE string)
 	}
 	str[j++] = '\'';
 	result = rb_str_new(str, j);
+	free(str);
 	return result;
 }
 
@@ -1293,7 +1294,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 
 	Check_Type(string, T_STRING);
 
-	escaped = ALLOCA_N(char, RSTRING_LEN(string) * 2 + 1);
+	escaped = ALLOC_N(char, RSTRING_LEN(string) * 2 + 1);
 	if(CLASS_OF(self) == rb_cPGconn) {
 		size = PQescapeStringConn(get_pgconn(self), escaped, 
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
@@ -1305,6 +1306,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 			RSTRING_LEN(string));
 	}
 	result = rb_str_new(escaped, size);
+	free(escaped);
 	OBJ_INFECT(result, string);
 	return result;
 }
