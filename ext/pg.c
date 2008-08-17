@@ -1001,7 +1001,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes, 
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
-	gc_unregister_address(&gc_array);
+	rb_gc_unregister_address(&gc_array);
 
 	free(paramTypes);
 	free(paramValues);
