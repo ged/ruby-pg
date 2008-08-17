@@ -26,7 +26,8 @@ spec = Gem::Specification.new do |s|
 	s.homepage          = 'http://rubyforge.org/projects/ruby-pg'
 	s.requirements      = 'PostgreSQL libpq library and headers'
 	s.has_rdoc          = true
-	s.extra_rdoc_files = ['ext/pg.c']
+	s.extra_rdoc_files  = ['ext/pg.c']
+	s.extensions        = [ 'ext/extconf.rb' ]
 
 	s.files = Dir.glob("README.*, LICENSE, COPYING.txt, ChangeLog, Contributors, GPL, BSD") + Dir.glob("{doc,ext,lib,sample,spec}/**/*").reject { |x| CLEAN.include?(x) }
 end
