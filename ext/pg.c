@@ -908,6 +908,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	VALUE param, param_type, param_value, param_format;
 	VALUE param_value_tmp;
 	VALUE sym_type, sym_value, sym_format;
+	VALUE gc_array;
 	int i=0;
 	int nParams;
 	Oid *paramTypes;
@@ -944,6 +945,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		resultFormat = NUM2INT(in_res_fmt);
 	}
 
+	gc_array = rb_ary_new();
+	rb_gc_register_address(&gc_array);
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
@@ -983,6 +986,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		}
 		else {
 			Check_Type(param_value, T_STRING);
+			/* make sure param_value doesn't get freed by the GC */
+			rb_ary_push(gc_array, param_value);
 			paramValues[i] = StringValuePtr(param_value);
 			paramLengths[i] = RSTRING_LEN(param_value);
 		}
@@ -995,6 +1000,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	
 	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes, 
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
+
+	gc_unregister_address(&gc_array);
 
 	free(paramTypes);
 	free(paramValues);
@@ -1103,6 +1110,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	VALUE param, param_value, param_format;
 	VALUE param_value_tmp;
 	VALUE sym_value, sym_format;
+	VALUE gc_array;
 	int i = 0;
 	int nParams;
 	char ** paramValues;
@@ -1129,6 +1137,8 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 		resultFormat = NUM2INT(in_res_fmt);
 	}
 
+	gc_array = rb_ary_new();
+	rb_gc_register_address(&gc_array);
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
 	nParams = RARRAY(params)->len;
@@ -1158,6 +1168,8 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 		}
 		else {
 			Check_Type(param_value, T_STRING);
+			/* make sure param_value doesn't get freed by the GC */
+			rb_ary_push(gc_array, param_value);
 			paramValues[i] = StringValuePtr(param_value);
 			paramLengths[i] = RSTRING_LEN(param_value);
 		}
@@ -1171,6 +1183,8 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	result = PQexecPrepared(conn, StringValuePtr(name), nParams, 
 		(const char * const *)paramValues, paramLengths, paramFormats, 
 		resultFormat);
+
+	rb_gc_unregister_address(&gc_array);
 
 	free(paramValues);
 	free(paramLengths);
@@ -1427,6 +1441,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	VALUE param, param_type, param_value, param_format;
 	VALUE param_value_tmp;
 	VALUE sym_type, sym_value, sym_format;
+	VALUE gc_array;
 	VALUE error;
 	int i=0;
 	int nParams;
@@ -1461,6 +1476,8 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		resultFormat = NUM2INT(in_res_fmt);
 	}
 
+	gc_array = rb_ary_new();
+	rb_gc_register_address(&gc_array);
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
@@ -1500,6 +1517,8 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		}
 		else {
 			Check_Type(param_value, T_STRING);
+			/* make sure param_value doesn't get freed by the GC */
+			rb_ary_push(gc_array, param_value);
 			paramValues[i] = StringValuePtr(param_value);
 			paramLengths[i] = RSTRING_LEN(param_value);
 		}
@@ -1512,6 +1531,8 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	
 	result = PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes, 
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
+
+	rb_gc_unregister_address(&gc_array);	
 
 	free(paramTypes);
 	free(paramValues);
@@ -1622,6 +1643,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	VALUE param, param_value, param_format;
 	VALUE param_value_tmp;
 	VALUE sym_value, sym_format;
+	VALUE gc_array;
 	VALUE error;
 	int i = 0;
 	int nParams;
@@ -1648,6 +1670,8 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		resultFormat = NUM2INT(in_res_fmt);
 	}
 
+	gc_array = rb_ary_new();
+	rb_gc_register_address(&gc_array);
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
 	nParams = RARRAY(params)->len;
@@ -1678,6 +1702,8 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		}
 		else {
 			Check_Type(param_value, T_STRING);
+			/* make sure param_value doesn't get freed by the GC */
+			rb_ary_push(gc_array, param_value);
 			paramValues[i] = StringValuePtr(param_value);
 			paramLengths[i] = RSTRING_LEN(param_value);
 		}
@@ -1691,6 +1717,8 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	result = PQsendQueryPrepared(conn, StringValuePtr(name), nParams, 
 		(const char * const *)paramValues, paramLengths, paramFormats, 
 		resultFormat);
+
+	rb_gc_unregister_address(&gc_array);
 
 	free(paramValues);
 	free(paramLengths);
