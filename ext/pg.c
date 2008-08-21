@@ -269,7 +269,7 @@ parse_connect_args(int argc, VALUE *argv, VALUE self)
 	else if (RARRAY_LEN(args) == 7) {
 		build_key_value_string(conninfo_rstr, "host", rb_ary_entry(args,0));
 		build_key_value_string(conninfo_rstr, "port", rb_ary_entry(args,1));
-		build_key_value_string(conninfo_rstr, "opt", rb_ary_entry(args,2));
+		build_key_value_string(conninfo_rstr, "options", rb_ary_entry(args,2));
 		build_key_value_string(conninfo_rstr, "tty", rb_ary_entry(args,3));
 		build_key_value_string(conninfo_rstr, "dbname", rb_ary_entry(args,4));
 		build_key_value_string(conninfo_rstr, "user", rb_ary_entry(args,5));
