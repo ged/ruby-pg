@@ -75,6 +75,7 @@ describe PGconn do
 
 	it "should not leave stale server connections after finish" do
 		PGconn.connect(@conninfo).finish
+		sleep 0.5
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
 							WHERE usename IS NOT NULL])
 		# there's still the global @conn, but should be no more
@@ -102,9 +103,8 @@ describe PGconn do
 		error = false
 		@conn.send_query("SELECT pg_sleep(1000)")
 		@conn.cancel
-		begin
-			tmpres = @conn.get_result
-		rescue PGError => e
+		tmpres = @conn.get_result
+		if(tmpres.result_status != PGresult::PGRES_TUPLES_OK)
 			error = true
 		end
 		error.should == true
