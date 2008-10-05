@@ -137,27 +137,34 @@ pgresult_check(VALUE rb_pgconn, VALUE rb_pgresult)
 {
 	VALUE error;
 	PGconn *conn = get_pgconn(rb_pgconn);
-	PGresult *result = get_pgresult(rb_pgresult);
+	PGresult *result;
+	Data_Get_Struct(rb_pgresult, PGresult, result);
 
 	if(result == NULL)
+	{
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
-	switch (PQresultStatus(result)) {
-	case PGRES_TUPLES_OK:
-	case PGRES_COPY_OUT:
-	case PGRES_COPY_IN:
-	case PGRES_EMPTY_QUERY:
-	case PGRES_COMMAND_OK:      
-		return;
-	case PGRES_BAD_RESPONSE:
-	case PGRES_FATAL_ERROR:
-	case PGRES_NONFATAL_ERROR:
-		error = rb_exc_new2(rb_ePGError, PQresultErrorMessage(result));
-		break;
-	default:
-		error = rb_exc_new2(rb_ePGError, 
-			"internal error : unknown result status.");
 	}
-	
+	else
+	{
+		switch (PQresultStatus(result))
+		{
+		case PGRES_TUPLES_OK:
+		case PGRES_COPY_OUT:
+		case PGRES_COPY_IN:
+		case PGRES_EMPTY_QUERY:
+		case PGRES_COMMAND_OK:
+			return;
+		case PGRES_BAD_RESPONSE:
+		case PGRES_FATAL_ERROR:
+		case PGRES_NONFATAL_ERROR:
+			error = rb_exc_new2(rb_ePGError, PQresultErrorMessage(result));
+			break;
+		default:
+			error = rb_exc_new2(rb_ePGError,
+				"internal error : unknown result status.");
+		}
+	}
+
 	rb_iv_set(error, "@connection", rb_pgconn);
 	rb_iv_set(error, "@result", rb_pgresult);
 	rb_exc_raise(error);
