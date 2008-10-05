@@ -1788,12 +1788,11 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
  *    conn.get_result() -> PGresult
  *
  * Blocks waiting for the next result from a call to
- * +PGconn#send_query+ (or another asynchronous command), 
- * and returns it. Returns +nil+ if no more results are 
- * available.
+ * +PGconn#send_query+ (or another asynchronous command), and returns
+ * it. Returns +nil+ if no more results are available.
  *
- * Note: call this function repeatedly until it returns +nil+,
- * or else you will not be able to issue further commands.
+ * Note: call this function repeatedly until it returns +nil+, or else
+ * you will not be able to issue further commands.
  */
 static VALUE
 pgconn_get_result(VALUE self)
@@ -1801,14 +1800,13 @@ pgconn_get_result(VALUE self)
 	PGconn *conn = get_pgconn(self);
 	PGresult *result;
 	VALUE rb_pgresult;
-	
+
 	result = PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
 	rb_pgresult = new_pgresult(result);
-	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult, 
+		return rb_ensure(yield_pgresult, rb_pgresult,
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -2468,8 +2466,9 @@ pgconn_get_last_result(VALUE self)
 	while((result = pgconn_get_result(self)) != Qnil) {
 		ret = result;
 	}
+	pgresult_check(self, ret);
 	return ret;
-} 
+}
 
 
 /*
