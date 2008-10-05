@@ -8,6 +8,8 @@ rescue
 	exit 1
 end
 
+$libs = IO.popen("pg_config --libs").readline.chomp
+
 # OS X compatibility
 if(RUBY_PLATFORM =~ /darwin/) then
 	# test if postgresql is probably universal
