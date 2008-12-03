@@ -1,7 +1,14 @@
 require 'rubygems'
 require 'mkrf'
 
-unless system("pg_config --bindir > /dev/null")
+pg_config_command =
+  if RUBY_PLATFORM.match(/win32/)
+    "pg_config --bindir > nul"
+  else
+    "pg_config --bindir > /dev/null"
+  end
+
+unless system(pg_config_command)
 	$stderr.write("ERROR: can't find pg_config.\n")
 	$stderr.write("HINT: Make sure pg_config is in your PATH\n")
 	exit 1

@@ -83,13 +83,6 @@ pgconn_s_quote_connstr(VALUE string)
 	return result;
 }
 
-static char *
-value_as_cstring(VALUE in_str)
-{
-	VALUE rstring = rb_obj_as_string(in_str);
-	return StringValuePtr(rstring);
-}
-
 static void
 free_pgconn(PGconn *conn)
 {
@@ -228,9 +221,7 @@ static VALUE
 parse_connect_args(int argc, VALUE *argv, VALUE self)
 {
 	VALUE args,arg;
-	PGconn *conn = NULL;
 	VALUE conninfo_rstr = rb_str_new("",0);
-	VALUE error;
 	char *host, *port, *opt, *tty, *dbname, *login, *pwd;
 	host=port=opt=tty=dbname=login=pwd=NULL;
 
@@ -2138,7 +2129,6 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 static VALUE
 pgconn_trace(VALUE self, VALUE stream)
 {
-	FILE *fp;
 	VALUE fileno;
 	FILE *new_fp;
 	int old_fd, new_fd;

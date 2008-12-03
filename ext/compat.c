@@ -283,7 +283,7 @@ PQsetClientEncoding(PGconn *conn, const char *encoding)
 	PGresult   *res;
 	int         status;
 
-	if (!conn || conn->status != CONNECTION_OK)
+	if (!conn || PQstatus(conn) != CONNECTION_OK)
 		return -1;
 
 	if (!encoding)
@@ -299,7 +299,7 @@ PQsetClientEncoding(PGconn *conn, const char *encoding)
 
 	if (res == NULL)
 	return -1;
-	if (res->resultStatus != PGRES_COMMAND_OK)
+	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 	status = -1;
 	else
 	{
@@ -309,7 +309,7 @@ PQsetClientEncoding(PGconn *conn, const char *encoding)
 		 * backend to report the parameter value, and we'll change state at
 		 * that time.
 		 */
-		if (PG_PROTOCOL_MAJOR(conn->pversion) < 3)
+		if (PQprotocolVersion(conn) < 3)
 			pqSaveParameterStatus(conn, "client_encoding", encoding);
 		status = 0;             /* everything is ok */
 	}
