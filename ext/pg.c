@@ -948,7 +948,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
-	nParams = RARRAY(params)->len;
+	nParams = RARRAY_LEN(params);
 	paramTypes = ALLOC_N(Oid, nParams); 
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
@@ -1053,7 +1053,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
-		nParams = RARRAY(in_paramtypes)->len;
+		nParams = RARRAY_LEN(in_paramtypes);
 		paramTypes = ALLOC_N(Oid, nParams); 
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
@@ -1139,7 +1139,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	rb_gc_register_address(&gc_array);
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
-	nParams = RARRAY(params)->len;
+	nParams = RARRAY_LEN(params);
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
 	paramFormats = ALLOC_N(int, nParams);
@@ -1479,7 +1479,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
-	nParams = RARRAY(params)->len;
+	nParams = RARRAY_LEN(params);
 	paramTypes = ALLOC_N(Oid, nParams); 
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
@@ -1583,7 +1583,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
-		nParams = RARRAY(in_paramtypes)->len;
+		nParams = RARRAY_LEN(in_paramtypes);
 		paramTypes = ALLOC_N(Oid, nParams); 
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
@@ -1672,7 +1672,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	rb_gc_register_address(&gc_array);
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
-	nParams = RARRAY(params)->len;
+	nParams = RARRAY_LEN(params);
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
 	paramFormats = ALLOC_N(int, nParams);
