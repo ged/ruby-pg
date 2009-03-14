@@ -87,14 +87,14 @@ describe PGconn do
 		# the GC to run.
 
 		expected_trace_file = File.join(Dir.getwd, "data", "expected_trace.out")
-		expected_trace_data = open(expected_trace_file).read
-		trace_file = open(File.join(@test_directory, "test_trace.out"), 'w')
+		expected_trace_data = open(expected_trace_file, 'rb').read
+		trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')
 		@conn.trace(trace_file)
 		trace_file.close
 		res = @conn.exec("SELECT 1 AS one")
 		@conn.untrace
 		res = @conn.exec("SELECT 2 AS two")
-		trace_file = open(File.join(@test_directory, "test_trace.out"), "rb")
+		trace_file = open(File.join(@test_directory, "test_trace.out"), 'rb')
 		trace_data = trace_file.read
 		trace_file.close
 		trace_data.should == expected_trace_data
