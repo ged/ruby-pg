@@ -79,7 +79,7 @@ pgconn_s_quote_connstr(VALUE string)
 	}
 	str[j++] = '\'';
 	result = rb_str_new(str, j);
-	free(str);
+	xfree(str);
 	return result;
 }
 
@@ -1001,10 +1001,10 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 	rb_gc_unregister_address(&gc_array);
 
-	free(paramTypes);
-	free(paramValues);
-	free(paramLengths);
-	free(paramFormats);
+	xfree(paramTypes);
+	xfree(paramValues);
+	xfree(paramLengths);
+	xfree(paramFormats);
 
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
@@ -1067,7 +1067,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 	result = PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
 			nParams, paramTypes);
 
-	free(paramTypes);
+	xfree(paramTypes);
 
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
@@ -1184,9 +1184,9 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 	rb_gc_unregister_address(&gc_array);
 
-	free(paramValues);
-	free(paramLengths);
-	free(paramFormats);
+	xfree(paramValues);
+	xfree(paramLengths);
+	xfree(paramFormats);
 
 	rb_pgresult = new_pgresult(result);
 	pgresult_check(self, rb_pgresult);
@@ -1318,7 +1318,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 			RSTRING_LEN(string));
 	}
 	result = rb_str_new(escaped, size);
-	free(escaped);
+	xfree(escaped);
 	OBJ_INFECT(result, string);
 	return result;
 }
@@ -1532,10 +1532,10 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 
 	rb_gc_unregister_address(&gc_array);	
 
-	free(paramTypes);
-	free(paramValues);
-	free(paramLengths);
-	free(paramFormats);
+	xfree(paramTypes);
+	xfree(paramValues);
+	xfree(paramLengths);
+	xfree(paramFormats);
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
@@ -1597,7 +1597,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	result = PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
 			nParams, paramTypes);
 
-	free(paramTypes);
+	xfree(paramTypes);
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
@@ -1718,9 +1718,9 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 
 	rb_gc_unregister_address(&gc_array);
 
-	free(paramValues);
-	free(paramLengths);
-	free(paramFormats);
+	xfree(paramValues);
+	xfree(paramLengths);
+	xfree(paramFormats);
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
@@ -2654,9 +2654,9 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 	VALUE str;
 	char *buffer;
 
-	buffer = malloc(len);
+	buffer = ALLOC(len);
 	if(buffer == NULL)
-		rb_raise(rb_eNoMemError, "Malloc failed!");
+		rb_raise(rb_eNoMemError, "ALLOC failed!");
 
 	if (len < 0){
 		rb_raise(rb_ePGError,"nagative length %d given", len);
@@ -2666,12 +2666,12 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 		rb_raise(rb_ePGError, "lo_read failed");
 
 	if(ret == 0) {
-		free(buffer);
+		xfree(buffer);
 		return Qnil;
 	}
 
 	str = rb_tainted_str_new(buffer, len);
-	free(buffer);
+	xfree(buffer);
 
 	return str;
 }
