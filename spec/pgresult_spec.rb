@@ -8,22 +8,21 @@ describe PGconn do
 
 	before( :all ) do
 		puts "======  TESTING PGresult  ======"
-		@test_directory = "#{Dir.getwd}/tmp_test_#{rand}"
-		@test_pgdata = @test_directory + '/data'
+		@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
+		@test_pgdata = File.join(@test_directory, 'data')
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
-		@conninfo = "host='#{@test_directory}' dbname=test"
+    @port = 1234
+		@conninfo = "host=localhost port=#{@port} dbname=test"
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
 		cmds = []
-		cmds << "initdb -D '#{@test_pgdata}'"
-		cmds << "pg_ctl -D '#{@test_pgdata}' " + 
-			%!-o "--unix-socket-directory='#{@test_directory}' ! + 
-			%!--listen-addresses=''" ! +
-			"start"
-		cmds << "sleep 2"
-		cmds << "createdb -h '#{@test_directory}' test"
+		cmds << "initdb -D \"#{@test_pgdata}\""
+    cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
+		cmds << "sleep 5"
+    cmds << "createdb -p #{@port} test"
+
 		cmds.each do |cmd|
 			if not system(cmd) then
 				raise "Error executing cmd: #{cmd}: #{$?}"
@@ -56,14 +55,16 @@ describe PGconn do
 	end
 
 	it "should return the same bytes in binary format that are sent in binary format" do
-		bytes = File.open('spec/data/random_binary_data').read
+		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		bytes = File.open(binary_file, 'rb').read
 		res = @conn.exec('VALUES ($1::bytea)', 
 			[ { :value => bytes, :format => 1 } ], 1)
 		res[0]['column1'].should== bytes
 	end
 
 	it "should return the same bytes in binary format that are sent as inline text" do
-		in_bytes = File.open('spec/data/random_binary_data').read
+		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		in_bytes = File.open(binary_file, 'rb').read
 		out_bytes = nil
 		@conn.transaction do |conn|
 			conn.exec("SET standard_conforming_strings=on")
@@ -74,14 +75,17 @@ describe PGconn do
 	end
 
 	it "should return the same bytes in text format that are sent in binary format" do
-		bytes = File.open('spec/data/random_binary_data').read
+		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		bytes = File.open(binary_file, 'rb').read
 		res = @conn.exec('VALUES ($1::bytea)', 
 			[ { :value => bytes, :format => 1 } ])
 		PGconn.unescape_bytea(res[0]['column1']).should== bytes
 	end
 
 	it "should return the same bytes in text format that are sent as inline text" do
-		in_bytes = File.open('spec/data/random_binary_data').read
+		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		in_bytes = File.open(binary_file, 'rb').read
+
 		out_bytes = nil
 		@conn.transaction do |conn|
 			conn.exec("SET standard_conforming_strings=on")
@@ -95,8 +99,8 @@ describe PGconn do
 		puts ""
 		@conn.finish
 		cmds = []
-		cmds << "pg_ctl -D '#{@test_pgdata}' stop"
-		cmds << "rm -rf '#{@test_directory}'"
+		cmds << "pg_ctl -D \"#{@test_pgdata}\" stop"
+		cmds << "rm -rf \"#{@test_directory}\""
 		cmds.each do |cmd|
 			if not system(cmd) then
 				raise "Error executing cmd: #{cmd}: #{$?}"
