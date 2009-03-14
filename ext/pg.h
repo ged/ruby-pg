@@ -33,5 +33,8 @@
 #define rb_io_stdio_file GetWriteFile
 #endif
 
+#if defined(_WIN32)
+__declspec(dllexport)
+#endif
 void Init_pg(void);
 
