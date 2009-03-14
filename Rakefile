@@ -3,6 +3,7 @@ require 'rubygems'
 require 'rake/clean'
 require 'rake/gempackagetask'
 require 'spec/rake/spectask'
+require 'rake/rdoctask'
 require 'ext_helper'
 require 'date'
 
@@ -75,6 +76,22 @@ if RUBY_PLATFORM.match(/win32/)
   Rake::GemPackageTask.new(win_spec) do |pkg|
   end
 end
+
+# ---------  RDoc Documentation ---------
+desc "Generate rdoc documentation"
+Rake::RDocTask.new("rdoc") do |rdoc|
+  rdoc.rdoc_dir = 'doc/rdoc'
+  rdoc.title    = "pg"
+  # Show source inline with line numbers
+  rdoc.options << "--line-numbers"
+  # Make the readme file the start page for the generated html
+  rdoc.options << '--main' << 'README'
+  rdoc.rdoc_files.include('ext/**/*.c',
+                          'ChangeLog',
+                          'README*',
+                          'LICENSE')
+end
+
 
 setup_extension 'pg', spec
 
