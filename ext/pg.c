@@ -2648,13 +2648,13 @@ static VALUE
 pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 {
 	int ret;
-	PGconn *conn = get_pgconn(self);
+  PGconn *conn = get_pgconn(self);
 	int len = NUM2INT(in_len);
 	int lo_desc = NUM2INT(in_lo_desc);
 	VALUE str;
 	char *buffer;
 
-	buffer = ALLOC(len);
+  buffer = ALLOC_N(char, len);
 	if(buffer == NULL)
 		rb_raise(rb_eNoMemError, "ALLOC failed!");
 
