@@ -8,8 +8,8 @@ describe PGconn do
 
 	before( :all ) do
 		puts "======  TESTING PGconn  ======"
-		@test_directory = "#{Dir.getwd}/tmp_test_#{rand}"
-		@test_pgdata = @test_directory + '/data'
+		@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
+		@test_pgdata = File.join(@test_directory, 'data')
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
@@ -38,7 +38,7 @@ describe PGconn do
 	end
 
 	it "should connect using 7 arguments converted to strings" do
-		tmpconn = PGconn.connect(@test_directory, 5432, nil, nil, :test, nil, nil)
+		tmpconn = PGconn.connect(@test_directory, @port, nil, nil, :test, nil, nil)
 		tmpconn.status.should== PGconn::CONNECTION_OK
 		tmpconn.finish
 	end
@@ -46,7 +46,7 @@ describe PGconn do
 	it "should connect using hash" do
 		tmpconn = PGconn.connect(
 			:host => @test_directory,
-			:port => 5432,
+			:port => @port,
 			:dbname => :test)
 		tmpconn.status.should== PGconn::CONNECTION_OK
 		tmpconn.finish
@@ -85,14 +85,16 @@ describe PGconn do
 		# be careful to explicitly close files so that the 
 		# directory can be removed and we don't have to wait for
 		# the GC to run.
-		expected_trace_data = open('spec/data/expected_trace.out').read
-		trace_file = open("#{@test_directory}/test_trace.out", 'w')
+
+		expected_trace_file = File.join(Dir.getwd, "data", "expected_trace.out")
+		expected_trace_data = open(expected_trace_file).read
+		trace_file = open(File.join(@test_directory, "test_trace.out"), 'w')
 		@conn.trace(trace_file)
 		trace_file.close
 		res = @conn.exec("SELECT 1 AS one")
 		@conn.untrace
 		res = @conn.exec("SELECT 2 AS two")
-		trace_file = open("#{@test_directory}/test_trace.out")
+		trace_file = open(File.join(@test_directory, "test_trace.out"), "rb")
 		trace_data = trace_file.read
 		trace_file.close
 		trace_data.should == expected_trace_data
