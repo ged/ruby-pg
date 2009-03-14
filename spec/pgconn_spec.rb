@@ -13,17 +13,16 @@ describe PGconn do
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
-		@conninfo = "host='#{@test_directory}' dbname=test"
+    @port = 1234
+		@conninfo = "host=localhost port=#{@port} dbname=test"
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
 		cmds = []
-		cmds << "initdb -D '#{@test_pgdata}'"
-		cmds << "pg_ctl -D '#{@test_pgdata}' " + 
-			%!-o "--unix-socket-directory='#{@test_directory}' ! + 
-			%!--listen-addresses=''" ! + 
-			"start"
-		cmds << "sleep 2"
-		cmds << "createdb -h '#{@test_directory}' test"
+		cmds << "initdb -D \"#{@test_pgdata}\""
+    cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
+		cmds << "sleep 5"
+    cmds << "createdb -p #{@port} test"
+
 		cmds.each do |cmd|
 			if not system(cmd) then
 				raise "Error executing cmd: #{cmd}: #{$?}"
@@ -114,8 +113,8 @@ describe PGconn do
 		puts ""
 		@conn.finish
 		cmds = []
-		cmds << "pg_ctl -D '#{@test_pgdata}' stop"
-		cmds << "rm -rf '#{@test_directory}'"
+		cmds << "pg_ctl -D \"#{@test_pgdata}\" stop"
+		cmds << "rm -rf \"#{@test_directory}\""
 		cmds.each do |cmd|
 			if not system(cmd) then
 				raise "Error executing cmd: #{cmd}: #{$?}"
