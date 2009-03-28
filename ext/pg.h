@@ -3,7 +3,6 @@
 #include <sys/types.h>
 
 #include "ruby.h"
-#include "rubyio.h"
 #include "libpq-fe.h"
 #include "libpq/libpq-fs.h"              /* large-object interface */
 
@@ -31,6 +30,9 @@
 
 #ifdef RUBY_18_COMPAT
 #define rb_io_stdio_file GetWriteFile
+#include "rubyio.h"
+#else
+#include "ruby/io.h"
 #endif
 
 #if defined(_WIN32)
