@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="C:\Development\msys\local\include;&quot;C:\Development\ruby\lib\ruby\1.8\i386-mswin32_90&quot;"
+				AdditionalIncludeDirectories="&quot;C:\Development\ruby\lib\ruby\1.8\i386-mswin32&quot;;C:\Development\msys\local\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;PG_EXPORTS;HAVE_LIBPQ_FE_H;HAVE_LIBPQ_LIBPQ_FS_H;HAVE_PQCONNECTIONUSEDPASSWORD;HAVE_PQISTHREADSAFE;HAVE_LO_CREATE;HAVE_PQPREPARE;HAVE_PQEXECPARAMS;HAVE_PQESCAPESTRING;HAVE_PQESCAPESTRINGCONN;HAVE_PG_ENCODING_TO_CHAR;HAVE_PQSETCLIENTENCODING"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -49,6 +49,7 @@
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
+				DisableSpecificWarnings="4996"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -62,7 +63,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="libpq.lib msvcrt-ruby18.lib"
-				OutputFile="$(OutDir)\$(ProjectName).so"
+				OutputFile="C:\Development\ruby\lib\ruby\gems\1.8\gems\pg-0.7.9.2009.03.14-x86-mswin32-60\lib\$(ProjectName).so"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="C:\Development\ruby\lib;C:\Development\msys\local\lib"
 				GenerateDebugInformation="true"
@@ -177,19 +178,11 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\compat.c"
+				RelativePath="..\..\compat.c"
 				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						UsePrecompiledHeader="0"
-					/>
-				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="..\pg.c"
+				RelativePath="..\..\pg.c"
 				>
 			</File>
 		</Filter>
@@ -199,11 +192,11 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\compat.h"
+				RelativePath="..\..\compat.h"
 				>
 			</File>
 			<File
-				RelativePath="..\pg.h"
+				RelativePath="..\..\pg.h"
 				>
 			</File>
 		</Filter>
