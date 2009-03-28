@@ -2749,7 +2749,7 @@ pgconn_loclose(VALUE self, VALUE in_lo_desc)
 	PGconn *conn = get_pgconn(self);
 	int lo_desc = NUM2INT(in_lo_desc);
 
-	if(lo_unlink(conn,lo_desc) < 0)
+	if(lo_close(conn,lo_desc) < 0)
 		rb_raise(rb_ePGError,"lo_close failed");
 
 	return Qnil;
