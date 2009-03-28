@@ -81,25 +81,27 @@ describe PGconn do
 		res[0]['n'].should == '1'
 	end
 
-	it "should trace and untrace client-server communication" do
-		# be careful to explicitly close files so that the 
-		# directory can be removed and we don't have to wait for
-		# the GC to run.
+	unless RUBY_PLATFORM =~ /mswin|mingw/
+		it "should trace and untrace client-server communication" do
+			# be careful to explicitly close files so that the
+			# directory can be removed and we don't have to wait for
+			# the GC to run.
 
-		expected_trace_file = File.join(Dir.getwd, "data", "expected_trace.out")
-		expected_trace_data = open(expected_trace_file, 'rb').read
-		trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')
-		@conn.trace(trace_file)
-		trace_file.close
-		res = @conn.exec("SELECT 1 AS one")
-		@conn.untrace
-		res = @conn.exec("SELECT 2 AS two")
-		trace_file = open(File.join(@test_directory, "test_trace.out"), 'rb')
-		trace_data = trace_file.read
-		trace_file.close
-		trace_data.should == expected_trace_data
+			expected_trace_file = File.join(Dir.getwd, "data", "expected_trace.out")
+			expected_trace_data = open(expected_trace_file, 'rb').read
+			trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')
+			@conn.trace(trace_file)
+			trace_file.close
+			res = @conn.exec("SELECT 1 AS one")
+			@conn.untrace
+			res = @conn.exec("SELECT 2 AS two")
+			trace_file = open(File.join(@test_directory, "test_trace.out"), 'rb')
+			trace_data = trace_file.read
+			trace_file.close
+			trace_data.should == expected_trace_data
+		end
 	end
-
+	
 	it "should cancel a query" do
 		error = false
 		@conn.send_query("SELECT pg_sleep(1000)")
