@@ -363,15 +363,16 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 
 	if(conn == NULL)
 		rb_raise(rb_ePGError, "PQconnectStart() unable to allocate structure");
+
+	Check_Type(self, T_DATA);
+	DATA_PTR(self) = conn;
+
 	if (PQstatus(conn) == CONNECTION_BAD) {
 		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
 
-	Check_Type(self, T_DATA);
-	DATA_PTR(self) = conn;
-	
 	if (rb_block_given_p()) {
 		return rb_ensure(rb_yield, self, pgconn_finish, self);
 	}
