@@ -13,7 +13,7 @@ describe PGconn do
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
-    @port = 1234
+    @port = 54321
 		@conninfo = "host=localhost port=#{@port} dbname=test"
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
@@ -38,14 +38,14 @@ describe PGconn do
 	end
 
 	it "should connect using 7 arguments converted to strings" do
-		tmpconn = PGconn.connect(@test_directory, @port, nil, nil, :test, nil, nil)
+		tmpconn = PGconn.connect('localhost', @port, nil, nil, :test, nil, nil)
 		tmpconn.status.should== PGconn::CONNECTION_OK
 		tmpconn.finish
 	end
 
 	it "should connect using hash" do
 		tmpconn = PGconn.connect(
-			:host => @test_directory,
+			:host => 'localhost',
 			:port => @port,
 			:dbname => :test)
 		tmpconn.status.should== PGconn::CONNECTION_OK
@@ -87,7 +87,7 @@ describe PGconn do
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
 
-			expected_trace_file = File.join(Dir.getwd, "data", "expected_trace.out")
+			expected_trace_file = File.join(Dir.getwd, "spec/data", "expected_trace.out")
 			expected_trace_data = open(expected_trace_file, 'rb').read
 			trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')
 			@conn.trace(trace_file)

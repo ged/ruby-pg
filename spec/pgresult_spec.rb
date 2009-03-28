@@ -13,7 +13,7 @@ describe PGconn do
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
-    @port = 1234
+    @port = 54321
 		@conninfo = "host=localhost port=#{@port} dbname=test"
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
@@ -55,7 +55,7 @@ describe PGconn do
 	end
 
 	it "should return the same bytes in binary format that are sent in binary format" do
-		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
 		res = @conn.exec('VALUES ($1::bytea)', 
 			[ { :value => bytes, :format => 1 } ], 1)
@@ -63,7 +63,7 @@ describe PGconn do
 	end
 
 	it "should return the same bytes in binary format that are sent as inline text" do
-		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		in_bytes = File.open(binary_file, 'rb').read
 		out_bytes = nil
 		@conn.transaction do |conn|
@@ -75,7 +75,7 @@ describe PGconn do
 	end
 
 	it "should return the same bytes in text format that are sent in binary format" do
-		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
 		res = @conn.exec('VALUES ($1::bytea)', 
 			[ { :value => bytes, :format => 1 } ])
@@ -83,7 +83,7 @@ describe PGconn do
 	end
 
 	it "should return the same bytes in text format that are sent as inline text" do
-		binary_file = File.join(Dir.pwd, 'data', 'random_binary_data')
+		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		in_bytes = File.open(binary_file, 'rb').read
 
 		out_bytes = nil
