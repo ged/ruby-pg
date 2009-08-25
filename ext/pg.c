@@ -13,6 +13,9 @@
 ************************************************/
 
 #include "pg.h"
+#if defined(HAVE_RUBY_ENCODING_H) && HAVE_RUBY_ENCODING_H
+# define M17N_SUPPORTED
+#endif
 
 #define rb_define_singleton_alias(klass,new,old) rb_define_alias(rb_singleton_class(klass),new,old)
 
@@ -52,8 +55,17 @@ static VALUE pgconn_finish(VALUE self);
 static VALUE pgresult_clear(VALUE self);
 static VALUE pgresult_aref(VALUE self, VALUE index);
 
+#ifdef M17N_SUPPORTED
+# define ASSOCIATE_INDEX(obj, index_holder) rb_enc_associate_index((obj), enc_get_index((index_holder)))
+static rb_encoding * pgconn_get_client_encoding_as_rb_encoding(PGconn* conn);
+static int enc_get_index(VALUE val);
+#else
+# define ASSOCIATE_INDEX(obj, index_holder) /* nothing */
+#endif
+
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
+
 
 /*
  * Used to quote the values passed in a Hash to PGconn.init
@@ -115,11 +127,23 @@ get_pgresult(VALUE self)
 	return result;
 }
 
+#ifdef M17N_SUPPORTED
+static VALUE
+new_pgresult(PGresult *result, PGconn *conn)
+{
+	 VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, free_pgresult, result);
+	 rb_encoding *enc = pgconn_get_client_encoding_as_rb_encoding(conn);
+	 rb_enc_set_index(val, rb_enc_to_index(enc));
+	 return val;
+}
+#else
 static VALUE
 new_pgresult(PGresult *result)
 {
 	return Data_Wrap_Struct(rb_cPGresult, NULL, free_pgresult, result);
 }
+# define new_pgresult(result, conn) new_pgresult((result))
+#endif
 
 /*
  * Raises appropriate exception if PGresult is
@@ -923,7 +947,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
 		result = PQexec(conn, StringValuePtr(command));
-		rb_pgresult = new_pgresult(result);
+		rb_pgresult = new_pgresult(result, conn);
 		pgresult_check(self, rb_pgresult);
 		if (rb_block_given_p()) {
 			return rb_ensure(yield_pgresult, rb_pgresult, 
@@ -1007,7 +1031,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	xfree(paramLengths);
 	xfree(paramFormats);
 
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
 		return rb_ensure(yield_pgresult, rb_pgresult, 
@@ -1070,7 +1094,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 	xfree(paramTypes);
 
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1189,7 +1213,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	xfree(paramLengths);
 	xfree(paramFormats);
 
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
 		return rb_ensure(yield_pgresult, rb_pgresult, 
@@ -1220,7 +1244,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 		stmt = StringValuePtr(stmt_name);
 	}
 	result = PQdescribePrepared(conn, stmt);
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1248,7 +1272,7 @@ pgconn_describe_portal(self, stmt_name)
 		stmt = StringValuePtr(stmt_name);
 	}
 	result = PQdescribePortal(conn, stmt);
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1276,7 +1300,7 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
 	VALUE rb_pgresult;
 	PGconn *conn = get_pgconn(self);
 	result = PQmakeEmptyPGresult(conn, NUM2INT(status));
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1796,7 +1820,7 @@ pgconn_get_result(VALUE self)
 	result = PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	if (rb_block_given_p()) {
 		return rb_ensure(yield_pgresult, rb_pgresult,
 			pgresult_clear, rb_pgresult);
@@ -2317,18 +2341,18 @@ pgconn_transaction(VALUE self)
 	
 	if (rb_block_given_p()) {
 		result = PQexec(conn, "BEGIN");
-		rb_pgresult = new_pgresult(result);
+		rb_pgresult = new_pgresult(result, conn);
 		pgresult_check(self, rb_pgresult);
 		rb_protect(rb_yield, self, &status);
 		if(status == 0) {
 			result = PQexec(conn, "COMMIT");
-			rb_pgresult = new_pgresult(result);
+			rb_pgresult = new_pgresult(result, conn);
 			pgresult_check(self, rb_pgresult);
 		}
 		else {
 			/* exception occurred, ROLLBACK and re-raise */
 			result = PQexec(conn, "ROLLBACK");
-			rb_pgresult = new_pgresult(result);
+			rb_pgresult = new_pgresult(result, conn);
 			pgresult_check(self, rb_pgresult);
 			rb_jump_tag(status);
 		}
@@ -2830,7 +2854,9 @@ pgresult_result_status(VALUE self)
 static VALUE
 pgresult_res_status(VALUE self, VALUE status)
 {
-	return rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
+	VALUE ret = rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -2842,7 +2868,9 @@ pgresult_res_status(VALUE self, VALUE status)
 static VALUE
 pgresult_result_error_message(VALUE self)
 {
-	return rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
+	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -2870,7 +2898,9 @@ pgresult_result_error_field(VALUE self, VALUE field)
 {
 	PGresult *result = get_pgresult(self);
 	int fieldcode = NUM2INT(field);
-	return rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
+	VALUE ret = rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -2920,6 +2950,7 @@ pgresult_nfields(VALUE self)
 static VALUE
 pgresult_fname(VALUE self, VALUE index)
 {
+	VALUE fname;
 	PGresult *result;
 	int i = NUM2INT(index);
 
@@ -2927,7 +2958,9 @@ pgresult_fname(VALUE self, VALUE index)
 	if (i < 0 || i >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
-	return rb_tainted_str_new2(PQfname(result, i));
+	fname = rb_tainted_str_new2(PQfname(result, i));
+	ASSOCIATE_INDEX(fname, self);
+	return fname;
 }
 
 /*
@@ -3094,6 +3127,7 @@ pgresult_fsize(VALUE self, VALUE index)
 static VALUE
 pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 {
+	VALUE ret;
 	PGresult *result;
 	int i = NUM2INT(tup_num);
 	int j = NUM2INT(field_num);
@@ -3107,8 +3141,10 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	}
 	if(PQgetisnull(result, i, j))
 		return Qnil;
-	return rb_tainted_str_new(PQgetvalue(result, i, j), 
+	ret = rb_tainted_str_new(PQgetvalue(result, i, j), 
 				PQgetlength(result, i, j));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -3200,7 +3236,9 @@ pgresult_paramtype(VALUE self, VALUE param_number)
 static VALUE
 pgresult_cmd_status(VALUE self)
 {
-	return rb_tainted_str_new2(PQcmdStatus(get_pgresult(self)));
+	VALUE ret = rb_tainted_str_new2(PQcmdStatus(get_pgresult(self)));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -3264,12 +3302,14 @@ pgresult_aref(VALUE self, VALUE index)
 	tuple = rb_hash_new();
 	for(field_num = 0; field_num < PQnfields(result); field_num++) {
 		fname = rb_tainted_str_new2(PQfname(result,field_num));
+		ASSOCIATE_INDEX(fname, self);
 		if(PQgetisnull(result, tuple_num, field_num)) {
 			rb_hash_aset(tuple, fname, Qnil);
 		}
 		else {
 			val = rb_tainted_str_new(PQgetvalue(result, tuple_num, field_num),
 				PQgetlength(result, tuple_num, field_num));
+			ASSOCIATE_INDEX(val, self);
 			rb_hash_aset(tuple, fname, val);
 		}
 	}
@@ -3311,11 +3351,276 @@ pgresult_fields(VALUE self)
 	n = PQnfields(result);
 	ary = rb_ary_new2(n);
 	for (i=0;i<n;i++) {
-		rb_ary_push(ary, rb_tainted_str_new2(PQfname(result, i)));
+		VALUE val = rb_tainted_str_new2(PQfname(result, i));
+		ASSOCIATE_INDEX(val, self);
+		rb_ary_push(ary, val);
 	}
 	return ary;
 }
 
+#ifdef M17N_SUPPORTED
+/**
+ * The mapping from canonical encoding names in PostgreSQL to ones in Ruby.
+ */
+static const char * const (enc_pg2ruby_mapping[][2]) = {
+	    {"BIG5",          "Big5"       },
+	    {"EUC_CN",        "GB2312"     },
+	    {"EUC_JP",        "EUC-JP"     },
+	    {"EUC_JIS_2004",  "EUC-JP"     },
+	    {"EUC_KR",        "EUC-KR"     },
+	    {"EUC_TW",        "EUC-TW"     },
+	    {"GB18030",       "GB18030"    },
+	    {"GBK",           "GBK"        },
+	    {"ISO_8859_5",    "ISO-8859-5" },
+	    {"ISO_8859_6",    "ISO-8859-6" },
+	    {"ISO_8859_7",    "ISO-8859-7" },
+	    {"ISO_8859_8",    "ISO-8859-8" },
+	    /* {"JOHAB",         "JOHAB"     }, dummy */
+	    {"KOI8",          "KOI8-U"     },
+	    {"LATIN1",        "ISO-8859-1" },
+	    {"LATIN2",        "ISO-8859-2" },
+	    {"LATIN3",        "ISO-8859-3" },
+	    {"LATIN4",        "ISO-8859-4" },
+	    {"LATIN5",        "ISO-8859-5" },
+	    {"LATIN6",        "ISO-8859-6" },
+	    {"LATIN7",        "ISO-8859-7" },
+	    {"LATIN8",        "ISO-8859-8" },
+	    {"LATIN9",        "ISO-8859-9" },
+	    {"LATIN10",       "ISO-8859-10" },
+	    {"MULE_INTERNAL", "Emacs-Mule" },
+	    {"SJIS",          "Windows-31J" },
+	    {"SHIFT_JIS_2004","Windows-31J" },
+	    /*{"SQL_ASCII",     NULL        },  special case*/
+	    {"UHC",           "CP949"       },
+	    {"UTF8",          "UTF-8"       },
+	    {"WIN866",        "IBM866"      },
+	    {"WIN874",        "Windows-874" },
+	    {"WIN1250",       "Windows-1250"},
+	    {"WIN1251",       "Windows-1251"},
+	    {"WIN1252",       "Windows-1252"},
+	    {"WIN1253",       "Windows-1253"},
+	    {"WIN1254",       "Windows-1254"},
+	    {"WIN1255",       "Windows-1255"},
+	    {"WIN1256",       "Windows-1256"},
+	    {"WIN1257",       "Windows-1257"},
+	    {"WIN1258",       "Windows-1258"}
+};
+
+
+/*
+ * A cache of mapping from PostgreSQL's encoding indices to Ruby's rb_encoding*s.
+ */
+static struct st_table *enc_pg2ruby;
+static ID s_id_index;
+
+static int enc_get_index(VALUE val)
+{
+	int i = ENCODING_GET_INLINED(val);
+	if (i == ENCODING_INLINE_MAX) {
+		VALUE iv = rb_ivar_get(val, s_id_index);
+		i = NUM2INT(iv);
+	}
+	return i;
+}
+
+extern int rb_enc_alias(const char *alias, const char *orig); /* declaration missing in Ruby 1.9.1 */
+static rb_encoding *
+find_or_create_johab(void)
+{
+	static const char * const aliases[] = { "JOHAB", "Windows-1361", "CP1361" };
+	int enc_index;
+	int i;
+	for (i = 0; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
+		enc_index = rb_enc_find_index(aliases[i]);
+		if (enc_index > 0) return rb_enc_from_index(enc_index);
+	}
+
+	enc_index = rb_define_dummy_encoding(aliases[0]);
+	for (i = 1; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
+		rb_enc_alias(aliases[i], aliases[0]);
+	}
+	return rb_enc_from_index(enc_index);
+}
+
+/*
+ * Returns the client_encoding of the given connection as a rb_encoding*
+ *
+ * * returns NULL if the client encoding is 'SQL_ASCII'.
+ * * returns ASCII-8BIT if the client encoding is unknown.
+ */
+static rb_encoding *
+pgconn_get_client_encoding_as_rb_encoding(PGconn* conn)
+{
+	rb_encoding *enc;
+	int enc_id = PQclientEncoding(conn);
+
+	if (st_lookup(enc_pg2ruby, (st_data_t)enc_id, (st_data_t*)&enc)) {
+		return enc;
+	}
+	else {
+		int i;
+		const char *name = pg_encoding_to_char(enc_id);
+		if (strcmp("SQL_ASCII", name) == 0) {
+			enc = NULL;
+			goto cache;
+		}
+		for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+			if (strcmp(name, enc_pg2ruby_mapping[i][0]) == 0) {
+				enc = rb_enc_find(enc_pg2ruby_mapping[i][1]);
+				goto cache;
+			}
+		}
+
+		/* Ruby 1.9.1 does not supoort JOHAB */
+		if (strcmp(name, "JOHAB") == 0) {
+			enc = find_or_create_johab();
+			goto cache;
+		}
+
+		enc = rb_ascii8bit_encoding();
+	}
+cache:
+	st_insert(enc_pg2ruby, (st_data_t)enc_id, (st_data_t)enc);
+	return enc;
+}
+
+/*
+ * call-seq:
+ *   conn.internal_encoding() -> Encoding
+ *
+ * defined in Ruby 1.9 or later.
+ *
+ * Returns:
+ * * an Encoding - client_encoding of the connection as a Ruby's Encoding object.
+ * * nil - the client_encoding is 'SQL_ASCII'
+ */
+static VALUE
+pgconn_internal_encoding(VALUE self)
+{
+	return rb_enc_from_encoding(pgconn_get_client_encoding_as_rb_encoding(get_pgconn(self)));
+}
+
+static VALUE pgconn_external_encoding(VALUE self);
+
+/*
+ * call-seq:
+ *   conn.internal_encoding = value
+ *
+ * A wrapper of +PGconn#set_client_encoding+.
+ * defined in Ruby 1.9 or later.
+ *
+ * +value+ can be one of:
+ * * an Encoding
+ * * a String - a name of Encoding
+ * * +nil+ - sets 'SQL_ASCII' to the client_encoding.
+ */
+static VALUE
+pgconn_internal_encoding_set(VALUE self, VALUE enc)
+{
+	if (NIL_P(enc)) {
+		pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("SQL_ASCII"));
+		return enc;
+	}
+	else if (TYPE(enc) == T_STRING && strcasecmp("JOHAB", RSTRING_PTR(enc)) == 0) {
+		pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
+		return enc;
+	}
+	else {
+		int i;
+		const char *name; 
+		name = rb_enc_name(rb_to_encoding(enc));
+
+		/* sequential search becuase rarely called */
+		for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+			if (strcmp(name, enc_pg2ruby_mapping[i][1]) == 0) {
+				if (PQsetClientEncoding(get_pgconn(self), enc_pg2ruby_mapping[i][0]) == -1) {
+					VALUE server_encoding = pgconn_external_encoding(self);
+					rb_raise(rb_eEncCompatError, "imcompatible character encodings: %s and %s",
+							rb_enc_name(rb_to_encoding(server_encoding)),
+							enc_pg2ruby_mapping[i][0]);
+				}
+				return enc;
+			}
+		}
+
+		/* Ruby 1.9.1 does not support JOHAB */
+		if (strcasecmp(name, "JOHAB") == 0) {
+			pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
+			return enc;
+		}
+	}
+
+	enc = rb_inspect(enc);
+	rb_raise(rb_ePGError, "unknown encoding: %s", StringValuePtr(enc));
+}
+
+
+
+static VALUE enc_server_encoding_getvalue(VALUE pgresult)
+{
+	return pgresult_getvalue(pgresult, INT2FIX(0), INT2FIX(0));
+}
+
+/*
+ * call-seq:
+ *   conn.external_encoding() -> Encoding
+ *
+ * defined in Ruby 1.9 or later.
+ * * Returns the server_encoding of the connected database as a Ruby's Encoding object.
+ * * Maps 'SQL_ASCII' to ASCII-8BIT.
+ */
+static VALUE
+pgconn_external_encoding(VALUE self)
+{
+	VALUE enc;
+	enc = rb_iv_get(self, "@external_encoding");
+	if (RTEST(enc)) {
+		return enc;
+	}
+	else {
+		int i;
+		VALUE query = rb_usascii_str_new_cstr("SHOW server_encoding");
+		VALUE pgresult = pgconn_exec(1, &query, self);
+		VALUE enc_name = rb_ensure(enc_server_encoding_getvalue, pgresult, pgresult_clear, pgresult);
+
+		if (strcmp("SQL_ASCII", StringValuePtr(enc_name)) == 0) {
+			enc = rb_enc_from_encoding(rb_ascii8bit_encoding());
+			goto cache;
+		}
+		for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+			if (strcmp(StringValuePtr(enc_name), enc_pg2ruby_mapping[i][0]) == 0) {
+				enc = rb_enc_from_encoding(rb_enc_find(enc_pg2ruby_mapping[i][1]));
+				goto cache;
+			}
+		}
+
+		/* Ruby 1.9.1 does not supoort JOHAB */
+		if (strcmp(StringValuePtr(enc_name), "JOHAB") == 0) {
+			enc = rb_enc_from_encoding(find_or_create_johab());
+			goto cache;
+		}
+
+		/* fallback */
+		enc = rb_enc_from_encoding(rb_enc_find(StringValuePtr(enc_name)));
+	}
+
+cache:
+	rb_iv_set(self, "@external_encoding", enc);
+	return enc;
+}
+
+static void
+init_m17n(void)
+{
+	enc_pg2ruby = st_init_numtable();
+	s_id_index = rb_intern("@encoding");
+	rb_define_method(rb_cPGconn, "internal_encoding", pgconn_internal_encoding, 0);
+	rb_define_method(rb_cPGconn, "internal_encoding=", pgconn_internal_encoding_set, 1);
+	rb_define_method(rb_cPGconn, "external_encoding", pgconn_external_encoding, 0);
+}
+
+
+#endif
 /**************************************************************************/
 
 void
@@ -3566,4 +3871,7 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
 
+#ifdef M17N_SUPPORTED
+        init_m17n();
+#endif
 }

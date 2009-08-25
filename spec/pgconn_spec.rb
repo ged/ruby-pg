@@ -13,15 +13,15 @@ describe PGconn do
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
-    @port = 54321
+		@port = 54321
 		@conninfo = "host=localhost port=#{@port} dbname=test"
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
 		cmds = []
-		cmds << "initdb -D \"#{@test_pgdata}\""
-    cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
+		cmds << "initdb --no-locale -D \"#{@test_pgdata}\""
+		cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
 		cmds << "sleep 5"
-    cmds << "createdb -p #{@port} test"
+		cmds << "createdb -p #{@port} test"
 
 		cmds.each do |cmd|
 			if not system(cmd) then
@@ -101,7 +101,7 @@ describe PGconn do
 			trace_data.should == expected_trace_data
 		end
 	end
-	
+
 	it "should cancel a query" do
 		error = false
 		@conn.send_query("SELECT pg_sleep(1000)")
