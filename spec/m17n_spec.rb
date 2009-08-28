@@ -108,6 +108,13 @@ describe "multinationalization support" do
 			end
 		end
 
+		it "should use client encoding for escaped string" do
+			original = "string to escape".force_encoding("euc-jp")
+			@conn.set_client_encoding("euc_jp")
+			escaped  = @conn.escape(original)
+			escaped.encoding.should == Encoding::EUC_JP
+		end
+
 	end
 
 	after( :all ) do

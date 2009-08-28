@@ -1321,6 +1321,8 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * 
  * Consider using exec_params, which avoids the need for passing values 
  * inside of SQL commands.
+ *
+ * Encoding of escaped string will be equal to client encoding of connection.
  */
 static VALUE
 pgconn_s_escape(VALUE self, VALUE string)
@@ -1328,14 +1330,18 @@ pgconn_s_escape(VALUE self, VALUE string)
 	char *escaped;
 	int size,error;
 	VALUE result;
+#ifdef M17N_SUPPORTED	
+	rb_encoding* enc;
+#endif
 
 	Check_Type(string, T_STRING);
 
 	escaped = ALLOC_N(char, RSTRING_LEN(string) * 2 + 1);
-	if(CLASS_OF(self) == rb_cPGconn) {
+	if(rb_obj_class(self) == rb_cPGconn) {
 		size = PQescapeStringConn(get_pgconn(self), escaped, 
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
+			xfree(escaped);
 			rb_raise(rb_ePGError, PQerrorMessage(get_pgconn(self)));
 		}
 	} else {
@@ -1345,6 +1351,16 @@ pgconn_s_escape(VALUE self, VALUE string)
 	result = rb_str_new(escaped, size);
 	xfree(escaped);
 	OBJ_INFECT(result, string);
+
+#ifdef M17N_SUPPORTED
+	if(rb_obj_class(self) == rb_cPGconn) {
+		enc = pgconn_get_client_encoding_as_rb_encoding(get_pgconn(self));
+	} else {
+		enc = rb_enc_get(string);
+	}
+	rb_enc_associate(result, enc);
+#endif
+
 	return result;
 }
 
@@ -1384,7 +1400,7 @@ pgconn_s_escape_bytea(VALUE self, VALUE str)
 	from      = (unsigned char*)RSTRING_PTR(str);
 	from_len  = RSTRING_LEN(str);
 
-	if(CLASS_OF(self) == rb_cPGconn) {
+	if(rb_obj_class(self) == rb_cPGconn) {
 		to = PQescapeByteaConn(get_pgconn(self), from, from_len, &to_len);
 	} else {
 		to = PQescapeBytea( from, from_len, &to_len);
@@ -3309,7 +3325,15 @@ pgresult_aref(VALUE self, VALUE index)
 		else {
 			val = rb_tainted_str_new(PQgetvalue(result, tuple_num, field_num),
 				PQgetlength(result, tuple_num, field_num));
-			ASSOCIATE_INDEX(val, self);
+
+			/* associate client encoding for text format only */
+			if(0 == PQfformat(result, field_num)) { 
+				ASSOCIATE_INDEX(val, self);
+			} else {
+			#ifdef M17N_SUPPORTED
+				rb_enc_associate(val, rb_ascii8bit_encoding());
+			#endif
+			}
 			rb_hash_aset(tuple, fname, val);
 		}
 	}
