@@ -3491,7 +3491,7 @@ cache:
  * defined in Ruby 1.9 or later.
  *
  * Returns:
- * * an Encoding - client_encoding of the connection as a Ruby's Encoding object.
+ * * an Encoding - client_encoding of the connection as a Ruby Encoding object.
  * * nil - the client_encoding is 'SQL_ASCII'
  */
 static VALUE
@@ -3566,7 +3566,7 @@ static VALUE enc_server_encoding_getvalue(VALUE pgresult)
  *   conn.external_encoding() -> Encoding
  *
  * defined in Ruby 1.9 or later.
- * * Returns the server_encoding of the connected database as a Ruby's Encoding object.
+ * * Returns the server_encoding of the connected database as a Ruby Encoding object.
  * * Maps 'SQL_ASCII' to ASCII-8BIT.
  */
 static VALUE

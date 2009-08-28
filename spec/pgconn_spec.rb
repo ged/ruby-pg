@@ -19,8 +19,7 @@ describe PGconn do
 		Dir.mkdir(@test_pgdata)
 		cmds = []
 		cmds << "initdb --no-locale -D \"#{@test_pgdata}\""
-		cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
-		cmds << "sleep 5"
+		cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
 		cmds << "createdb -p #{@port} test"
 
 		cmds.each do |cmd|

@@ -6,7 +6,7 @@ require 'spec'
 $LOAD_PATH.unshift('ext')
 require 'pg'
 
-describe PGconn, "multinationalization support" do
+describe "multinationalization support" do
 
 	RUBY_VERSION_VEC = RUBY_VERSION.split('.').map {|c| c.to_i }.pack("N*")
 	MIN_RUBY_VERSION_VEC = [1,9,1].pack('N*')
@@ -60,7 +60,7 @@ describe PGconn, "multinationalization support" do
 		it "should return results in the same encoding as the client (iso-8859-1)" do
 			out_string = nil
 			@conn.transaction do |conn|
-				conn.exec("SET client_encoding TO 'latin1';")
+				conn.internal_encoding = 'iso8859-1'
 				res = conn.exec("VALUES ('fantasia')", [], 0)
 				out_string = res[0]['column1']
 			end
@@ -68,10 +68,10 @@ describe PGconn, "multinationalization support" do
 			out_string.encoding.should == Encoding::ISO8859_1
 		end
 
-		it "should return results in the same encoding as the client ()" do
+		it "should return results in the same encoding as the client (utf-8)" do
 			out_string = nil
 			@conn.transaction do |conn|
-				conn.exec("SET client_encoding TO 'utf-8';")
+				conn.internal_encoding = 'utf-8'
 				res = conn.exec("VALUES ('世界線航跡蔵')", [], 0)
 				out_string = res[0]['column1']
 			end
@@ -82,7 +82,7 @@ describe PGconn, "multinationalization support" do
 		it "should return results in the same encoding as the client (EUC-JP)" do
 			out_string = nil
 			@conn.transaction do |conn|
-				conn.exec("SET client_encoding TO 'euc_jp';")
+				conn.internal_encoding = 'EUC-JP'
 				stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
 				res = conn.exec(stmt, [], 0)
 				out_string = res[0]['column1']
@@ -90,6 +90,24 @@ describe PGconn, "multinationalization support" do
 			out_string.should == '世界線航跡蔵'.encode('EUC-JP')
 			out_string.encoding.should == Encoding::EUC_JP
 		end
+
+		it "the connection should return ASCII-8BIT when the server encoding is SQL_ASCII" do
+			@conn.external_encoding.should == Encoding::ASCII_8BIT
+		end
+
+		it "works around the unsupported JOHAB encoding" do
+			pending "until I figure out what I'm doing wrong" do
+				out_string = nil
+				@conn.transaction do |conn|
+					conn.exec( "set client_encoding = 'JOHAB';" )
+					res = conn.exec( "VALUES ('foo')", [], 0 )
+					out_string = res[0]['column1']
+				end
+				out_string.should == 'foo'.encode(Encoding::ASCII_8BIT)
+				out_string.encoding.should == Encoding::ASCII_8BIT
+			end
+		end
+
 	end
 
 	after( :all ) do
