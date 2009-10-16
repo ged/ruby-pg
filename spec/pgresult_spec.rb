@@ -9,7 +9,7 @@ require 'pg'
 describe PGconn do
 
 	before( :all ) do
-		puts "======  TESTING PGresult  ======"
+		puts "Setting up test database for PGresult tests"
 		@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
 		@test_pgdata = File.join(@test_directory, 'data')
 		if File.exists?(@test_directory) then
@@ -20,16 +20,15 @@ describe PGconn do
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
 		cmds = []
-		cmds << "initdb --no-locale -D \"#{@test_pgdata}\""
-		cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
-		cmds << "createdb -p #{@port} test"
+		cmds << "initdb --no-locale -D \"#{@test_pgdata}\" > /dev/null 2>&1"
+		cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start > /dev/null 2>&1"
+		cmds << "createdb -p #{@port} test > /dev/null 2>&1"
 
 		cmds.each do |cmd|
 			if not system(cmd) then
 				raise "Error executing cmd: #{cmd}: #{$?}"
 			end
 		end
-		puts "\n\n"
 		@conn = PGconn.connect(@conninfo)
 	end
 
@@ -97,17 +96,14 @@ describe PGconn do
 	end
 
 	after( :all ) do
-		puts ""
 		@conn.finish
 		cmds = []
-		cmds << "pg_ctl -D \"#{@test_pgdata}\" stop"
-		cmds << "rm -rf \"#{@test_directory}\""
+		cmds << "pg_ctl -D \"#{@test_pgdata}\" stop > /dev/null 2>&1"
+		cmds << "rm -rf \"#{@test_directory}\" > /dev/null 2>&1"
 		cmds.each do |cmd|
 			if not system(cmd) then
 				raise "Error executing cmd: #{cmd}: #{$?}"
 			end
 		end
-		puts "======  COMPLETED TESTING PGresult  ======"
-		puts ""
 	end
 end

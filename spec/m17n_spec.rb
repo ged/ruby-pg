@@ -13,7 +13,7 @@ describe "multinationalization support" do
 
 	before( :all ) do
 		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
-			puts "======  TESTING PGresult M17N  ======"
+			puts "Setting up test database for m17n tests"
 			@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
 			@test_pgdata = File.join(@test_directory, 'data')
 			if File.exists?(@test_directory) then
@@ -24,16 +24,15 @@ describe "multinationalization support" do
 			Dir.mkdir(@test_directory)
 			Dir.mkdir(@test_pgdata)
 			cmds = []
-			cmds << "initdb --no-locale -D \"#{@test_pgdata}\""
-			cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
-			cmds << "createdb -p #{@port} test"
+			cmds << "initdb --no-locale -D \"#{@test_pgdata}\" > /dev/null 2>&1"
+			cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start > /dev/null 2>&1"
+			cmds << "createdb -p #{@port} test > /dev/null 2>&1"
 
 			cmds.each do |cmd|
 				if not system(cmd) then
 					raise "Error executing cmd: #{cmd}: #{$?}"
 				end
 			end
-			puts "\n\n"
 			@conn = PGconn.connect(@conninfo)
 		end
 	end
@@ -119,18 +118,15 @@ describe "multinationalization support" do
 
 	after( :all ) do
 		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
-			puts ""
 			@conn.finish
 			cmds = []
-			cmds << "pg_ctl -D \"#{@test_pgdata}\" stop"
-			cmds << "rm -rf \"#{@test_directory}\""
+			cmds << "pg_ctl -D \"#{@test_pgdata}\" stop > /dev/null 2>&1"
+			cmds << "rm -rf \"#{@test_directory}\" > /dev/null 2>&1"
 			cmds.each do |cmd|
 				if not system(cmd) then
 					raise "Error executing cmd: #{cmd}: #{$?}"
 				end
 			end
-			puts "======  COMPLETED TESTING PGresult M17N  ======"
-			puts ""
 		end
 	end
 end

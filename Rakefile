@@ -77,6 +77,10 @@ if RUBY_PLATFORM.match(/win32/)
   end
 end
 
+
+# ---------  The Default Task ---------
+task :default => [ :spec ]
+
 # ---------  RDoc Documentation ---------
 desc "Generate rdoc documentation"
 Rake::RDocTask.new("rdoc") do |rdoc|

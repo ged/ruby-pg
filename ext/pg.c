@@ -1342,7 +1342,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
 			xfree(escaped);
-			rb_raise(rb_ePGError, PQerrorMessage(get_pgconn(self)));
+			rb_raise(rb_ePGError, "%s", PQerrorMessage(get_pgconn(self)));
 		}
 	} else {
 		size = PQescapeString(escaped, RSTRING_PTR(string),
@@ -2591,7 +2591,7 @@ pgconn_loimport(VALUE self, VALUE filename)
 
 	lo_oid = lo_import(conn, StringValuePtr(filename));
 	if (lo_oid == 0) {
-		rb_raise(rb_ePGError, PQerrorMessage(conn));
+		rb_raise(rb_ePGError, "%s", PQerrorMessage(conn));
 	}
 	return INT2FIX(lo_oid);
 }
@@ -2615,7 +2615,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 	}
 
 	if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
-		rb_raise(rb_ePGError, PQerrorMessage(conn));
+		rb_raise(rb_ePGError, "%s", PQerrorMessage(conn));
 	}
 	return Qnil;
 }
