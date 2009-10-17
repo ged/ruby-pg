@@ -95,6 +95,36 @@ describe PGconn do
 		out_bytes.should== in_bytes
 	end
 
+	it "should return the parameter type of the specified prepared statment parameter" do
+		query = 'SELECT * FROM pg_stat_activity WHERE user = $1::name AND current_query = $2::text'
+		@conn.prepare( 'queryfinder', query )
+		res = @conn.describe_prepared( 'queryfinder' )
+		res.paramtype( 0 ).should == PGresult::NAMEOID
+		res.paramtype( 1 ).should == PGresult::TEXTOID
+	end
+
+	it "should raise an exception when a negative index is given to #fformat" do
+		res = @conn.exec('SELECT * FROM pg_stat_activity')
+		expect {
+			res.fformat( -1 )
+		}.to raise_error( ArgumentError, /column number/i )
+	end
+
+	it "should raise an exception when a negative index is given to #fmod" do
+		res = @conn.exec('SELECT * FROM pg_stat_activity')
+		expect {
+			res.fmod( -1 )
+		}.to raise_error( ArgumentError, /column number/i )
+	end
+
+	it "should raise an exception when a negative index is given to #[]" do
+		res = @conn.exec('SELECT * FROM pg_stat_activity')
+		expect {
+			res[ -1 ]
+		}.to raise_error( IndexError, /-1 is out of range/i )
+	end
+
+
 	after( :all ) do
 		@conn.finish
 		cmds = []

@@ -79,11 +79,15 @@ end
 
 
 # ---------  The Default Task ---------
-task :default => [ :spec ]
+task :default => [ :spec, :rdoc, :gem ]
+
+desc "Clean and recompile"
+task :recompile => [ :clean, :compile ]
+
 
 # ---------  RDoc Documentation ---------
 desc "Generate rdoc documentation"
-Rake::RDocTask.new("rdoc") do |rdoc|
+Rake::RDocTask.new( :rdoc ) do |rdoc|
   rdoc.rdoc_dir = 'doc/rdoc'
   rdoc.title    = "pg"
   # Show source inline with line numbers

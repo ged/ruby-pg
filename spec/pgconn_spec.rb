@@ -30,6 +30,7 @@ describe PGconn do
 		@conn = PGconn.connect(@conninfo)
 	end
 
+
 	it "should connect successfully with connection string" do
 		tmpconn = PGconn.connect(@conninfo)
 		tmpconn.status.should== PGconn::CONNECTION_OK
@@ -111,6 +112,18 @@ describe PGconn do
 		end
 		error.should == true
 	end
+
+	it "should not read past the end of a large object" do
+		@conn.transaction do
+			oid = @conn.lo_create( 0 )
+			fd = @conn.lo_open( oid, PGconn::INV_READ|PGconn::INV_WRITE )
+			@conn.lo_write( fd, "foobar" )
+			@conn.lo_read( fd, 10 ).should be_nil()
+			@conn.lo_lseek( fd, 0, PGconn::SEEK_SET )
+			@conn.lo_read( fd, 10 ).should == 'foobar'
+		end
+	end
+
 
 	after( :all ) do
 		@conn.finish

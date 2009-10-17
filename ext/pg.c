@@ -2646,7 +2646,7 @@ pgconn_loopen(int argc, VALUE *argv, VALUE self)
 		mode = NUM2INT(nmode);
 
 	if((fd = lo_open(conn, lo_oid, mode)) < 0) {
-		rb_raise(rb_ePGError, "can't open large object");
+		rb_raise(rb_ePGError, "can't open large object: %s", PQerrorMessage(conn));
 	}
 	return INT2FIX(fd);
 }
@@ -2672,7 +2672,7 @@ pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 	}
 	if((n = lo_write(conn, fd, StringValuePtr(buffer), 
 				RSTRING_LEN(buffer))) < 0) {
-		rb_raise(rb_ePGError, "lo_write failed");
+		rb_raise(rb_ePGError, "lo_write failed: %s", PQerrorMessage(conn));
 	}
 
 	return INT2FIX(n);
@@ -2711,7 +2711,7 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 		return Qnil;
 	}
 
-	str = rb_tainted_str_new(buffer, len);
+	str = rb_tainted_str_new(buffer, ret);
 	xfree(buffer);
 
 	return str;
@@ -3059,7 +3059,7 @@ pgresult_fformat(VALUE self, VALUE column_number)
 {
 	PGresult *result = get_pgresult(self);
 	int fnumber = NUM2INT(column_number);
-	if (fnumber >= PQnfields(result)) {
+	if (fnumber < 0 || fnumber >= PQnfields(result)) {
 		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
 	}
@@ -3099,7 +3099,7 @@ pgresult_fmod(VALUE self, VALUE column_number)
 	PGresult *result = get_pgresult(self);
 	int fnumber = NUM2INT(column_number);
 	int modifier;
-	if (fnumber >= PQnfields(result)) {
+	if (fnumber < 0 || fnumber >= PQnfields(result)) {
 		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
 	}
@@ -3313,7 +3313,7 @@ pgresult_aref(VALUE self, VALUE index)
 	VALUE fname,val;
 	VALUE tuple;
 
-	if(tuple_num >= PQntuples(result))
+	if(tuple_num < 0 || tuple_num >= PQntuples(result))
 		rb_raise(rb_eIndexError, "Index %d is out of range", tuple_num);
 	tuple = rb_hash_new();
 	for(field_num = 0; field_num < PQnfields(result); field_num++) {
@@ -3862,6 +3862,86 @@ Init_pg()
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_LINE", INT2FIX(PG_DIAG_SOURCE_LINE));
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
+	/******     PGresult CONSTANTS: oid type codes      ******/
+	rb_define_const(rb_cPGresult, "BOOLOID", INT2FIX(16));
+	rb_define_const(rb_cPGresult, "BYTEAOID", INT2FIX(17));
+	rb_define_const(rb_cPGresult, "CHAROID", INT2FIX(18));
+	rb_define_const(rb_cPGresult, "NAMEOID", INT2FIX(19));
+	rb_define_const(rb_cPGresult, "INT8OID", INT2FIX(20));
+	rb_define_const(rb_cPGresult, "INT2OID", INT2FIX(21));
+	rb_define_const(rb_cPGresult, "INT2VECTOROID", INT2FIX(22));
+	rb_define_const(rb_cPGresult, "INT4OID", INT2FIX(23));
+	rb_define_const(rb_cPGresult, "REGPROCOID", INT2FIX(24));
+	rb_define_const(rb_cPGresult, "TEXTOID", INT2FIX(25));
+	rb_define_const(rb_cPGresult, "OIDOID", INT2FIX(26));
+	rb_define_const(rb_cPGresult, "TIDOID", INT2FIX(27));
+	rb_define_const(rb_cPGresult, "XIDOID", INT2FIX(28));
+	rb_define_const(rb_cPGresult, "CIDOID", INT2FIX(29));
+	rb_define_const(rb_cPGresult, "OIDVECTOROID", INT2FIX(30));
+	rb_define_const(rb_cPGresult, "PG_TYPE_RELTYPE_OID", INT2FIX(71));
+	rb_define_const(rb_cPGresult, "PG_ATTRIBUTE_RELTYPE_OID", INT2FIX(75));
+	rb_define_const(rb_cPGresult, "PG_PROC_RELTYPE_OID", INT2FIX(81));
+	rb_define_const(rb_cPGresult, "PG_CLASS_RELTYPE_OID", INT2FIX(83));
+	rb_define_const(rb_cPGresult, "XMLOID", INT2FIX(142));
+	rb_define_const(rb_cPGresult, "POINTOID", INT2FIX(600));
+	rb_define_const(rb_cPGresult, "LSEGOID", INT2FIX(601));
+	rb_define_const(rb_cPGresult, "PATHOID", INT2FIX(602));
+	rb_define_const(rb_cPGresult, "BOXOID", INT2FIX(603));
+	rb_define_const(rb_cPGresult, "POLYGONOID", INT2FIX(604));
+	rb_define_const(rb_cPGresult, "LINEOID", INT2FIX(628));
+	rb_define_const(rb_cPGresult, "FLOAT4OID", INT2FIX(700));
+	rb_define_const(rb_cPGresult, "FLOAT8OID", INT2FIX(701));
+	rb_define_const(rb_cPGresult, "ABSTIMEOID", INT2FIX(702));
+	rb_define_const(rb_cPGresult, "RELTIMEOID", INT2FIX(703));
+	rb_define_const(rb_cPGresult, "TINTERVALOID", INT2FIX(704));
+	rb_define_const(rb_cPGresult, "UNKNOWNOID", INT2FIX(705));
+	rb_define_const(rb_cPGresult, "CIRCLEOID", INT2FIX(718));
+	rb_define_const(rb_cPGresult, "CASHOID", INT2FIX(790));
+	rb_define_const(rb_cPGresult, "MACADDROID", INT2FIX(829));
+	rb_define_const(rb_cPGresult, "INETOID", INT2FIX(869));
+	rb_define_const(rb_cPGresult, "CIDROID", INT2FIX(650));
+	rb_define_const(rb_cPGresult, "INT4ARRAYOID", INT2FIX(1007));
+	rb_define_const(rb_cPGresult, "TEXTARRAYOID", INT2FIX(1009));
+	rb_define_const(rb_cPGresult, "FLOAT4ARRAYOID", INT2FIX(1021));
+	rb_define_const(rb_cPGresult, "ACLITEMOID", INT2FIX(1033));
+	rb_define_const(rb_cPGresult, "CSTRINGARRAYOID", INT2FIX(1263));
+	rb_define_const(rb_cPGresult, "BPCHAROID", INT2FIX(1042));
+	rb_define_const(rb_cPGresult, "VARCHAROID", INT2FIX(1043));
+	rb_define_const(rb_cPGresult, "DATEOID", INT2FIX(1082));
+	rb_define_const(rb_cPGresult, "TIMEOID", INT2FIX(1083));
+	rb_define_const(rb_cPGresult, "TIMESTAMPOID", INT2FIX(1114));
+	rb_define_const(rb_cPGresult, "TIMESTAMPTZOID", INT2FIX(1184));
+	rb_define_const(rb_cPGresult, "INTERVALOID", INT2FIX(1186));
+	rb_define_const(rb_cPGresult, "TIMETZOID", INT2FIX(1266));
+	rb_define_const(rb_cPGresult, "BITOID", INT2FIX(1560));
+	rb_define_const(rb_cPGresult, "VARBITOID", INT2FIX(1562));
+	rb_define_const(rb_cPGresult, "NUMERICOID", INT2FIX(1700));
+	rb_define_const(rb_cPGresult, "REFCURSOROID", INT2FIX(1790));
+	rb_define_const(rb_cPGresult, "REGPROCEDUREOID", INT2FIX(2202));
+	rb_define_const(rb_cPGresult, "REGOPEROID", INT2FIX(2203));
+	rb_define_const(rb_cPGresult, "REGOPERATOROID", INT2FIX(2204));
+	rb_define_const(rb_cPGresult, "REGCLASSOID", INT2FIX(2205));
+	rb_define_const(rb_cPGresult, "REGTYPEOID", INT2FIX(2206));
+	rb_define_const(rb_cPGresult, "REGTYPEARRAYOID", INT2FIX(2211));
+	rb_define_const(rb_cPGresult, "TSVECTOROID", INT2FIX(3614));
+	rb_define_const(rb_cPGresult, "GTSVECTOROID", INT2FIX(3642));
+	rb_define_const(rb_cPGresult, "TSQUERYOID", INT2FIX(3615));
+	rb_define_const(rb_cPGresult, "REGCONFIGOID", INT2FIX(3734));
+	rb_define_const(rb_cPGresult, "REGDICTIONARYOID", INT2FIX(3769));
+	rb_define_const(rb_cPGresult, "RECORDOID", INT2FIX(2249));
+	rb_define_const(rb_cPGresult, "RECORDARRAYOID", INT2FIX(2287));
+	rb_define_const(rb_cPGresult, "CSTRINGOID", INT2FIX(2275));
+	rb_define_const(rb_cPGresult, "ANYOID", INT2FIX(2276));
+	rb_define_const(rb_cPGresult, "ANYARRAYOID", INT2FIX(2277));
+	rb_define_const(rb_cPGresult, "VOIDOID", INT2FIX(2278));
+	rb_define_const(rb_cPGresult, "TRIGGEROID", INT2FIX(2279));
+	rb_define_const(rb_cPGresult, "LANGUAGE_HANDLEROID", INT2FIX(2280));
+	rb_define_const(rb_cPGresult, "INTERNALOID", INT2FIX(2281));
+	rb_define_const(rb_cPGresult, "OPAQUEOID", INT2FIX(2282));
+	rb_define_const(rb_cPGresult, "ANYELEMENTOID", INT2FIX(2283));
+	rb_define_const(rb_cPGresult, "ANYNONARRAYOID", INT2FIX(2776));
+	rb_define_const(rb_cPGresult, "ANYENUMOID", INT2FIX(3500));
+
 	/******     PGresult INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
 	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
@@ -3884,7 +3964,7 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "getisnull", pgresult_getisnull, 2);
 	rb_define_method(rb_cPGresult, "getlength", pgresult_getlength, 2);
 	rb_define_method(rb_cPGresult, "nparams", pgresult_nparams, 0);
-	rb_define_method(rb_cPGresult, "paramtype", pgresult_paramtype, 0);
+	rb_define_method(rb_cPGresult, "paramtype", pgresult_paramtype, 1);
 	rb_define_method(rb_cPGresult, "cmd_status", pgresult_cmd_status, 0);
 	rb_define_method(rb_cPGresult, "cmd_tuples", pgresult_cmd_tuples, 0);
 	rb_define_alias(rb_cPGresult, "cmdtuples", "cmd_tuples");
