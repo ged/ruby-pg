@@ -1,12 +1,12 @@
 #!/usr/bin/env spec
 # encoding: utf-8
 
+$LOAD_PATH.unshift('ext')
+require 'pg'
+
 require 'rubygems'
 require 'spec'
 require 'spec/lib/helpers'
-
-$LOAD_PATH.unshift('ext')
-require 'pg'
 
 describe PGconn do
 	include PgTestingHelpers
@@ -75,7 +75,6 @@ describe PGconn do
 			# be careful to explicitly close files so that the
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
-
 			expected_trace_file = File.join(Dir.getwd, "spec/data", "expected_trace.out")
 			expected_trace_data = open(expected_trace_file, 'rb').read
 			trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')

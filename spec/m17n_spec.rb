@@ -1,12 +1,12 @@
 #!/usr/bin/env spec
 # encoding: utf-8
 
+$LOAD_PATH.unshift('ext')
+require 'pg'
+
 require 'rubygems'
 require 'spec'
 require 'spec/lib/helpers'
-
-$LOAD_PATH.unshift('ext')
-require 'pg'
 
 describe "multinationalization support" do
 	include PgTestingHelpers
@@ -18,9 +18,7 @@ describe "multinationalization support" do
 	before( :all ) do
 		@conn = nil
 		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
-			before( :all ) do
-				@conn = setup_testing_db( "m17n" )
-			end
+			@conn = setup_testing_db( "m17n" )
 			@conn.exec( 'BEGIN' )
 		end
 	end
