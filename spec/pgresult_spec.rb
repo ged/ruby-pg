@@ -1,36 +1,24 @@
+#!/usr/bin/env spec
 # encoding: utf-8
-
-require 'rubygems'
-require 'spec'
 
 $LOAD_PATH.unshift('ext')
 require 'pg'
 
-describe PGconn do
+require 'rubygems'
+require 'spec'
+require 'spec/lib/helpers'
+
+describe PGresult do
+	include PgTestingHelpers
 
 	before( :all ) do
-		puts "Setting up test database for PGresult tests"
-		@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
-		@test_pgdata = File.join(@test_directory, 'data')
-		if File.exists?(@test_directory) then
-			raise "test directory exists!"
-		end
-		@port = 54321
-		@conninfo = "host=localhost port=#{@port} dbname=test"
-		Dir.mkdir(@test_directory)
-		Dir.mkdir(@test_pgdata)
-		cmds = []
-		cmds << "initdb --no-locale -D \"#{@test_pgdata}\" > /dev/null 2>&1"
-		cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start > /dev/null 2>&1"
-		cmds << "createdb -p #{@port} test > /dev/null 2>&1"
-
-		cmds.each do |cmd|
-			if not system(cmd) then
-				raise "Error executing cmd: #{cmd}: #{$?}"
-			end
-		end
-		@conn = PGconn.connect(@conninfo)
+		@conn = setup_testing_db( "PGresult" )
 	end
+
+	before( :each ) do
+		@conn.exec( 'BEGIN' )
+	end
+
 
 	it "should act as an array of hashes" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
@@ -66,12 +54,10 @@ describe PGconn do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		in_bytes = File.open(binary_file, 'rb').read
 		out_bytes = nil
-		@conn.transaction do |conn|
-			conn.exec("SET standard_conforming_strings=on")
-			res = conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 1)
-			out_bytes = res[0]['column1']
-		end
-		out_bytes.should== in_bytes
+		@conn.exec("SET standard_conforming_strings=on")
+		res = @conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 1)
+		out_bytes = res[0]['column1']
+		out_bytes.should == in_bytes
 	end
 
 	it "should return the same bytes in text format that are sent in binary format" do
@@ -87,12 +73,10 @@ describe PGconn do
 		in_bytes = File.open(binary_file, 'rb').read
 
 		out_bytes = nil
-		@conn.transaction do |conn|
-			conn.exec("SET standard_conforming_strings=on")
-			res = conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 0)
-			out_bytes = PGconn.unescape_bytea(res[0]['column1'])
-		end
-		out_bytes.should== in_bytes
+		@conn.exec("SET standard_conforming_strings=on")
+		res = @conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 0)
+		out_bytes = PGconn.unescape_bytea(res[0]['column1'])
+		out_bytes.should == in_bytes
 	end
 
 	it "should return the parameter type of the specified prepared statment parameter" do
@@ -124,16 +108,56 @@ describe PGconn do
 		}.to raise_error( IndexError, /-1 is out of range/i )
 	end
 
+	# PQfmod
+	it "can return the type modifier for a result column" do
+		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
+		res = @conn.exec( 'SELECT * FROM fmodtest' )
+		res.fmod( 0 ).should == 33 + 4 # Column length + varlena size (4)
+	end
+
+	it "shouldn't raise an exception when an invalid index is passed to PGresult#fmod" do
+		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
+		res = @conn.exec( 'SELECT * FROM fmodtest' )
+		expect { res.fmod(1) }.to raise_error( ArgumentError )
+	end
+
+	# PQftable
+	it "can return the oid of the table from which a result column was fetched" do
+		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
+		res = @conn.exec( 'SELECT * FROM ftabletest' )
+
+		res.ftable( 0 ).should == be_nonzero()
+	end
+
+	it "shouldn't raise an exception when an invalid index is passed to PGresult#ftable" do
+		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
+		res = @conn.exec( 'SELECT * FROM ftabletest' )
+
+		expect { res.ftable(18) }.to raise_error( ArgumentError )
+	end
+
+	# PQftablecol
+	it "can return the column number (within its table) of a column in a result" do
+		@conn.exec( 'CREATE TABLE ftabletest ( foo text, bar numeric )' )
+		res = @conn.exec( 'SELECT * FROM ftabletest' )
+
+		res.ftablecol( 0 ).should == 1
+		res.ftablecol( 1 ).should == 2
+	end
+
+	it "shouldn't raise an exception when an invalid (positive) index is passed to PGresult#ftablecol" do
+		@conn.exec( 'CREATE TABLE ftabletest ( foo text, bar numeric )' )
+		res = @conn.exec( 'SELECT * FROM ftabletest' )
+
+		expect { res.ftablecol(32) }.to raise_error( ArgumentError )
+	end
+
+
+	after( :each ) do
+		@conn.exec( 'ROLLBACK' )
+	end
 
 	after( :all ) do
-		@conn.finish
-		cmds = []
-		cmds << "pg_ctl -D \"#{@test_pgdata}\" stop > /dev/null 2>&1"
-		cmds << "rm -rf \"#{@test_directory}\" > /dev/null 2>&1"
-		cmds.each do |cmd|
-			if not system(cmd) then
-				raise "Error executing cmd: #{cmd}: #{$?}"
-			end
-		end
+		teardown_testing_db( @conn )
 	end
 end

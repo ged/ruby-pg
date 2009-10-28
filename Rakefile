@@ -40,10 +40,10 @@ spec = Gem::Specification.new do |s|
 	s.date = DateTime.now
 	s.summary           = 'Ruby extension library providing an API to PostgreSQL'
 	s.authors           = [
-		'Yukihiro Matsumoto', 
-		'Eiji Matsumoto', 
-		'Noboru Saitou', 
-		'Dave Lee', 
+		'Yukihiro Matsumoto',
+		'Eiji Matsumoto',
+		'Noboru Saitou',
+		'Dave Lee',
 		'Jeff Davis']
 	s.email             = 'ruby-pg@j-davis.com'
 	s.homepage          = 'http://rubyforge.org/projects/ruby-pg'
@@ -109,3 +109,7 @@ Spec::Rake::SpecTask.new("spec") do |t|
   t.spec_files = FileList["spec/**/*_spec.rb"]
 end
 task :spec => [:compile]
+
+CLEAN.include( 'tmp_test_*' )
+
+

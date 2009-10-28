@@ -1,46 +1,34 @@
+#!/usr/bin/env spec
 # encoding: utf-8
 
 require 'rubygems'
 require 'spec'
+require 'spec/lib/helpers'
 
 $LOAD_PATH.unshift('ext')
 require 'pg'
 
 describe "multinationalization support" do
+	include PgTestingHelpers
 
 	RUBY_VERSION_VEC = RUBY_VERSION.split('.').map {|c| c.to_i }.pack("N*")
 	MIN_RUBY_VERSION_VEC = [1,9,1].pack('N*')
 
-	before( :all ) do
-		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
-			puts "Setting up test database for m17n tests"
-			@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
-			@test_pgdata = File.join(@test_directory, 'data')
-			if File.exists?(@test_directory) then
-				raise "test directory exists!"
-			end
-			@port = 54321
-			@conninfo = "host=localhost port=#{@port} dbname=test"
-			Dir.mkdir(@test_directory)
-			Dir.mkdir(@test_pgdata)
-			cmds = []
-			cmds << "initdb --no-locale -D \"#{@test_pgdata}\" > /dev/null 2>&1"
-			cmds << "pg_ctl -w -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start > /dev/null 2>&1"
-			cmds << "createdb -p #{@port} test > /dev/null 2>&1"
 
-			cmds.each do |cmd|
-				if not system(cmd) then
-					raise "Error executing cmd: #{cmd}: #{$?}"
-				end
+	before( :all ) do
+		@conn = nil
+		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
+			before( :all ) do
+				@conn = setup_testing_db( "m17n" )
 			end
-			@conn = PGconn.connect(@conninfo)
+			@conn.exec( 'BEGIN' )
 		end
 	end
 
 	before( :each ) do
-		pending "depends on m17n support in Ruby >= 1.9.1" unless
-			RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
+		pending "depends on m17n support in Ruby >= 1.9.1" if @conn.nil?
 	end
+
 
 	it "should return the same bytes in text format that are sent as inline text" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
@@ -94,12 +82,13 @@ describe "multinationalization support" do
 			@conn.external_encoding.should == Encoding::ASCII_8BIT
 		end
 
-		it "works around the unsupported JOHAB encoding" do
-			pending "until I figure out what I'm doing wrong" do
+		it "works around the unsupported JOHAB encoding by returning stuff in 'ASCII_8BIT'" do
+			pending "figuring out how to create a string in the JOHAB encoding" do
 				out_string = nil
 				@conn.transaction do |conn|
 					conn.exec( "set client_encoding = 'JOHAB';" )
-					res = conn.exec( "VALUES ('foo')", [], 0 )
+					stmt = "VALUES ('foo')".encode('JOHAB')
+					res = conn.exec( stmt, [], 0 )
 					out_string = res[0]['column1']
 				end
 				out_string.should == 'foo'.encode(Encoding::ASCII_8BIT)
@@ -116,17 +105,12 @@ describe "multinationalization support" do
 
 	end
 
+
+	after( :each ) do
+		@conn.exec( 'ROLLBACK' ) if @conn
+	end
+
 	after( :all ) do
-		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
-			@conn.finish
-			cmds = []
-			cmds << "pg_ctl -D \"#{@test_pgdata}\" stop > /dev/null 2>&1"
-			cmds << "rm -rf \"#{@test_directory}\" > /dev/null 2>&1"
-			cmds.each do |cmd|
-				if not system(cmd) then
-					raise "Error executing cmd: #{cmd}: #{$?}"
-				end
-			end
-		end
+		teardown_testing_db( @conn ) if @conn
 	end
 end
