@@ -3015,11 +3015,14 @@ pgresult_fnumber(VALUE self, VALUE name)
 static VALUE
 pgresult_ftable(VALUE self, VALUE column_number)
 {
-	Oid n = PQftable(get_pgresult(self), NUM2INT(column_number));
-	if (n == InvalidOid) {
-		rb_raise(rb_eArgError,"Oid is undefined for column: %d", 
-			NUM2INT(column_number));
-	}
+	Oid n ;
+	int col_number = NUM2INT(column_number);
+	PGresult *pgresult = get_pgresult(self);
+
+	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
+		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
+
+	n = PQftable(pgresult, col_number);
 	return INT2FIX(n);
 }
 
@@ -3036,12 +3039,15 @@ pgresult_ftable(VALUE self, VALUE column_number)
 static VALUE
 pgresult_ftablecol(VALUE self, VALUE column_number)
 {
-	int n = PQftablecol(get_pgresult(self), NUM2INT(column_number));
-	if (n == 0) {
-		rb_raise(rb_eArgError,
-			"Column number from table is undefined for column: %d", 
-			NUM2INT(column_number));
-	}
+	int col_number = NUM2INT(column_number);
+	PGresult *pgresult = get_pgresult(self);
+
+	int n;
+
+	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
+		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
+	
+	n = PQftablecol(pgresult, col_number);
 	return INT2FIX(n);
 }
 
@@ -3103,10 +3109,8 @@ pgresult_fmod(VALUE self, VALUE column_number)
 		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
 	}
-	if((modifier = PQfmod(result,fnumber)) == -1)
-		rb_raise(rb_eArgError, 
-			"No modifier information available for column: %d", 
-			fnumber);
+	modifier = PQfmod(result,fnumber);
+
 	return INT2NUM(modifier);
 }
 
@@ -3863,6 +3867,7 @@ Init_pg()
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
 	/******     PGresult CONSTANTS: oid type codes      ******/
+	rb_define_const(rb_cPGresult, "InvalidOid", INT2FIX(InvalidOid));
 	rb_define_const(rb_cPGresult, "BOOLOID", INT2FIX(16));
 	rb_define_const(rb_cPGresult, "BYTEAOID", INT2FIX(17));
 	rb_define_const(rb_cPGresult, "CHAROID", INT2FIX(18));

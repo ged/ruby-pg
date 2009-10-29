@@ -115,10 +115,22 @@ describe PGresult do
 		res.fmod( 0 ).should == 33 + 4 # Column length + varlena size (4)
 	end
 
-	it "shouldn't raise an exception when an invalid index is passed to PGresult#fmod" do
+	it "should raise an exception when an invalid index is passed to PGresult#fmod" do
 		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
 		res = @conn.exec( 'SELECT * FROM fmodtest' )
 		expect { res.fmod(1) }.to raise_error( ArgumentError )
+	end
+
+	it "should raise an exception when an invalid (negative) index is passed to PGresult#fmod" do
+		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
+		res = @conn.exec( 'SELECT * FROM fmodtest' )
+		expect { res.fmod(-11) }.to raise_error( ArgumentError )
+	end
+
+	it "shouldn't raise an exception when a valid index is passed to PGresult#fmod for a column with no typemod" do
+		@conn.exec( 'CREATE TABLE fmodtest ( foo text )' )
+		res = @conn.exec( 'SELECT * FROM fmodtest' )
+		res.fmod( 0 ).should == -1 # and it shouldn't raise an exception, either
 	end
 
 	# PQftable
@@ -129,28 +141,57 @@ describe PGresult do
 		res.ftable( 0 ).should == be_nonzero()
 	end
 
-	it "shouldn't raise an exception when an invalid index is passed to PGresult#ftable" do
+	it "should raise an exception when an invalid index is passed to PGresult#ftable" do
 		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
 		res = @conn.exec( 'SELECT * FROM ftabletest' )
 
 		expect { res.ftable(18) }.to raise_error( ArgumentError )
 	end
 
+	it "should raise an exception when an invalid (negative) index is passed to PGresult#ftable" do
+		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
+		res = @conn.exec( 'SELECT * FROM ftabletest' )
+
+		expect { res.ftable(-2) }.to raise_error( ArgumentError )
+	end
+
+	it "shouldn't raise an exception when a valid index is passed to PGresult#ftable for a " +
+	   "column with no corresponding table" do
+		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
+		res = @conn.exec( 'SELECT foo, LENGTH(foo) as length FROM ftabletest' )
+		res.ftable( 1 ).should == PGresult::InvalidOid # and it shouldn't raise an exception, either
+	end
+
 	# PQftablecol
 	it "can return the column number (within its table) of a column in a result" do
-		@conn.exec( 'CREATE TABLE ftabletest ( foo text, bar numeric )' )
-		res = @conn.exec( 'SELECT * FROM ftabletest' )
+		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text, bar numeric )' )
+		res = @conn.exec( 'SELECT * FROM ftablecoltest' )
 
 		res.ftablecol( 0 ).should == 1
 		res.ftablecol( 1 ).should == 2
 	end
 
-	it "shouldn't raise an exception when an invalid (positive) index is passed to PGresult#ftablecol" do
-		@conn.exec( 'CREATE TABLE ftabletest ( foo text, bar numeric )' )
-		res = @conn.exec( 'SELECT * FROM ftabletest' )
+	it "should raise an exception when an invalid index is passed to PGresult#ftablecol" do
+		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text, bar numeric )' )
+		res = @conn.exec( 'SELECT * FROM ftablecoltest' )
 
 		expect { res.ftablecol(32) }.to raise_error( ArgumentError )
 	end
+
+	it "should raise an exception when an invalid (negative) index is passed to PGresult#ftablecol" do
+		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text, bar numeric )' )
+		res = @conn.exec( 'SELECT * FROM ftablecoltest' )
+
+		expect { res.ftablecol(-1) }.to raise_error( ArgumentError )
+	end
+
+	it "shouldn't raise an exception when a valid index is passed to PGresult#ftablecol for a " +
+	   "column with no corresponding table" do
+		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text )' )
+		res = @conn.exec( 'SELECT foo, LENGTH(foo) as length FROM ftablecoltest' )
+		res.ftablecol(1).should == 0 # and it shouldn't raise an exception, either
+	end
+
 
 
 	after( :each ) do

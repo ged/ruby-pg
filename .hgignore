@@ -1,3 +1,4 @@
 \.(diff|patch)$
 \.(s?o|log|bundle)$
 ext/Makefile
+commit-msg.txt$
