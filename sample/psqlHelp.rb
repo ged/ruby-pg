@@ -7,7 +7,7 @@
 # ruby version is written by ematsu
 #  Copyright (c) 1997  Eiji-usagi-MATSUmoto <ematsu@pfu.co.jp>
 #
-# $Id: psqlHelp.rb,v 1.1.1.2 2002/04/24 05:46:44 noboru Exp $
+# $Id$
 
 
 QL_HELP = [

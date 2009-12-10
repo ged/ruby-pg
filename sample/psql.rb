@@ -13,7 +13,7 @@
 #  Fri 12 Dec 19:56:34 JST 1997
 #  * replace puts -> print
 #
-# $Id: psql.rb,v 1.1.1.3 2002/04/24 05:46:44 noboru Exp $
+# $Id$
 #
 
 require "pg"

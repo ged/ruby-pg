@@ -4,6 +4,26 @@ require 'spec'
 $LOAD_PATH.unshift('ext')
 require 'pg'
 
+NOTIFY_FUNCTION = <<EOF
+	CREATE OR REPLACE FUNCTION notify_test()
+	RETURNS TRIGGER
+	LANGUAGE plpgsql
+	AS $$
+		BEGIN
+			NOTIFY woo;
+			RETURN NULL;
+		END
+	$$
+EOF
+
+NOTIFY_TRIGGER = <<EOF
+	CREATE TRIGGER notify_trigger
+	AFTER UPDATE OR INSERT OR DELETE
+	ON test
+	FOR EACH STATEMENT
+	EXECUTE PROCEDURE notify_test()
+EOF
+
 describe PGconn do
 
 	before( :all ) do
@@ -13,15 +33,15 @@ describe PGconn do
 		if File.exists?(@test_directory) then
 			raise "test directory exists!"
 		end
-    @port = 54321
+		@port = 54321
 		@conninfo = "host=localhost port=#{@port} dbname=test"
 		Dir.mkdir(@test_directory)
 		Dir.mkdir(@test_pgdata)
 		cmds = []
 		cmds << "initdb -D \"#{@test_pgdata}\""
-    cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
+		cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
 		cmds << "sleep 5"
-    cmds << "createdb -p #{@port} test"
+		cmds << "createdb -p #{@port} test"
 
 		cmds.each do |cmd|
 			if not system(cmd) then
@@ -101,7 +121,7 @@ describe PGconn do
 			trace_data.should == expected_trace_data
 		end
 	end
-	
+
 	it "should cancel a query" do
 		error = false
 		@conn.send_query("SELECT pg_sleep(1000)")
@@ -111,6 +131,25 @@ describe PGconn do
 			error = true
 		end
 		error.should == true
+	end
+
+	it "should wait for NOTIFY events via select()" do
+		@conn.exec( 'CREATE LANGUAGE plpgsql' )
+		@conn.exec( 'CREATE TABLE test ( stuff INTEGER )' )
+		@conn.exec( NOTIFY_FUNCTION	)
+		@conn.exec( NOTIFY_TRIGGER )
+		@conn.exec( 'LISTEN woo' )
+
+		pid = fork do
+			conn = PGconn.connect( @conninfo )
+			sleep 1
+			conn.exec( 'INSERT INTO test VALUES(1)' )
+			conn.finish
+			exit
+		end
+
+		@conn.wait_for_notify( 10 ).should == 'woo'
+		Process.wait( pid )
 	end
 
 	after( :all ) do
