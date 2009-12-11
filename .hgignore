@@ -2,3 +2,5 @@
 \.(s?o|log|bundle)$
 ext/Makefile
 commit-msg.txt$
+^tmp_test.*
+^ext/conftest\.dSYM

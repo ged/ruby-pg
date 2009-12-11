@@ -128,8 +128,32 @@ module PgTestingHelpers
 	end
 
 
+	### Check the current directory for directories that look like they're
+	### testing directories from previous tests, and tell any postgres instances
+	### running in them to shut down.
+	def stop_existing_postmasters
+		# tmp_test_0.22329534700318
+		Pathname.glob( Pathname.getwd + 'tmp_test_*' ).each do |testdir|
+			datadir = testdir + 'data'
+			pidfile = datadir + 'postmaster.pid'
+			if pidfile.exist? && pid = pidfile.read.chomp.to_i
+				begin
+					Process.kill( 0, pid )
+				rescue Errno::ESRCH
+					# Process isn't alive, so don't try to stop it
+				else
+					trace "Stopping lingering database at PID %d"
+					run 'pg_ctl', '-D', datadir.to_s, '-m', 'fast', 'stop'
+				end
+			end
+		end
+	end
+
+
 	### Set up a PostgreSQL database instance for testing.
 	def setup_testing_db( description )
+		stop_existing_postmasters()
+
 		puts "Setting up test database for #{description} tests"
 		@test_directory = Pathname.getwd + "tmp_test_#{rand}"
 		raise "test directory exists!" if @test_directory.exist?
@@ -167,6 +191,7 @@ module PgTestingHelpers
 
 
 	def teardown_testing_db( conn )
+		puts "Tearing down test database"
 		conn.finish if conn
 		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
 		FileUtils.rm_rf( @test_directory, :verbose => $DEBUG )
