@@ -8,6 +8,26 @@ require 'rubygems'
 require 'spec'
 require 'spec/lib/helpers'
 
+NOTIFY_FUNCTION = <<EOF
+	CREATE OR REPLACE FUNCTION notify_test()
+	RETURNS TRIGGER
+	LANGUAGE plpgsql
+	AS $$
+		BEGIN
+			NOTIFY woo;
+			RETURN NULL;
+		END
+	$$
+EOF
+
+NOTIFY_TRIGGER = <<EOF
+	CREATE TRIGGER notify_trigger
+	AFTER UPDATE OR INSERT OR DELETE
+	ON test
+	FOR EACH STATEMENT
+	EXECUTE PROCEDURE notify_test()
+EOF
+
 describe PGconn do
 	include PgTestingHelpers
 
@@ -112,6 +132,25 @@ describe PGconn do
 		end
 	end
 
+
+	it "should wait for NOTIFY events via select()" do
+		@conn.exec( 'CREATE LANGUAGE plpgsql' )
+		@conn.exec( 'CREATE TABLE test ( stuff INTEGER )' )
+		@conn.exec( NOTIFY_FUNCTION	)
+		@conn.exec( NOTIFY_TRIGGER )
+		@conn.exec( 'LISTEN woo' )
+
+		pid = fork do
+			conn = PGconn.connect( @conninfo )
+			sleep 1
+			conn.exec( 'INSERT INTO test VALUES(1)' )
+			conn.finish
+			exit
+		end
+
+		@conn.wait_for_notify( 10 ).should == 'woo'
+		Process.wait( pid )
+	end
 
 	after( :each ) do
 		@conn.exec( 'ROLLBACK' )
