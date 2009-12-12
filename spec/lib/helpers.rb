@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'pathname'
-require 'pg'
 
 module PgTestingHelpers
 
@@ -133,13 +132,15 @@ module PgTestingHelpers
 	### running in them to shut down.
 	def stop_existing_postmasters
 		# tmp_test_0.22329534700318
-		Pathname.glob( Pathname.getwd + 'tmp_test_*' ).each do |testdir|
+		pat = Pathname.getwd + 'tmp_test_*'
+		Pathname.glob( pat.to_s ).each do |testdir|
 			datadir = testdir + 'data'
 			pidfile = datadir + 'postmaster.pid'
 			if pidfile.exist? && pid = pidfile.read.chomp.to_i
 				begin
 					Process.kill( 0, pid )
 				rescue Errno::ESRCH
+					trace "No postmaster running for %s" % [ datadir ]
 					# Process isn't alive, so don't try to stop it
 				else
 					trace "Stopping lingering database at PID %d"
@@ -152,6 +153,7 @@ module PgTestingHelpers
 
 	### Set up a PostgreSQL database instance for testing.
 	def setup_testing_db( description )
+		require 'pg'
 		stop_existing_postmasters()
 
 		puts "Setting up test database for #{description} tests"

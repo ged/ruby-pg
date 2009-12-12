@@ -114,6 +114,7 @@ describe PGconn do
 
 
 	it "should wait for NOTIFY events via select()" do
+		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
 		pid = fork do
@@ -121,10 +122,11 @@ describe PGconn do
 			sleep 1
 			conn.exec( 'NOTIFY woo' )
 			conn.finish
-			exit
+			exit!
 		end
 
 		@conn.wait_for_notify( 10 ).should == 'woo'
+		@conn.exec( 'UNLISTEN woo' )
 
 		Process.wait( pid )
 	end

@@ -1,3 +1,4 @@
+#!/usr/bin/env rake
 
 require 'rubygems'
 require 'rake/clean'
@@ -7,10 +8,12 @@ require 'rake/rdoctask'
 require 'ext_helper'
 require 'date'
 
+
 # House-keeping
 CLEAN.include '**/*.o', 'ext/*.so', '**/*.bundle', '**/*.a',
-	 '**/*.log', "{ext,lib}/*.{bundle,so,obj,pdb,lib,def,exp}",
-	"ext/Makefile", 'lib', '**/*.db'
+	 '**/*.log', "{ext,lib}/*.{bundle,so,obj,pdb,lib,def,exp}"
+
+CLOBBER.include "ext/Makefile", '**/*.db'
 
 FILES = FileList[
   'Rakefile',
@@ -31,6 +34,9 @@ FILES = FileList[
   'sample/**/*',
   'spec/**/*'
 ]
+
+SPEC_FILES = FileList[ "spec/**/*_spec.rb" ]
+COMMON_SPEC_OPTS = [ "--format", "specdoc", "--colour" ]
 
 spec = Gem::Specification.new do |s|
 	s.name              = 'pg'
@@ -103,13 +109,42 @@ end
 
 setup_extension 'pg', spec
 
-desc "Run all specs in spec directory"
-Spec::Rake::SpecTask.new("spec") do |t|
-  t.spec_opts = ["--format", "specdoc", "--colour"]
-  t.spec_files = FileList["spec/**/*_spec.rb"]
-end
-task :spec => [:compile]
+namespace :spec do
 
+	desc "Run all specs in spec directory"
+	Spec::Rake::SpecTask.new( "normal" ) do |t|
+	  t.spec_opts = COMMON_SPEC_OPTS
+	  t.spec_files = SPEC_FILES
+	end
+	task :default => [:compile]
+
+	desc "Run specs under gdb"
+	task :gdb => :compile do |task|
+		require 'tempfile'
+
+	    cmd_parts = ['run']
+	    cmd_parts << '-Ilib:ext'
+	    cmd_parts << '/usr/bin/spec'
+	    cmd_parts += SPEC_FILES.collect { |fn| %["#{fn}"] }
+	    cmd_parts += COMMON_SPEC_OPTS
+
+		script = Tempfile.new( 'spec-gdbscript' )
+		script.puts( cmd_parts.join(' ') )
+		script.flush
+
+		sh 'gdb', '-x', script.path, RUBY
+	end
+
+end
+
+task :spec => [:compile, 'spec:normal']
 CLEAN.include( 'tmp_test_*' )
+
+
+desc "Stop any Postmaster instances that remain after testing."
+task :cleanup_testing_dbs do
+	stop_existing_postmasters()
+	Rake::Task[:clean].invoke
+end
 
 
