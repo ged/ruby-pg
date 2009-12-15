@@ -131,6 +131,22 @@ describe PGconn do
 		Process.wait( pid )
 	end
 
+	it "should yield result if block is given to exec" do
+		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
+			values = []
+			result.should be_kind_of( PGresult )
+			result.ntuples.should == 2
+			result.each do |tuple|
+				values << tuple['a']
+			end
+			values
+		end
+
+		rval.should have( 2 ).members
+		rval.should include( '5678', '1234' )
+	end
+
+
 	after( :each ) do
 		@conn.exec( 'ROLLBACK' )
 	end

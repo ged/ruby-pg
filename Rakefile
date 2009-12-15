@@ -143,7 +143,8 @@ CLEAN.include( 'tmp_test_*' )
 
 desc "Stop any Postmaster instances that remain after testing."
 task :cleanup_testing_dbs do
-	stop_existing_postmasters()
+	require 'spec/lib/helpers'
+	PgTestingHelpers.stop_existing_postmasters()
 	Rake::Task[:clean].invoke
 end
 

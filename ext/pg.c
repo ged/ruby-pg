@@ -188,17 +188,6 @@ pgresult_check(VALUE rb_pgconn, VALUE rb_pgresult)
 	return;
 }
 
-static VALUE
-yield_pgresult(VALUE rb_pgresult)
-{
-	int i;
-	PGresult *result = get_pgresult(rb_pgresult);
-	for(i = 0; i < PQntuples(result); i++) {
-		return rb_yield(pgresult_aref(rb_pgresult, INT2NUM(i)));
-	}
-	return Qnil;
-}
-
 static void
 notice_receiver_proxy(void *arg, const PGresult *result)
 {
@@ -893,6 +882,7 @@ pgconn_connection_used_password(VALUE self)
 /*
  * call-seq:
  *    conn.exec(sql [, params, result_format ] ) -> PGresult
+ *    conn.exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL.
  * Returns a PGresult instance on success.
@@ -920,6 +910,10 @@ pgconn_connection_used_password(VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument, 
+ * and the PGresult object will  automatically be cleared when the block terminates. 
+ * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
 pgconn_exec(int argc, VALUE *argv, VALUE self)
@@ -950,7 +944,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		rb_pgresult = new_pgresult(result, conn);
 		pgresult_check(self, rb_pgresult);
 		if (rb_block_given_p()) {
-			return rb_ensure(yield_pgresult, rb_pgresult, 
+			return rb_ensure(rb_yield, rb_pgresult, 
 				pgresult_clear, rb_pgresult);
 		}
 		return rb_pgresult;
@@ -1034,7 +1028,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult, 
+		return rb_ensure(rb_yield, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -1102,6 +1096,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 /*
  * call-seq:
  *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PGresult
+ *    conn.exec_prepared(statement_name [, params, result_format ] ) {|pg_result| block }
  *
  * Execute prepared named statement specified by _statement_name_.
  * Returns a PGresult instance on success.
@@ -1122,6 +1117,10 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument, 
+ * and the PGresult object will  automatically be cleared when the block terminates. 
+ * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
  */
 static VALUE
 pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
@@ -1216,7 +1215,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult, 
+		return rb_ensure(rb_yield, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -1818,6 +1817,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 /*
  * call-seq:
  *    conn.get_result() -> PGresult
+ *    conn.get_result() {|pg_result| block }
  *
  * Blocks waiting for the next result from a call to
  * +PGconn#send_query+ (or another asynchronous command), and returns
@@ -1825,6 +1825,10 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
  *
  * Note: call this function repeatedly until it returns +nil+, or else
  * you will not be able to issue further commands.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument, 
+ * and the PGresult object will  automatically be cleared when the block terminates. 
+ * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
 pgconn_get_result(VALUE self)
@@ -1838,7 +1842,7 @@ pgconn_get_result(VALUE self)
 		return Qnil;
 	rb_pgresult = new_pgresult(result, conn);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult,
+		return rb_ensure(rb_yield, rb_pgresult,
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;

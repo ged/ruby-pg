@@ -28,6 +28,10 @@ module PgTestingHelpers
 	}
 
 
+	###############
+	module_function
+	###############
+
 	### Create a string that contains the ANSI codes specified and return it
 	def ansi_code( *attributes )
 		attributes.flatten!
