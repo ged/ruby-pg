@@ -23,6 +23,9 @@ static VALUE rb_cPGconn;
 static VALUE rb_cPGresult;
 static VALUE rb_ePGError;
 
+static const char *VERSION = "0.8.0";
+
+
 /* The following functions are part of libpq, but not
  * available from ruby-pg, because they are deprecated,
  * obsolete, or generally not useful:
@@ -781,7 +784,7 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
 
 /*
  * call-seq:
- *  conn.protocol_version -> Integer
+ *   conn.protocol_version -> Integer
  *
  * The 3.0 protocol will normally be used when communicating with PostgreSQL 7.4 
  * or later servers; pre-7.4 servers support only protocol 2.0. (Protocol 1.0 is 
@@ -793,11 +796,16 @@ pgconn_protocol_version(VALUE self)
 	return INT2NUM(PQprotocolVersion(get_pgconn(self)));
 }
 
-/*
- * call-seq:
+/* 
+ * call-seq: 
  *   conn.server_version -> Integer
- *
- * The number is formed by converting the major, minor, and revision numbers into two-decimal-digit numbers and appending them together. For example, version 7.4.2 will be returned as 70402, and version 8.1 will be returned as 80100 (leading zeroes are not shown). Zero is returned if the connection is bad.
+ * 
+ * The number is formed by converting the major, minor, and revision
+ * numbers into two-decimal-digit numbers and appending them together.
+ * For example, version 7.4.2 will be returned as 70402, and version
+ * 8.1 will be returned as 80100 (leading zeroes are not shown). Zero
+ * is returned if the connection is bad.
+ * 
  */
 static VALUE
 pgconn_server_version(VALUE self)
@@ -3726,6 +3734,8 @@ Init_pg()
 	rb_cPGconn = rb_define_class("PGconn", rb_cObject);
 	rb_cPGresult = rb_define_class("PGresult", rb_cObject);
 
+	/* Library version */
+	rb_define_const( rb_cPGconn, "VERSION", rb_str_new2(VERSION) );
 
 	/*************************
 	 *  PGError 

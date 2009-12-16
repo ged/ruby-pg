@@ -4,3 +4,7 @@ ext/Makefile
 commit-msg.txt$
 ^tmp_test.*
 ^ext/conftest\.dSYM
+doc/rdoc
+^pkg$
+Rakefile\.old
+tmp/

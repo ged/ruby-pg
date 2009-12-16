@@ -1,7 +1,18 @@
 #!/usr/bin/env spec
 # encoding: utf-8
 
-$LOAD_PATH.unshift('ext')
+BEGIN {
+	require 'pathname'
+	require 'rbconfig'
+
+	basedir = Pathname( __FILE__ ).dirname.parent
+	libdir = basedir + 'lib'
+	archlib = libdir + Config::CONFIG['sitearch']
+
+	$LOAD_PATH.unshift( libdir.to_s ) unless $LOAD_PATH.include?( libdir.to_s )
+	$LOAD_PATH.unshift( archlib.to_s ) unless $LOAD_PATH.include?( archlib.to_s )
+}
+
 require 'pg'
 
 require 'rubygems'

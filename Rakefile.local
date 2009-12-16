@@ -1,0 +1,44 @@
+#!rake
+
+require 'rake/extensiontask'
+require 'rbconfig'
+
+# C extension constants
+EXT_MAKEFILE  = EXTDIR + 'Makefile'
+EXT_SOURCES   = FileList[ EXTDIR + '*.c' ]
+EXT_SO        = EXTDIR + "pg.#{CONFIG['DLEXT']}"
+
+SITEARCH_DIR  = LIBDIR + Config::CONFIG['sitearch']
+
+#####################################################################
+###	T A S K S
+#####################################################################
+
+# Make both the default task and the spec task depend on building the extension
+task :local => :compile
+task :spec => :compile
+namespace :spec do
+	task :doc   => [ :compile ]
+	task :quiet => [ :compile ]
+	task :html  => [ :compile ]
+	task :text  => [ :compile ]
+end
+
+Rake::ExtensionTask.new do |ext|
+	ext.name = 'pg'
+	ext.gem_spec = GEMSPEC
+	ext.ext_dir = 'ext'
+	ext.lib_dir = "lib/#{Config::CONFIG['sitearch']}"
+	ext.source_pattern = "*.{c,h}"
+	# ext.cross_compile = true
+	# ext.cross_platform = 'i386-mswin32'
+end
+
+
+desc "Stop any Postmaster instances that remain after testing."
+task :cleanup_testing_dbs do
+    require 'spec/lib/helpers'
+    PgTestingHelpers.stop_existing_postmasters()
+    Rake::Task[:clean].invoke
+end
+

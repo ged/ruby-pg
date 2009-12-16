@@ -8,40 +8,25 @@ rescue
 	exit 1
 end
 
+### Read the output of a command using the fork+pipe syntax so execution errors 
+### propagate to Ruby.
+def read_cmd_output( *cmd )
+	output = IO.read( '|-' ) or exec( *cmd )
+	return output.chomp
+end
+
+
 # OS X compatibility
-if(RUBY_PLATFORM =~ /darwin/) then
-	# test if postgresql is probably universal
-	bindir = (IO.popen("pg_config --bindir").readline.chomp rescue nil)
-	filetype = (IO.popen("file #{bindir}/pg_config").
-		readline.chomp rescue nil)
-	# if it's not universal, ARCHFLAGS should be set
-	if((filetype !~ /universal binary/) && ENV['ARCHFLAGS'].nil?) then
-		arch_tmp = (IO.popen("uname -p").readline.chomp rescue nil)
-		if(arch_tmp == 'powerpc') 
-			arch = 'ppc'
-		else
-			arch = 'i386'
-		end
-		$stderr.write %{
-		===========   WARNING   ===========
-		
-		You are building this extension on OS X without setting the 
-		ARCHFLAGS environment variable, and PostgreSQL does not appear 
-		to have been built as a universal binary. If you are seeing this 
-		message, that means that the build will probably fail.
+if RUBY_PLATFORM =~ /darwin/
 
-		Try setting the environment variable ARCHFLAGS 
-		to '-arch #{arch}' before building.
+	# Make the ARCHFLAGS environment variable match the arch flags that
+	# PostgreSQL was compiled with.
+	bindir = read_cmd_output( 'pg_config', '--bindir' )
+	pg_cflags = read_cmd_output( 'pg_config', '--cflags' )
 
-		For example:
-		(in bash) $ export ARCHFLAGS='-arch #{arch}'
-		(in tcsh) % setenv ARCHFLAGS '-arch #{arch}'
-
-		Then try building again.
-
-		===================================
-		}
-		# We don't exit here. Who knows? It might build.
+	pg_cflags.scan( /-arch\s+\S+/ ) do |str|
+		$stderr.puts "Adding ARCHFLAGS: %p" % [ str ]
+		$CFLAGS << ' ' << str
 	end
 end
 
