@@ -177,6 +177,25 @@ describe PGconn do
 	end
 
 
+	it "can encrypt a string given a password and username" do
+		PGconn.encrypt_password("postgres", "postgres").
+			should =~ /\S+/
+	end
+
+
+	it "should encrypt_password receive 2 Strings" do
+		expect {
+			PGconn.encrypt_password( nil, nil )
+		}.to raise_error( TypeError )
+		expect {
+			PGconn.encrypt_password( "postgres", nil )
+		}.to raise_error( TypeError )
+		expect {
+			PGconn.encrypt_password( nil, "postgres" )
+		}.to raise_error( TypeError )
+	end
+
+
 	after( :each ) do
 		@conn.exec( 'ROLLBACK' )
 	end

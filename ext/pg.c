@@ -503,13 +503,22 @@ pgconn_s_conndefaults(VALUE self)
 static VALUE
 pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 {
-	char *ret;
+	char *encrypted = NULL;
+	VALUE rval = Qnil;
+	
 	Check_Type(password, T_STRING);
 	Check_Type(username, T_STRING);
-	ret = PQencryptPassword(StringValuePtr(password),
-		StringValuePtr(username));
-	return rb_tainted_str_new2(ret);
+
+	encrypted = PQencryptPassword(StringValuePtr(password), StringValuePtr(username));
+	rval = rb_str_new2( encrypted );
+	PQfreemem( encrypted );
+
+	OBJ_INFECT( rval, password );
+	OBJ_INFECT( rval, username );
+
+	return rval;
 }
+
 
 /*
  * call-seq:
@@ -3775,7 +3784,7 @@ Init_pg()
 	rb_define_singleton_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
-	rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 0);
+	rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 2);
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
