@@ -8,3 +8,4 @@ doc/rdoc
 ^pkg$
 Rakefile\.old
 tmp/
+docs/api

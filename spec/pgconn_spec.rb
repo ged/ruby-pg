@@ -18,6 +18,7 @@ require 'pg'
 require 'rubygems'
 require 'spec'
 require 'spec/lib/helpers'
+require 'timeout'
 
 describe PGconn do
 	include PgTestingHelpers
@@ -142,7 +143,7 @@ describe PGconn do
 		Process.wait( pid )
 	end
 
-	it "should yield result if block is given to exec" do
+	it "yields the result if block is given to exec" do
 		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
 			values = []
 			result.should be_kind_of( PGresult )
@@ -155,6 +156,24 @@ describe PGconn do
 
 		rval.should have( 2 ).members
 		rval.should include( '5678', '1234' )
+	end
+
+
+	it "correctly finishes COPY queries passed to #async_exec" do
+		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
+
+		results = []
+		begin
+			data = @conn.get_copy_data( true )
+			if false == data
+				@conn.block( 2.0 )
+				data = @conn.get_copy_data( true )
+			end
+			results << data if data
+		end until data.nil?
+
+		results.should have( 2 ).members
+		results.should include( "1\n", "2\n" )
 	end
 
 

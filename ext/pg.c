@@ -2568,13 +2568,29 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_get_last_result(VALUE self)
 {
-	VALUE ret, result;
-	ret = Qnil;
-	while((result = pgconn_get_result(self)) != Qnil) {
-		ret = result;
+	PGconn *conn = get_pgconn(self);
+	VALUE rb_pgresult = Qnil;
+	PGresult *cur, *prev;
+
+
+	cur = prev = NULL;
+	while ((cur = PQgetResult(conn)) != NULL) {
+		int status;
+
+		if (prev) PQclear(prev);
+		prev = cur;
+
+		status = PQresultStatus(cur);
+		if (status == PGRES_COPY_OUT || status == PGRES_COPY_IN)
+			break;
 	}
-	pgresult_check(self, ret);
-	return ret;
+
+	if (prev) {
+		rb_pgresult = new_pgresult(prev, conn);
+		pgresult_check(self, rb_pgresult);
+	}
+
+	return rb_pgresult;
 }
 
 
