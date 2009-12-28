@@ -421,7 +421,7 @@ pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
 	rb_conn = pgconn_alloc(rb_cPGconn);
 
 	conninfo = parse_connect_args(argc, argv, self);
-	conn = PQconnectdb(StringValuePtr(conninfo));
+	conn = PQconnectStart(StringValuePtr(conninfo));
 
 	if(conn == NULL)
 		rb_raise(rb_ePGError, "PQconnectStart() unable to allocate structure");
@@ -3954,6 +3954,7 @@ Init_pg()
 	rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
 	rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 1);
 	rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
+	rb_define_alias(rb_cPGconn, "nonblocking?", "isnonblocking");
 	rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
 
 	/******     PGconn INSTANCE METHODS: Cancelling Queries in Progress     ******/

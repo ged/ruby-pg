@@ -9,3 +9,4 @@ doc/rdoc
 Rakefile\.old
 tmp/
 docs/api
+\.DS_Store

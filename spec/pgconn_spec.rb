@@ -245,6 +245,19 @@ describe PGconn do
 	end
 
 
+	it "can connect asynchronously" do
+		serv = TCPServer.new( '127.0.0.1', 54320 )
+		conn = PGconn.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		conn.connect_poll.should == PGconn::PGRES_POLLING_WRITING
+		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
+		serv.close
+		if conn.connect_poll == PGconn::PGRES_POLLING_READING
+			select( [IO.for_fd(conn.socket)], nil, nil, 0.2 )
+		end
+		conn.connect_poll.should == PGconn::PGRES_POLLING_FAILED
+	end
+
+
 	after( :each ) do
 		@conn.exec( 'ROLLBACK' )
 	end
