@@ -183,7 +183,8 @@ describe PGconn do
 	end
 
 
-	it "should encrypt_password receive 2 Strings" do
+	it "raises an appropriate error if either of the required arguments for encrypt_password " +
+	   "is not valid" do
 		expect {
 			PGconn.encrypt_password( nil, nil )
 		}.to raise_error( TypeError )
@@ -192,6 +193,54 @@ describe PGconn do
 		}.to raise_error( TypeError )
 		expect {
 			PGconn.encrypt_password( nil, "postgres" )
+		}.to raise_error( TypeError )
+	end
+
+
+	it "allows fetching a column of values from a result by column number" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		res.column_values( 0 ).should == %w[1 2 3]
+		res.column_values( 1 ).should == %w[2 3 4]
+	end
+
+
+	it "allows fetching a column of values from a result by field name" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		res.field_values( 'val1' ).should == %w[1 2 3]
+		res.field_values( 'val2' ).should == %w[2 3 4]
+	end
+
+
+	it "raises an error if selecting an invalid column index" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		expect {
+			res.column_values( 20 )
+		}.to raise_error( IndexError )
+	end
+
+
+	it "raises an error if selecting an invalid field name" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		expect {
+			res.field_values( 'hUUuurrg' )
+		}.to raise_error( IndexError )
+	end
+
+
+	it "raises an error if column index is not a number" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		expect {
+			res.column_values( 'hUUuurrg' )
 		}.to raise_error( TypeError )
 	end
 

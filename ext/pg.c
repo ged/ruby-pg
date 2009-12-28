@@ -57,6 +57,7 @@ static PGconn *get_pgconn(VALUE self);
 static VALUE pgconn_finish(VALUE self);
 static VALUE pgresult_clear(VALUE self);
 static VALUE pgresult_aref(VALUE self, VALUE index);
+static VALUE make_column_result_array( VALUE self, int col );
 
 #ifdef M17N_SUPPORTED
 # define ASSOCIATE_INDEX(obj, index_holder) rb_enc_associate_index((obj), enc_get_index((index_holder)))
@@ -3445,6 +3446,79 @@ pgresult_aref(VALUE self, VALUE index)
 	return tuple;
 }
 
+
+/*
+ *  call-seq:
+ *     res.column_values( n )   -> array
+ *
+ *  Returns an Array of the values from the nth column of each 
+ *  tuple in the result.
+ *
+ */
+static VALUE
+pgresult_column_values(VALUE self, VALUE index)
+{
+	int col = NUM2INT( index );
+	return make_column_result_array( self, col );
+}
+
+
+/*
+ *  call-seq:
+ *     res.field_values( field )   -> array
+ *
+ *  Returns an Array of the values from the given _field_ of each tuple in the result.
+ *
+ */
+static VALUE
+pgresult_field_values( VALUE self, VALUE field )
+{
+	PGresult *result = get_pgresult( self );
+	const char *fieldname = RSTRING_PTR( field );
+	int fnum = PQfnumber( result, fieldname );
+
+	if ( fnum < 0 )
+		rb_raise( rb_eIndexError, "no such field '%s' in result", fieldname );
+	
+	return make_column_result_array( self, fnum );
+}
+
+
+/* 
+ * Make a Ruby array out of the encoded values from the specified
+ * column in the given result.
+ */
+static VALUE
+make_column_result_array( VALUE self, int col )
+{
+	PGresult *result = get_pgresult( self );
+	int row = PQntuples( result );
+	VALUE ary = rb_ary_new2( row );
+	VALUE val = Qnil;
+	
+	if ( col >= PQnfields(result) )
+		rb_raise( rb_eIndexError, "no column %d in result", col );
+
+	while ( row-- ) {
+		val = rb_tainted_str_new( PQgetvalue(result, row, col),
+		                          PQgetlength(result, row, col) );
+
+		/* associate client encoding for text format only */
+		if ( 0 == PQfformat(result, col) ) { 
+			ASSOCIATE_INDEX( val, self );
+		} else {
+#ifdef M17N_SUPPORTED
+			rb_enc_associate( val, rb_ascii8bit_encoding() );
+#endif
+		}
+
+		rb_ary_store( ary, row, val );
+	}
+	
+	return ary;
+}
+
+
 /*
  * call-seq:
  *    res.each{ |tuple| ... }
@@ -4084,6 +4158,8 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "[]", pgresult_aref, 1);
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
+	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
+	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 
 #ifdef M17N_SUPPORTED
         init_m17n();
