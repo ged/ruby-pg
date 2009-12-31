@@ -1,0 +1,12 @@
+\.(diff|patch)$
+\.(s?o|log|bundle)$
+ext/Makefile
+commit-msg.txt$
+^tmp_test.*
+^ext/conftest\.dSYM
+doc/rdoc
+^pkg$
+Rakefile\.old
+tmp/
+docs/api
+\.DS_Store

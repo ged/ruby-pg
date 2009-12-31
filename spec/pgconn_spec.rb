@@ -1,55 +1,36 @@
-require 'rubygems'
-require 'spec'
+#!/usr/bin/env spec
+# encoding: utf-8
 
-$LOAD_PATH.unshift('ext')
+BEGIN {
+	require 'pathname'
+	require 'rbconfig'
+
+	basedir = Pathname( __FILE__ ).dirname.parent
+	libdir = basedir + 'lib'
+	archlib = libdir + Config::CONFIG['sitearch']
+
+	$LOAD_PATH.unshift( libdir.to_s ) unless $LOAD_PATH.include?( libdir.to_s )
+	$LOAD_PATH.unshift( archlib.to_s ) unless $LOAD_PATH.include?( archlib.to_s )
+}
+
 require 'pg'
 
-NOTIFY_FUNCTION = <<EOF
-	CREATE OR REPLACE FUNCTION notify_test()
-	RETURNS TRIGGER
-	LANGUAGE plpgsql
-	AS $$
-		BEGIN
-			NOTIFY woo;
-			RETURN NULL;
-		END
-	$$
-EOF
-
-NOTIFY_TRIGGER = <<EOF
-	CREATE TRIGGER notify_trigger
-	AFTER UPDATE OR INSERT OR DELETE
-	ON test
-	FOR EACH STATEMENT
-	EXECUTE PROCEDURE notify_test()
-EOF
+require 'rubygems'
+require 'spec'
+require 'spec/lib/helpers'
+require 'timeout'
 
 describe PGconn do
+	include PgTestingHelpers
 
 	before( :all ) do
-		puts "======  TESTING PGconn  ======"
-		@test_directory = File.join(Dir.getwd, "tmp_test_#{rand}")
-		@test_pgdata = File.join(@test_directory, 'data')
-		if File.exists?(@test_directory) then
-			raise "test directory exists!"
-		end
-		@port = 54321
-		@conninfo = "host=localhost port=#{@port} dbname=test"
-		Dir.mkdir(@test_directory)
-		Dir.mkdir(@test_pgdata)
-		cmds = []
-		cmds << "initdb -D \"#{@test_pgdata}\""
-		cmds << "pg_ctl -o \"-p #{@port}\" -D \"#{@test_pgdata}\" start"
-		cmds << "sleep 5"
-		cmds << "createdb -p #{@port} test"
-
-		cmds.each do |cmd|
-			if not system(cmd) then
-				raise "Error executing cmd: #{cmd}: #{$?}"
-			end
-		end
-		@conn = PGconn.connect(@conninfo)
+		@conn = setup_testing_db( "PGconn" )
 	end
+
+	before( :each ) do
+		@conn.exec( 'BEGIN' )
+	end
+
 
 	it "should connect successfully with connection string" do
 		tmpconn = PGconn.connect(@conninfo)
@@ -106,7 +87,6 @@ describe PGconn do
 			# be careful to explicitly close files so that the
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
-
 			expected_trace_file = File.join(Dir.getwd, "spec/data", "expected_trace.out")
 			expected_trace_data = open(expected_trace_file, 'rb').read
 			trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')
@@ -133,37 +113,156 @@ describe PGconn do
 		error.should == true
 	end
 
+	it "should not read past the end of a large object" do
+		@conn.transaction do
+			oid = @conn.lo_create( 0 )
+			fd = @conn.lo_open( oid, PGconn::INV_READ|PGconn::INV_WRITE )
+			@conn.lo_write( fd, "foobar" )
+			@conn.lo_read( fd, 10 ).should be_nil()
+			@conn.lo_lseek( fd, 0, PGconn::SEEK_SET )
+			@conn.lo_read( fd, 10 ).should == 'foobar'
+		end
+	end
+
+
 	it "should wait for NOTIFY events via select()" do
-		@conn.exec( 'CREATE LANGUAGE plpgsql' )
-		@conn.exec( 'CREATE TABLE test ( stuff INTEGER )' )
-		@conn.exec( NOTIFY_FUNCTION	)
-		@conn.exec( NOTIFY_TRIGGER )
+		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
 		pid = fork do
 			conn = PGconn.connect( @conninfo )
 			sleep 1
-			conn.exec( 'INSERT INTO test VALUES(1)' )
+			conn.exec( 'NOTIFY woo' )
 			conn.finish
-			exit
+			exit!
 		end
 
 		@conn.wait_for_notify( 10 ).should == 'woo'
+		@conn.exec( 'UNLISTEN woo' )
+
 		Process.wait( pid )
 	end
 
-	after( :all ) do
-		puts ""
-		@conn.finish
-		cmds = []
-		cmds << "pg_ctl -D \"#{@test_pgdata}\" stop"
-		cmds << "rm -rf \"#{@test_directory}\""
-		cmds.each do |cmd|
-			if not system(cmd) then
-				raise "Error executing cmd: #{cmd}: #{$?}"
+	it "yields the result if block is given to exec" do
+		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
+			values = []
+			result.should be_kind_of( PGresult )
+			result.ntuples.should == 2
+			result.each do |tuple|
+				values << tuple['a']
 			end
+			values
 		end
-		puts "====== COMPLETED TESTING PGconn  ======"
-		puts ""
+
+		rval.should have( 2 ).members
+		rval.should include( '5678', '1234' )
+	end
+
+
+	it "correctly finishes COPY queries passed to #async_exec" do
+		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
+
+		results = []
+		begin
+			data = @conn.get_copy_data( true )
+			if false == data
+				@conn.block( 2.0 )
+				data = @conn.get_copy_data( true )
+			end
+			results << data if data
+		end until data.nil?
+
+		results.should have( 2 ).members
+		results.should include( "1\n", "2\n" )
+	end
+
+
+	it "can encrypt a string given a password and username" do
+		PGconn.encrypt_password("postgres", "postgres").
+			should =~ /\S+/
+	end
+
+
+	it "raises an appropriate error if either of the required arguments for encrypt_password " +
+	   "is not valid" do
+		expect {
+			PGconn.encrypt_password( nil, nil )
+		}.to raise_error( TypeError )
+		expect {
+			PGconn.encrypt_password( "postgres", nil )
+		}.to raise_error( TypeError )
+		expect {
+			PGconn.encrypt_password( nil, "postgres" )
+		}.to raise_error( TypeError )
+	end
+
+
+	it "allows fetching a column of values from a result by column number" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		res.column_values( 0 ).should == %w[1 2 3]
+		res.column_values( 1 ).should == %w[2 3 4]
+	end
+
+
+	it "allows fetching a column of values from a result by field name" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		res.field_values( 'val1' ).should == %w[1 2 3]
+		res.field_values( 'val2' ).should == %w[2 3 4]
+	end
+
+
+	it "raises an error if selecting an invalid column index" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		expect {
+			res.column_values( 20 )
+		}.to raise_error( IndexError )
+	end
+
+
+	it "raises an error if selecting an invalid field name" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		expect {
+			res.field_values( 'hUUuurrg' )
+		}.to raise_error( IndexError )
+	end
+
+
+	it "raises an error if column index is not a number" do
+		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
+		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
+		res = @conn.exec( 'SELECT * FROM testdata' )
+		expect {
+			res.column_values( 'hUUuurrg' )
+		}.to raise_error( TypeError )
+	end
+
+
+	it "can connect asynchronously" do
+		serv = TCPServer.new( '127.0.0.1', 54320 )
+		conn = PGconn.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		conn.connect_poll.should == PGconn::PGRES_POLLING_WRITING
+		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
+		serv.close
+		if conn.connect_poll == PGconn::PGRES_POLLING_READING
+			select( [IO.for_fd(conn.socket)], nil, nil, 0.2 )
+		end
+		conn.connect_poll.should == PGconn::PGRES_POLLING_FAILED
+	end
+
+
+	after( :each ) do
+		@conn.exec( 'ROLLBACK' )
+	end
+
+	after( :all ) do
+		teardown_testing_db( @conn )
 	end
 end

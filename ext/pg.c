@@ -13,12 +13,18 @@
 ************************************************/
 
 #include "pg.h"
+#if defined(HAVE_RUBY_ENCODING_H) && HAVE_RUBY_ENCODING_H
+# define M17N_SUPPORTED
+#endif
 
 #define rb_define_singleton_alias(klass,new,old) rb_define_alias(rb_singleton_class(klass),new,old)
 
 static VALUE rb_cPGconn;
 static VALUE rb_cPGresult;
 static VALUE rb_ePGError;
+
+static const char *VERSION = "0.8.0";
+
 
 /* The following functions are part of libpq, but not
  * available from ruby-pg, because they are deprecated,
@@ -51,9 +57,19 @@ static PGconn *get_pgconn(VALUE self);
 static VALUE pgconn_finish(VALUE self);
 static VALUE pgresult_clear(VALUE self);
 static VALUE pgresult_aref(VALUE self, VALUE index);
+static VALUE make_column_result_array( VALUE self, int col );
+
+#ifdef M17N_SUPPORTED
+# define ASSOCIATE_INDEX(obj, index_holder) rb_enc_associate_index((obj), enc_get_index((index_holder)))
+static rb_encoding * pgconn_get_client_encoding_as_rb_encoding(PGconn* conn);
+static int enc_get_index(VALUE val);
+#else
+# define ASSOCIATE_INDEX(obj, index_holder) /* nothing */
+#endif
 
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
+
 
 /*
  * Used to quote the values passed in a Hash to PGconn.init
@@ -115,11 +131,23 @@ get_pgresult(VALUE self)
 	return result;
 }
 
+#ifdef M17N_SUPPORTED
+static VALUE
+new_pgresult(PGresult *result, PGconn *conn)
+{
+	 VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, free_pgresult, result);
+	 rb_encoding *enc = pgconn_get_client_encoding_as_rb_encoding(conn);
+	 rb_enc_set_index(val, rb_enc_to_index(enc));
+	 return val;
+}
+#else
 static VALUE
 new_pgresult(PGresult *result)
 {
 	return Data_Wrap_Struct(rb_cPGresult, NULL, free_pgresult, result);
 }
+# define new_pgresult(result, conn) new_pgresult((result))
+#endif
 
 /*
  * Raises appropriate exception if PGresult is
@@ -162,17 +190,6 @@ pgresult_check(VALUE rb_pgconn, VALUE rb_pgresult)
 	rb_iv_set(error, "@result", rb_pgresult);
 	rb_exc_raise(error);
 	return;
-}
-
-static VALUE
-yield_pgresult(VALUE rb_pgresult)
-{
-	int i;
-	PGresult *result = get_pgresult(rb_pgresult);
-	for(i = 0; i < PQntuples(result); i++) {
-		return rb_yield(pgresult_aref(rb_pgresult, INT2NUM(i)));
-	}
-	return Qnil;
 }
 
 static void
@@ -404,7 +421,7 @@ pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
 	rb_conn = pgconn_alloc(rb_cPGconn);
 
 	conninfo = parse_connect_args(argc, argv, self);
-	conn = PQconnectdb(StringValuePtr(conninfo));
+	conn = PQconnectStart(StringValuePtr(conninfo));
 
 	if(conn == NULL)
 		rb_raise(rb_ePGError, "PQconnectStart() unable to allocate structure");
@@ -487,13 +504,22 @@ pgconn_s_conndefaults(VALUE self)
 static VALUE
 pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 {
-	char *ret;
+	char *encrypted = NULL;
+	VALUE rval = Qnil;
+	
 	Check_Type(password, T_STRING);
 	Check_Type(username, T_STRING);
-	ret = PQencryptPassword(StringValuePtr(password),
-		StringValuePtr(username));
-	return rb_tainted_str_new2(ret);
+
+	encrypted = PQencryptPassword(StringValuePtr(password), StringValuePtr(username));
+	rval = rb_str_new2( encrypted );
+	PQfreemem( encrypted );
+
+	OBJ_INFECT( rval, password );
+	OBJ_INFECT( rval, username );
+
+	return rval;
 }
+
 
 /*
  * call-seq:
@@ -768,7 +794,7 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
 
 /*
  * call-seq:
- *  conn.protocol_version -> Integer
+ *   conn.protocol_version -> Integer
  *
  * The 3.0 protocol will normally be used when communicating with PostgreSQL 7.4 
  * or later servers; pre-7.4 servers support only protocol 2.0. (Protocol 1.0 is 
@@ -780,11 +806,16 @@ pgconn_protocol_version(VALUE self)
 	return INT2NUM(PQprotocolVersion(get_pgconn(self)));
 }
 
-/*
- * call-seq:
+/* 
+ * call-seq: 
  *   conn.server_version -> Integer
- *
- * The number is formed by converting the major, minor, and revision numbers into two-decimal-digit numbers and appending them together. For example, version 7.4.2 will be returned as 70402, and version 8.1 will be returned as 80100 (leading zeroes are not shown). Zero is returned if the connection is bad.
+ * 
+ * The number is formed by converting the major, minor, and revision
+ * numbers into two-decimal-digit numbers and appending them together.
+ * For example, version 7.4.2 will be returned as 70402, and version
+ * 8.1 will be returned as 80100 (leading zeroes are not shown). Zero
+ * is returned if the connection is bad.
+ * 
  */
 static VALUE
 pgconn_server_version(VALUE self)
@@ -869,6 +900,7 @@ pgconn_connection_used_password(VALUE self)
 /*
  * call-seq:
  *    conn.exec(sql [, params, result_format ] ) -> PGresult
+ *    conn.exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL.
  * Returns a PGresult instance on success.
@@ -896,6 +928,10 @@ pgconn_connection_used_password(VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument, 
+ * and the PGresult object will  automatically be cleared when the block terminates. 
+ * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
 pgconn_exec(int argc, VALUE *argv, VALUE self)
@@ -923,10 +959,10 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
 		result = PQexec(conn, StringValuePtr(command));
-		rb_pgresult = new_pgresult(result);
+		rb_pgresult = new_pgresult(result, conn);
 		pgresult_check(self, rb_pgresult);
 		if (rb_block_given_p()) {
-			return rb_ensure(yield_pgresult, rb_pgresult, 
+			return rb_ensure(rb_yield, rb_pgresult, 
 				pgresult_clear, rb_pgresult);
 		}
 		return rb_pgresult;
@@ -1007,10 +1043,10 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	xfree(paramLengths);
 	xfree(paramFormats);
 
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult, 
+		return rb_ensure(rb_yield, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -1070,7 +1106,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 	xfree(paramTypes);
 
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1078,6 +1114,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 /*
  * call-seq:
  *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PGresult
+ *    conn.exec_prepared(statement_name [, params, result_format ] ) {|pg_result| block }
  *
  * Execute prepared named statement specified by _statement_name_.
  * Returns a PGresult instance on success.
@@ -1098,6 +1135,10 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument, 
+ * and the PGresult object will  automatically be cleared when the block terminates. 
+ * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
  */
 static VALUE
 pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
@@ -1189,10 +1230,10 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	xfree(paramLengths);
 	xfree(paramFormats);
 
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult, 
+		return rb_ensure(rb_yield, rb_pgresult, 
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -1220,7 +1261,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 		stmt = StringValuePtr(stmt_name);
 	}
 	result = PQdescribePrepared(conn, stmt);
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1248,7 +1289,7 @@ pgconn_describe_portal(self, stmt_name)
 		stmt = StringValuePtr(stmt_name);
 	}
 	result = PQdescribePortal(conn, stmt);
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1276,7 +1317,7 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
 	VALUE rb_pgresult;
 	PGconn *conn = get_pgconn(self);
 	result = PQmakeEmptyPGresult(conn, NUM2INT(status));
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	pgresult_check(self, rb_pgresult);
 	return rb_pgresult;
 }
@@ -1297,6 +1338,8 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * 
  * Consider using exec_params, which avoids the need for passing values 
  * inside of SQL commands.
+ *
+ * Encoding of escaped string will be equal to client encoding of connection.
  */
 static VALUE
 pgconn_s_escape(VALUE self, VALUE string)
@@ -1304,15 +1347,19 @@ pgconn_s_escape(VALUE self, VALUE string)
 	char *escaped;
 	int size,error;
 	VALUE result;
+#ifdef M17N_SUPPORTED	
+	rb_encoding* enc;
+#endif
 
 	Check_Type(string, T_STRING);
 
 	escaped = ALLOC_N(char, RSTRING_LEN(string) * 2 + 1);
-	if(CLASS_OF(self) == rb_cPGconn) {
+	if(rb_obj_class(self) == rb_cPGconn) {
 		size = PQescapeStringConn(get_pgconn(self), escaped, 
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
-			rb_raise(rb_ePGError, PQerrorMessage(get_pgconn(self)));
+			xfree(escaped);
+			rb_raise(rb_ePGError, "%s", PQerrorMessage(get_pgconn(self)));
 		}
 	} else {
 		size = PQescapeString(escaped, RSTRING_PTR(string),
@@ -1321,6 +1368,16 @@ pgconn_s_escape(VALUE self, VALUE string)
 	result = rb_str_new(escaped, size);
 	xfree(escaped);
 	OBJ_INFECT(result, string);
+
+#ifdef M17N_SUPPORTED
+	if(rb_obj_class(self) == rb_cPGconn) {
+		enc = pgconn_get_client_encoding_as_rb_encoding(get_pgconn(self));
+	} else {
+		enc = rb_enc_get(string);
+	}
+	rb_enc_associate(result, enc);
+#endif
+
 	return result;
 }
 
@@ -1360,7 +1417,7 @@ pgconn_s_escape_bytea(VALUE self, VALUE str)
 	from      = (unsigned char*)RSTRING_PTR(str);
 	from_len  = RSTRING_LEN(str);
 
-	if(CLASS_OF(self) == rb_cPGconn) {
+	if(rb_obj_class(self) == rb_cPGconn) {
 		to = PQescapeByteaConn(get_pgconn(self), from, from_len, &to_len);
 	} else {
 		to = PQescapeBytea( from, from_len, &to_len);
@@ -1778,6 +1835,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 /*
  * call-seq:
  *    conn.get_result() -> PGresult
+ *    conn.get_result() {|pg_result| block }
  *
  * Blocks waiting for the next result from a call to
  * +PGconn#send_query+ (or another asynchronous command), and returns
@@ -1785,6 +1843,10 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
  *
  * Note: call this function repeatedly until it returns +nil+, or else
  * you will not be able to issue further commands.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument, 
+ * and the PGresult object will  automatically be cleared when the block terminates. 
+ * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
 pgconn_get_result(VALUE self)
@@ -1796,9 +1858,9 @@ pgconn_get_result(VALUE self)
 	result = PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
-	rb_pgresult = new_pgresult(result);
+	rb_pgresult = new_pgresult(result, conn);
 	if (rb_block_given_p()) {
-		return rb_ensure(yield_pgresult, rb_pgresult,
+		return rb_ensure(rb_yield, rb_pgresult,
 			pgresult_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -1952,6 +2014,7 @@ pgconn_cancel(VALUE self)
 	return retval;
 }
 
+
 /*
  * call-seq:
  *    conn.notifies()
@@ -1988,6 +2051,68 @@ pgconn_notifies(VALUE self)
 
 	PQfreemem(notify);
 	return hash;
+}
+
+
+/*
+ * call-seq:
+ *    conn.wait_for_notify( [ timeout ] ) -> String
+ *    conn.wait_for_notify( [ timeout ] ) { |event, pid| block }
+ *
+ * Blocks while waiting for notification(s), or until the optional
+ * _timeout_ is reached, whichever comes first.  _timeout_ is
+ * measured in seconds and can be fractional.
+ *
+ * Returns +nil+ if _timeout_ is reached, the name of the NOTIFY
+ * event otherwise.  If used in block form, passes the name of the
+ * NOTIFY +event+ and the generating +pid+ into the block.
+ * 
+ */
+static VALUE
+pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
+{
+    PGconn *conn = get_pgconn(self);
+    PGnotify *notify;
+    int sd = PQsocket(conn);
+    int ret;
+    struct timeval timeout;
+    struct timeval *ptimeout = NULL;
+    VALUE timeout_in, relname = Qnil, be_pid = Qnil;
+    double timeout_sec;
+    fd_set sd_rset;
+
+	if (sd < 0)
+		rb_bug("PQsocket(conn): couldn't fetch the connection's socket!");
+
+    if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
+    	timeout_sec = NUM2DBL(timeout_in);
+    	timeout.tv_sec = (long)timeout_sec;
+    	timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
+    	ptimeout = &timeout;
+    }
+
+    FD_ZERO(&sd_rset);
+    FD_SET(sd, &sd_rset);
+    ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
+    if (ret == 0) {
+		return Qnil;
+	} else if (ret < 0) {
+		rb_sys_fail(0);
+	}
+	
+    if ( (ret = PQconsumeInput(conn)) != 1 ) {
+		rb_raise(rb_ePGError, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn));
+	}
+	
+    while ((notify = PQnotifies(conn)) != NULL) {
+        relname = rb_tainted_str_new2(notify->relname);
+        be_pid = INT2NUM(notify->be_pid);
+        PQfreemem(notify);
+    }
+
+    if (rb_block_given_p()) rb_yield( rb_ary_new3(2, relname, be_pid) );
+
+    return relname;
 }
 
 
@@ -2317,18 +2442,18 @@ pgconn_transaction(VALUE self)
 	
 	if (rb_block_given_p()) {
 		result = PQexec(conn, "BEGIN");
-		rb_pgresult = new_pgresult(result);
+		rb_pgresult = new_pgresult(result, conn);
 		pgresult_check(self, rb_pgresult);
 		rb_protect(rb_yield, self, &status);
 		if(status == 0) {
 			result = PQexec(conn, "COMMIT");
-			rb_pgresult = new_pgresult(result);
+			rb_pgresult = new_pgresult(result, conn);
 			pgresult_check(self, rb_pgresult);
 		}
 		else {
 			/* exception occurred, ROLLBACK and re-raise */
 			result = PQexec(conn, "ROLLBACK");
-			rb_pgresult = new_pgresult(result);
+			rb_pgresult = new_pgresult(result, conn);
 			pgresult_check(self, rb_pgresult);
 			rb_jump_tag(status);
 		}
@@ -2435,56 +2560,6 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 	return Qtrue;
 }
 
-/*
- * call-seq:
- *    conn.wait_for_notify( [ timeout ] ) -> String
- *    conn.wait_for_notify( [ timeout ] ) { |event, pid| block }
- *
- * Blocks while waiting for notification(s), or until the optional
- * _timeout_ is reached, whichever comes first.  _timeout_ is
- * measured in seconds and can be fractional.
- *
- * Returns +nil+ if _timeout_ is reached, the name of the NOTIFY
- * event otherwise.  If used in block form, passes the name of the
- * NOTIFY +event+ and the generating +pid+ into the block.
- * 
- */
-static VALUE
-pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
-{
-    PGconn *conn = get_pgconn(self);
-    PGnotify *notify;
-    int sd = PQsocket(conn);
-    int ret;
-    struct timeval timeout;
-    struct timeval *ptimeout = NULL;
-    VALUE timeout_in, relname, be_pid;
-    double timeout_sec;
-    fd_set sd_rset;
-
-    if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
-    	timeout_sec = NUM2DBL(timeout_in);
-    	timeout.tv_sec = (long)timeout_sec;
-    	timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
-    	ptimeout = &timeout;
-    }
-
-    FD_ZERO(&sd_rset);
-    FD_SET(sd, &sd_rset);
-    ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
-    if (ret == 0) return Qnil;
-	
-    PQconsumeInput(conn);
-    while ((notify = PQnotifies(conn)) != NULL) {
-        relname = rb_tainted_str_new2(notify->relname);
-        be_pid = INT2NUM(notify->be_pid);
-        PQfreemem(notify);
-    }
-
-    if (rb_block_given_p()) rb_yield( rb_ary_new3(2, relname, be_pid) );
-
-    return relname;
-}
 
 /*
  * call-seq:
@@ -2503,13 +2578,29 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_get_last_result(VALUE self)
 {
-	VALUE ret, result;
-	ret = Qnil;
-	while((result = pgconn_get_result(self)) != Qnil) {
-		ret = result;
+	PGconn *conn = get_pgconn(self);
+	VALUE rb_pgresult = Qnil;
+	PGresult *cur, *prev;
+
+
+	cur = prev = NULL;
+	while ((cur = PQgetResult(conn)) != NULL) {
+		int status;
+
+		if (prev) PQclear(prev);
+		prev = cur;
+
+		status = PQresultStatus(cur);
+		if (status == PGRES_COPY_OUT || status == PGRES_COPY_IN)
+			break;
 	}
-	pgresult_check(self, ret);
-	return ret;
+
+	if (prev) {
+		rb_pgresult = new_pgresult(prev, conn);
+		pgresult_check(self, rb_pgresult);
+	}
+
+	return rb_pgresult;
 }
 
 
@@ -2602,7 +2693,7 @@ pgconn_loimport(VALUE self, VALUE filename)
 
 	lo_oid = lo_import(conn, StringValuePtr(filename));
 	if (lo_oid == 0) {
-		rb_raise(rb_ePGError, PQerrorMessage(conn));
+		rb_raise(rb_ePGError, "%s", PQerrorMessage(conn));
 	}
 	return INT2FIX(lo_oid);
 }
@@ -2626,7 +2717,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 	}
 
 	if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
-		rb_raise(rb_ePGError, PQerrorMessage(conn));
+		rb_raise(rb_ePGError, "%s", PQerrorMessage(conn));
 	}
 	return Qnil;
 }
@@ -2657,7 +2748,7 @@ pgconn_loopen(int argc, VALUE *argv, VALUE self)
 		mode = NUM2INT(nmode);
 
 	if((fd = lo_open(conn, lo_oid, mode)) < 0) {
-		rb_raise(rb_ePGError, "can't open large object");
+		rb_raise(rb_ePGError, "can't open large object: %s", PQerrorMessage(conn));
 	}
 	return INT2FIX(fd);
 }
@@ -2683,7 +2774,7 @@ pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 	}
 	if((n = lo_write(conn, fd, StringValuePtr(buffer), 
 				RSTRING_LEN(buffer))) < 0) {
-		rb_raise(rb_ePGError, "lo_write failed");
+		rb_raise(rb_ePGError, "lo_write failed: %s", PQerrorMessage(conn));
 	}
 
 	return INT2FIX(n);
@@ -2722,7 +2813,7 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 		return Qnil;
 	}
 
-	str = rb_tainted_str_new(buffer, len);
+	str = rb_tainted_str_new(buffer, ret);
 	xfree(buffer);
 
 	return str;
@@ -2881,7 +2972,9 @@ pgresult_result_status(VALUE self)
 static VALUE
 pgresult_res_status(VALUE self, VALUE status)
 {
-	return rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
+	VALUE ret = rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -2893,7 +2986,9 @@ pgresult_res_status(VALUE self, VALUE status)
 static VALUE
 pgresult_result_error_message(VALUE self)
 {
-	return rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
+	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -2921,7 +3016,9 @@ pgresult_result_error_field(VALUE self, VALUE field)
 {
 	PGresult *result = get_pgresult(self);
 	int fieldcode = NUM2INT(field);
-	return rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
+	VALUE ret = rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -2971,6 +3068,7 @@ pgresult_nfields(VALUE self)
 static VALUE
 pgresult_fname(VALUE self, VALUE index)
 {
+	VALUE fname;
 	PGresult *result;
 	int i = NUM2INT(index);
 
@@ -2978,7 +3076,9 @@ pgresult_fname(VALUE self, VALUE index)
 	if (i < 0 || i >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
-	return rb_tainted_str_new2(PQfname(result, i));
+	fname = rb_tainted_str_new2(PQfname(result, i));
+	ASSOCIATE_INDEX(fname, self);
+	return fname;
 }
 
 /*
@@ -3017,11 +3117,14 @@ pgresult_fnumber(VALUE self, VALUE name)
 static VALUE
 pgresult_ftable(VALUE self, VALUE column_number)
 {
-	Oid n = PQftable(get_pgresult(self), NUM2INT(column_number));
-	if (n == InvalidOid) {
-		rb_raise(rb_eArgError,"Oid is undefined for column: %d", 
-			NUM2INT(column_number));
-	}
+	Oid n ;
+	int col_number = NUM2INT(column_number);
+	PGresult *pgresult = get_pgresult(self);
+
+	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
+		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
+
+	n = PQftable(pgresult, col_number);
 	return INT2FIX(n);
 }
 
@@ -3038,12 +3141,15 @@ pgresult_ftable(VALUE self, VALUE column_number)
 static VALUE
 pgresult_ftablecol(VALUE self, VALUE column_number)
 {
-	int n = PQftablecol(get_pgresult(self), NUM2INT(column_number));
-	if (n == 0) {
-		rb_raise(rb_eArgError,
-			"Column number from table is undefined for column: %d", 
-			NUM2INT(column_number));
-	}
+	int col_number = NUM2INT(column_number);
+	PGresult *pgresult = get_pgresult(self);
+
+	int n;
+
+	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
+		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
+	
+	n = PQftablecol(pgresult, col_number);
 	return INT2FIX(n);
 }
 
@@ -3061,7 +3167,7 @@ pgresult_fformat(VALUE self, VALUE column_number)
 {
 	PGresult *result = get_pgresult(self);
 	int fnumber = NUM2INT(column_number);
-	if (fnumber >= PQnfields(result)) {
+	if (fnumber < 0 || fnumber >= PQnfields(result)) {
 		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
 	}
@@ -3101,14 +3207,12 @@ pgresult_fmod(VALUE self, VALUE column_number)
 	PGresult *result = get_pgresult(self);
 	int fnumber = NUM2INT(column_number);
 	int modifier;
-	if (fnumber >= PQnfields(result)) {
+	if (fnumber < 0 || fnumber >= PQnfields(result)) {
 		rb_raise(rb_eArgError, "Column number is out of range: %d", 
 			fnumber);
 	}
-	if((modifier = PQfmod(result,fnumber)) == -1)
-		rb_raise(rb_eArgError, 
-			"No modifier information available for column: %d", 
-			fnumber);
+	modifier = PQfmod(result,fnumber);
+
 	return INT2NUM(modifier);
 }
 
@@ -3145,6 +3249,7 @@ pgresult_fsize(VALUE self, VALUE index)
 static VALUE
 pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 {
+	VALUE ret;
 	PGresult *result;
 	int i = NUM2INT(tup_num);
 	int j = NUM2INT(field_num);
@@ -3158,8 +3263,10 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	}
 	if(PQgetisnull(result, i, j))
 		return Qnil;
-	return rb_tainted_str_new(PQgetvalue(result, i, j), 
+	ret = rb_tainted_str_new(PQgetvalue(result, i, j), 
 				PQgetlength(result, i, j));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -3251,7 +3358,9 @@ pgresult_paramtype(VALUE self, VALUE param_number)
 static VALUE
 pgresult_cmd_status(VALUE self)
 {
-	return rb_tainted_str_new2(PQcmdStatus(get_pgresult(self)));
+	VALUE ret = rb_tainted_str_new2(PQcmdStatus(get_pgresult(self)));
+	ASSOCIATE_INDEX(ret, self);
+	return ret;
 }
 
 /*
@@ -3310,22 +3419,105 @@ pgresult_aref(VALUE self, VALUE index)
 	VALUE fname,val;
 	VALUE tuple;
 
-	if(tuple_num >= PQntuples(result))
+	if(tuple_num < 0 || tuple_num >= PQntuples(result))
 		rb_raise(rb_eIndexError, "Index %d is out of range", tuple_num);
 	tuple = rb_hash_new();
 	for(field_num = 0; field_num < PQnfields(result); field_num++) {
 		fname = rb_tainted_str_new2(PQfname(result,field_num));
+		ASSOCIATE_INDEX(fname, self);
 		if(PQgetisnull(result, tuple_num, field_num)) {
 			rb_hash_aset(tuple, fname, Qnil);
 		}
 		else {
 			val = rb_tainted_str_new(PQgetvalue(result, tuple_num, field_num),
 				PQgetlength(result, tuple_num, field_num));
+
+			/* associate client encoding for text format only */
+			if(0 == PQfformat(result, field_num)) { 
+				ASSOCIATE_INDEX(val, self);
+			} else {
+			#ifdef M17N_SUPPORTED
+				rb_enc_associate(val, rb_ascii8bit_encoding());
+			#endif
+			}
 			rb_hash_aset(tuple, fname, val);
 		}
 	}
 	return tuple;
 }
+
+
+/*
+ *  call-seq:
+ *     res.column_values( n )   -> array
+ *
+ *  Returns an Array of the values from the nth column of each 
+ *  tuple in the result.
+ *
+ */
+static VALUE
+pgresult_column_values(VALUE self, VALUE index)
+{
+	int col = NUM2INT( index );
+	return make_column_result_array( self, col );
+}
+
+
+/*
+ *  call-seq:
+ *     res.field_values( field )   -> array
+ *
+ *  Returns an Array of the values from the given _field_ of each tuple in the result.
+ *
+ */
+static VALUE
+pgresult_field_values( VALUE self, VALUE field )
+{
+	PGresult *result = get_pgresult( self );
+	const char *fieldname = RSTRING_PTR( field );
+	int fnum = PQfnumber( result, fieldname );
+
+	if ( fnum < 0 )
+		rb_raise( rb_eIndexError, "no such field '%s' in result", fieldname );
+	
+	return make_column_result_array( self, fnum );
+}
+
+
+/* 
+ * Make a Ruby array out of the encoded values from the specified
+ * column in the given result.
+ */
+static VALUE
+make_column_result_array( VALUE self, int col )
+{
+	PGresult *result = get_pgresult( self );
+	int row = PQntuples( result );
+	VALUE ary = rb_ary_new2( row );
+	VALUE val = Qnil;
+	
+	if ( col >= PQnfields(result) )
+		rb_raise( rb_eIndexError, "no column %d in result", col );
+
+	while ( row-- ) {
+		val = rb_tainted_str_new( PQgetvalue(result, row, col),
+		                          PQgetlength(result, row, col) );
+
+		/* associate client encoding for text format only */
+		if ( 0 == PQfformat(result, col) ) { 
+			ASSOCIATE_INDEX( val, self );
+		} else {
+#ifdef M17N_SUPPORTED
+			rb_enc_associate( val, rb_ascii8bit_encoding() );
+#endif
+		}
+
+		rb_ary_store( ary, row, val );
+	}
+	
+	return ary;
+}
+
 
 /*
  * call-seq:
@@ -3362,11 +3554,276 @@ pgresult_fields(VALUE self)
 	n = PQnfields(result);
 	ary = rb_ary_new2(n);
 	for (i=0;i<n;i++) {
-		rb_ary_push(ary, rb_tainted_str_new2(PQfname(result, i)));
+		VALUE val = rb_tainted_str_new2(PQfname(result, i));
+		ASSOCIATE_INDEX(val, self);
+		rb_ary_push(ary, val);
 	}
 	return ary;
 }
 
+#ifdef M17N_SUPPORTED
+/**
+ * The mapping from canonical encoding names in PostgreSQL to ones in Ruby.
+ */
+static const char * const (enc_pg2ruby_mapping[][2]) = {
+	    {"BIG5",          "Big5"       },
+	    {"EUC_CN",        "GB2312"     },
+	    {"EUC_JP",        "EUC-JP"     },
+	    {"EUC_JIS_2004",  "EUC-JP"     },
+	    {"EUC_KR",        "EUC-KR"     },
+	    {"EUC_TW",        "EUC-TW"     },
+	    {"GB18030",       "GB18030"    },
+	    {"GBK",           "GBK"        },
+	    {"ISO_8859_5",    "ISO-8859-5" },
+	    {"ISO_8859_6",    "ISO-8859-6" },
+	    {"ISO_8859_7",    "ISO-8859-7" },
+	    {"ISO_8859_8",    "ISO-8859-8" },
+	    /* {"JOHAB",         "JOHAB"     }, dummy */
+	    {"KOI8",          "KOI8-U"     },
+	    {"LATIN1",        "ISO-8859-1" },
+	    {"LATIN2",        "ISO-8859-2" },
+	    {"LATIN3",        "ISO-8859-3" },
+	    {"LATIN4",        "ISO-8859-4" },
+	    {"LATIN5",        "ISO-8859-5" },
+	    {"LATIN6",        "ISO-8859-6" },
+	    {"LATIN7",        "ISO-8859-7" },
+	    {"LATIN8",        "ISO-8859-8" },
+	    {"LATIN9",        "ISO-8859-9" },
+	    {"LATIN10",       "ISO-8859-10" },
+	    {"MULE_INTERNAL", "Emacs-Mule" },
+	    {"SJIS",          "Windows-31J" },
+	    {"SHIFT_JIS_2004","Windows-31J" },
+	    /*{"SQL_ASCII",     NULL        },  special case*/
+	    {"UHC",           "CP949"       },
+	    {"UTF8",          "UTF-8"       },
+	    {"WIN866",        "IBM866"      },
+	    {"WIN874",        "Windows-874" },
+	    {"WIN1250",       "Windows-1250"},
+	    {"WIN1251",       "Windows-1251"},
+	    {"WIN1252",       "Windows-1252"},
+	    {"WIN1253",       "Windows-1253"},
+	    {"WIN1254",       "Windows-1254"},
+	    {"WIN1255",       "Windows-1255"},
+	    {"WIN1256",       "Windows-1256"},
+	    {"WIN1257",       "Windows-1257"},
+	    {"WIN1258",       "Windows-1258"}
+};
+
+
+/*
+ * A cache of mapping from PostgreSQL's encoding indices to Ruby's rb_encoding*s.
+ */
+static struct st_table *enc_pg2ruby;
+static ID s_id_index;
+
+static int enc_get_index(VALUE val)
+{
+	int i = ENCODING_GET_INLINED(val);
+	if (i == ENCODING_INLINE_MAX) {
+		VALUE iv = rb_ivar_get(val, s_id_index);
+		i = NUM2INT(iv);
+	}
+	return i;
+}
+
+extern int rb_enc_alias(const char *alias, const char *orig); /* declaration missing in Ruby 1.9.1 */
+static rb_encoding *
+find_or_create_johab(void)
+{
+	static const char * const aliases[] = { "JOHAB", "Windows-1361", "CP1361" };
+	int enc_index;
+	int i;
+	for (i = 0; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
+		enc_index = rb_enc_find_index(aliases[i]);
+		if (enc_index > 0) return rb_enc_from_index(enc_index);
+	}
+
+	enc_index = rb_define_dummy_encoding(aliases[0]);
+	for (i = 1; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
+		rb_enc_alias(aliases[i], aliases[0]);
+	}
+	return rb_enc_from_index(enc_index);
+}
+
+/*
+ * Returns the client_encoding of the given connection as a rb_encoding*
+ *
+ * * returns NULL if the client encoding is 'SQL_ASCII'.
+ * * returns ASCII-8BIT if the client encoding is unknown.
+ */
+static rb_encoding *
+pgconn_get_client_encoding_as_rb_encoding(PGconn* conn)
+{
+	rb_encoding *enc;
+	int enc_id = PQclientEncoding(conn);
+
+	if (st_lookup(enc_pg2ruby, (st_data_t)enc_id, (st_data_t*)&enc)) {
+		return enc;
+	}
+	else {
+		int i;
+		const char *name = pg_encoding_to_char(enc_id);
+		if (strcmp("SQL_ASCII", name) == 0) {
+			enc = NULL;
+			goto cache;
+		}
+		for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+			if (strcmp(name, enc_pg2ruby_mapping[i][0]) == 0) {
+				enc = rb_enc_find(enc_pg2ruby_mapping[i][1]);
+				goto cache;
+			}
+		}
+
+		/* Ruby 1.9.1 does not supoort JOHAB */
+		if (strcmp(name, "JOHAB") == 0) {
+			enc = find_or_create_johab();
+			goto cache;
+		}
+
+		enc = rb_ascii8bit_encoding();
+	}
+cache:
+	st_insert(enc_pg2ruby, (st_data_t)enc_id, (st_data_t)enc);
+	return enc;
+}
+
+/*
+ * call-seq:
+ *   conn.internal_encoding() -> Encoding
+ *
+ * defined in Ruby 1.9 or later.
+ *
+ * Returns:
+ * * an Encoding - client_encoding of the connection as a Ruby Encoding object.
+ * * nil - the client_encoding is 'SQL_ASCII'
+ */
+static VALUE
+pgconn_internal_encoding(VALUE self)
+{
+	return rb_enc_from_encoding(pgconn_get_client_encoding_as_rb_encoding(get_pgconn(self)));
+}
+
+static VALUE pgconn_external_encoding(VALUE self);
+
+/*
+ * call-seq:
+ *   conn.internal_encoding = value
+ *
+ * A wrapper of +PGconn#set_client_encoding+.
+ * defined in Ruby 1.9 or later.
+ *
+ * +value+ can be one of:
+ * * an Encoding
+ * * a String - a name of Encoding
+ * * +nil+ - sets 'SQL_ASCII' to the client_encoding.
+ */
+static VALUE
+pgconn_internal_encoding_set(VALUE self, VALUE enc)
+{
+	if (NIL_P(enc)) {
+		pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("SQL_ASCII"));
+		return enc;
+	}
+	else if (TYPE(enc) == T_STRING && strcasecmp("JOHAB", RSTRING_PTR(enc)) == 0) {
+		pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
+		return enc;
+	}
+	else {
+		int i;
+		const char *name; 
+		name = rb_enc_name(rb_to_encoding(enc));
+
+		/* sequential search becuase rarely called */
+		for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+			if (strcmp(name, enc_pg2ruby_mapping[i][1]) == 0) {
+				if (PQsetClientEncoding(get_pgconn(self), enc_pg2ruby_mapping[i][0]) == -1) {
+					VALUE server_encoding = pgconn_external_encoding(self);
+					rb_raise(rb_eEncCompatError, "imcompatible character encodings: %s and %s",
+							rb_enc_name(rb_to_encoding(server_encoding)),
+							enc_pg2ruby_mapping[i][0]);
+				}
+				return enc;
+			}
+		}
+
+		/* Ruby 1.9.1 does not support JOHAB */
+		if (strcasecmp(name, "JOHAB") == 0) {
+			pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
+			return enc;
+		}
+	}
+
+	enc = rb_inspect(enc);
+	rb_raise(rb_ePGError, "unknown encoding: %s", StringValuePtr(enc));
+}
+
+
+
+static VALUE enc_server_encoding_getvalue(VALUE pgresult)
+{
+	return pgresult_getvalue(pgresult, INT2FIX(0), INT2FIX(0));
+}
+
+/*
+ * call-seq:
+ *   conn.external_encoding() -> Encoding
+ *
+ * defined in Ruby 1.9 or later.
+ * * Returns the server_encoding of the connected database as a Ruby Encoding object.
+ * * Maps 'SQL_ASCII' to ASCII-8BIT.
+ */
+static VALUE
+pgconn_external_encoding(VALUE self)
+{
+	VALUE enc;
+	enc = rb_iv_get(self, "@external_encoding");
+	if (RTEST(enc)) {
+		return enc;
+	}
+	else {
+		int i;
+		VALUE query = rb_usascii_str_new_cstr("SHOW server_encoding");
+		VALUE pgresult = pgconn_exec(1, &query, self);
+		VALUE enc_name = rb_ensure(enc_server_encoding_getvalue, pgresult, pgresult_clear, pgresult);
+
+		if (strcmp("SQL_ASCII", StringValuePtr(enc_name)) == 0) {
+			enc = rb_enc_from_encoding(rb_ascii8bit_encoding());
+			goto cache;
+		}
+		for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+			if (strcmp(StringValuePtr(enc_name), enc_pg2ruby_mapping[i][0]) == 0) {
+				enc = rb_enc_from_encoding(rb_enc_find(enc_pg2ruby_mapping[i][1]));
+				goto cache;
+			}
+		}
+
+		/* Ruby 1.9.1 does not supoort JOHAB */
+		if (strcmp(StringValuePtr(enc_name), "JOHAB") == 0) {
+			enc = rb_enc_from_encoding(find_or_create_johab());
+			goto cache;
+		}
+
+		/* fallback */
+		enc = rb_enc_from_encoding(rb_enc_find(StringValuePtr(enc_name)));
+	}
+
+cache:
+	rb_iv_set(self, "@external_encoding", enc);
+	return enc;
+}
+
+static void
+init_m17n(void)
+{
+	enc_pg2ruby = st_init_numtable();
+	s_id_index = rb_intern("@encoding");
+	rb_define_method(rb_cPGconn, "internal_encoding", pgconn_internal_encoding, 0);
+	rb_define_method(rb_cPGconn, "internal_encoding=", pgconn_internal_encoding_set, 1);
+	rb_define_method(rb_cPGconn, "external_encoding", pgconn_external_encoding, 0);
+}
+
+
+#endif
 /**************************************************************************/
 
 void
@@ -3376,6 +3833,8 @@ Init_pg()
 	rb_cPGconn = rb_define_class("PGconn", rb_cObject);
 	rb_cPGresult = rb_define_class("PGresult", rb_cObject);
 
+	/* Library version */
+	rb_define_const( rb_cPGconn, "VERSION", rb_str_new2(VERSION) );
 
 	/*************************
 	 *  PGError 
@@ -3399,7 +3858,7 @@ Init_pg()
 	rb_define_singleton_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
-	rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 0);
+	rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 2);
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
@@ -3495,6 +3954,7 @@ Init_pg()
 	rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
 	rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 1);
 	rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
+	rb_define_alias(rb_cPGconn, "nonblocking?", "isnonblocking");
 	rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
 
 	/******     PGconn INSTANCE METHODS: Cancelling Queries in Progress     ******/
@@ -3586,6 +4046,87 @@ Init_pg()
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_LINE", INT2FIX(PG_DIAG_SOURCE_LINE));
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
+	/******     PGresult CONSTANTS: oid type codes      ******/
+	rb_define_const(rb_cPGresult, "InvalidOid", INT2FIX(InvalidOid));
+	rb_define_const(rb_cPGresult, "BOOLOID", INT2FIX(16));
+	rb_define_const(rb_cPGresult, "BYTEAOID", INT2FIX(17));
+	rb_define_const(rb_cPGresult, "CHAROID", INT2FIX(18));
+	rb_define_const(rb_cPGresult, "NAMEOID", INT2FIX(19));
+	rb_define_const(rb_cPGresult, "INT8OID", INT2FIX(20));
+	rb_define_const(rb_cPGresult, "INT2OID", INT2FIX(21));
+	rb_define_const(rb_cPGresult, "INT2VECTOROID", INT2FIX(22));
+	rb_define_const(rb_cPGresult, "INT4OID", INT2FIX(23));
+	rb_define_const(rb_cPGresult, "REGPROCOID", INT2FIX(24));
+	rb_define_const(rb_cPGresult, "TEXTOID", INT2FIX(25));
+	rb_define_const(rb_cPGresult, "OIDOID", INT2FIX(26));
+	rb_define_const(rb_cPGresult, "TIDOID", INT2FIX(27));
+	rb_define_const(rb_cPGresult, "XIDOID", INT2FIX(28));
+	rb_define_const(rb_cPGresult, "CIDOID", INT2FIX(29));
+	rb_define_const(rb_cPGresult, "OIDVECTOROID", INT2FIX(30));
+	rb_define_const(rb_cPGresult, "PG_TYPE_RELTYPE_OID", INT2FIX(71));
+	rb_define_const(rb_cPGresult, "PG_ATTRIBUTE_RELTYPE_OID", INT2FIX(75));
+	rb_define_const(rb_cPGresult, "PG_PROC_RELTYPE_OID", INT2FIX(81));
+	rb_define_const(rb_cPGresult, "PG_CLASS_RELTYPE_OID", INT2FIX(83));
+	rb_define_const(rb_cPGresult, "XMLOID", INT2FIX(142));
+	rb_define_const(rb_cPGresult, "POINTOID", INT2FIX(600));
+	rb_define_const(rb_cPGresult, "LSEGOID", INT2FIX(601));
+	rb_define_const(rb_cPGresult, "PATHOID", INT2FIX(602));
+	rb_define_const(rb_cPGresult, "BOXOID", INT2FIX(603));
+	rb_define_const(rb_cPGresult, "POLYGONOID", INT2FIX(604));
+	rb_define_const(rb_cPGresult, "LINEOID", INT2FIX(628));
+	rb_define_const(rb_cPGresult, "FLOAT4OID", INT2FIX(700));
+	rb_define_const(rb_cPGresult, "FLOAT8OID", INT2FIX(701));
+	rb_define_const(rb_cPGresult, "ABSTIMEOID", INT2FIX(702));
+	rb_define_const(rb_cPGresult, "RELTIMEOID", INT2FIX(703));
+	rb_define_const(rb_cPGresult, "TINTERVALOID", INT2FIX(704));
+	rb_define_const(rb_cPGresult, "UNKNOWNOID", INT2FIX(705));
+	rb_define_const(rb_cPGresult, "CIRCLEOID", INT2FIX(718));
+	rb_define_const(rb_cPGresult, "CASHOID", INT2FIX(790));
+	rb_define_const(rb_cPGresult, "MACADDROID", INT2FIX(829));
+	rb_define_const(rb_cPGresult, "INETOID", INT2FIX(869));
+	rb_define_const(rb_cPGresult, "CIDROID", INT2FIX(650));
+	rb_define_const(rb_cPGresult, "INT4ARRAYOID", INT2FIX(1007));
+	rb_define_const(rb_cPGresult, "TEXTARRAYOID", INT2FIX(1009));
+	rb_define_const(rb_cPGresult, "FLOAT4ARRAYOID", INT2FIX(1021));
+	rb_define_const(rb_cPGresult, "ACLITEMOID", INT2FIX(1033));
+	rb_define_const(rb_cPGresult, "CSTRINGARRAYOID", INT2FIX(1263));
+	rb_define_const(rb_cPGresult, "BPCHAROID", INT2FIX(1042));
+	rb_define_const(rb_cPGresult, "VARCHAROID", INT2FIX(1043));
+	rb_define_const(rb_cPGresult, "DATEOID", INT2FIX(1082));
+	rb_define_const(rb_cPGresult, "TIMEOID", INT2FIX(1083));
+	rb_define_const(rb_cPGresult, "TIMESTAMPOID", INT2FIX(1114));
+	rb_define_const(rb_cPGresult, "TIMESTAMPTZOID", INT2FIX(1184));
+	rb_define_const(rb_cPGresult, "INTERVALOID", INT2FIX(1186));
+	rb_define_const(rb_cPGresult, "TIMETZOID", INT2FIX(1266));
+	rb_define_const(rb_cPGresult, "BITOID", INT2FIX(1560));
+	rb_define_const(rb_cPGresult, "VARBITOID", INT2FIX(1562));
+	rb_define_const(rb_cPGresult, "NUMERICOID", INT2FIX(1700));
+	rb_define_const(rb_cPGresult, "REFCURSOROID", INT2FIX(1790));
+	rb_define_const(rb_cPGresult, "REGPROCEDUREOID", INT2FIX(2202));
+	rb_define_const(rb_cPGresult, "REGOPEROID", INT2FIX(2203));
+	rb_define_const(rb_cPGresult, "REGOPERATOROID", INT2FIX(2204));
+	rb_define_const(rb_cPGresult, "REGCLASSOID", INT2FIX(2205));
+	rb_define_const(rb_cPGresult, "REGTYPEOID", INT2FIX(2206));
+	rb_define_const(rb_cPGresult, "REGTYPEARRAYOID", INT2FIX(2211));
+	rb_define_const(rb_cPGresult, "TSVECTOROID", INT2FIX(3614));
+	rb_define_const(rb_cPGresult, "GTSVECTOROID", INT2FIX(3642));
+	rb_define_const(rb_cPGresult, "TSQUERYOID", INT2FIX(3615));
+	rb_define_const(rb_cPGresult, "REGCONFIGOID", INT2FIX(3734));
+	rb_define_const(rb_cPGresult, "REGDICTIONARYOID", INT2FIX(3769));
+	rb_define_const(rb_cPGresult, "RECORDOID", INT2FIX(2249));
+	rb_define_const(rb_cPGresult, "RECORDARRAYOID", INT2FIX(2287));
+	rb_define_const(rb_cPGresult, "CSTRINGOID", INT2FIX(2275));
+	rb_define_const(rb_cPGresult, "ANYOID", INT2FIX(2276));
+	rb_define_const(rb_cPGresult, "ANYARRAYOID", INT2FIX(2277));
+	rb_define_const(rb_cPGresult, "VOIDOID", INT2FIX(2278));
+	rb_define_const(rb_cPGresult, "TRIGGEROID", INT2FIX(2279));
+	rb_define_const(rb_cPGresult, "LANGUAGE_HANDLEROID", INT2FIX(2280));
+	rb_define_const(rb_cPGresult, "INTERNALOID", INT2FIX(2281));
+	rb_define_const(rb_cPGresult, "OPAQUEOID", INT2FIX(2282));
+	rb_define_const(rb_cPGresult, "ANYELEMENTOID", INT2FIX(2283));
+	rb_define_const(rb_cPGresult, "ANYNONARRAYOID", INT2FIX(2776));
+	rb_define_const(rb_cPGresult, "ANYENUMOID", INT2FIX(3500));
+
 	/******     PGresult INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
 	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
@@ -3608,7 +4149,7 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "getisnull", pgresult_getisnull, 2);
 	rb_define_method(rb_cPGresult, "getlength", pgresult_getlength, 2);
 	rb_define_method(rb_cPGresult, "nparams", pgresult_nparams, 0);
-	rb_define_method(rb_cPGresult, "paramtype", pgresult_paramtype, 0);
+	rb_define_method(rb_cPGresult, "paramtype", pgresult_paramtype, 1);
 	rb_define_method(rb_cPGresult, "cmd_status", pgresult_cmd_status, 0);
 	rb_define_method(rb_cPGresult, "cmd_tuples", pgresult_cmd_tuples, 0);
 	rb_define_alias(rb_cPGresult, "cmdtuples", "cmd_tuples");
@@ -3618,5 +4159,10 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "[]", pgresult_aref, 1);
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
+	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
+	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 
+#ifdef M17N_SUPPORTED
+        init_m17n();
+#endif
 }

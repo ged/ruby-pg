@@ -2,10 +2,13 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#ifdef HAVE_UNISTD_H
+#	include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+
 #include "ruby.h"
 #include "libpq-fe.h"
 #include "libpq/libpq-fs.h"              /* large-object interface */
-
 #include "compat.h"
 
 #if RUBY_VM != 1

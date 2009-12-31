@@ -1,0 +1,26 @@
+--- 
+excluded_pkgfiles: []
+
+project_pubdir: /ged/ruby-pg/downloads/
+project_pubhost: bitbucket.org
+project_homepage: http://bitbucket.org/ged/ruby-pg/
+project_requirements: 
+  PostgreSQL: ">=7.4"
+release_smtphost: mail.faeriemud.org
+project_description: |-
+  This is the extension library to access a PostgreSQL database from Ruby.
+  This library works with PostgreSQL 7.4 and later.
+release_mailto: Ruby-Talk List <ruby-talk@ruby-lang.org>
+project_dependencies: {}
+
+project_summary: A Ruby interface to the PostgreSQL RDBMS
+version_file: ../ext/pg.c
+additional_pkgfiles: 
+- sample/*.rb
+- README.*
+dev_dependencies: {}
+
+authors: 
+  Michael Granger: ged@FaerieMUD.org
+post_install_message: ""
+project_name: pg

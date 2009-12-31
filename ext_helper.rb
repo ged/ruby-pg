@@ -9,34 +9,21 @@ def setup_extension(extension_name, gem_spec = nil)
   # use the DLEXT for the true extension name
   ext_name = "#{extension_name}.#{RbConfig::CONFIG['DLEXT']}"
 
-  # we need lib
-  directory 'lib'
+  # getting this file is part of the compile task
+  task :compile => ["ext/#{ext_name}"]
 
-  # verify if the extension is in a folder
-  unless File.directory?("ext/#{extension_name}")
-    # the extension is in the root of ext.
-    file "lib/#{ext_name}" => ['lib', "ext/#{ext_name}"] do
-      cp "ext/#{ext_name}", "lib/#{ext_name}"
+  file "ext/#{ext_name}" => "ext/Makefile" do
+    # Visual C make utility is named 'nmake', MinGW conforms GCC 'make' standard.
+    make_cmd = RUBY_PLATFORM =~ /mswin/ ? 'nmake' : 'make'
+    Dir.chdir('ext') do
+      sh make_cmd
     end
+  end
 
-    # getting this file is part of the compile task
-    task :compile => ["lib/#{ext_name}"]
-
-    file "ext/#{ext_name}" => "ext/Makefile" do
-      # Visual C make utility is named 'nmake', MinGW conforms GCC 'make' standard.
-      make_cmd = RUBY_PLATFORM =~ /mswin/ ? 'nmake' : 'make'
-      Dir.chdir('ext') do
-        sh make_cmd
-      end
+  file "ext/Makefile" => "ext/extconf.rb" do
+    Dir.chdir('ext') do
+      ruby 'extconf.rb'
     end
-
-    file "ext/Makefile" => "ext/extconf.rb" do
-      Dir.chdir('ext') do
-        ruby 'extconf.rb'
-      end
-    end
-  else
-    raise "Pending: Multiple extensions not implemented yet."
   end
 
   unless Rake::Task.task_defined?('native')
