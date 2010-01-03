@@ -28,8 +28,21 @@ Rake::ExtensionTask.new do |ext|
 	ext.name = 'pg'
 	ext.gem_spec = GEMSPEC
 	ext.ext_dir = 'ext'
-	ext.lib_dir = "lib/#{Config::CONFIG['sitearch']}"
+	ext.lib_dir = 'lib'
 	ext.source_pattern = "*.{c,h}"
+
+	# If there's an explicit 'compile' argument, use everything after it as options.
+	if offset = ARGV.index( 'compile' )
+		trace "config options = %p" % [ ARGV[(offset + 1)..-1] ]
+		ext.config_options = ARGV[ (offset + 1)..-1 ]
+	# Otherwise, just grab everything from the first option onward
+	elsif offset = ARGV.index( ARGV.find {|arg| arg =~ /^--/ } )
+		trace "config options = %p" % [ ARGV[offset..-1] ]
+		ext.config_options = ARGV[ offset..-1 ]
+	else
+		trace "No config options (ARGV = %p)" % [ ARGV ]
+	end
+
 	# ext.cross_compile = true
 	# ext.cross_platform = 'i386-mswin32'
 end

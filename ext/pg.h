@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#ifdef RUBY_EXTCONF_H
+#include RUBY_EXTCONF_H
+#endif
+
 #ifdef HAVE_UNISTD_H
 #	include <unistd.h>
 #endif /* HAVE_UNISTD_H */

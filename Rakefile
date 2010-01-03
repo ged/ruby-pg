@@ -4,7 +4,7 @@
 #
 # Based on various other Rakefiles, especially one by Ben Bleything
 #
-# Copyright (c) 2007-2009 The FaerieMUD Consortium
+# Copyright (c) 2007-2010 The FaerieMUD Consortium
 #
 # Authors:
 #  * Michael Granger <ged@FaerieMUD.org>
@@ -152,7 +152,7 @@ if !RAKE_TASKDIR.exist?
 
 	if ans =~ /^y/i
 		$stderr.puts "Okay, fetching #{RAKE_TASKLIBS_URL} into #{RAKE_TASKDIR}..."
-		system 'hg', 'clone', RAKE_TASKLIBS_URL, RAKE_TASKDIR
+		system 'hg', 'clone', RAKE_TASKLIBS_URL, "./#{RAKE_TASKDIR}"
 		if ! $?.success?
 			fail "Damn. That didn't work. Giving up; maybe try manually fetching?"
 		end
@@ -169,7 +169,7 @@ require RAKE_TASKDIR + 'helpers.rb'
 # Set the build ID if the mercurial executable is available
 if hg = which( 'hg' )
 	id = IO.read('|-') or exec hg.to_s, 'id', '-n'
-	PKG_BUILD = 'pre' + id.chomp[ /^[[:xdigit:]]+/ ]
+	PKG_BUILD = 'pre' + (id.chomp[ /^[[:xdigit:]]+/ ] || '1')
 else
 	PKG_BUILD = 'pre0'
 end

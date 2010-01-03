@@ -1,11 +1,7 @@
 require 'mkmf'
 
-begin
-	IO.popen("pg_config --version").readline.chomp
-rescue
-	$stderr.write("ERROR: can't find pg_config.\n")
-	$stderr.write("HINT: Make sure pg_config is in your PATH\n")
-	exit 1
+if pgdir = with_config( 'pg' )
+	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPERATOR + ENV['PATH']
 end
 
 ### Read the output of a command using the fork+pipe syntax so execution errors 
@@ -15,59 +11,104 @@ def read_cmd_output( *cmd )
 	return output.chomp
 end
 
-
-# OS X compatibility
-if RUBY_PLATFORM =~ /darwin/
-
-	# Make the ARCHFLAGS environment variable match the arch flags that
-	# PostgreSQL was compiled with.
-	bindir = read_cmd_output( 'pg_config', '--bindir' )
-	pg_cflags = read_cmd_output( 'pg_config', '--cflags' )
-
-	pg_cflags.scan( /-arch\s+\S+/ ) do |str|
-		$stderr.puts "Adding ARCHFLAGS: %p" % [ str ]
-		$CFLAGS << ' ' << str
-	end
+### Turn a version string into a Comparable binary datastructure
+def vvec( version )
+	version.split( '.' ).collect {|i| Integer(i) }.pack( 'N*' )
 end
 
-if RUBY_VERSION < '1.8'
+
+if vvec(RUBY_VERSION) < vvec('1.8')
 	puts 'This library is for ruby-1.8 or higher.'
 	exit 1
 end
 
-def config_value(type)
-	ENV["POSTGRES_#{type.upcase}"] || pg_config(type)
+pgconfig = with_config( 'pg_config' ) || 'pg_config'
+if pgconfig = find_executable( pgconfig )
+	$CPPFLAGS << " -I%s" % [ read_cmd_output(pgconfig, '--includedir') ]
+	$LDFLAGS << " -L%s" % [ read_cmd_output(pgconfig, '--libdir') ]
 end
 
-def pg_config(type)
-	IO.popen("pg_config --#{type}dir").readline.chomp rescue nil
+# Sort out the universal vs. single-archicture build problems on MacOS X
+if RUBY_PLATFORM.include?( 'darwin' )
+	puts "MacOS X build: fixing architecture flags:"
+
+	# Only keep the '-arch <a>' flags present in both the cflags reported
+	# by pg_config and those that Ruby specifies.
+	commonflags = nil
+	if ENV['ARCHFLAGS']
+		puts "  using the value in ARCHFLAGS environment variable (%p)." % [ ENV['ARCHFLAGS'] ]
+		commonflags = ENV['ARCHFLAGS']
+	elsif pgconfig
+		puts "  finding flags common to both Ruby and PostgreSQL..."
+		archflags = []
+		pgcflags = read_cmd_output( pgconfig, '--cflags' )
+		pgcflags.scan( /-arch\s+(\S+)/ ).each do |arch|
+			puts "  testing for architecture: %p" % [ arch ]
+			archflags << "-arch #{arch}" if Config::CONFIG['CFLAGS'].index("-arch #{arch}")
+		end
+
+		commonflags = archflags.join(' ')
+		puts "  common arch flags: %s" % [ commonflags ]
+	else
+		$stderr.puts %{
+		===========   WARNING   ===========
+		
+		You are building this extension on OS X without setting the 
+		ARCHFLAGS environment variable, and pg_config wasn't found in 
+		your PATH. If you are seeing this message, that means that the 
+		build will probably fail.
+
+		If it does, you can correct this by either including the path 
+		to 'pg_config' in your PATH or setting the environment variable 
+		ARCHFLAGS to '-arch <arch>' before building.
+
+		For example:
+		(in bash) $ export PATH=/opt/local/lib/postgresql84/bin:$PATH                  
+		          $ export ARCHFLAGS='-arch x86_64'
+		(in tcsh) % set path = ( /opt/local/lib/postgresql84/bin $PATH )
+		          % setenv ARCHFLAGS '-arch x86_64'
+
+		Then try building again.
+
+		===================================
+		}.gsub( /^\t+/, '  ' )
+	end
+
+	if commonflags
+		$CFLAGS.gsub!( /-arch\s+\S+ /, '' )
+		$LDFLAGS.gsub!( /-arch\s+\S+ /, '' )
+		CONFIG['LDSHARED'].gsub!( /-arch\s+\S+ /, '' )
+
+		$CFLAGS << ' ' << commonflags
+		$LDFLAGS << ' ' << commonflags
+		CONFIG['LDSHARED'] << ' ' << commonflags
+	end
 end
 
-def have_build_env
-	(have_library('pq') || have_library('libpq') || have_library('ms/libpq')) &&
-   have_header('libpq-fe.h') && have_header('libpq/libpq-fs.h')
-end
 
-dir_config('pg', config_value('include'), config_value('lib'))
+dir_config 'pg'
 
-desired_functions = %w(
-	PQconnectionUsedPassword
-	PQisthreadsafe
-	PQprepare
-	PQexecParams
-	PQescapeString
-	PQescapeStringConn
-	lo_create
-	pg_encoding_to_char 
-	PQsetClientEncoding 
-)
+abort "Can't find the 'libpq-fe.h header" unless have_header( 'libpq-fe.h' )
+abort "Can't find the 'libpq/libpq-fs.h header" unless have_header('libpq/libpq-fs.h')
 
-if have_build_env
-	desired_functions.each(&method(:have_func))
-	$OBJS = ['pg.o','compat.o']
-	have_header( 'unistd.h' )
-	create_makefile("pg")
-else
-	puts 'Could not find PostgreSQL build environment (libraries & headers): Makefile not created'
-end
+abort "Can't find the PostgreSQL client library (libpq)" unless
+	have_library( 'pq', 'PQconnectdb' ) ||
+	have_library( 'libpq', 'PQconnectdb' ) ||
+	have_library( 'ms/libpq', 'PQconnectdb' )
+
+# optional headers/functions
+have_func 'PQconnectionUsedPassword'
+have_func 'PQisthreadsafe'
+have_func 'PQprepare'
+have_func 'PQexecParams'
+have_func 'PQescapeString'
+have_func 'PQescapeStringConn'
+have_func 'lo_create'
+have_func 'pg_encoding_to_char'
+have_func 'PQsetClientEncoding'
+
+have_header 'unistd.h'
+
+create_header
+create_makefile( "pg" )
 
