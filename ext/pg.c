@@ -2573,6 +2573,17 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 	double timeout_sec;
 	fd_set sd_rset;
 
+	/* Workaround a bug in rb_thread_select() in MSVC 6.0 compiled ruby. */
+	#if defined(_WIN32)
+		/* rb_thread_select() sometimes doesn't return, when a second ruby thread is
+		   running, although data could be read. So we use a timeout based
+		   polling to get right of received data.
+		*/
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 10000;
+		ptimeout = &timeout;
+	#endif
+
 	if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
 		timeout_sec = NUM2DBL(timeout_in);
 		timeout.tv_sec = (long)timeout_sec;
@@ -2586,7 +2597,14 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 		FD_SET(sd, &sd_rset);
 		ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
 		/* if select() times out, return false */
-		if(ret == 0) 
+		if(ret == 0
+			/* Workaround a bug in rb_thread_select() in MSVC 6.0 compiled ruby. */
+			#if defined(_WIN32)
+			  /* Recheck if there is really no data pending or if rb_thread_select()
+			     erroneously did not noticed it. */
+				&& PQisBusy(conn)
+			#endif
+		) 
 			return Qfalse;
 		PQconsumeInput(conn);
 	} 
