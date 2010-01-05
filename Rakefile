@@ -90,7 +90,7 @@ EXTCONF       = EXTDIR + 'extconf.rb'
 
 ARTIFACTS_DIR = Pathname.new( CC_BUILD_ARTIFACTS )
 
-TEXT_FILES    = Rake::FileList.new( %w[Rakefile ChangeLog README LICENSE] )
+TEXT_FILES    = Rake::FileList.new( %w[ChangeLog README* LICENSE] )
 BIN_FILES     = Rake::FileList.new( "#{BINDIR}/*" )
 LIB_FILES     = Rake::FileList.new( "#{LIBDIR}/**/*.rb" )
 EXT_FILES     = Rake::FileList.new( "#{EXTDIR}/**/*.{c,h,rb}" )
@@ -113,8 +113,10 @@ RAKE_TASKLIBS_URL = 'http://repo.deveiate.org/rake-tasklibs'
 LOCAL_RAKEFILE = BASEDIR + 'Rakefile.local'
 
 EXTRA_PKGFILES = Rake::FileList.new
-EXTRA_PKGFILES.include( "#{BASEDIR}/sample/*.rb" )
 EXTRA_PKGFILES.include( "#{BASEDIR}/README.*" )
+EXTRA_PKGFILES.include( "#{BASEDIR}/GPL" )
+EXTRA_PKGFILES.include( "#{BASEDIR}/BSD" )
+EXTRA_PKGFILES.include( "#{BASEDIR}/Contributors" )
 
 RELEASE_FILES = TEXT_FILES + 
 	SPEC_FILES + 
@@ -238,7 +240,7 @@ GEMSPEC   = Gem::Specification.new do |gem|
 
 	gem.has_rdoc          = true
 	gem.rdoc_options      = RDOC_OPTIONS
-	gem.extra_rdoc_files  = %w[ChangeLog README LICENSE]
+	gem.extra_rdoc_files  = TEXT_FILES
 
 	gem.bindir            = BINDIR.relative_path_from(BASEDIR).to_s
 	gem.executables       = BIN_FILES.select {|pn| File.executable?(pn) }.
@@ -299,7 +301,7 @@ task :local
 
 ### Task: clean
 CLEAN.include 'coverage', '**/*.orig', '**/*.rej'
-CLOBBER.include 'artifacts', 'coverage.info', PKGDIR
+CLOBBER.include 'artifacts', 'coverage.info', 'ChangeLog', PKGDIR
 
 ### Task: changelog
 file 'ChangeLog' do |task|

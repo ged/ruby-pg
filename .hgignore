@@ -10,3 +10,5 @@ Rakefile\.old
 tmp/
 docs/api
 \.DS_Store
+ext/extconf\.h
+ChangeLog$

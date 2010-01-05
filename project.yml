@@ -16,8 +16,10 @@ project_dependencies: {}
 project_summary: A Ruby interface to the PostgreSQL RDBMS
 version_file: ../ext/pg.c
 additional_pkgfiles: 
-- sample/*.rb
 - README.*
+- GPL
+- BSD
+- Contributors
 dev_dependencies: {}
 
 authors: 

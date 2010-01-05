@@ -20,8 +20,7 @@ Maintainers:
 
 You may redistribute this software under the terms of the Ruby license,
 included in the file "LICENSE". The Ruby license also allows distribution
-under the terms of the GPL, included in the file "COPYING.txt" and the file
-"GPL".
+under the terms of the GPL, included in the file "GPL".
 
 Portions of the code are from the PostgreSQL project, and are distributed
 under the terms of the BSD license, included in the file "BSD".
@@ -35,43 +34,37 @@ library works with PostgreSQL 7.4 and later.
 
 == Requirements
 
-* Ruby 1.8.7 or later.
+* Ruby 1.8.6 or later.
 * PostgreSQL 7.3 or later installed.
 
 It may work with earlier versions as well, but those are not regularly tested.
 
-== How to install ?
+== How To Install
 
 Install via RubyGems:
 
   gem install pg
 
-Or follow the instructions below to compile and install:
+Or install from source:
 
   rake install
 
 You may need to specify the path to the 'pg_config' program installed with
 Postgres:
 
-    --with-pgsql-include=<include file directory>
-    --with-pgsql-lib=<library directory>
+  rake -- --with-pg-config=<path to pg_config>
 
-For example:
+For example, on a Mac with PostgreSQL installed via MacPorts 
+(<tt>port install postgresql84</tt>):
 
-  rake --with-pgsql-include=/usr/local/pgsql/include \
-                  --with-pgsql-lib=/usr/local/pgsql/lib
+  rake install -- --with-pg-config=/opt/local/lib/postgresql84/bin/pg_config
 
-See the included RDoc documentation for more installation help.
+See README.OS_X for more information about installing under MacOS X, and 
+README.windows for Windows build/installation instructions.
 
 == Acknowledgments
 
 We are thankful to the people at the ruby-list and ruby-dev mailing lists.
 And to the people who developed PostgreSQL.
-
-== Copying
-
-This library is copyrighted by its authors; Yukihiro Matsumoto, and Eiji
-Matsumoto.
-
 
 
