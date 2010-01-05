@@ -1,29 +1,19 @@
+= Compiling on MacOS X
 
-If you are building ruby-pg on OS X, read this file.
+If you are building/installing ruby-pg on MacOS X, and the installation doesn't work at first, here are a few things you can try.
 
-OS X supports both architecture-specific binaries (e.g. i386), as well
-as universal binaries (i.e. i386 & ppc). If ruby is built as a universal 
-binary and postgresql is not, you need to set the environment variable
-ARCHFLAGS appropriately or ensure that the appropriate pg_config binary 
-is in your path.
+== Compiling With the Correct Architecture
 
-For example, if you're using the stock Ruby binary, and PostgreSQL 8.4.x 
-installed from MacPorts (without specifying the +universal variant), do:
+OS X supports both architecture-specific binaries (e.g. i386), as well as universal binaries (i.e. i386 & ppc). If ruby is built as a universal binary and postgresql is not, you need to specify the path to the appropriate pg_config binary or set the environment variable ARCHFLAGS appropriately.
 
-  (bash)
-  $ export PATH=/opt/local/lib/postgresql84/bin:$PATH
+For example, if you're using the stock Ruby binary, and PostgreSQL 8.4.x installed from MacPorts (without specifying the {{{+universal}}} variant), do:
 
-  (tcsh)
-  % set path = ( /opt/local/lib/postgresql84/bin $PATH )
+  gem install -- --with-pg-config=/opt/local/lib/postgresql84/bin/pg_config
 
-If you already know what architecture it should build as, just set the 
-'ARCHFLAGS' environment variable:
+Alternatively, if the build system can't figure out which architectures it should include, you may need to set the 'ARCHFLAGS' environment variable explicitly:
 
-  (bash)
-  $ export ARCHFLAGS='-arch i386'
+  sudo env ARCHFLAGS='-arch i386' gem install pg
 
-  (tcsh)
-  % setenv ARCHFLAGS '-arch i386'
+or, if you're building from source:
 
-Then try building again (re-run `rake compile`).
-
+  rake compile ARCHFLAGS="-arch i386"
