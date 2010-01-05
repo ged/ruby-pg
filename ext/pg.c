@@ -4182,6 +4182,9 @@ Init_pg()
 	 * function reporting the error. */
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
+	/* Invalid OID constant */
+	rb_define_const(rb_cPGresult, "InvalidOid", INT2FIX(InvalidOid));
+
 	/******     PGresult INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
 	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);

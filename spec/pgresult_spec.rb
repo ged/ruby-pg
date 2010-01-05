@@ -94,8 +94,11 @@ describe PGresult do
 		query = 'SELECT * FROM pg_stat_activity WHERE user = $1::name AND current_query = $2::text'
 		@conn.prepare( 'queryfinder', query )
 		res = @conn.describe_prepared( 'queryfinder' )
-		res.paramtype( 0 ).should == PGresult::NAMEOID
-		res.paramtype( 1 ).should == PGresult::TEXTOID
+
+		@conn.exec( 'SELECT format_type($1, -1)', [res.paramtype(0)] ).getvalue( 0, 0 ).
+			should == 'name'
+		@conn.exec( 'SELECT format_type($1, -1)', [res.paramtype(1)] ).getvalue( 0, 0 ).
+			should == 'text'
 	end
 
 	it "should raise an exception when a negative index is given to #fformat" do
