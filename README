@@ -1,34 +1,5 @@
 = ruby-pg: Ruby interface to PostgreSQL RDBMS
 
-This library is copyrighted by the authors.
-
-Authors:
-* Yukihiro Matsumoto <matz@ruby-lang.org> - Author of Ruby.
-* Eiji Matsumoto <usagi@ruby.club.or.jp> - One of users who loves Ruby.
-* Jeff Davis <ruby-pg@j-davis.com>
-
-Thanks to:
-* Noboru Saitou <noborus@netlab.jp> - Past maintainer.
-* Dave Lee - Past maintainer.
-* Guy Decoux (ts) <decoux@moulon.inra.fr> 
-  
-Maintainers:
-* Jeff Davis <ruby-pg@j-davis.com>
-* Michael Granger <ged@FaerieMUD.org>
-
-== Copying
-
-You may redistribute this software under the terms of the Ruby license,
-included in the file "LICENSE". The Ruby license also allows distribution
-under the terms of the GPL, included in the file "GPL".
-
-Portions of the code are from the PostgreSQL project, and are distributed
-under the terms of the BSD license, included in the file "BSD".
-
-Portions copyright LAIKA, Inc.
-
-== Summary
-
 This is the extension library to access a PostgreSQL database from Ruby. This
 library works with PostgreSQL 7.4 and later.
 
@@ -61,6 +32,33 @@ For example, on a Mac with PostgreSQL installed via MacPorts
 
 See README.OS_X for more information about installing under MacOS X, and 
 README.windows for Windows build/installation instructions.
+
+== Copying
+
+This library is copyrighted by the authors.
+
+Authors:
+* Yukihiro Matsumoto <matz@ruby-lang.org> - Author of Ruby.
+* Eiji Matsumoto <usagi@ruby.club.or.jp> - One of users who loves Ruby.
+* Jeff Davis <ruby-pg@j-davis.com>
+
+Thanks to:
+* Noboru Saitou <noborus@netlab.jp> - Past maintainer.
+* Dave Lee - Past maintainer.
+* Guy Decoux (ts) <decoux@moulon.inra.fr> 
+  
+Maintainers:
+* Jeff Davis <ruby-pg@j-davis.com>
+* Michael Granger <ged@FaerieMUD.org>
+
+You may redistribute this software under the terms of the Ruby license,
+included in the file "LICENSE". The Ruby license also allows distribution
+under the terms of the GPL, included in the file "GPL".
+
+Portions of the code are from the PostgreSQL project, and are distributed
+under the terms of the BSD license, included in the file "BSD".
+
+Portions copyright LAIKA, Inc.
 
 == Acknowledgments
 
