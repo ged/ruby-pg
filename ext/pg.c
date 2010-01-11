@@ -2562,8 +2562,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
  * and +conn.get_result+ will not block.
  */
 static VALUE
-pgconn_block(int argc, VALUE *argv, VALUE self)
-{
+pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	PGconn *conn = get_pgconn(self);
 	int sd = PQsocket(conn);
 	int ret;
@@ -2573,40 +2572,35 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 	double timeout_sec;
 	fd_set sd_rset;
 
-	/* Workaround a bug in rb_thread_select() in MSVC 6.0 compiled ruby. */
-	#if defined(_WIN32)
-		/* rb_thread_select() sometimes doesn't return, when a second ruby thread is
-		   running, although data could be read. So we use a timeout based
-		   polling to get right of received data.
-		*/
-		timeout.tv_sec = 0;
-		timeout.tv_usec = 10000;
-		ptimeout = &timeout;
-	#endif
+	/* Always set a timeout in WIN32, as rb_thread_select() sometimes
+	 * doesn't return when a second ruby thread is running although data
+	 * could be read. So we use timeout-based polling instead.
+	 */
+#if defined(_WIN32)
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 10000;
+	ptimeout = &timeout;
+#endif
 
-	if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
-		timeout_sec = NUM2DBL(timeout_in);
+	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
+		timeout_sec = NUM2DBL( timeout_in );
 		timeout.tv_sec = (long)timeout_sec;
 		timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
 		ptimeout = &timeout;
 	}
 
-	PQconsumeInput(conn);
-	while(PQisBusy(conn)) {
-		FD_ZERO(&sd_rset);
-		FD_SET(sd, &sd_rset);
-		ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
-		/* if select() times out, return false */
-		if(ret == 0
-			/* Workaround a bug in rb_thread_select() in MSVC 6.0 compiled ruby. */
-			#if defined(_WIN32)
-			  /* Recheck if there is really no data pending or if rb_thread_select()
-			     erroneously did not noticed it. */
-				&& PQisBusy(conn)
-			#endif
-		) 
+	PQconsumeInput( conn );
+
+	while ( PQisBusy(conn) ) {
+		FD_ZERO( &sd_rset );
+		FD_SET( sd, &sd_rset );
+		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
+
+		/* Return false if there was a timeout argument and the select() timed out */
+		if ( ret == 0 && argc ) 
 			return Qfalse;
-		PQconsumeInput(conn);
+
+		PQconsumeInput( conn );
 	} 
 
 	return Qtrue;
@@ -2673,6 +2667,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	pgconn_block(0, NULL, self);
 	return pgconn_get_last_result(self);
 }
+
 
 /**************************************************************************
  * LARGE OBJECT SUPPORT
@@ -3499,9 +3494,9 @@ pgresult_aref(VALUE self, VALUE index)
 			if(0 == PQfformat(result, field_num)) { 
 				ASSOCIATE_INDEX(val, self);
 			} else {
-			#ifdef M17N_SUPPORTED
+#ifdef M17N_SUPPORTED
 				rb_enc_associate(val, rb_ascii8bit_encoding());
-			#endif
+#endif
 			}
 			rb_hash_aset(tuple, fname, val);
 		}
