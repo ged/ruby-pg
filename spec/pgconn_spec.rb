@@ -177,6 +177,30 @@ describe PGconn do
 	end
 
 
+	it "PGconn#block shouldn't block a second thread" do
+		t = Thread.new do
+			@conn.send_query( "select pg_sleep(3)" )
+			@conn.block
+		end
+
+		# :FIXME: There's a race here, but hopefully it's pretty small.
+		t.should be_alive()
+
+		@conn.cancel
+		t.join
+	end
+
+	it "PGconn#block should allow a timeout" do
+		@conn.send_query( "select pg_sleep(3)" )
+
+		start = Time.now
+		@conn.block( 0.1 )
+		finish = Time.now
+
+		(finish - start).should be_close( 0.1, 0.05 )
+	end
+
+
 	it "can encrypt a string given a password and username" do
 		PGconn.encrypt_password("postgres", "postgres").
 			should =~ /\S+/

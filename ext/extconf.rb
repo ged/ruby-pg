@@ -22,7 +22,7 @@ if vvec(RUBY_VERSION) < vvec('1.8')
 	exit 1
 end
 
-pgconfig = with_config( 'pg_config' ) || 'pg_config'
+pgconfig = with_config( 'pg-config' ) || 'pg_config'
 if pgconfig = find_executable( pgconfig )
 	$CPPFLAGS << " -I%s" % [ read_cmd_output(pgconfig, '--includedir') ]
 	$LDFLAGS << " -L%s" % [ read_cmd_output(pgconfig, '--libdir') ]
@@ -88,6 +88,15 @@ end
 
 dir_config 'pg'
 
+if enable_config("static-build")
+	# Link against all required libraries for static build, if they are available
+	have_library('gdi32', 'CreateDC') && append_library($libs, 'gdi32')
+	have_library('secur32') && append_library($libs, 'secur32')
+	have_library('crypto', 'BIO_new') && append_library($libs, 'crypto')
+	have_library('ssl', 'SSL_new') && append_library($libs, 'ssl')
+end
+
+
 abort "Can't find the 'libpq-fe.h header" unless have_header( 'libpq-fe.h' )
 abort "Can't find the 'libpq/libpq-fs.h header" unless have_header('libpq/libpq-fs.h')
 
@@ -107,7 +116,10 @@ have_func 'lo_create'
 have_func 'pg_encoding_to_char'
 have_func 'PQsetClientEncoding'
 
-have_header 'unistd.h'
+# unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
+have_header 'unistd.h' unless enable_config("static-build")
+
+$CFLAGS << ' -Wall'
 
 create_header
 create_makefile( "pg" )

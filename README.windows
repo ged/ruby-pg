@@ -1,4 +1,6 @@
 
+= Compiling on MS Windows
+
 In order to build this extension on MS Windows you will need a couple things.
 
 First, a compiler. For the one click installer this means you should either
@@ -27,10 +29,44 @@ PostgreSQL headers and libraries are with something like this:
 Adjust your path accordingly. BE SURE TO USE THE SHORT PATH NAMES! If you
 try to use a path with spaces in it, the nmake.exe program will choke.
 
-If you have any problems you can submit them on the "Forum" on the
-RubyForge project page at http://www.rubyforge.org/projects/ruby-pg. Or
-you can join the mailing list:
 
-	ruby-pg-general@rubyforge.org
+== Cross compiling for mswin32
+
+Using rake-compiler a cross compiled pg-gem can be build on a linux host for
+the win32 platform. The generated gem is statically linked against libpq and
+libssl. OpenSSL and PostgreSQL are downloaded and compiled from the sources.
+There are no runtime dependencies to any but the standard Windows DLLs.
+
+Install mingw32. On a debian based system this should work:
+
+   apt-get install mingw32
+
+On MacOS X, if you have MacPorts installed:
+
+  port install i386-mingw32-gcc
+
+Install the rake-compiler:
+
+  gem install rake-compiler
+
+Download and cross compile ruby for win32:
+
+  rake-compiler cross-ruby VERSION=1.8.6-p287
+
+Download and cross compile pg for win32:
+
+  rake cross native gem RUBY_CC_VERSION=1.8.6 OPENSSL_VERSION=0.9.8l POSTGRESQL_VERSION=8.4.2
+
+If everything works, there should be pg-VERSION-x86-mswin32.gem in the pkg
+directory.
+
+
+If you have any problems you can submit them via the project's issue-tracker:
+
+  http://bitbucket.org/ged/ruby-pg/issues/new/
+
+Or you can join the mailing list:
+
+  ruby-pg-general@rubyforge.org
 
 And submit questions, problems, or solutions, so that it can be improved.

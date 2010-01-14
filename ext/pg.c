@@ -347,26 +347,48 @@ pgconn_alloc(VALUE klass)
  *    PGconn.new(connection_hash) -> PGconn
  *    PGconn.new(connection_string) -> PGconn
  *    PGconn.new(host, port, options, tty, dbname, login, password) ->  PGconn
- *
- * * +host+ - server hostname
- * * +hostaddr+ - server address (avoids hostname lookup, overrides +host+)
- * * +port+ - server port number
- * * +dbname+ - connecting database name
- * * +user+ - login user name
- * * +password+ - login password
- * * +connect_timeout+ - maximum time to wait for connection to succeed
- * * +options+ - backend options
- * * +tty+ - (ignored in newer versions of PostgreSQL)
- * * +sslmode+ - (disable|allow|prefer|require)
- * * +krbsrvname+ - kerberos service name
- * * +gsslib+ - GSS library to use for GSSAPI authentication
- * * +service+ - service name to use for additional parameters
- *
- * _connection_hash_ example: +PGconn.connect(:dbname=>'test', :port=>5432)
- * _connection_string_ example: +PGconn.connect("dbname=test port=5432")
- * _connection_hash_ example: +PGconn.connect(nil,5432,nil,nil,'test',nil,nil)
+ * 
+ * Create a connection to the specified server.
+ * 
+ * [+host+]
+ *   server hostname
+ * [+hostaddr+]
+ *   server address (avoids hostname lookup, overrides +host+)
+ * [+port+]
+ *   server port number
+ * [+dbname+]
+ *   connecting database name
+ * [+user+]
+ *   login user name
+ * [+password+]
+ *   login password
+ * [+connect_timeout+]
+ *   maximum time to wait for connection to succeed
+ * [+options+]
+ *   backend options
+ * [+tty+]
+ *   (ignored in newer versions of PostgreSQL)
+ * [+sslmode+]
+ *   (disable|allow|prefer|require)
+ * [+krbsrvname+]
+ *   kerberos service name
+ * [+gsslib+]
+ *   GSS library to use for GSSAPI authentication
+ * [+service+]
+ *   service name to use for additional parameters
+ * 
+ * Examples:
+ * 
+ *   # As a Hash
+ *   PGconn.connect( :dbname => 'test', :port => 5432 )
+ *   
+ *   # As a String
+ *   PGconn.connect( "dbname=test port=5432" )
+ *   
+ *   # As an Array
+ *   PGconn.connect( nil, 5432, nil, nil, 'test', nil, nil )
  *  
- *  On failure, it raises a PGError exception.
+ * On failure, it raises a PGError.
  */
 static VALUE
 pgconn_init(int argc, VALUE *argv, VALUE self)
@@ -398,8 +420,8 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    PGconn.connect_start(connection_hash) -> PGconn
- *    PGconn.connect_start(connection_string) -> PGconn
+ *    PGconn.connect_start(connection_hash)       -> PGconn
+ *    PGconn.connect_start(connection_string)     -> PGconn
  *    PGconn.connect_start(host, port, options, tty, dbname, login, password) ->  PGconn
  *
  * This is an asynchronous version of PGconn.connect().
@@ -445,13 +467,20 @@ pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
  *    PGconn.conndefaults() -> Array
  *
  * Returns an array of hashes. Each hash has the keys:
- * * +:keyword+ - the name of the option
- * * +:envvar+ - the environment variable to fall back to
- * * +:compiled+ - the compiled in option as a secondary fallback
- * * +:val+ - the option's current value, or +nil+ if not known
- * * +:label+ - the label for the field
- * * +:dispchar+ - "" for normal, "D" for debug, and "*" for password
- * * +:dispsize+ - field size
+ * [+:keyword+]
+ *   the name of the option
+ * [+:envvar+]
+ *   the environment variable to fall back to
+ * [+:compiled+]
+ *   the compiled in option as a secondary fallback
+ * [+:val+]
+ *   the option's current value, or +nil+ if not known
+ * [+:label+]
+ *   the label for the field
+ * [+:dispchar+]
+ *   "" for normal, "D" for debug, and "*" for password
+ * [+:dispsize+]
+ *   field size
  */
 static VALUE
 pgconn_s_conndefaults(VALUE self)
@@ -542,10 +571,14 @@ pgconn_s_isthreadsafe(VALUE self)
  *    conn.connect_poll() -> Fixnum
  *
  * Returns one of:
- * * +PGRES_POLLING_READING+ - wait until the socket is ready to read
- * * +PGRES_POLLING_WRITING+ - wait until the socket is ready to write
- * * +PGRES_POLLING_FAILED+ - the asynchronous connection has failed
- * * +PGRES_POLLING_OK+ - the asynchronous connection is ready
+ * [+PGRES_POLLING_READING+]
+ *   wait until the socket is ready to read
+ * [+PGRES_POLLING_WRITING+]
+ *   wait until the socket is ready to write
+ * [+PGRES_POLLING_FAILED+]
+ *   the asynchronous connection has failed
+ * [+PGRES_POLLING_OK+]
+ *   the asynchronous connection is ready
  *
  * Example:
  *   conn = PGconn.connect_start("dbname=mydatabase")
@@ -2471,17 +2504,18 @@ pgconn_transaction(VALUE self)
  *    PGconn.quote_ident( str ) -> String
  *    conn.quote_ident( str ) -> String
  *
- * Returns a string that is safe for inclusion in a SQL query
- * as an identifier. Note: this is not a quote function for values,
- * but for identifiers.
+ * Returns a string that is safe for inclusion in a SQL query as an
+ * identifier. Note: this is not a quote function for values, but for
+ * identifiers.
  * 
- * For example, in a typical SQL query: +SELECT FOO FROM MYTABLE+
- * The identifier +FOO+ is folded to lower case, so it actually means
- * +foo+. If you really want to access the case-sensitive field name
- * +FOO+, use this function like +PGconn.quote_ident('FOO')+, which
- * will return +"FOO"+ (with double-quotes). PostgreSQL will see the
- * double-quotes, and it will not fold to lower case.
- *
+ * For example, in a typical SQL query: <tt>SELECT FOO FROM MYTABLE</tt>
+ * The identifier <tt>FOO</tt> is folded to lower case, so it actually
+ * means <tt>foo</tt>. If you really want to access the case-sensitive
+ * field name <tt>FOO</tt>, use this function like
+ * <tt>PGconn.quote_ident('FOO')</tt>, which will return <tt>"FOO"</tt>
+ * (with double-quotes). PostgreSQL will see the double-quotes, and
+ * it will not fold to lower case.
+ * 
  * Similarly, this function also protects against special characters,
  * and other things that might allow SQL injection if the identifier
  * comes from an untrusted source.
@@ -2528,8 +2562,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
  * and +conn.get_result+ will not block.
  */
 static VALUE
-pgconn_block(int argc, VALUE *argv, VALUE self)
-{
+pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	PGconn *conn = get_pgconn(self);
 	int sd = PQsocket(conn);
 	int ret;
@@ -2539,22 +2572,35 @@ pgconn_block(int argc, VALUE *argv, VALUE self)
 	double timeout_sec;
 	fd_set sd_rset;
 
-	if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
-		timeout_sec = NUM2DBL(timeout_in);
+	/* Always set a timeout in WIN32, as rb_thread_select() sometimes
+	 * doesn't return when a second ruby thread is running although data
+	 * could be read. So we use timeout-based polling instead.
+	 */
+#if defined(_WIN32)
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 10000;
+	ptimeout = &timeout;
+#endif
+
+	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
+		timeout_sec = NUM2DBL( timeout_in );
 		timeout.tv_sec = (long)timeout_sec;
 		timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
 		ptimeout = &timeout;
 	}
 
-	PQconsumeInput(conn);
-	while(PQisBusy(conn)) {
-		FD_ZERO(&sd_rset);
-		FD_SET(sd, &sd_rset);
-		ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
-		/* if select() times out, return false */
-		if(ret == 0) 
+	PQconsumeInput( conn );
+
+	while ( PQisBusy(conn) ) {
+		FD_ZERO( &sd_rset );
+		FD_SET( sd, &sd_rset );
+		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
+
+		/* Return false if there was a timeout argument and the select() timed out */
+		if ( ret == 0 && argc ) 
 			return Qfalse;
-		PQconsumeInput(conn);
+
+		PQconsumeInput( conn );
 	} 
 
 	return Qtrue;
@@ -2621,6 +2667,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	pgconn_block(0, NULL, self);
 	return pgconn_get_last_result(self);
 }
+
 
 /**************************************************************************
  * LARGE OBJECT SUPPORT
@@ -2821,7 +2868,7 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 
 
 /*
- * call-seq
+ * call-seq:
  *    conn.lo_lseek( lo_desc, offset, whence ) -> Fixnum
  *
  * Move the large object pointer _lo_desc_ to offset _offset_.
@@ -3180,7 +3227,17 @@ pgresult_fformat(VALUE self, VALUE column_number)
  *
  * Returns the data type associated with _column_number_.
  *
- * The integer returned is the internal +OID+ number (in PostgreSQL) of the type.
+ * The integer returned is the internal +OID+ number (in PostgreSQL)
+ * of the type. To get a human-readable value for the type, use the
+ * returned OID and the field's #fmod value with the format_type() SQL 
+ * function:
+ * 
+ *   # Get the type of the second column of the result 'res'
+ *   typename = conn.
+ *     exec( "SELECT format_type($1,$2)", [res.ftype(1), res.fmod(1)] ).
+ *     getvalue( 0, 0 )
+ * 
+ * Raises an ArgumentError if _column_number_ is out of range.
  */
 static VALUE
 pgresult_ftype(VALUE self, VALUE index)
@@ -3197,9 +3254,10 @@ pgresult_ftype(VALUE self, VALUE index)
  * call-seq:
  *    res.fmod( column_number )
  *
- * Returns the type modifier associated with column _column_number_.
+ * Returns the type modifier associated with column _column_number_. See 
+ * the #ftype method for an example of how to use this.
  * 
- * Raises ArgumentError if _column_number_ is out of range.
+ * Raises an ArgumentError if _column_number_ is out of range.
  */
 static VALUE
 pgresult_fmod(VALUE self, VALUE column_number)
@@ -3436,9 +3494,9 @@ pgresult_aref(VALUE self, VALUE index)
 			if(0 == PQfformat(result, field_num)) { 
 				ASSOCIATE_INDEX(val, self);
 			} else {
-			#ifdef M17N_SUPPORTED
+#ifdef M17N_SUPPORTED
 				rb_enc_associate(val, rb_ascii8bit_encoding());
-			#endif
+#endif
 			}
 			rb_hash_aset(tuple, fname, val);
 		}
@@ -3864,40 +3922,71 @@ Init_pg()
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
+	
+	/* Connection succeeded */
 	rb_define_const(rb_cPGconn, "CONNECTION_OK", INT2FIX(CONNECTION_OK));
+	/* Connection failed */
 	rb_define_const(rb_cPGconn, "CONNECTION_BAD", INT2FIX(CONNECTION_BAD));
 
 	/******     PGconn CLASS CONSTANTS: Nonblocking connection status     ******/
+
+	/* Waiting for connection to be made. */
 	rb_define_const(rb_cPGconn, "CONNECTION_STARTED", INT2FIX(CONNECTION_STARTED));
+	/* Connection OK; waiting to send. */
 	rb_define_const(rb_cPGconn, "CONNECTION_MADE", INT2FIX(CONNECTION_MADE));
+	/* Waiting for a response from the server. */
 	rb_define_const(rb_cPGconn, "CONNECTION_AWAITING_RESPONSE", INT2FIX(CONNECTION_AWAITING_RESPONSE));
+	/* Received authentication; waiting for backend start-up to ﬁnish. */
 	rb_define_const(rb_cPGconn, "CONNECTION_AUTH_OK", INT2FIX(CONNECTION_AUTH_OK));
+	/* Negotiating SSL encryption. */
 	rb_define_const(rb_cPGconn, "CONNECTION_SSL_STARTUP", INT2FIX(CONNECTION_SSL_STARTUP));
+	/* Negotiating environment-driven parameter settings. */
 	rb_define_const(rb_cPGconn, "CONNECTION_SETENV", INT2FIX(CONNECTION_SETENV));
 
 	/******     PGconn CLASS CONSTANTS: Nonblocking connection polling status     ******/
+
+	/* Async connection is waiting to read */
 	rb_define_const(rb_cPGconn, "PGRES_POLLING_READING", INT2FIX(PGRES_POLLING_READING));
+	/* Async connection is waiting to write */
 	rb_define_const(rb_cPGconn, "PGRES_POLLING_WRITING", INT2FIX(PGRES_POLLING_WRITING));
+	/* Async connection failed or was reset */
 	rb_define_const(rb_cPGconn, "PGRES_POLLING_FAILED", INT2FIX(PGRES_POLLING_FAILED));
+	/* Async connection succeeded */
 	rb_define_const(rb_cPGconn, "PGRES_POLLING_OK", INT2FIX(PGRES_POLLING_OK));
 
 	/******     PGconn CLASS CONSTANTS: Transaction Status     ******/
+	
+	/* Transaction is currently idle (#transaction_status) */
 	rb_define_const(rb_cPGconn, "PQTRANS_IDLE", INT2FIX(PQTRANS_IDLE));
+	/* Transaction is currently active; query has been sent to the server, but not yet completed. (#transaction_status) */
 	rb_define_const(rb_cPGconn, "PQTRANS_ACTIVE", INT2FIX(PQTRANS_ACTIVE));
+	/* Transaction is currently idle, in a valid transaction block (#transaction_status) */
 	rb_define_const(rb_cPGconn, "PQTRANS_INTRANS", INT2FIX(PQTRANS_INTRANS));
+	/* Transaction is currently idle, in a failed transaction block (#transaction_status) */
 	rb_define_const(rb_cPGconn, "PQTRANS_INERROR", INT2FIX(PQTRANS_INERROR));
+	/* Transaction's connection is bad (#transaction_status) */
 	rb_define_const(rb_cPGconn, "PQTRANS_UNKNOWN", INT2FIX(PQTRANS_UNKNOWN));
 
 	/******     PGconn CLASS CONSTANTS: Error Verbosity     ******/
+
+	/* Terse error verbosity level (#set_error_verbosity) */
 	rb_define_const(rb_cPGconn, "PQERRORS_TERSE", INT2FIX(PQERRORS_TERSE));
+	/* Default error verbosity level (#set_error_verbosity) */
 	rb_define_const(rb_cPGconn, "PQERRORS_DEFAULT", INT2FIX(PQERRORS_DEFAULT));
+	/* Verbose error verbosity level (#set_error_verbosity) */
 	rb_define_const(rb_cPGconn, "PQERRORS_VERBOSE", INT2FIX(PQERRORS_VERBOSE));
 
 	/******     PGconn CLASS CONSTANTS: Large Objects     ******/
+
+	/* Flag for #lo_creat, #lo_open -- open for writing */
 	rb_define_const(rb_cPGconn, "INV_WRITE", INT2FIX(INV_WRITE));
+	/* Flag for #lo_creat, #lo_open -- open for reading */
 	rb_define_const(rb_cPGconn, "INV_READ", INT2FIX(INV_READ));
+	/* Flag for #lo_lseek -- seek from object start */
 	rb_define_const(rb_cPGconn, "SEEK_SET", INT2FIX(SEEK_SET));
+	/* Flag for #lo_lseek -- seek from current position */
 	rb_define_const(rb_cPGconn, "SEEK_CUR", INT2FIX(SEEK_CUR));
+	/* Flag for #lo_lseek -- seek from object end */
 	rb_define_const(rb_cPGconn, "SEEK_END", INT2FIX(SEEK_END));
 
 	/******     PGconn INSTANCE METHODS: Connection Control     ******/
@@ -4023,109 +4112,91 @@ Init_pg()
 	rb_include_module(rb_cPGresult, rb_mEnumerable);
 
 	/******     PGresult CONSTANTS: result status      ******/
+
+	/* #result_status constant: The string sent to the server was empty. */
 	rb_define_const(rb_cPGresult, "PGRES_EMPTY_QUERY", INT2FIX(PGRES_EMPTY_QUERY));
+	/* #result_status constant: Successful completion of a command returning no data. */
 	rb_define_const(rb_cPGresult, "PGRES_COMMAND_OK", INT2FIX(PGRES_COMMAND_OK));
+ 	/* #result_status constant: Successful completion of a command returning data 
+	   (such as a SELECT or SHOW). */
 	rb_define_const(rb_cPGresult, "PGRES_TUPLES_OK", INT2FIX(PGRES_TUPLES_OK));
+	/* #result_status constant: Copy Out (from server) data transfer started. */
 	rb_define_const(rb_cPGresult, "PGRES_COPY_OUT", INT2FIX(PGRES_COPY_OUT));
+	/* #result_status constant: Copy In (to server) data transfer started. */
 	rb_define_const(rb_cPGresult, "PGRES_COPY_IN", INT2FIX(PGRES_COPY_IN));
+	/* #result_status constant: The server’s response was not understood. */
 	rb_define_const(rb_cPGresult, "PGRES_BAD_RESPONSE", INT2FIX(PGRES_BAD_RESPONSE));
+	/* #result_status constant: A nonfatal error (a notice or warning) occurred. */
 	rb_define_const(rb_cPGresult, "PGRES_NONFATAL_ERROR",INT2FIX(PGRES_NONFATAL_ERROR));
+	/* #result_status constant: A fatal error occurred. */
 	rb_define_const(rb_cPGresult, "PGRES_FATAL_ERROR", INT2FIX(PGRES_FATAL_ERROR));
 
 	/******     PGresult CONSTANTS: result error field codes      ******/
+
+	/* #result_error_field argument constant: The severity; the field contents
+	 * are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE,
+	 * DEBUG, INFO, or LOG (in a notice message), or a localized translation
+	 * of one of these. Always present.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_SEVERITY", INT2FIX(PG_DIAG_SEVERITY));
+	/* #result_error_field argument constant: The SQLSTATE code for the
+	 * error. The SQLSTATE code identies the type of error that has occurred;
+	 * it can be used by front-end applications to perform specic operations
+	 * (such as er- ror handling) in response to a particular database
+	 * error. For a list of the possible SQLSTATE codes, see Appendix A.
+	 * This eld is not localizable, and is always present.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_SQLSTATE", INT2FIX(PG_DIAG_SQLSTATE));
+	/* #result_error_field argument constant: The primary human-readable
+	 * error message (typically one line). Always present. */
 	rb_define_const(rb_cPGresult, "PG_DIAG_MESSAGE_PRIMARY", INT2FIX(PG_DIAG_MESSAGE_PRIMARY));
+	/* #result_error_field argument constant: Detail: an optional secondary
+	 * error message carrying more detail about the problem. Might run to
+	 * multiple lines.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_MESSAGE_DETAIL", INT2FIX(PG_DIAG_MESSAGE_DETAIL));
+	/* #result_error_field argument constant: Hint: an optional suggestion
+	 * what to do about the problem. This is intended to differ from detail
+	 * in that it offers advice (potentially inappropriate) rather than
+	 * hard facts. Might run to multiple lines.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_MESSAGE_HINT", INT2FIX(PG_DIAG_MESSAGE_HINT));
+	/* #result_error_field argument constant: A string containing a decimal
+	 * integer indicating an error cursor position as an index into the
+	 * original statement string. The rst character has index 1, and
+	 * positions are measured in characters not bytes.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_STATEMENT_POSITION", INT2FIX(PG_DIAG_STATEMENT_POSITION));
+	/* #result_error_field argument constant: This is dened the same as
+	 * the PG_DIAG_STATEMENT_POSITION eld, but it is used when the cursor
+	 * position refers to an internally generated command rather than the
+	 * one submitted by the client. The PG_DIAG_INTERNAL_QUERY eld will
+	 * always appear when this eld appears.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_INTERNAL_POSITION", INT2FIX(PG_DIAG_INTERNAL_POSITION));
+	/* #result_error_field argument constant: The text of a failed
+	 * internally-generated command. This could be, for example, a SQL
+	 * query issued by a PL/pgSQL function.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_INTERNAL_QUERY", INT2FIX(PG_DIAG_INTERNAL_QUERY));
+	/* #result_error_field argument constant: An indication of the context
+	 * in which the error occurred. Presently this includes a call stack
+	 * traceback of active procedural language functions and internally-generated
+	 * queries. The trace is one entry per line, most recent rst.
+	 */
 	rb_define_const(rb_cPGresult, "PG_DIAG_CONTEXT", INT2FIX(PG_DIAG_CONTEXT));
+	/* #result_error_field argument constant: The le name of the source-code
+	 * location where the error was reported. */
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_FILE", INT2FIX(PG_DIAG_SOURCE_FILE));
+	/* #result_error_field argument constant: The line number of the
+	 * source-code location where the error was reported. */
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_LINE", INT2FIX(PG_DIAG_SOURCE_LINE));
+	/* #result_error_field argument constant: The name of the source-code
+	 * function reporting the error. */
 	rb_define_const(rb_cPGresult, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
-	/******     PGresult CONSTANTS: oid type codes      ******/
+	/* Invalid OID constant */
 	rb_define_const(rb_cPGresult, "InvalidOid", INT2FIX(InvalidOid));
-	rb_define_const(rb_cPGresult, "BOOLOID", INT2FIX(16));
-	rb_define_const(rb_cPGresult, "BYTEAOID", INT2FIX(17));
-	rb_define_const(rb_cPGresult, "CHAROID", INT2FIX(18));
-	rb_define_const(rb_cPGresult, "NAMEOID", INT2FIX(19));
-	rb_define_const(rb_cPGresult, "INT8OID", INT2FIX(20));
-	rb_define_const(rb_cPGresult, "INT2OID", INT2FIX(21));
-	rb_define_const(rb_cPGresult, "INT2VECTOROID", INT2FIX(22));
-	rb_define_const(rb_cPGresult, "INT4OID", INT2FIX(23));
-	rb_define_const(rb_cPGresult, "REGPROCOID", INT2FIX(24));
-	rb_define_const(rb_cPGresult, "TEXTOID", INT2FIX(25));
-	rb_define_const(rb_cPGresult, "OIDOID", INT2FIX(26));
-	rb_define_const(rb_cPGresult, "TIDOID", INT2FIX(27));
-	rb_define_const(rb_cPGresult, "XIDOID", INT2FIX(28));
-	rb_define_const(rb_cPGresult, "CIDOID", INT2FIX(29));
-	rb_define_const(rb_cPGresult, "OIDVECTOROID", INT2FIX(30));
-	rb_define_const(rb_cPGresult, "PG_TYPE_RELTYPE_OID", INT2FIX(71));
-	rb_define_const(rb_cPGresult, "PG_ATTRIBUTE_RELTYPE_OID", INT2FIX(75));
-	rb_define_const(rb_cPGresult, "PG_PROC_RELTYPE_OID", INT2FIX(81));
-	rb_define_const(rb_cPGresult, "PG_CLASS_RELTYPE_OID", INT2FIX(83));
-	rb_define_const(rb_cPGresult, "XMLOID", INT2FIX(142));
-	rb_define_const(rb_cPGresult, "POINTOID", INT2FIX(600));
-	rb_define_const(rb_cPGresult, "LSEGOID", INT2FIX(601));
-	rb_define_const(rb_cPGresult, "PATHOID", INT2FIX(602));
-	rb_define_const(rb_cPGresult, "BOXOID", INT2FIX(603));
-	rb_define_const(rb_cPGresult, "POLYGONOID", INT2FIX(604));
-	rb_define_const(rb_cPGresult, "LINEOID", INT2FIX(628));
-	rb_define_const(rb_cPGresult, "FLOAT4OID", INT2FIX(700));
-	rb_define_const(rb_cPGresult, "FLOAT8OID", INT2FIX(701));
-	rb_define_const(rb_cPGresult, "ABSTIMEOID", INT2FIX(702));
-	rb_define_const(rb_cPGresult, "RELTIMEOID", INT2FIX(703));
-	rb_define_const(rb_cPGresult, "TINTERVALOID", INT2FIX(704));
-	rb_define_const(rb_cPGresult, "UNKNOWNOID", INT2FIX(705));
-	rb_define_const(rb_cPGresult, "CIRCLEOID", INT2FIX(718));
-	rb_define_const(rb_cPGresult, "CASHOID", INT2FIX(790));
-	rb_define_const(rb_cPGresult, "MACADDROID", INT2FIX(829));
-	rb_define_const(rb_cPGresult, "INETOID", INT2FIX(869));
-	rb_define_const(rb_cPGresult, "CIDROID", INT2FIX(650));
-	rb_define_const(rb_cPGresult, "INT4ARRAYOID", INT2FIX(1007));
-	rb_define_const(rb_cPGresult, "TEXTARRAYOID", INT2FIX(1009));
-	rb_define_const(rb_cPGresult, "FLOAT4ARRAYOID", INT2FIX(1021));
-	rb_define_const(rb_cPGresult, "ACLITEMOID", INT2FIX(1033));
-	rb_define_const(rb_cPGresult, "CSTRINGARRAYOID", INT2FIX(1263));
-	rb_define_const(rb_cPGresult, "BPCHAROID", INT2FIX(1042));
-	rb_define_const(rb_cPGresult, "VARCHAROID", INT2FIX(1043));
-	rb_define_const(rb_cPGresult, "DATEOID", INT2FIX(1082));
-	rb_define_const(rb_cPGresult, "TIMEOID", INT2FIX(1083));
-	rb_define_const(rb_cPGresult, "TIMESTAMPOID", INT2FIX(1114));
-	rb_define_const(rb_cPGresult, "TIMESTAMPTZOID", INT2FIX(1184));
-	rb_define_const(rb_cPGresult, "INTERVALOID", INT2FIX(1186));
-	rb_define_const(rb_cPGresult, "TIMETZOID", INT2FIX(1266));
-	rb_define_const(rb_cPGresult, "BITOID", INT2FIX(1560));
-	rb_define_const(rb_cPGresult, "VARBITOID", INT2FIX(1562));
-	rb_define_const(rb_cPGresult, "NUMERICOID", INT2FIX(1700));
-	rb_define_const(rb_cPGresult, "REFCURSOROID", INT2FIX(1790));
-	rb_define_const(rb_cPGresult, "REGPROCEDUREOID", INT2FIX(2202));
-	rb_define_const(rb_cPGresult, "REGOPEROID", INT2FIX(2203));
-	rb_define_const(rb_cPGresult, "REGOPERATOROID", INT2FIX(2204));
-	rb_define_const(rb_cPGresult, "REGCLASSOID", INT2FIX(2205));
-	rb_define_const(rb_cPGresult, "REGTYPEOID", INT2FIX(2206));
-	rb_define_const(rb_cPGresult, "REGTYPEARRAYOID", INT2FIX(2211));
-	rb_define_const(rb_cPGresult, "TSVECTOROID", INT2FIX(3614));
-	rb_define_const(rb_cPGresult, "GTSVECTOROID", INT2FIX(3642));
-	rb_define_const(rb_cPGresult, "TSQUERYOID", INT2FIX(3615));
-	rb_define_const(rb_cPGresult, "REGCONFIGOID", INT2FIX(3734));
-	rb_define_const(rb_cPGresult, "REGDICTIONARYOID", INT2FIX(3769));
-	rb_define_const(rb_cPGresult, "RECORDOID", INT2FIX(2249));
-	rb_define_const(rb_cPGresult, "RECORDARRAYOID", INT2FIX(2287));
-	rb_define_const(rb_cPGresult, "CSTRINGOID", INT2FIX(2275));
-	rb_define_const(rb_cPGresult, "ANYOID", INT2FIX(2276));
-	rb_define_const(rb_cPGresult, "ANYARRAYOID", INT2FIX(2277));
-	rb_define_const(rb_cPGresult, "VOIDOID", INT2FIX(2278));
-	rb_define_const(rb_cPGresult, "TRIGGEROID", INT2FIX(2279));
-	rb_define_const(rb_cPGresult, "LANGUAGE_HANDLEROID", INT2FIX(2280));
-	rb_define_const(rb_cPGresult, "INTERNALOID", INT2FIX(2281));
-	rb_define_const(rb_cPGresult, "OPAQUEOID", INT2FIX(2282));
-	rb_define_const(rb_cPGresult, "ANYELEMENTOID", INT2FIX(2283));
-	rb_define_const(rb_cPGresult, "ANYNONARRAYOID", INT2FIX(2776));
-	rb_define_const(rb_cPGresult, "ANYENUMOID", INT2FIX(3500));
 
 	/******     PGresult INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
