@@ -198,27 +198,21 @@ describe PGconn do
 
 
 	it "allows fetching a column of values from a result by column number" do
-		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
-		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
-		res = @conn.exec( 'SELECT * FROM testdata' )
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
 		res.column_values( 0 ).should == %w[1 2 3]
 		res.column_values( 1 ).should == %w[2 3 4]
 	end
 
 
 	it "allows fetching a column of values from a result by field name" do
-		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
-		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
-		res = @conn.exec( 'SELECT * FROM testdata' )
-		res.field_values( 'val1' ).should == %w[1 2 3]
-		res.field_values( 'val2' ).should == %w[2 3 4]
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
+		res.field_values( 'column1' ).should == %w[1 2 3]
+		res.field_values( 'column2' ).should == %w[2 3 4]
 	end
 
 
 	it "raises an error if selecting an invalid column index" do
-		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
-		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
-		res = @conn.exec( 'SELECT * FROM testdata' )
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
 		expect {
 			res.column_values( 20 )
 		}.to raise_error( IndexError )
@@ -226,9 +220,7 @@ describe PGconn do
 
 
 	it "raises an error if selecting an invalid field name" do
-		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
-		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
-		res = @conn.exec( 'SELECT * FROM testdata' )
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
 		expect {
 			res.field_values( 'hUUuurrg' )
 		}.to raise_error( IndexError )
@@ -236,9 +228,7 @@ describe PGconn do
 
 
 	it "raises an error if column index is not a number" do
-		@conn.exec( 'CREATE TABLE testdata ( val1 int, val2 int )' )
-		@conn.exec( 'INSERT INTO testdata VALUES (1,2),(2,3),(3,4)' )
-		res = @conn.exec( 'SELECT * FROM testdata' )
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
 		expect {
 			res.column_values( 'hUUuurrg' )
 		}.to raise_error( TypeError )
