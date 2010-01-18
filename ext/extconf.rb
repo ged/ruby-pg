@@ -121,6 +121,6 @@ have_header 'unistd.h' unless enable_config("static-build")
 
 $CFLAGS << ' -Wall'
 
-create_header
+create_header()
 create_makefile( "pg" )
 
