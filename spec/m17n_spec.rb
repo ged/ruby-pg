@@ -94,7 +94,7 @@ describe "multinationalization support" do
 				conn.internal_encoding = 'EUC-JP'
 				stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
 				res = conn.exec(stmt, [], 0)
-im				conn.internal_encoding = 'utf-8'
+				conn.internal_encoding = 'utf-8'
 				out_string = res[0]['column1']
 			end
 			out_string.should == '世界線航跡蔵'.encode('EUC-JP')
