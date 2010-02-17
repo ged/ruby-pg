@@ -87,6 +87,20 @@ describe "multinationalization support" do
 			out_string.encoding.should == Encoding::EUC_JP
 		end
 
+		it "returns the results in the correct encoding even if the client_encoding has " +
+		   "changed since the results were fetched" do
+			out_string = nil
+			@conn.transaction do |conn|
+				conn.internal_encoding = 'EUC-JP'
+				stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
+				res = conn.exec(stmt, [], 0)
+im				conn.internal_encoding = 'utf-8'
+				out_string = res[0]['column1']
+			end
+			out_string.should == '世界線航跡蔵'.encode('EUC-JP')
+			out_string.encoding.should == Encoding::EUC_JP
+		end
+
 		it "the connection should return ASCII-8BIT when the server encoding is SQL_ASCII" do
 			@conn.external_encoding.should == Encoding::ASCII_8BIT
 		end
