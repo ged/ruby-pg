@@ -161,25 +161,35 @@ module PgTestingHelpers
 		stop_existing_postmasters()
 
 		puts "Setting up test database for #{description} tests"
-		@test_directory = Pathname.getwd + "tmp_test_#{rand}"
-		raise "test directory exists!" if @test_directory.exist?
-
+		@test_directory = Pathname.getwd + "tmp_test_specs"
 		@test_pgdata = @test_directory + 'data'
 		@test_pgdata.mkpath
 
 		@port = 54321
+		ENV['PGPORT'] = @port.to_s
+		ENV['PGHOST'] = 'localhost'
 		@conninfo = "host=localhost port=#{@port} dbname=test"
 
 		@logfile = @test_directory + 'setup.log'
 		trace "Command output logged to #{@logfile}"
 
 		begin
-			trace "Running initdb"
-			log_and_run @logfile, 'initdb', '--no-locale', '-D', @test_pgdata.to_s
+			unless (@test_pgdata+"postgresql.conf").exist?
+				FileUtils.rm_rf( @test_pgdata, :verbose => $DEBUG )
+				trace "Running initdb"
+				log_and_run @logfile, 'initdb', '--no-locale', '-D', @test_pgdata.to_s
+			end
+
 			trace "Starting postgres"
-			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-p #{@port}", '-D', @test_pgdata.to_s, 'start'
+			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-k #{@test_directory.to_s.inspect}",
+				'-D', @test_pgdata.to_s, 'start'
+
+			if `psql -l` =~ /^\s*test\s/
+				trace "Dropping the test DB"
+				log_and_run @logfile, 'dropdb', 'test'
+			end
 			trace "Creating the test DB"
-			log_and_run @logfile, 'createdb', '-p', @port.to_s, 'test'
+			log_and_run @logfile, 'createdb', 'test'
 		rescue => err
 			$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
 			$stderr.puts "See #{@logfile} for details."
@@ -200,7 +210,6 @@ module PgTestingHelpers
 		puts "Tearing down test database"
 		conn.finish if conn
 		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
-		FileUtils.rm_rf( @test_directory, :verbose => $DEBUG )
 	end
 end
 
