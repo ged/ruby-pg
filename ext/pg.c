@@ -2653,6 +2653,7 @@ pgconn_get_last_result(VALUE self)
 /*
  * call-seq:
  *    conn.async_exec(sql [, params, result_format ] ) -> PGresult
+ *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * This function has the same behavior as +PGconn#exec+,
  * except that it's implemented using asynchronous command 
@@ -2663,9 +2664,19 @@ pgconn_get_last_result(VALUE self)
 static VALUE
 pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 {
-	pgconn_send_query(argc, argv, self);
-	pgconn_block(0, NULL, self);
-	return pgconn_get_last_result(self);
+	VALUE rb_pgresult = Qnil;
+
+	/* remove any remaining results from the queue */
+	pgconn_get_last_result( self );
+
+	pgconn_send_query( argc, argv, self );
+	pgconn_block( 0, NULL, self );
+	rb_pgresult = pgconn_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pgresult_clear, rb_pgresult );
+	}
+	return rb_pgresult;
 }
 
 

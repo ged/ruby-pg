@@ -271,6 +271,15 @@ describe PGconn do
 		conn.connect_poll.should == PGconn::PGRES_POLLING_FAILED
 	end
 
+	it "discards previous results (if any) before waiting on an #async_exec"
+
+	it "calls the block if one is provided to #async_exec" do
+		result = nil
+		@conn.async_exec( "select 47 as one" ) do |pg_res|
+			result = pg_res[0]
+		end
+		result.should == { 'one' => '47' }
+	end
 
 	after( :each ) do
 		@conn.exec( 'ROLLBACK' )
