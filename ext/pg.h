@@ -45,5 +45,5 @@
 #if defined(_WIN32)
 __declspec(dllexport)
 #endif
-void Init_pg(void);
+void Init_pg_ext(void);
 

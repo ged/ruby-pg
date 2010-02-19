@@ -3896,7 +3896,7 @@ init_m17n(void)
 /**************************************************************************/
 
 void
-Init_pg()
+Init_pg_ext()
 {
 	rb_ePGError = rb_define_class("PGError", rb_eStandardError);
 	rb_cPGconn = rb_define_class("PGconn", rb_cObject);
@@ -4245,6 +4245,6 @@ Init_pg()
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 
 #ifdef M17N_SUPPORTED
-        init_m17n();
+	init_m17n();
 #endif
 }
