@@ -28,6 +28,10 @@ else
 	'i586-mingw32msvc'
 end
 
+# Make sure the spec data is packaged up with the gem
+SPEC_DATA = Rake::FileList[ SPECDIR + 'data/*' ]
+GEMSPEC.test_files += SPEC_DATA.to_a
+
 
 #####################################################################
 ###	T A S K S
