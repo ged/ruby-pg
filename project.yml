@@ -20,7 +20,8 @@ additional_pkgfiles:
 - GPL
 - BSD
 - Contributors
-dev_dependencies: {}
+dev_dependencies: 
+  rake-compiler: ">=0.7.0"
 
 authors: 
   Michael Granger: ged@FaerieMUD.org
