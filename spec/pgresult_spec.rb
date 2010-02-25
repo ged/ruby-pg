@@ -206,6 +206,21 @@ describe PGresult do
 		res.ftablecol(1).should == 0 # and it shouldn't raise an exception, either
 	end
 
+	it "returns non-binary values correctly from results that include binary values (bug #22)" do
+		a = 42
+		b = [1, 2, 3]
+
+		@conn.exec( "CREATE TABLE test (a INTEGER, b BYTEA)" )
+		@conn.exec( "INSERT INTO test(a, b) VALUES($1::int, $2::bytea)",
+		         [a, {:value => b.pack('N*'), :format => 1}] )
+
+		res = @conn.exec( "SELECT a, b FROM test LIMIT 1", [], 1 )
+		
+		res[0].should == {
+			'a' => a,
+			'b' => b.pack('N*')
+		}
+	end
 
 
 	after( :each ) do
