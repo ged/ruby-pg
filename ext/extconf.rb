@@ -1,7 +1,7 @@
 require 'mkmf'
 
 if pgdir = with_config( 'pg' )
-	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPERATOR + ENV['PATH']
+	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
 ### Read the output of a command using the fork+pipe syntax so execution errors 
