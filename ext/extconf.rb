@@ -24,6 +24,7 @@ end
 
 pgconfig = with_config( 'pg-config' ) || 'pg_config'
 if pgconfig = find_executable( pgconfig )
+	$CFLAGS << " " + read_cmd_output( pgconfig, '--cflags' )
 	$CPPFLAGS << " -I%s" % [ read_cmd_output(pgconfig, '--includedir') ]
 	$LDFLAGS << " -L%s" % [ read_cmd_output(pgconfig, '--libdir') ]
 end
@@ -118,8 +119,6 @@ have_func 'PQsetClientEncoding'
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h' unless enable_config("static-build")
-
-$CFLAGS << ' -Wall' if Config::CONFIG['CC'] == 'gcc'
 
 create_header()
 create_makefile( "pg_ext" )
