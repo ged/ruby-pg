@@ -119,7 +119,7 @@ have_func 'PQsetClientEncoding'
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h' unless enable_config("static-build")
 
-$CFLAGS << ' -Wall'
+$CFLAGS << ' -Wall' if Config::CONFIG['CC'] == 'gcc'
 
 create_header()
 create_makefile( "pg_ext" )
