@@ -49,7 +49,7 @@ describe "multinationalization support" do
 			res = conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 0)
 			out_bytes = PGconn.unescape_bytea(res[0]['column1'])
 		end
-		out_bytes.should== in_bytes
+		out_bytes.should == in_bytes
 	end
 
 	describe "rubyforge #22925: m17n support" do

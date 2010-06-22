@@ -12,3 +12,6 @@ docs/api
 \.DS_Store
 ext/extconf\.h
 ChangeLog$
+\.orig$
+lowrite\.txt
+~$

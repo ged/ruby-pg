@@ -1,47 +1,69 @@
-require "pg"
+#!/usr/bin/env ruby
 
-def main
-  conn = PGconn.connect("localhost",5432,"","")
-  puts("dbname: " + conn.db + "\thost: " + conn.host + "\tuser: " + conn.user)
+require 'pg'
 
-  # Transaction
-  conn.exec("BEGIN")
-  lobj = conn.loimport("losample.rb")
-  lobjnum = lobj.oid
-  puts("loimport ok! oid=" + lobj.oid.to_s)
-  lobj.open
-  lobj.seek(0,PGlarge::SEEK_SET) # SEEK_SET or SEEK_CUR or SEEK_END
-  buff =  lobj.read(18)
-  puts buff
-  if 'require "postgres"' == buff
-    puts "read ok!"
-  end
-  lobj.seek(0,PGlarge::SEEK_END)
-  buff = lobj.write("write test ok?\n")
-  puts lobj.tell
-  puts 'export test .file:lowrite.losample add "write test of?"...'
-  lobj.export("lowrite.txt")
-  lobj.close
-  conn.exec("COMMIT")
-  begin
-    lobj.read(1)
-    puts "boo!"
-    return
-  rescue
-    puts "ok! Large Object is closed"
-  end
-  conn.exec("BEGIN")
-  puts lobjnum.to_s
-  lobj = conn.loopen(lobjnum)
-  puts "large object reopen ok!"
-  lobj.seek(0,PGlarge::SEEK_SET) # SEEK_SET or SEEK_CUR or SEEK_END
-  buff =  lobj.read(18)
-  puts buff
-  puts "reread ok!"
-  conn.exec("COMMIT")
-  lobj.unlink
-  puts "large object unlink"
+SAMPLE_WRITE_DATA = 'some sample data'
+SAMPLE_EXPORT_NAME = 'lowrite.txt'
+
+conn = PGconn.connect( :dbname => 'test', :host => 'localhost', :port => 5432 )
+puts "dbname: " + conn.db + "\thost: " + conn.host + "\tuser: " + conn.user
+
+# Start a transaction, as all large object functions require one.
+puts "Beginning transaction"
+conn.exec( 'BEGIN' )
+
+# Test importing from a file
+puts "Import test:"
+puts "  importing %s" % [ __FILE__ ]
+oid = conn.lo_import( __FILE__ )
+puts "  imported as large object %d" % [ oid ]
+
+# Read back 50 bytes of the imported data
+puts "Read test:"
+fd = conn.lo_open( oid, PGconn::INV_READ|PGconn::INV_WRITE )
+conn.lo_lseek( fd, 0, PGconn::SEEK_SET )
+buf = conn.lo_read( fd, 50 )
+puts "  read: %p" % [ buf ]
+puts "  read was ok!" if buf =~ /require 'pg'/
+
+# Append some test data onto the end of the object
+puts "Write test:"
+conn.lo_lseek( fd, 0, PGconn::SEEK_END )
+buf = SAMPLE_WRITE_DATA.dup
+totalbytes = 0
+until buf.empty?
+	bytes = conn.lo_write( fd, buf )
+	buf.slice!( 0, bytes )
+	totalbytes += bytes
 end
+puts "  appended %d bytes" % [ totalbytes ]
 
-main
+# Now export it
+puts "Export test:"
+File.unlink( SAMPLE_EXPORT_NAME ) if File.exist?( SAMPLE_EXPORT_NAME )
+conn.lo_export( oid, SAMPLE_EXPORT_NAME )
+puts "  success!" if File.exist?( SAMPLE_EXPORT_NAME )
+puts "  exported as %s (%d bytes)" % [ SAMPLE_EXPORT_NAME, File.size(SAMPLE_EXPORT_NAME) ]
+
+conn.exec( 'COMMIT' )
+puts "End of transaction."
+
+
+puts 'Testing read and delete from a new transaction:'
+puts '  starting a new transaction'
+conn.exec( 'BEGIN' )
+
+fd = conn.lo_open( oid, PGconn::INV_READ )
+puts '  reopened okay.'
+conn.lo_lseek( fd, 50, PGconn::SEEK_END )
+buf = conn.lo_read( fd, 50 )
+puts '  read okay.' if buf == SAMPLE_WRITE_DATA
+
+puts 'Closing and unlinking:'
+conn.lo_close( fd )
+puts '  closed.'
+conn.lo_unlink( oid )
+puts '  unlinked.'
+conn.exec( 'COMMIT' )
+puts 'Done.'
 

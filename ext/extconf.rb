@@ -1,7 +1,7 @@
 require 'mkmf'
 
 if pgdir = with_config( 'pg' )
-	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPERATOR + ENV['PATH']
+	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
 ### Read the output of a command using the fork+pipe syntax so execution errors 
@@ -24,6 +24,7 @@ end
 
 pgconfig = with_config( 'pg-config' ) || 'pg_config'
 if pgconfig = find_executable( pgconfig )
+	$CFLAGS << " " + read_cmd_output( pgconfig, '--cflags' )
 	$CPPFLAGS << " -I%s" % [ read_cmd_output(pgconfig, '--includedir') ]
 	$LDFLAGS << " -L%s" % [ read_cmd_output(pgconfig, '--libdir') ]
 end
@@ -31,24 +32,46 @@ end
 # Sort out the universal vs. single-archicture build problems on MacOS X
 if RUBY_PLATFORM.include?( 'darwin' )
 	puts "MacOS X build: fixing architecture flags:"
+	ruby_archs = Config::CONFIG['CFLAGS'].scan( /-arch (\S+)/ ).flatten
+	$stderr.puts "Ruby cflags: %p" % [ Config::CONFIG['CFLAGS'] ]
 
 	# Only keep the '-arch <a>' flags present in both the cflags reported
 	# by pg_config and those that Ruby specifies.
 	commonflags = nil
 	if ENV['ARCHFLAGS']
 		puts "  using the value in ARCHFLAGS environment variable (%p)." % [ ENV['ARCHFLAGS'] ]
+		common_archs = ENV['ARCHFLAGS'].scan( /-arch\s+(\S+)/ ).flatten
+
+		# Warn if the ARCHFLAGS doesn't have at least one architecture in 
+		# common with the running ruby.
+		if ( (common_archs & ruby_archs).empty? )
+			$stderr.puts '',
+				"*** Your ARCHFLAGS setting doesn't seem to contain an architecture in common",
+				"with the running ruby interpreter (%p vs. %p)" % [ common_archs, ruby_archs ],
+				"I'll continue anyway, but if it fails, try unsetting ARCHFLAGS."
+		end
+
 		commonflags = ENV['ARCHFLAGS']
-	elsif pgconfig
+	end
+
+	if pgconfig
 		puts "  finding flags common to both Ruby and PostgreSQL..."
 		archflags = []
 		pgcflags = read_cmd_output( pgconfig, '--cflags' )
-		pgcflags.scan( /-arch\s+(\S+)/ ).each do |arch|
+		pgarchs = pgcflags.scan( /-arch\s+(\S+)/ ).flatten
+		pgarchs.each do |arch|
 			puts "  testing for architecture: %p" % [ arch ]
-			archflags << "-arch #{arch}" if Config::CONFIG['CFLAGS'].index("-arch #{arch}")
+			archflags << "-arch #{arch}" if ruby_archs.include?( arch )
 		end
 
-		commonflags = archflags.join(' ')
-		puts "  common arch flags: %s" % [ commonflags ]
+		if archflags.empty?
+			raise "*** Your PostgreSQL installation doesn't seem to have an architecture " +
+				"in common with the running ruby interpreter (%p vs. %p)" % 
+				[ pgarchs, ruby_archs ]
+		else
+			commonflags = archflags.join(' ')
+			puts "  common arch flags: %s" % [ commonflags ]
+		end
 	else
 		$stderr.puts %{
 		===========   WARNING   ===========
@@ -118,8 +141,6 @@ have_func 'PQsetClientEncoding'
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h' unless enable_config("static-build")
-
-$CFLAGS << ' -Wall'
 
 create_header()
 create_makefile( "pg_ext" )
