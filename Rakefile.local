@@ -7,7 +7,7 @@ require 'rbconfig'
 # C extension constants
 EXT_MAKEFILE  = EXTDIR + 'Makefile'
 EXT_SOURCES   = FileList[ EXTDIR + '*.c' ]
-EXT_SO        = EXTDIR + "pg.#{CONFIG['DLEXT']}"
+EXT_SO        = EXTDIR + "pg_ext.#{CONFIG['DLEXT']}"
 
 SITEARCH_DIR  = LIBDIR + Config::CONFIG['sitearch']
 

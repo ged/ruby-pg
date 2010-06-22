@@ -240,7 +240,7 @@ parse_connect_args(int argc, VALUE *argv, VALUE self)
 	VALUE args,arg;
 	VALUE conninfo_rstr = rb_str_new("",0);
 	char *host, *port, *opt, *tty, *dbname, *login, *pwd;
-	host=port=opt=tty=dbname=login=pwd=NULL;
+	host = port = opt = tty = dbname = login = pwd = NULL;
 
 	rb_scan_args(argc, argv, "0*", &args); 
 	if (RARRAY_LEN(args) == 1) { 
@@ -291,8 +291,9 @@ parse_connect_args(int argc, VALUE *argv, VALUE self)
 		build_key_value_string(conninfo_rstr, "password", rb_ary_entry(args,6));
 	}
 	else {
-		rb_raise(rb_eArgError, 
-			"Expected connection info string, hash, or 7 separate arguments.");
+		rb_raise( rb_eArgError, 
+				  "Expected connection info string, hash, or 7 separate arguments, got a %s.",
+				  RSTRING_PTR(rb_obj_classname( args )) );
 	}
 
 	return conninfo_rstr;
