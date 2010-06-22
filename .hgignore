@@ -13,3 +13,5 @@ docs/api
 ext/extconf\.h
 ChangeLog$
 \.orig$
+lowrite\.txt
+~$
