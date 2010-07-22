@@ -102,7 +102,7 @@ describe PGconn do
 		end
 	end
 
-	it "should cancel a query" do
+	it "allows a query to be cancelled" do
 		error = false
 		@conn.send_query("SELECT pg_sleep(1000)")
 		@conn.cancel
@@ -111,6 +111,25 @@ describe PGconn do
 			error = true
 		end
 		error.should == true
+	end
+
+	it "automatically rolls back a transaction started with PGconn#transaction if an exception " +
+	   "is raised" do
+		# abort the per-example transaction so we can test our own
+		@conn.exec( 'ROLLBACK' )
+
+		res = nil
+		@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
+
+		expect {
+			res = @conn.transaction do
+				@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
+				raise "Oh noes! All pie is gone!"
+			end
+		}.to raise_exception( RuntimeError, /all pie is gone/i )
+
+		res = @conn.exec( "SELECT * FROM pie" )
+		res.ntuples.should == 0
 	end
 
 	it "should not read past the end of a large object" do
