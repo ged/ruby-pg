@@ -7,8 +7,9 @@ end
 ### Read the output of a command using the fork+pipe syntax so execution errors 
 ### propagate to Ruby.
 def read_cmd_output( *cmd )
-	output = IO.read( '|-' ) or exec( *cmd )
-	return output.chomp
+	command = cmd.join(' ')
+	# Ugh, use backticks to support Ruby interpreters that don't have IO.popen
+	return `#{command}`.chomp
 end
 
 ### Turn a version string into a Comparable binary datastructure
@@ -65,9 +66,11 @@ if RUBY_PLATFORM.include?( 'darwin' )
 		end
 
 		if archflags.empty?
-			raise "*** Your PostgreSQL installation doesn't seem to have an architecture " +
-				"in common with the running ruby interpreter (%p vs. %p)" % 
-				[ pgarchs, ruby_archs ]
+			$stderr.puts '',
+				"*** Your PostgreSQL installation doesn't seem to have an architecture " +
+				"in common with the running ruby interpreter (%p vs. %p)" %
+				[ pgarchs, ruby_archs ],
+				"I'll continue anyway, but if it fails, try setting ARCHFLAGS."
 		else
 			commonflags = archflags.join(' ')
 			puts "  common arch flags: %s" % [ commonflags ]
