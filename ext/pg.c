@@ -50,21 +50,22 @@ static const char *VERSION = "0.9.0";
  * UTILITY FUNCTIONS
  **************************************************************************/
 
-static void free_pgconn(PGconn *);
-static void pgresult_check(VALUE, VALUE);
+static void free_pgconn( PGconn * );
+static void pgresult_check( VALUE, VALUE );
 
-static PGconn *get_pgconn(VALUE self);
-static VALUE pgconn_finish(VALUE self);
-static VALUE pgresult_clear(VALUE self);
-static VALUE pgresult_aref(VALUE self, VALUE index);
-static VALUE make_column_result_array( VALUE self, int col );
+static PGconn *get_pgconn( VALUE );
+static VALUE pgconn_finish( VALUE );
+static VALUE pgresult_clear( VALUE );
+static VALUE pgresult_aref( VALUE, VALUE );
+static VALUE make_column_result_array( VALUE, int );
 
 #ifdef M17N_SUPPORTED
-# define ASSOCIATE_INDEX(obj, index_holder) rb_enc_associate_index((obj), enc_get_index((index_holder)))
-static rb_encoding * pgconn_get_client_encoding_as_rb_encoding(PGconn* conn);
-static int enc_get_index(VALUE val);
+# define ASSOCIATE_INDEX( obj, index_holder ) rb_enc_associate_index((obj), enc_get_index((index_holder)))
+static rb_encoding * pgconn_get_client_encoding_as_rb_encoding( PGconn * );
+static const char *  pgconn_get_rb_encoding_as_pg_encname( rb_encoding * );
+static int enc_get_index( VALUE );
 #else
-# define ASSOCIATE_INDEX(obj, index_holder) /* nothing */
+# define ASSOCIATE_INDEX( obj, index_holder ) /* nothing */
 #endif
 
 static PQnoticeReceiver default_notice_receiver = NULL;
@@ -389,7 +390,10 @@ pgconn_alloc(VALUE klass)
  *   # As an Array
  *   PGconn.connect( nil, 5432, nil, nil, 'test', nil, nil )
  *  
- * On failure, it raises a PGError.
+ * If the Ruby default internal encoding is set (i.e., Encoding.default_internal != nil), the
+ * connection will have its +client_encoding+ set accordingly.
+ * 
+ * @raises [PGError] if the connection fails.
  */
 static VALUE
 pgconn_init(int argc, VALUE *argv, VALUE self)
@@ -397,6 +401,10 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	PGconn *conn = NULL;
 	VALUE conninfo;
 	VALUE error;
+#ifdef M17N_SUPPORTED	
+	rb_encoding *enc;
+	const char *encname;
+#endif
 
 	conninfo = parse_connect_args(argc, argv, self);
 	conn = PQconnectdb(StringValuePtr(conninfo));
@@ -413,6 +421,17 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 		rb_exc_raise(error);
 	}
 
+#ifdef M17N_SUPPORTED
+	/* If Ruby has its Encoding.default_internal set, set PostgreSQL's client_encoding 
+	 * to match */
+	if (( enc = rb_default_internal_encoding() )) {
+		encname = pgconn_get_rb_encoding_as_pg_encname( enc );
+		if ( PQsetClientEncoding(conn, encname) != 0 )
+			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
+			         encname, PQerrorMessage(conn) );
+	}
+#endif
+
 	if (rb_block_given_p()) {
 		return rb_ensure(rb_yield, self, pgconn_finish, self);
 	}
@@ -428,6 +447,12 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
  * This is an asynchronous version of PGconn.connect().
  *
  * Use PGconn#connect_poll to poll the status of the connection.
+ *
+ * NOTE: this does *not* set the connection's +client_encoding+ for you if 
+ * Encoding.default_internal is set. To set it after the connection is established, 
+ * call PGconn#internal_encoding=. You can also set it automatically by setting 
+ * ENV['PGCLIENTENCODING'], or include the 'options' connection parameter.
+ * 
  */
 static VALUE
 pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
@@ -490,7 +515,7 @@ pgconn_s_conndefaults(VALUE self)
 	VALUE ary = rb_ary_new();
 	VALUE hash;
 	int i = 0;
-	
+
 	for(i = 0; options[i].keyword != NULL; i++) {
 		hash = rb_hash_new();
 		if(options[i].keyword)
@@ -536,7 +561,7 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 {
 	char *encrypted = NULL;
 	VALUE rval = Qnil;
-	
+
 	Check_Type(password, T_STRING);
 	Check_Type(username, T_STRING);
 
@@ -1066,7 +1091,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		else
 			paramFormats[i] = NUM2INT(param_format);
 	}
-	
+
 	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes, 
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
@@ -1253,7 +1278,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 		else
 			paramFormats[i] = NUM2INT(param_format);
 	}
-	
+
 	result = PQexecPrepared(conn, StringValuePtr(name), nParams, 
 		(const char * const *)paramValues, paramLengths, paramFormats, 
 		resultFormat);
@@ -1618,7 +1643,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		else
 			paramFormats[i] = NUM2INT(param_format);
 	}
-	
+
 	result = PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes, 
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
@@ -1803,7 +1828,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		else
 			paramFormats[i] = NUM2INT(param_format);
 	}
-	
+
 	result = PQsendQueryPrepared(conn, StringValuePtr(name), nParams, 
 		(const char * const *)paramValues, paramLengths, paramFormats, 
 		resultFormat);
@@ -2039,7 +2064,7 @@ pgconn_cancel(VALUE self)
 		rb_raise(rb_ePGError,"Invalid connection!");
 
 	ret = PQcancel(cancel, errbuf, 256);
-	if(ret == 1) 
+	if(ret == 1)
 		retval = Qnil;
 	else
 		retval = rb_str_new2(errbuf);
@@ -2073,12 +2098,12 @@ pgconn_notifies(VALUE self)
 	if (notify == NULL) {
 		return Qnil;
 	}
-	
+
 	hash = rb_hash_new();
 	relname = rb_tainted_str_new2(notify->relname);
 	be_pid = INT2NUM(notify->be_pid);
 	extra = rb_tainted_str_new2(PGNOTIFY_EXTRA(notify));
-	
+
 	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
 	rb_hash_aset(hash, sym_extra, extra);
@@ -2133,11 +2158,11 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	} else if (ret < 0) {
 		rb_sys_fail(0);
 	}
-	
+
     if ( (ret = PQconsumeInput(conn)) != 1 ) {
 		rb_raise(rb_ePGError, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn));
 	}
-	
+
     while ((notify = PQnotifies(conn)) != NULL) {
         relname = rb_tainted_str_new2(notify->relname);
         be_pid = INT2NUM(notify->be_pid);
@@ -2473,7 +2498,7 @@ pgconn_transaction(VALUE self)
 	PGresult *result;
 	VALUE rb_pgresult;
 	int status;
-	
+
 	if (rb_block_given_p()) {
 		result = PQexec(conn, "BEGIN");
 		rb_pgresult = new_pgresult(result, conn);
@@ -2491,7 +2516,7 @@ pgconn_transaction(VALUE self)
 			pgresult_check(self, rb_pgresult);
 			rb_jump_tag(status);
 		}
-			
+
 	}
 	else {
 		/* no block supplied? */
@@ -2530,7 +2555,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	 * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
 	unsigned int i=0,j=0;
-	
+
 	if(strlen(str) >= NAMEDATALEN) {
 		rb_raise(rb_eArgError, 
 			"Input string is longer than NAMEDATALEN-1 (%d)",
@@ -3207,7 +3232,7 @@ pgresult_ftablecol(VALUE self, VALUE column_number)
 
 	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
 		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
-	
+
 	n = PQftablecol(pgresult, col_number);
 	return INT2FIX(n);
 }
@@ -3503,10 +3528,12 @@ pgresult_aref(VALUE self, VALUE index)
 				PQgetlength(result, tuple_num, field_num));
 
 			/* associate client encoding for text format only */
-			if(0 == PQfformat(result, field_num)) { 
+			if(0 == PQfformat(result, field_num)) {
+				fflush( stdout );
 				ASSOCIATE_INDEX(val, self);
 			} else {
 #ifdef M17N_SUPPORTED
+				fflush( stdout );
 				rb_enc_associate(val, rb_ascii8bit_encoding());
 #endif
 			}
@@ -3549,7 +3576,7 @@ pgresult_field_values( VALUE self, VALUE field )
 
 	if ( fnum < 0 )
 		rb_raise( rb_eIndexError, "no such field '%s' in result", fieldname );
-	
+
 	return make_column_result_array( self, fnum );
 }
 
@@ -3565,7 +3592,7 @@ make_column_result_array( VALUE self, int col )
 	int row = PQntuples( result );
 	VALUE ary = rb_ary_new2( row );
 	VALUE val = Qnil;
-	
+
 	if ( col >= PQnfields(result) )
 		rb_raise( rb_eIndexError, "no column %d in result", col );
 
@@ -3584,7 +3611,7 @@ make_column_result_array( VALUE self, int col )
 
 		rb_ary_store( ary, row, val );
 	}
-	
+
 	return ary;
 }
 
@@ -3636,34 +3663,36 @@ pgresult_fields(VALUE self)
  * The mapping from canonical encoding names in PostgreSQL to ones in Ruby.
  */
 static const char * const (enc_pg2ruby_mapping[][2]) = {
-	    {"BIG5",          "Big5"       },
-	    {"EUC_CN",        "GB2312"     },
-	    {"EUC_JP",        "EUC-JP"     },
-	    {"EUC_JIS_2004",  "EUC-JP"     },
-	    {"EUC_KR",        "EUC-KR"     },
-	    {"EUC_TW",        "EUC-TW"     },
-	    {"GB18030",       "GB18030"    },
-	    {"GBK",           "GBK"        },
-	    {"ISO_8859_5",    "ISO-8859-5" },
-	    {"ISO_8859_6",    "ISO-8859-6" },
-	    {"ISO_8859_7",    "ISO-8859-7" },
-	    {"ISO_8859_8",    "ISO-8859-8" },
-	    /* {"JOHAB",         "JOHAB"     }, dummy */
-	    {"KOI8",          "KOI8-U"     },
-	    {"LATIN1",        "ISO-8859-1" },
-	    {"LATIN2",        "ISO-8859-2" },
-	    {"LATIN3",        "ISO-8859-3" },
-	    {"LATIN4",        "ISO-8859-4" },
-	    {"LATIN5",        "ISO-8859-5" },
-	    {"LATIN6",        "ISO-8859-6" },
-	    {"LATIN7",        "ISO-8859-7" },
-	    {"LATIN8",        "ISO-8859-8" },
-	    {"LATIN9",        "ISO-8859-9" },
+	    {"BIG5",          "Big5"        },
+	    {"EUC_CN",        "GB2312"      },
+	    {"EUC_JP",        "EUC-JP"      },
+	    {"EUC_JIS_2004",  "EUC-JP"      },
+	    {"EUC_KR",        "EUC-KR"      },
+	    {"EUC_TW",        "EUC-TW"      },
+	    {"GB18030",       "GB18030"     },
+	    {"GBK",           "GBK"         },
+	    {"ISO_8859_5",    "ISO-8859-5"  },
+	    {"ISO_8859_6",    "ISO-8859-6"  },
+	    {"ISO_8859_7",    "ISO-8859-7"  },
+	    {"ISO_8859_8",    "ISO-8859-8"  },
+	    /* {"JOHAB",         "JOHAB"       }, dummy */
+	    {"KOI8",          "KOI8-R"      },
+	    {"KOI8R",         "KOI8-R"      },
+	    {"KOI8U",         "KOI8-U"      },
+	    {"LATIN1",        "ISO-8859-1"  },
+	    {"LATIN2",        "ISO-8859-2"  },
+	    {"LATIN3",        "ISO-8859-3"  },
+	    {"LATIN4",        "ISO-8859-4"  },
+	    {"LATIN5",        "ISO-8859-5"  },
+	    {"LATIN6",        "ISO-8859-6"  },
+	    {"LATIN7",        "ISO-8859-7"  },
+	    {"LATIN8",        "ISO-8859-8"  },
+	    {"LATIN9",        "ISO-8859-9"  },
 	    {"LATIN10",       "ISO-8859-10" },
-	    {"MULE_INTERNAL", "Emacs-Mule" },
+	    {"MULE_INTERNAL", "Emacs-Mule"  },
 	    {"SJIS",          "Windows-31J" },
 	    {"SHIFT_JIS_2004","Windows-31J" },
-	    /*{"SQL_ASCII",     NULL        },  special case*/
+	    /* {"SQL_ASCII",     NULL          },  special case*/
 	    {"UHC",           "CP949"       },
 	    {"UTF8",          "UTF-8"       },
 	    {"WIN866",        "IBM866"      },
@@ -3756,6 +3785,30 @@ cache:
 	st_insert(enc_pg2ruby, (st_data_t)enc_id, (st_data_t)enc);
 	return enc;
 }
+
+
+/* 
+ * Returns the given rb_encoding as the equivalent PostgreSQL encoding string.
+ * 
+ */
+static const char *
+pgconn_get_rb_encoding_as_pg_encname( rb_encoding *enc )
+{
+	const char *rb_encname = rb_enc_name( enc );
+	const char *encname = NULL;
+	int i;
+
+	for (i = 0; i < sizeof(enc_pg2ruby_mapping)/sizeof(enc_pg2ruby_mapping[0]); ++i) {
+		if (strcmp(rb_encname, enc_pg2ruby_mapping[i][1]) == 0) {
+			encname = enc_pg2ruby_mapping[i][0];
+		}
+	}
+
+	if ( !encname ) encname = "SQL_ASCII";
+
+	return encname;
+}
+
 
 /*
  * call-seq:
@@ -3934,7 +3987,7 @@ Init_pg_ext()
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
-	
+
 	/* Connection succeeded */
 	rb_define_const(rb_cPGconn, "CONNECTION_OK", INT2FIX(CONNECTION_OK));
 	/* Connection failed */
@@ -3967,7 +4020,7 @@ Init_pg_ext()
 	rb_define_const(rb_cPGconn, "PGRES_POLLING_OK", INT2FIX(PGRES_POLLING_OK));
 
 	/******     PGconn CLASS CONSTANTS: Transaction Status     ******/
-	
+
 	/* Transaction is currently idle (#transaction_status) */
 	rb_define_const(rb_cPGconn, "PQTRANS_IDLE", INT2FIX(PQTRANS_IDLE));
 	/* Transaction is currently active; query has been sent to the server, but not yet completed. (#transaction_status) */

@@ -114,16 +114,40 @@ describe "multinationalization support" do
 					res = conn.exec( stmt, [], 0 )
 					out_string = res[0]['column1']
 				end
-				out_string.should == 'foo'.encode(Encoding::ASCII_8BIT)
+				out_string.should == 'foo'.encode( Encoding::ASCII_8BIT )
 				out_string.encoding.should == Encoding::ASCII_8BIT
 			end
 		end
 
-		it "should use client encoding for escaped string" do
-			original = "string to escape".force_encoding("euc-jp")
-			@conn.set_client_encoding("euc_jp")
-			escaped  = @conn.escape(original)
+		it "uses the client encoding for escaped string" do
+			original = "string to escape".force_encoding( "euc-jp" )
+			@conn.set_client_encoding( "euc_jp" )
+			escaped  = @conn.escape( original )
 			escaped.encoding.should == Encoding::EUC_JP
+		end
+	end
+
+	describe "Ruby 1.9.x default_internal encoding" do
+
+		it "honors the Encoding.default_internal if it's set and the synchronous interface is used" do
+			@conn.transaction do |txn_conn|
+				txn_conn.internal_encoding = Encoding::ISO8859_1
+				txn_conn.exec( "CREATE TABLE defaultinternaltest ( foo text )" )
+				txn_conn.exec( "INSERT INTO defaultinternaltest VALUES ('Grün und Weiß')" )
+			end
+
+			begin
+				prev_encoding = Encoding.default_internal
+				Encoding.default_internal = Encoding::UTF_8
+
+				conn = PGconn.connect( @conninfo )
+				conn.internal_encoding.should == Encoding::UTF_8
+				res = conn.exec( "SELECT foo FROM defaultinternaltest" )
+				res[0]['foo'].encoding.should == Encoding::UTF_8
+			ensure
+				conn.finish if conn
+				Encoding.default_internal = prev_encoding
+			end
 		end
 
 	end
