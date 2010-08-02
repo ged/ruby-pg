@@ -3,18 +3,19 @@
 require 'uri'
 require 'tempfile'
 require 'archive/tar'
+require 'rbconfig'
 
 require 'rake/clean'
 require 'rake/extensiontask'
 require 'rake/extensioncompiler'
-require 'rbconfig'
 
 # C extension constants
+ARCH = Config::CONFIG['arch']
+ARCHLIBDIR = LIBDIR + ARCH
+
 EXT_MAKEFILE  = EXTDIR + 'Makefile'
 EXT_SOURCES   = FileList[ EXTDIR + '*.c' ]
 EXT_SO        = EXTDIR + "pg_ext.#{CONFIG['DLEXT']}"
-
-SITEARCH_DIR  = LIBDIR + Config::CONFIG['sitearch']
 
 NUM_CPUS = if File.exist?('/proc/cpuinfo')
 	File.read('/proc/cpuinfo').scan('processor').length
@@ -89,8 +90,8 @@ ENV['RUBY_CC_VERSION'] = '1.8.6:1.9.1'
 Rake::ExtensionTask.new do |ext|
 	ext.name = 'pg_ext'
 	ext.gem_spec = GEMSPEC
-	ext.ext_dir = 'ext'
-	ext.lib_dir = 'lib'
+	ext.ext_dir = EXTDIR.to_s
+	ext.lib_dir = ARCHLIBDIR.to_s
 	ext.source_pattern = "*.{c,h}"
 
 	# If there's an explicit 'compile' argument, use everything after it as options.
