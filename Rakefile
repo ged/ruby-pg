@@ -172,7 +172,7 @@ include RakefileHelpers
 
 # Set the build ID if the mercurial executable is available
 if hg = which( 'hg' )
-	id = IO.read('|-') or exec hg.to_s, 'id', '-n'
+	id = `#{hg.to_s} id -n`.chomp
 	PKG_BUILD = "pre%03d" % [(id.chomp[ /^[[:xdigit:]]+/ ] || '1')]
 else
 	PKG_BUILD = 'pre000'
