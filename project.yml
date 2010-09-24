@@ -2,8 +2,9 @@
 excluded_pkgfiles: []
 
 project_pubdir: /ged/ruby-pg/downloads/
-project_pubhost: bitbucket.org
+project_pubhost: 
 project_homepage: http://bitbucket.org/ged/ruby-pg/
+gem_pubhost: rubygems.org
 project_requirements: 
   PostgreSQL: ">=7.4"
 release_smtphost: mail.faeriemud.org
@@ -22,7 +23,6 @@ additional_pkgfiles:
 - Contributors
 dev_dependencies: 
   rake-compiler: ">=0.7.0"
-
 authors: 
   Michael Granger: ged@FaerieMUD.org
 post_install_message: ""

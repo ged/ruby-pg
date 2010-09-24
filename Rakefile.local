@@ -2,7 +2,6 @@
 
 require 'uri'
 require 'tempfile'
-require 'archive/tar'
 require 'rbconfig'
 
 require 'rake/clean'
@@ -150,7 +149,7 @@ end
 file STATIC_OPENSSL_BUILDDIR => OPENSSL_TARBALL do |t|
 	trace "extracting %s to %s" % [ OPENSSL_TARBALL, STATIC_OPENSSL_BUILDDIR.parent ]
 	STATIC_OPENSSL_BUILDDIR.mkpath
-	Archive::Tar.extract( OPENSSL_TARBALL.to_s, STATIC_OPENSSL_BUILDDIR.parent.to_s )
+	system( 'tar', '-xzf', OPENSSL_TARBALL.to_s, '-D', STATIC_OPENSSL_BUILDDIR.parent.to_s )
 end
 
 # generate the makefile in a clean build location
@@ -193,7 +192,7 @@ end
 file STATIC_POSTGRESQL_BUILDDIR => POSTGRESQL_TARBALL do |t|
 	trace "extracting %s to %s" % [ POSTGRESQL_TARBALL, STATIC_POSTGRESQL_BUILDDIR.parent ]
 	STATIC_POSTGRESQL_BUILDDIR.mkpath
-	Archive::Tar.extract( POSTGRESQL_TARBALL.to_s, STATIC_POSTGRESQL_BUILDDIR.parent.to_s )
+	system( 'tar', '-xzf', POSTGRESQL_TARBALL.to_s, '-D', STATIC_POSTGRESQL_BUILDDIR.parent.to_s )
 end
 
 # generate the makefile in a clean build location

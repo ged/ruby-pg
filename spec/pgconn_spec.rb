@@ -9,6 +9,7 @@ BEGIN {
 	libdir = basedir + 'lib'
 	archlib = libdir + Config::CONFIG['sitearch']
 
+	$LOAD_PATH.unshift( basedir.to_s ) unless $LOAD_PATH.include?( basedir.to_s )
 	$LOAD_PATH.unshift( libdir.to_s ) unless $LOAD_PATH.include?( libdir.to_s )
 	$LOAD_PATH.unshift( archlib.to_s ) unless $LOAD_PATH.include?( archlib.to_s )
 }
