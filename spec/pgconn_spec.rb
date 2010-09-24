@@ -82,23 +82,65 @@ describe PGconn do
 		res[0]['n'].should == '1'
 	end
 
+
+	EXPECTED_TRACE_OUTPUT = %{
+		To backend> Msg Q
+		To backend> "SELECT 1 AS one"
+		To backend> Msg complete, length 21
+		From backend> T
+		From backend (#4)> 28
+		From backend (#2)> 1
+		From backend> "one"
+		From backend (#4)> 0
+		From backend (#2)> 0
+		From backend (#4)> 23
+		From backend (#2)> 4
+		From backend (#4)> -1
+		From backend (#2)> 0
+		From backend> D
+		From backend (#4)> 11
+		From backend (#2)> 1
+		From backend (#4)> 1
+		From backend (1)> 1
+		From backend> C
+		From backend (#4)> 13
+		From backend> "SELECT 1"
+		From backend> Z
+		From backend (#4)> 5
+		From backend> Z
+		From backend (#4)> 5
+		From backend> T
+		}.gsub( /^\t{2}/, '' ).lstrip
+
 	unless RUBY_PLATFORM =~ /mswin|mingw/
 		it "should trace and untrace client-server communication" do
 			# be careful to explicitly close files so that the
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
-			expected_trace_file = File.join(Dir.getwd, "spec/data", "expected_trace.out")
-			expected_trace_data = open(expected_trace_file, 'rb').read
-			trace_file = open(File.join(@test_directory, "test_trace.out"), 'wb')
-			@conn.trace(trace_file)
-			trace_file.close
+			trace_file = @test_directory + "test_trace.out"
+			trace_io = trace_file.open( 'w', 0600 )
+			@conn.trace( trace_io )
+			trace_io.close
+
 			res = @conn.exec("SELECT 1 AS one")
 			@conn.untrace
+
 			res = @conn.exec("SELECT 2 AS two")
-			trace_file = open(File.join(@test_directory, "test_trace.out"), 'rb')
+
 			trace_data = trace_file.read
-			trace_file.close
-			trace_data.should == expected_trace_data
+
+			expected_trace_output = EXPECTED_TRACE_OUTPUT.dup
+			# For PostgreSQL < 9.0, the output will be different:
+			# -From backend (#4)> 13
+			# -From backend> "SELECT 1"
+			# +From backend (#4)> 11
+			# +From backend> "SELECT"
+			if @conn.server_version < 90000
+				expected_trace_output.sub!( /From backend \(#4\)> 13/, 'From backend (#4)> 11' )
+				expected_trace_output.sub!( /From backend> "SELECT 1"/, 'From backend> "SELECT"' )
+			end
+
+			trace_data.should == expected_trace_output
 		end
 	end
 

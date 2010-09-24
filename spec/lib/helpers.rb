@@ -104,6 +104,8 @@ module PgTestingHelpers
 	end
 
 
+	NOFORK_PLATFORMS = %w{java}
+
 	### Run the specified command +cmd+ after redirecting stdout and stderr to the specified 
 	### +logpath+, failing if the execution fails.
 	def log_and_run( logpath, *cmd )
@@ -115,16 +117,23 @@ module PgTestingHelpers
 			trace( cmd )
 		end
 
-		logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
-		if pid = fork
-			logfh.close
-			Process.wait
+		# Eliminate the noise of creating/tearing down the database by
+		# redirecting STDERR/STDOUT to a logfile if the Ruby interpreter
+		# supports fork()
+		if NOFORK_PLATFORMS.include?( RUBY_PLATFORM )
+			system( *cmd )
 		else
-			$stdout.reopen( logfh )
-			$stderr.reopen( $stdout )
-			exec( *cmd )
-			$stderr.puts "After the exec()?!??!"
-			exit!
+			logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
+			if pid = fork
+				logfh.close
+				Process.wait
+			else
+				$stdout.reopen( logfh )
+				$stderr.reopen( $stdout )
+				exec( *cmd )
+				$stderr.puts "After the exec()?!??!"
+				exit!
+			end
 		end
 
 		raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
@@ -147,7 +156,7 @@ module PgTestingHelpers
 					trace "No postmaster running for %s" % [ datadir ]
 					# Process isn't alive, so don't try to stop it
 				else
-					trace "Stopping lingering database at PID %d"
+					trace "Stopping lingering database at PID %d" % [ pid ]
 					run 'pg_ctl', '-D', datadir.to_s, '-m', 'fast', 'stop'
 				end
 			end

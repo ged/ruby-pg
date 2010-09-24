@@ -23,7 +23,7 @@ static VALUE rb_cPGconn;
 static VALUE rb_cPGresult;
 static VALUE rb_ePGError;
 
-static const char *VERSION = "0.9.0";
+static const char *VERSION = "0.9.1";
 
 
 /* The following functions are part of libpq, but not

@@ -9,8 +9,6 @@ if RUBY_PLATFORM =~/(mswin|mingw)/i
 		raise "Oops, can't extract the major/minor version from #{RUBY_VERSION.dump}"
 	require "#{major_minor}/pg_ext"
 else
-	archlib = Pathname( __FILE__ ).dirname + Config::CONFIG['arch']
-	requirepath = archlib + 'pg_ext'
-	require( requirepath.to_s )
+	require 'pg_ext'
 end
 
