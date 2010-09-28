@@ -24,7 +24,7 @@ end
 
 # Cross-compilation constants
 OPENSSL_VERSION            = ENV['OPENSSL_VERSION'] || '1.0.0a'
-POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '8.4.4'
+POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.0.0'
 
 COMPILE_HOME               = Pathname( "~/.rake-compiler" ).expand_path
 STATIC_SOURCESDIR          = COMPILE_HOME + 'sources'
@@ -84,7 +84,7 @@ namespace :spec do
 	task :text  => [ :compile ]
 end
 
-ENV['RUBY_CC_VERSION'] = '1.8.6:1.9.1'
+ENV['RUBY_CC_VERSION'] = '1.8.7:1.9.2'
 
 Rake::ExtensionTask.new do |ext|
 	ext.name = 'pg_ext'
@@ -149,27 +149,33 @@ end
 file STATIC_OPENSSL_BUILDDIR => OPENSSL_TARBALL do |t|
 	trace "extracting %s to %s" % [ OPENSSL_TARBALL, STATIC_OPENSSL_BUILDDIR.parent ]
 	STATIC_OPENSSL_BUILDDIR.mkpath
-	system( 'tar', '-xzf', OPENSSL_TARBALL.to_s, '-D', STATIC_OPENSSL_BUILDDIR.parent.to_s )
+	run 'tar', '-xzf', OPENSSL_TARBALL.to_s, '-C', STATIC_OPENSSL_BUILDDIR.parent.to_s
 end
 
 # generate the makefile in a clean build location
 file OPENSSL_MAKEFILE => STATIC_OPENSSL_BUILDDIR do |t|
 	Dir.chdir( STATIC_OPENSSL_BUILDDIR ) do
-		sh "./Configure", 'mingw'
+		cmd = ['env']
+
+		cmd << "CC='#{CROSS_PREFIX}-gcc -DDSO_WIN32'"
+		cmd << "AR=#{CROSS_PREFIX}-ar"
+		cmd << "RANLIB='#{CROSS_PREFIX}-ranlib'"
+
+		cmd << "./Configure" << 'mingw'
+
+		run( *cmd )
 	end
 end
 
 # make
 file OPENSSL_LIB => OPENSSL_MAKEFILE do |t|
 	Dir.chdir( STATIC_OPENSSL_BUILDDIR ) do
-		ENV['CC']     = "#{CROSS_PREFIX}-gcc -DDSO_WIN32"
-		ENV['AR']     = "${CROSS_PREFIX}-ar r"
-		ENV['RANLIB'] = "#{CROSS_PREFIX}-ranlib"
+		cmd = ['make' << "-j#{NUM_CPUS}" << 'build_libs']
 
-		sh 'make', "-j#{NUM_CPUS}", 'build_libs'
+		run( *cmd )
 
 		FileUtils.cp 'libcrypto.a', 'libeay32.a'
-		FileUtils.cp 'libssl.a', 'libssleay32.a'
+		FileUtils.cp 'libssl.a', OPENSSL_LIB.to_s
 	end
 end
 
@@ -192,7 +198,7 @@ end
 file STATIC_POSTGRESQL_BUILDDIR => POSTGRESQL_TARBALL do |t|
 	trace "extracting %s to %s" % [ POSTGRESQL_TARBALL, STATIC_POSTGRESQL_BUILDDIR.parent ]
 	STATIC_POSTGRESQL_BUILDDIR.mkpath
-	system( 'tar', '-xzf', POSTGRESQL_TARBALL.to_s, '-D', STATIC_POSTGRESQL_BUILDDIR.parent.to_s )
+	run 'tar', '-xzf', POSTGRESQL_TARBALL.to_s, '-C', STATIC_POSTGRESQL_BUILDDIR.parent.to_s
 end
 
 # generate the makefile in a clean build location
@@ -206,16 +212,22 @@ file POSTGRESQL_GLOBAL_MAKEFILE => [ STATIC_POSTGRESQL_BUILDDIR, OPENSSL_LIB ] d
 	]
 
 	Dir.chdir( STATIC_POSTGRESQL_BUILDDIR ) do
-		configure_path    = STATIC_POSTGRESQL_BUILDDIR + 'configure'
-		ENV['CFLAGS']     = "-L#{STATIC_OPENSSL_BUILDDIR}"
-		ENV['LDFLAGS']    = "-L#{STATIC_OPENSSL_BUILDDIR}"
-		ENV['LDFLAGS_SL'] = "-L#{STATIC_OPENSSL_BUILDDIR}"
-		ENV['LIBS']       = "-lwsock32 -lgdi32"
-		ENV['CPPFLAGS']   = "-I#{STATIC_OPENSSL_BUILDDIR}/include"
 
-		sh configure_path, *options
+		cmd = ['env']
+		cmd << "CFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
+		cmd << "LDFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
+		cmd << "LDFLAGS_SL=-L#{STATIC_OPENSSL_BUILDDIR}"
+		# cmd << "LIBS='-lwsock32 -lgdi32'"
+		cmd << "CPPFLAGS=-I#{STATIC_OPENSSL_BUILDDIR}/include"
+
+		configure_path = STATIC_POSTGRESQL_BUILDDIR + 'configure'
+		cmd << configure_path.to_s
+		cmd += options
+
+		run( *cmd )
 	end
 end
+
 
 # patch the Makefile.shlib -- depend on the build dir so it's only
 # rewritten if the tarball is re-extracted.
