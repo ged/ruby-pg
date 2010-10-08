@@ -138,6 +138,9 @@ have_func 'lo_create'
 have_func 'pg_encoding_to_char'
 have_func 'PQsetClientEncoding'
 
+$defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
+	have_struct_member 'struct pgNotify', 'extra', 'libpq-fe.h'
+
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h' unless enable_config("static-build")
 

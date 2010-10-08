@@ -2136,14 +2136,15 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
     int ret;
     struct timeval timeout;
     struct timeval *ptimeout = NULL;
-    VALUE timeout_in, relname = Qnil, be_pid = Qnil;
+    VALUE timeout_in, relname = Qnil, be_pid = Qnil, extra = Qnil;
+	VALUE block = Qnil;
     double timeout_sec;
     fd_set sd_rset;
 
 	if (sd < 0)
 		rb_bug("PQsocket(conn): couldn't fetch the connection's socket!");
 
-    if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
+    if (rb_scan_args(argc, argv, "01&", &timeout_in, &block) >= 1) {
     	timeout_sec = NUM2DBL(timeout_in);
     	timeout.tv_sec = (long)timeout_sec;
     	timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
@@ -2166,10 +2167,21 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
     while ((notify = PQnotifies(conn)) != NULL) {
         relname = rb_tainted_str_new2(notify->relname);
         be_pid = INT2NUM(notify->be_pid);
+#ifdef HAVE_ST_NOTIFY_EXTRA
+		extra = rb_str_new2( notify->extra );
+#endif
         PQfreemem(notify);
     }
 
-    if (rb_block_given_p()) rb_yield( rb_ary_new3(2, relname, be_pid) );
+    if ( RTEST(block) ) {
+		int arity = FIX2INT( rb_funcall(block, rb_intern("arity"), 0) );
+
+		if ( arity > 2 || arity < 0 )
+			rb_yield( rb_ary_new3(3, relname, be_pid, extra) );
+		else {
+			rb_yield( rb_ary_new3(2, relname, be_pid) );
+		}
+	}
 
     return relname;
 }

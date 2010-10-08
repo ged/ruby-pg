@@ -150,15 +150,18 @@ module PgTestingHelpers
 			datadir = testdir + 'data'
 			pidfile = datadir + 'postmaster.pid'
 			if pidfile.exist? && pid = pidfile.read.chomp.to_i
+				$stderr.puts "pidfile (%p) exists: %d" % [ pidfile, pid ]
 				begin
 					Process.kill( 0, pid )
 				rescue Errno::ESRCH
-					trace "No postmaster running for %s" % [ datadir ]
+					$stderr.puts "No postmaster running for %s" % [ datadir ]
 					# Process isn't alive, so don't try to stop it
 				else
-					trace "Stopping lingering database at PID %d" % [ pid ]
+					$stderr.puts "Stopping lingering database at PID %d" % [ pid ]
 					run 'pg_ctl', '-D', datadir.to_s, '-m', 'fast', 'stop'
 				end
+			else
+				$stderr.puts "No pidfile (%p)" % [ pidfile ]
 			end
 		end
 	end
@@ -185,20 +188,19 @@ module PgTestingHelpers
 		begin
 			unless (@test_pgdata+"postgresql.conf").exist?
 				FileUtils.rm_rf( @test_pgdata, :verbose => $DEBUG )
-				trace "Running initdb"
+				$stderr.puts "Running initdb"
 				log_and_run @logfile, 'initdb', '--no-locale', '-D', @test_pgdata.to_s
 			end
 
 			trace "Starting postgres"
 			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-k #{@test_directory.to_s.inspect}",
 				'-D', @test_pgdata.to_s, 'start'
+			sleep 2
 
-			if `psql -l` =~ /^\s*test\s/
-				trace "Dropping the test DB"
-				log_and_run @logfile, 'dropdb', 'test'
-			end
-			trace "Creating the test DB"
-			log_and_run @logfile, 'createdb', 'test'
+			$stderr.puts "Creating the test DB"
+			log_and_run @logfile, 'psql', '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
+			log_and_run @logfile, 'createdb', '-e', 'test'
+
 		rescue => err
 			$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
 			$stderr.puts "See #{@logfile} for details."

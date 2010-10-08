@@ -205,6 +205,95 @@ describe PGconn do
 		Process.wait( pid )
 	end
 
+	it "calls the block supplied to wait_for_notify with the channel name and PID of the server" +
+	   " process" do
+
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN pork' )
+
+		pid = nil
+		begin
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				sleep 1
+				conn.exec( 'NOTIFY pork' )
+				conn.finish
+				exit!
+			end
+
+			@conn.wait_for_notify( 10 ) do |channel, pg_pid|
+				channel.should == 'pork'
+				pg_pid.should be_a_kind_of( Integer )
+			end
+			@conn.exec( 'UNLISTEN woo' )
+		ensure
+			Process.wait( pid )
+		end
+	end
+
+
+	describe "under PostgreSQL 9" do
+
+		before( :each ) do
+			pending "only works under PostgreSQL 9" if @conn.server_version < 9_00_00
+		end
+
+		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+		    "any number of arguments" do
+
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = nil
+			begin
+				pid = fork do
+					conn = PGconn.connect( @conninfo )
+					sleep 1
+					conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+					conn.finish
+					exit!
+				end
+
+				@conn.wait_for_notify( 10 ) do |*args|
+					event = args.shift
+					event[0].should == 'knees'
+					event[1].should be_a_kind_of( Integer )
+					event[2].should == 'skirt and boots'
+				end
+				@conn.exec( 'UNLISTEN woo' )
+			ensure
+				Process.wait( pid )
+			end
+		end
+
+		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+		   "three arguments" do
+
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = nil
+			begin
+				pid = fork do
+					conn = PGconn.connect( @conninfo )
+					sleep 1
+					conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+					conn.finish
+					exit!
+				end
+
+				@conn.wait_for_notify( 10 ) do |channel, pg_pid, payload|
+					channel.should == 'knees'
+					pg_pid.should be_a_kind_of( Integer )
+					payload.should == 'skirt and boots'
+				end
+				@conn.exec( 'UNLISTEN woo' )
+			ensure
+				Process.wait( pid )
+			end
+		end
+	end
+
 	it "yields the result if block is given to exec" do
 		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
 			values = []
