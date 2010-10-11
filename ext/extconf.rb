@@ -17,7 +17,13 @@ if vvec(RUBY_VERSION) < vvec('1.8')
 end
 
 if enable_config( "static-build" )
-	
+
+	# Link against all required libraries for static build, if they are available
+	have_library( 'gdi32', 'CreateDC' ) && append_library( $libs, 'gdi32' )
+	have_library( 'secur32' )           && append_library( $libs, 'secur32' )
+	have_library( 'crypto', 'BIO_new' ) && append_library( $libs, 'crypto' )
+	have_library( 'ssl', 'SSL_new' )    && append_library( $libs, 'ssl' )
+
 else
 	pgconfig = with_config( 'pg-config' ) || 'pg_config'
 	if pgconfig = find_executable( pgconfig )
@@ -110,22 +116,14 @@ end
 
 dir_config 'pg'
 
-if enable_config("static-build")
-	# Link against all required libraries for static build, if they are available
-	have_library('gdi32', 'CreateDC') && append_library($libs, 'gdi32')
-	have_library('secur32') && append_library($libs, 'secur32')
-	have_library('crypto', 'BIO_new') && append_library($libs, 'crypto')
-	have_library('ssl', 'SSL_new') && append_library($libs, 'ssl')
-end
 
-
-abort "Can't find the 'libpq-fe.h header" unless have_header( 'libpq-fe.h' )
-abort "Can't find the 'libpq/libpq-fs.h header" unless have_header('libpq/libpq-fs.h')
+find_header( 'libpq-fe.h' ) or abort "Can't find the 'libpq-fe.h header"
+find_header( 'libpq/libpq-fs.h' ) or abort "Can't find the 'libpq/libpq-fs.h header"
 
 abort "Can't find the PostgreSQL client library (libpq)" unless
-	have_library( 'pq', 'PQconnectdb' ) ||
-	have_library( 'libpq', 'PQconnectdb' ) ||
-	have_library( 'ms/libpq', 'PQconnectdb' )
+	have_library( 'pq', 'PQconnectdb', ['libpq-fe.h'] ) ||
+	have_library( 'libpq', 'PQconnectdb', ['libpq-fe.h'] ) ||
+	have_library( 'ms/libpq', 'PQconnectdb', ['libpq-fe.h'] )
 
 # optional headers/functions
 have_func 'PQconnectionUsedPassword'
