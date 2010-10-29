@@ -174,9 +174,9 @@ include RakefileHelpers
 # Set the build ID if the mercurial executable is available
 if hg = which( 'hg' )
 	id = `#{hg} id -n`.chomp
-	PKG_BUILD = "pre%03d" % [(id.chomp[ /^[[:xdigit:]]+/ ] || '1')]
+	PKG_BUILD = (id.chomp[ /^[[:xdigit:]]+/ ] || '1')
 else
-	PKG_BUILD = 'pre000'
+	PKG_BUILD = '0'
 end
 SNAPSHOT_PKG_NAME = "#{PKG_FILE_NAME}.#{PKG_BUILD}"
 SNAPSHOT_GEM_NAME = "#{SNAPSHOT_PKG_NAME}.gem"
@@ -207,8 +207,8 @@ SMTP_HOST = "mail.faeriemud.org"
 SMTP_PORT = 465 # SMTP + SSL
 
 # Project constants
-PROJECT_HOST = ''
-PROJECT_PUBDIR = '/ged/ruby-pg/downloads/'
+PROJECT_HOST = 'deveiate.org'
+PROJECT_PUBDIR = '/usr/local/www/public/code/'
 PROJECT_DOCDIR = "#{PROJECT_PUBDIR}/#{PKG_NAME}"
 PROJECT_SCPPUBURL = "#{PROJECT_HOST}:#{PROJECT_PUBDIR}"
 PROJECT_SCPDOCURL = "#{PROJECT_HOST}:#{PROJECT_DOCDIR}"
@@ -273,6 +273,9 @@ GEMSPEC   = Gem::Specification.new do |gem|
 	# signing key and certificate chain
 	gem.signing_key       = '/Volumes/Keys/ged-private_gem_key.pem'
 	gem.cert_chain        = [File.expand_path('~/.gem/ged-public_gem_cert.pem')]
+
+
+	gem.required_ruby_version = '>=1.8.6'
 
 	DEPENDENCIES.each do |name, version|
 		version = '>= 0' if version.length.zero?

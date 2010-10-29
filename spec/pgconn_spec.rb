@@ -14,11 +14,9 @@ BEGIN {
 	$LOAD_PATH.unshift( archlib.to_s ) unless $LOAD_PATH.include?( archlib.to_s )
 }
 
-require 'pg'
-
-require 'rubygems'
-require 'spec'
+require 'rspec'
 require 'spec/lib/helpers'
+require 'pg'
 require 'timeout'
 
 describe PGconn do
