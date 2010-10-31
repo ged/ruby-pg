@@ -2078,14 +2078,14 @@ pgconn_cancel(VALUE self)
  * call-seq:
  *    conn.notifies()
  *
- * Returns a hash of the unprocessed notifiers.
+ * Returns a hash of the unprocessed notifications.
  * If there is no unprocessed notifier, it returns +nil+.
  */
 static VALUE
 pgconn_notifies(VALUE self)
 {
 	PGconn* conn = get_pgconn(self);
-	PGnotify *notify;
+	PGnotify *notification;
 	VALUE hash;
 	VALUE sym_relname, sym_be_pid, sym_extra;
 	VALUE relname, be_pid, extra;
@@ -2094,21 +2094,21 @@ pgconn_notifies(VALUE self)
 	sym_be_pid = ID2SYM(rb_intern("be_pid"));
 	sym_extra = ID2SYM(rb_intern("extra"));
 
-	notify = PQnotifies(conn);
-	if (notify == NULL) {
+	notification = PQnotifies(conn);
+	if (notification == NULL) {
 		return Qnil;
 	}
 
 	hash = rb_hash_new();
-	relname = rb_tainted_str_new2(notify->relname);
-	be_pid = INT2NUM(notify->be_pid);
-	extra = rb_tainted_str_new2(PGNOTIFY_EXTRA(notify));
+	relname = rb_tainted_str_new2(notification->relname);
+	be_pid = INT2NUM(notification->be_pid);
+	extra = rb_tainted_str_new2(PGNOTIFY_EXTRA(notification));
 
 	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
 	rb_hash_aset(hash, sym_extra, extra);
 
-	PQfreemem(notify);
+	PQfreemem(notification);
 	return hash;
 }
 
@@ -2130,48 +2130,51 @@ pgconn_notifies(VALUE self)
 static VALUE
 pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 {
-    PGconn *conn = get_pgconn(self);
-    PGnotify *notify;
-    int sd = PQsocket(conn);
-    int ret;
-    struct timeval timeout;
-    struct timeval *ptimeout = NULL;
-    VALUE timeout_in, relname = Qnil, be_pid = Qnil;
-    double timeout_sec;
-    fd_set sd_rset;
+	PGconn *conn = get_pgconn( self );
+	PGnotify *notification;
+	int sd = PQsocket( conn );
+	int ret;
+	struct timeval timeout;
+	struct timeval *ptimeout = NULL;
+	VALUE timeout_in, relname = Qnil, be_pid = Qnil;
+	double timeout_sec;
+	fd_set sd_rset;
 
-	if (sd < 0)
+	if ( sd < 0 )
 		rb_bug("PQsocket(conn): couldn't fetch the connection's socket!");
 
-    if (rb_scan_args(argc, argv, "01", &timeout_in) == 1) {
-    	timeout_sec = NUM2DBL(timeout_in);
-    	timeout.tv_sec = (long)timeout_sec;
-    	timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
-    	ptimeout = &timeout;
-    }
-
-    FD_ZERO(&sd_rset);
-    FD_SET(sd, &sd_rset);
-    ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
-    if (ret == 0) {
-		return Qnil;
-	} else if (ret < 0) {
-		rb_sys_fail(0);
+	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
+		timeout_sec = NUM2DBL( timeout_in );
+		timeout.tv_sec = (long)timeout_sec;
+		timeout.tv_usec = (long)( (timeout_sec - (long)timeout_sec) * 1e6 );
+		ptimeout = &timeout;
 	}
 
-    if ( (ret = PQconsumeInput(conn)) != 1 ) {
-		rb_raise(rb_ePGError, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn));
+	/* Check for notifications */
+	while ( (notification = PQnotifies(conn)) == NULL ) {
+		FD_ZERO( &sd_rset );
+		FD_SET( sd, &sd_rset );
+
+		/* Wait for the socket to become readable before checking again */
+		if ( (ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout)) < 0 )
+			rb_sys_fail( 0 );
+
+		/* Return nil if the select timed out */
+		if ( ret == 0 ) return Qnil;
+
+		/* Read the socket */
+		if ( (ret = PQconsumeInput(conn)) != 1 )
+			rb_raise(rb_ePGError, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn));
 	}
 
-    while ((notify = PQnotifies(conn)) != NULL) {
-        relname = rb_tainted_str_new2(notify->relname);
-        be_pid = INT2NUM(notify->be_pid);
-        PQfreemem(notify);
-    }
+	relname = rb_tainted_str_new2( notification->relname );
+	be_pid = INT2NUM( notification->be_pid );
+	PQfreemem( notification );
 
-    if (rb_block_given_p()) rb_yield( rb_ary_new3(2, relname, be_pid) );
+	if ( rb_block_given_p() )
+		rb_yield_splat( rb_ary_new3(2, relname, be_pid) );
 
-    return relname;
+	return relname;
 }
 
 

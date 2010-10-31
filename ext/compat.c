@@ -8,8 +8,8 @@
   Author: ematsu
   modified at: Wed Jan 20 16:41:51 1999
 
-  $Author: jdavis $
-  $Date: 2007-12-04 14:25:44 -0800 (Tue, 04 Dec 2007) $
+  $Author$
+  $Date$
 ************************************************/
 
 #include <ctype.h>

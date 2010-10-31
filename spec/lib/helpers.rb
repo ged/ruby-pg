@@ -1,8 +1,18 @@
 #!/usr/bin/env ruby
 
 require 'pathname'
+require 'rspec'
+
+
+RSpec.configure do |config|
+	ruby_version_vec = RUBY_VERSION.split('.').map {|c| c.to_i }.pack( "N*" )
+
+	config.mock_with :rspec
+	config.filter_run_excluding :ruby_19 => true if ruby_version_vec <= [1,9,1].pack( "N*" )
+end
 
 module PgTestingHelpers
+
 
 	# Set some ANSI escape code constants (Shamelessly stolen from Perl's
 	# Term::ANSIColor by Russ Allbery <rra@stanford.edu> and Zenin <zenin@best.com>
@@ -126,7 +136,6 @@ module PgTestingHelpers
 			logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
 			if pid = fork
 				logfh.close
-				Process.wait
 			else
 				$stdout.reopen( logfh )
 				$stderr.reopen( $stdout )
@@ -134,6 +143,8 @@ module PgTestingHelpers
 				$stderr.puts "After the exec()?!??!"
 				exit!
 			end
+
+			Process.wait( pid )
 		end
 
 		raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?

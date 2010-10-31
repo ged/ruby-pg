@@ -18,23 +18,12 @@ require 'rspec'
 require 'spec/lib/helpers'
 require 'pg'
 
-describe "multinationalization support" do
+describe "multinationalization support", :ruby_19 => true do
 	include PgTestingHelpers
 
-	RUBY_VERSION_VEC = RUBY_VERSION.split('.').map {|c| c.to_i }.pack("N*")
-	MIN_RUBY_VERSION_VEC = [1,9,1].pack('N*')
-
-
 	before( :all ) do
-		@conn = nil
-		if RUBY_VERSION_VEC >= MIN_RUBY_VERSION_VEC
-			@conn = setup_testing_db( "m17n" )
-			@conn.exec( 'BEGIN' )
-		end
-	end
-
-	before( :each ) do
-		pending "depends on m17n support in Ruby >= 1.9.1" if @conn.nil?
+		@conn = setup_testing_db( "m17n" )
+		@conn.exec( 'BEGIN' )
 	end
 
 

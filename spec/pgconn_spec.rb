@@ -185,22 +185,75 @@ describe PGconn do
 	end
 
 
-	it "should wait for NOTIFY events via select()" do
+	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
 		pid = fork do
-			conn = PGconn.connect( @conninfo )
-			sleep 1
-			conn.exec( 'NOTIFY woo' )
-			conn.finish
-			exit!
+			begin
+				conn = PGconn.connect( @conninfo )
+				sleep 1
+				conn.exec( 'NOTIFY woo' )
+			ensure
+				conn.finish
+				exit!
+			end
 		end
 
 		@conn.wait_for_notify( 10 ).should == 'woo'
 		@conn.exec( 'UNLISTEN woo' )
 
 		Process.wait( pid )
+	end
+
+	it "calls a block for NOTIFY events if one is given" do
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN woo' )
+
+		pid = fork do
+			begin
+				conn = PGconn.connect( @conninfo )
+				sleep 1
+				conn.exec( 'NOTIFY woo' )
+			ensure
+				conn.finish
+				exit!
+			end
+		end
+
+		eventpid = event = nil
+		@conn.wait_for_notify( 10 ) {|*args| event, eventpid = args }
+		event.should == 'woo'
+		eventpid.should be_an( Integer )
+
+		@conn.exec( 'UNLISTEN woo' )
+
+		Process.wait( pid )
+	end
+
+	it "returns notifications which are already in the queue before wait_for_notify is called " +
+	   "without waiting for the socket to become readable" do
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN woo' )
+
+		pid = fork do
+			begin
+				conn = PGconn.connect( @conninfo )
+				conn.exec( 'NOTIFY woo' )
+			ensure
+				conn.finish
+				exit!
+			end
+		end
+
+		# Wait for the forked child to send the notification
+		Process.wait( pid )
+
+		# Cause the notification to buffer, but not be read yet
+		@conn.exec( 'SELECT 1' )
+
+		@conn.wait_for_notify( 10 ).should == 'woo'
+		@conn.exec( 'UNLISTEN woo' )
 	end
 
 	it "yields the result if block is given to exec" do
