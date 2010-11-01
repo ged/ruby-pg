@@ -1,3 +1,4 @@
+require 'pp'
 require 'mkmf'
 
 if pgdir = with_config( 'pg' )
@@ -16,7 +17,9 @@ if vvec(RUBY_VERSION) < vvec('1.8')
 	exit 1
 end
 
-if enable_config( "static-build" )
+if ENV['CROSS_COMPILING']
+
+	$LDFLAGS << " -L#{CONFIG['libdir']}"
 
 	# Link against all required libraries for static build, if they are available
 	have_library( 'gdi32', 'CreateDC' ) && append_library( $libs, 'gdi32' )

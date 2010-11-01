@@ -8,10 +8,6 @@ require 'rake/clean'
 require 'rake/extensiontask'
 require 'rake/extensioncompiler'
 
-# C extension constants
-ARCH = Config::CONFIG['arch']
-ARCHLIBDIR = LIBDIR + ARCH
-
 MISCDIR = BASEDIR + 'misc'
 
 EXT_MAKEFILE  = EXTDIR + 'Makefile'
@@ -97,13 +93,13 @@ namespace :spec do
 	task :text  => [ :compile ]
 end
 
-ENV['RUBY_CC_VERSION'] = '1.8.7:1.9.2'
+ENV['RUBY_CC_VERSION'] = '1.8.6:1.9.2'
 
 Rake::ExtensionTask.new do |ext|
 	ext.name = 'pg_ext'
 	ext.gem_spec = GEMSPEC
 	ext.ext_dir = EXTDIR.to_s
-	ext.lib_dir = ARCHLIBDIR.to_s
+	ext.lib_dir = LIBDIR.to_s
 	ext.source_pattern = "*.{c,h}"
 
 	# If there's an explicit 'compile' argument, use everything after it as options.
@@ -130,6 +126,10 @@ Rake::ExtensionTask.new do |ext|
 		"--enable-static-build",
 	]
 
+end
+
+task :cross do
+	ENV['CROSS_COMPILING'] = 'yes'
 end
 
 
@@ -285,7 +285,7 @@ end
 task :static_libpq => POSTGRESQL_LIB
 
 desc 'cross compile pg for win32'
-task 'cross' => [ :mingw32, :static_libpq ]
+task :cross => [ :mingw32, :static_libpq ]
 
 task :mingw32 do
 	# Use Rake::ExtensionCompiler helpers to find the proper host
