@@ -7,16 +7,20 @@ project_description: |-
   This library works with PostgreSQL 7.4 and later.
 project_pubhost: deveiate.org
 project_pubdir: /usr/local/www/public/code/
+project_licenses: 
+- Ruby
+- GPL
+- BSD
 gem_pubhost: rubygems.org
 release_mailto: Ruby-Talk List <ruby-talk@ruby-lang.org>
 release_smtphost: mail.faeriemud.org
 post_install_message: ""
 authors: 
+  Jeff Davis: ruby-pg@j-davis.com
   Michael Granger: ged@FaerieMUD.org
 project_dependencies: {}
-
 dev_dependencies: 
-  rake-compiler: ">=0.7.0"
+  rake-compiler: ~>0.7.0
 project_requirements: 
   PostgreSQL: ">=7.4"
 additional_pkgfiles: 
@@ -26,5 +30,5 @@ additional_pkgfiles:
 - Contributors
 excluded_pkgfiles: []
 
-required_ruby_version: ">=1.8.6"
+required_ruby_version: ">=1.8.7"
 version_file: ../ext/pg.c
