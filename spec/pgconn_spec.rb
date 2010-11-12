@@ -231,6 +231,39 @@ describe PGconn do
 		Process.wait( pid )
 	end
 
+	it "doesn't collapse sequential notifications" do
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN woo' )
+		@conn.exec( 'LISTEN war' )
+		@conn.exec( 'LISTEN woz' )
+
+		pid = fork do
+			begin
+				conn = PGconn.connect( @conninfo )
+				conn.exec( 'NOTIFY woo' )
+				conn.exec( 'NOTIFY war' )
+				conn.exec( 'NOTIFY woz' )
+			ensure
+				conn.finish
+				exit!
+			end
+		end
+
+		Process.wait( pid )
+
+		channels = []
+		3.times do
+			channels << @conn.wait_for_notify( 2 )
+		end
+
+		channels.should have( 3 ).members
+		channels.should include( 'woo', 'war', 'woz' )
+
+		@conn.exec( 'UNLISTEN woz' )
+		@conn.exec( 'UNLISTEN war' )
+		@conn.exec( 'UNLISTEN woo' )
+	end
+
 	it "returns notifications which are already in the queue before wait_for_notify is called " +
 	   "without waiting for the socket to become readable" do
 		@conn.exec( 'ROLLBACK' )
