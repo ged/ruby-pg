@@ -4,10 +4,6 @@ require 'uri'
 require 'tempfile'
 require 'rbconfig'
 
-require 'rake/clean'
-require 'rake/extensiontask'
-require 'rake/extensioncompiler'
-
 MISCDIR = BASEDIR + 'misc'
 
 EXT_MAKEFILE  = EXTDIR + 'Makefile'
@@ -95,41 +91,214 @@ end
 
 ENV['RUBY_CC_VERSION'] = '1.8.6:1.9.2'
 
-Rake::ExtensionTask.new do |ext|
-	ext.name = 'pg_ext'
-	ext.gem_spec = GEMSPEC
-	ext.ext_dir = EXTDIR.to_s
-	ext.lib_dir = LIBDIR.to_s
-	ext.source_pattern = "*.{c,h}"
+begin
+	require 'rake/clean'
+	require 'rake/extensiontask'
+	require 'rake/extensioncompiler'
 
-	# If there's an explicit 'compile' argument, use everything after it as options.
-	if offset = ARGV.index( 'compile' )
-		trace "config options = %p" % [ ARGV[(offset + 1)..-1] ]
-		ext.config_options = ARGV[ (offset + 1)..-1 ]
-	# Otherwise, just grab everything from the first option onward
-	elsif offset = ARGV.index( ARGV.find {|arg| arg =~ /^--/ } )
-		trace "config options = %p" % [ ARGV[offset..-1] ]
-		ext.config_options = ARGV[ offset..-1 ]
-	else
-		trace "No config options (ARGV = %p)" % [ ARGV ]
+	Rake::ExtensionTask.new do |ext|
+		ext.name = 'pg_ext'
+		ext.gem_spec = GEMSPEC
+		ext.ext_dir = EXTDIR.to_s
+		ext.lib_dir = LIBDIR.to_s
+		ext.source_pattern = "*.{c,h}"
+
+		# If there's an explicit 'compile' argument, use everything after it as options.
+		if offset = ARGV.index( 'compile' )
+			trace "config options = %p" % [ ARGV[(offset + 1)..-1] ]
+			ext.config_options = ARGV[ (offset + 1)..-1 ]
+		# Otherwise, just grab everything from the first option onward
+		elsif offset = ARGV.index( ARGV.find {|arg| arg =~ /^--/ } )
+			trace "config options = %p" % [ ARGV[offset..-1] ]
+			ext.config_options = ARGV[ offset..-1 ]
+		else
+			trace "No config options (ARGV = %p)" % [ ARGV ]
+		end
+
+		ext.cross_compile = true
+		ext.cross_platform = %w[i386-mswin32 i386-mingw32]
+
+		# configure options only for cross compile
+		ext.cross_config_options += [
+			"--with-pg-include=#{STATIC_POSTGRESQL_LIBDIR}",
+			"--with-opt-include=#{STATIC_POSTGRESQL_INCDIR}",
+			"--with-pg-lib=#{STATIC_POSTGRESQL_LIBDIR}",
+			"--with-opt-lib=#{STATIC_OPENSSL_BUILDDIR}",
+			"--enable-static-build",
+		]
+
 	end
 
-	ext.cross_compile = true
-	ext.cross_platform = %w[i386-mswin32 i386-mingw32]
 
-	# configure options only for cross compile
-	ext.cross_config_options += [
-		"--with-pg-include=#{STATIC_POSTGRESQL_LIBDIR}",
-		"--with-opt-include=#{STATIC_POSTGRESQL_INCDIR}",
-		"--with-pg-lib=#{STATIC_POSTGRESQL_LIBDIR}",
-		"--with-opt-lib=#{STATIC_OPENSSL_BUILDDIR}",
-		"--enable-static-build",
+
+	#####################################################################
+	###	C R O S S - C O M P I L A T I O N - T A S K S
+	#####################################################################
+
+
+	directory STATIC_SOURCESDIR.to_s
+
+	#
+	# Static OpenSSL build tasks
+	#
+	directory STATIC_OPENSSL_BUILDDIR.to_s
+
+	# openssl source file should be stored there
+	file OPENSSL_TARBALL => STATIC_SOURCESDIR do |t|
+		download( OPENSSL_SOURCE_URI, t.name )
+	end
+
+	# Extract the openssl builds
+	file STATIC_OPENSSL_BUILDDIR => OPENSSL_TARBALL do |t|
+		trace "extracting %s to %s" % [ OPENSSL_TARBALL, STATIC_OPENSSL_BUILDDIR.parent ]
+		STATIC_OPENSSL_BUILDDIR.mkpath
+		run 'tar', '-xzf', OPENSSL_TARBALL.to_s, '-C', STATIC_OPENSSL_BUILDDIR.parent.to_s
+		OPENSSL_MAKEFILE.unlink if OPENSSL_MAKEFILE.exist?
+
+		OPENSSL_PATCHES.each do |patchfile|
+			trace "  applying patch #{patchfile}..."
+			run 'patch', '-Np1', '-d', STATIC_OPENSSL_BUILDDIR.to_s,
+				'-i', File.expand_path( patchfile, BASEDIR )
+		end
+	end
+
+	CMD_PRELUDE = [
+		'env',
+		"CC=#{CROSS_PREFIX}-gcc",
+		"CFLAGS=-DDSO_WIN32",
+		"AR=#{CROSS_PREFIX}-ar",
+		"RANLIB=#{CROSS_PREFIX}-ranlib"
 	]
 
-end
 
-task :cross do
-	ENV['CROSS_COMPILING'] = 'yes'
+	# generate the makefile in a clean build location
+	file OPENSSL_MAKEFILE => STATIC_OPENSSL_BUILDDIR do |t|
+		Dir.chdir( STATIC_OPENSSL_BUILDDIR ) do
+			cmd = CMD_PRELUDE.dup
+			cmd << "./Configure" << 'mingw'
+
+			run( *cmd )
+		end
+	end
+
+	desc "compile static openssl libraries"
+	task :openssl_libs => [ LIBSSLEAY32, LIBEAY32 ]
+
+	task :compile_static_openssl => OPENSSL_MAKEFILE do |t|
+		Dir.chdir( STATIC_OPENSSL_BUILDDIR ) do
+			cmd = CMD_PRELUDE.dup
+			cmd << 'make' << "-j#{NUM_CPUS}" << 'build_libs'
+
+			run( *cmd )
+		end
+	end
+
+	desc "compile static #{LIBEAY32}"
+	file LIBEAY32 => :compile_static_openssl do |t|
+		FileUtils.cp( STATIC_OPENSSL_BUILDDIR + 'libcrypto.a', LIBEAY32.to_s )
+	end
+
+	desc "compile static #{LIBSSLEAY32}"
+	file LIBSSLEAY32 => :compile_static_openssl do |t|
+		FileUtils.cp( STATIC_OPENSSL_BUILDDIR + 'libssl.a', LIBSSLEAY32.to_s )
+	end
+
+
+
+	#
+	# Static PostgreSQL build tasks
+	#
+	directory STATIC_POSTGRESQL_BUILDDIR.to_s
+
+
+	# postgresql source file should be stored there
+	file POSTGRESQL_TARBALL => STATIC_SOURCESDIR do |t|
+		download( POSTGRESQL_SOURCE_URI, t.name )
+	end
+
+	# Extract the postgresql sources
+	file STATIC_POSTGRESQL_BUILDDIR => POSTGRESQL_TARBALL do |t|
+		trace "extracting %s to %s" % [ POSTGRESQL_TARBALL, STATIC_POSTGRESQL_BUILDDIR.parent ]
+		STATIC_POSTGRESQL_BUILDDIR.mkpath
+		run 'tar', '-xzf', POSTGRESQL_TARBALL.to_s, '-C', STATIC_POSTGRESQL_BUILDDIR.parent.to_s
+		mv POSTGRESQL_SHLIB_MAKEFILE, POSTGRESQL_SHLIB_MF_ORIG
+	end
+
+	# generate the makefile in a clean build location
+	file POSTGRESQL_GLOBAL_MAKEFILE => [ STATIC_POSTGRESQL_BUILDDIR, :openssl_libs ] do |t|
+		options = [
+			'--target=i386-mingw32',
+			"--host=#{Rake::ExtensionCompiler.mingw_host}",
+			'--with-openssl',
+			'--without-zlib',
+			'--disable-shared',
+		]
+
+		Dir.chdir( STATIC_POSTGRESQL_BUILDDIR ) do
+			configure_path = STATIC_POSTGRESQL_BUILDDIR + 'configure'
+			cmd = [ configure_path.to_s, *options ]
+			cmd << "CFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
+			cmd << "LDFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
+			cmd << "LDFLAGS_SL=-L#{STATIC_OPENSSL_BUILDDIR}"
+			cmd << "LIBS=-lwsock32 -lgdi32"
+			cmd << "CPPFLAGS=-I#{STATIC_OPENSSL_BUILDDIR}/include"
+
+			run( *cmd )
+		end
+	end
+
+
+	# patch the Makefile.shlib -- depend on the build dir so it's only
+	# rewritten if the tarball is re-extracted.
+	file POSTGRESQL_SHLIB_MAKEFILE => POSTGRESQL_SHLIB_MF_ORIG do |t|
+		tf = Tempfile.new( POSTGRESQL_SHLIB_MAKEFILE.basename )
+		POSTGRESQL_SHLIB_MF_ORIG.open( File::RDONLY ) do |ifh|
+			ifh.each_line do |line|
+				tf.print( line.sub(/^(\s*haslibarule\s*=\s*yes)/, "# \\1 ") )
+			end
+		end
+		tf.close
+
+		FileUtils.mv( tf.path, t.name, :verbose => $trace )
+	end
+
+
+	# make libpq.a
+	file POSTGRESQL_LIB => [ POSTGRESQL_GLOBAL_MAKEFILE, POSTGRESQL_SHLIB_MAKEFILE ] do |t|
+		Dir.chdir( POSTGRESQL_LIB.dirname ) do
+			sh 'make', "-j#{NUM_CPUS}", POSTGRESQL_LIB.basename.to_s, 'PORTNAME=win32'
+		end
+	end
+
+
+	#desc 'compile static libpg.a'
+	task :static_libpq => POSTGRESQL_LIB
+
+	desc 'cross compile pg for win32'
+	task :cross do
+		ENV['CROSS_COMPILING'] = 'yes'
+	end
+	task :cross => [ :mingw32, :static_libpq ]
+
+	task :mingw32 do
+		# Use Rake::ExtensionCompiler helpers to find the proper host
+		unless Rake::ExtensionCompiler.mingw_host then
+			warn "You need to install mingw32 cross compile functionality to be able to continue."
+			warn "Please refer to your distribution/package manager documentation about installation."
+			fail
+		end
+	end
+
+rescue LoadError => err
+	task :no_rake_compiler do
+		log "You'll need to install rake-compiler to compile this."
+		fail
+	end
+
+	task :compile => :no_rake_compiler
+	task :cross => :no_rake_compiler
+	task :mingw32 => :no_rake_compiler
+	task :static_libpq => :no_rake_compiler
 end
 
 
@@ -140,159 +309,4 @@ task :cleanup_testing_dbs do
     Rake::Task[:clean].invoke
 end
 
-
-#####################################################################
-###	C R O S S - C O M P I L A T I O N - T A S K S
-#####################################################################
-
-
-directory STATIC_SOURCESDIR.to_s
-
-#
-# Static OpenSSL build tasks
-#
-directory STATIC_OPENSSL_BUILDDIR.to_s
-
-# openssl source file should be stored there
-file OPENSSL_TARBALL => STATIC_SOURCESDIR do |t|
-	download( OPENSSL_SOURCE_URI, t.name )
-end
-
-# Extract the openssl builds
-file STATIC_OPENSSL_BUILDDIR => OPENSSL_TARBALL do |t|
-	trace "extracting %s to %s" % [ OPENSSL_TARBALL, STATIC_OPENSSL_BUILDDIR.parent ]
-	STATIC_OPENSSL_BUILDDIR.mkpath
-	run 'tar', '-xzf', OPENSSL_TARBALL.to_s, '-C', STATIC_OPENSSL_BUILDDIR.parent.to_s
-	OPENSSL_MAKEFILE.unlink if OPENSSL_MAKEFILE.exist?
-
-	OPENSSL_PATCHES.each do |patchfile|
-		trace "  applying patch #{patchfile}..."
-		run 'patch', '-Np1', '-d', STATIC_OPENSSL_BUILDDIR.to_s,
-			'-i', File.expand_path( patchfile, BASEDIR )
-	end
-end
-
-CMD_PRELUDE = [
-	'env',
-	"CC=#{CROSS_PREFIX}-gcc",
-	"CFLAGS=-DDSO_WIN32",
-	"AR=#{CROSS_PREFIX}-ar",
-	"RANLIB=#{CROSS_PREFIX}-ranlib"
-]
-
-
-# generate the makefile in a clean build location
-file OPENSSL_MAKEFILE => STATIC_OPENSSL_BUILDDIR do |t|
-	Dir.chdir( STATIC_OPENSSL_BUILDDIR ) do
-		cmd = CMD_PRELUDE.dup
-		cmd << "./Configure" << 'mingw'
-
-		run( *cmd )
-	end
-end
-
-desc "compile static openssl libraries"
-task :openssl_libs => [ LIBSSLEAY32, LIBEAY32 ]
-
-task :compile_static_openssl => OPENSSL_MAKEFILE do |t|
-	Dir.chdir( STATIC_OPENSSL_BUILDDIR ) do
-		cmd = CMD_PRELUDE.dup
-		cmd << 'make' << "-j#{NUM_CPUS}" << 'build_libs'
-
-		run( *cmd )
-	end
-end
-
-desc "compile static #{LIBEAY32}"
-file LIBEAY32 => :compile_static_openssl do |t|
-	FileUtils.cp( STATIC_OPENSSL_BUILDDIR + 'libcrypto.a', LIBEAY32.to_s )
-end
-
-desc "compile static #{LIBSSLEAY32}"
-file LIBSSLEAY32 => :compile_static_openssl do |t|
-	FileUtils.cp( STATIC_OPENSSL_BUILDDIR + 'libssl.a', LIBSSLEAY32.to_s )
-end
-
-
-
-#
-# Static PostgreSQL build tasks
-#
-directory STATIC_POSTGRESQL_BUILDDIR.to_s
-
-
-# postgresql source file should be stored there
-file POSTGRESQL_TARBALL => STATIC_SOURCESDIR do |t|
-	download( POSTGRESQL_SOURCE_URI, t.name )
-end
-
-# Extract the postgresql sources
-file STATIC_POSTGRESQL_BUILDDIR => POSTGRESQL_TARBALL do |t|
-	trace "extracting %s to %s" % [ POSTGRESQL_TARBALL, STATIC_POSTGRESQL_BUILDDIR.parent ]
-	STATIC_POSTGRESQL_BUILDDIR.mkpath
-	run 'tar', '-xzf', POSTGRESQL_TARBALL.to_s, '-C', STATIC_POSTGRESQL_BUILDDIR.parent.to_s
-	mv POSTGRESQL_SHLIB_MAKEFILE, POSTGRESQL_SHLIB_MF_ORIG
-end
-
-# generate the makefile in a clean build location
-file POSTGRESQL_GLOBAL_MAKEFILE => [ STATIC_POSTGRESQL_BUILDDIR, :openssl_libs ] do |t|
-	options = [
-		'--target=i386-mingw32',
-		"--host=#{Rake::ExtensionCompiler.mingw_host}",
-		'--with-openssl',
-		'--without-zlib',
-		'--disable-shared',
-	]
-
-	Dir.chdir( STATIC_POSTGRESQL_BUILDDIR ) do
-		configure_path = STATIC_POSTGRESQL_BUILDDIR + 'configure'
-		cmd = [ configure_path.to_s, *options ]
-		cmd << "CFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
-		cmd << "LDFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
-		cmd << "LDFLAGS_SL=-L#{STATIC_OPENSSL_BUILDDIR}"
-		cmd << "LIBS=-lwsock32 -lgdi32"
-		cmd << "CPPFLAGS=-I#{STATIC_OPENSSL_BUILDDIR}/include"
-
-		run( *cmd )
-	end
-end
-
-
-# patch the Makefile.shlib -- depend on the build dir so it's only
-# rewritten if the tarball is re-extracted.
-file POSTGRESQL_SHLIB_MAKEFILE => POSTGRESQL_SHLIB_MF_ORIG do |t|
-	tf = Tempfile.new( POSTGRESQL_SHLIB_MAKEFILE.basename )
-	POSTGRESQL_SHLIB_MF_ORIG.open( File::RDONLY ) do |ifh|
-		ifh.each_line do |line|
-			tf.print( line.sub(/^(\s*haslibarule\s*=\s*yes)/, "# \\1 ") )
-		end
-	end
-	tf.close
-
-	FileUtils.mv( tf.path, t.name, :verbose => $trace )
-end
-
-
-# make libpq.a
-file POSTGRESQL_LIB => [ POSTGRESQL_GLOBAL_MAKEFILE, POSTGRESQL_SHLIB_MAKEFILE ] do |t|
-	Dir.chdir( POSTGRESQL_LIB.dirname ) do
-		sh 'make', "-j#{NUM_CPUS}", POSTGRESQL_LIB.basename.to_s, 'PORTNAME=win32'
-	end
-end
-
-
-#desc 'compile static libpg.a'
-task :static_libpq => POSTGRESQL_LIB
-
-desc 'cross compile pg for win32'
-task :cross => [ :mingw32, :static_libpq ]
-
-task :mingw32 do
-	# Use Rake::ExtensionCompiler helpers to find the proper host
-	unless Rake::ExtensionCompiler.mingw_host then
-		warn "You need to install mingw32 cross compile functionality to be able to continue."
-		warn "Please refer to your distribution/package manager documentation about installation."
-		fail
-	end
-end
 
