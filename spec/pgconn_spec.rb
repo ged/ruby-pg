@@ -403,7 +403,7 @@ describe PGconn do
 		@conn.block( 0.1 )
 		finish = Time.now
 
-		(finish - start).should be_close( 0.1, 0.05 )
+		(finish - start).should be_within( 0.05 ).of( 0.1 )
 	end
 
 
