@@ -289,6 +289,66 @@ describe PGconn do
 		@conn.exec( 'UNLISTEN woo' )
 	end
 
+	context "under PostgreSQL 9" do
+
+		before( :each ) do
+			pending "only works under PostgreSQL 9" if @conn.server_version < 9_00_00
+		end
+
+		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+		    "any number of arguments" do
+
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+				conn.finish
+				exit!
+			end
+
+			Process.wait( pid )
+
+			event, pid, msg = nil
+			@conn.wait_for_notify( 10 ) do |*args|
+				event, pid, msg = *args
+			end
+			@conn.exec( 'UNLISTEN woo' )
+
+			event.should == 'knees'
+			pid.should be_a_kind_of( Integer )
+			msg.should == 'skirt and boots'
+		end
+
+		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+		   "three arguments" do
+
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+				conn.finish
+				exit!
+			end
+
+			Process.wait( pid )
+
+			event, pid, msg = nil
+			@conn.wait_for_notify( 10 ) do |arg1, arg2, arg3|
+				event, pid, msg = arg1, arg2, arg3
+			end
+			@conn.exec( 'UNLISTEN woo' )
+
+			event.should == 'knees'
+			pid.should be_a_kind_of( Integer )
+			msg.should == 'skirt and boots'
+		end
+
+	end
+
 	it "yields the result if block is given to exec" do
 		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
 			values = []
