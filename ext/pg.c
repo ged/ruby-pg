@@ -2136,7 +2136,8 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	int ret;
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
-	VALUE timeout_in, relname = Qnil, be_pid = Qnil;
+	VALUE timeout_in, relname = Qnil, be_pid = Qnil, extra = Qnil;
+	VALUE block = Qnil;
 	double timeout_sec;
 	fd_set sd_rset;
 
@@ -2169,6 +2170,9 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 
 	relname = rb_tainted_str_new2( notification->relname );
 	be_pid = INT2NUM( notification->be_pid );
+#ifdef HAVE_ST_NOTIFY_EXTRA
+		extra = rb_str_new2( notify->extra );
+#endif
 	PQfreemem( notification );
 
 	if ( rb_block_given_p() )
