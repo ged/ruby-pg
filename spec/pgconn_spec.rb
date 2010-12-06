@@ -322,6 +322,56 @@ describe PGconn do
 		end
 
 		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+		   "two arguments" do
+
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+				conn.finish
+				exit!
+			end
+
+			Process.wait( pid )
+
+			event, pid, msg = nil
+			@conn.wait_for_notify( 10 ) do |arg1, arg2|
+				event, pid, msg = arg1, arg2
+			end
+			@conn.exec( 'UNLISTEN woo' )
+
+			event.should == 'knees'
+			pid.should be_a_kind_of( Integer )
+			msg.should be_nil()
+		end
+
+		it "calls the block supplied to wait_for_notify with the notify payload if it " +
+		   "doesn't accept arguments" do
+
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+				conn.finish
+				exit!
+			end
+
+			Process.wait( pid )
+
+			notification_received = false
+			@conn.wait_for_notify( 10 ) do
+				notification_received = true
+			end
+			@conn.exec( 'UNLISTEN woo' )
+
+			notification_received.should be_true()
+		end
+
+		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
 		   "three arguments" do
 
 			@conn.exec( 'ROLLBACK' )

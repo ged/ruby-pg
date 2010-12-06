@@ -2175,7 +2175,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	PQfreemem( notification );
 
 	if ( rb_block_given_p() )
-		rb_yield_splat( rb_ary_new3(3, relname, be_pid, extra) );
+		rb_yield_values( 3, relname, be_pid, extra );
 
 	return relname;
 }
