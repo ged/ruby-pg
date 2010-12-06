@@ -2046,7 +2046,7 @@ pgconn_flush(self)
  *    conn.cancel() -> String
  *
  * Requests cancellation of the command currently being
- * processed.
+ * processed. (Only implemented in PostgreSQL >= 8.0)
  *
  * Returns +nil+ on success, or a string containing the
  * error message if a failure occurs.
@@ -2054,6 +2054,7 @@ pgconn_flush(self)
 static VALUE
 pgconn_cancel(VALUE self)
 {
+#ifdef HAVE_PQGETCANCEL
 	char errbuf[256];
 	PGcancel *cancel;
 	VALUE retval;
@@ -2071,6 +2072,9 @@ pgconn_cancel(VALUE self)
 
 	PQfreeCancel(cancel);
 	return retval;
+#else
+	rb_notimplement();
+#endif
 }
 
 
