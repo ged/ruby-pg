@@ -4,6 +4,10 @@
 
 #include <stdlib.h>
 
+#ifdef RUBY_EXTCONF_H
+#include RUBY_EXTCONF_H
+#endif
+
 #include "libpq-fe.h"
 #include "libpq/libpq-fs.h"              /* large-object interface */
 
