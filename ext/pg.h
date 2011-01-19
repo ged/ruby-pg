@@ -1,3 +1,6 @@
+#ifndef PG_H_C98VS4AD
+#define PG_H_C98VS4AD
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -47,3 +50,4 @@ __declspec(dllexport)
 #endif
 void Init_pg_ext(void);
 
+#endif /* end of include guard: PG_H_C98VS4AD */
