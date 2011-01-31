@@ -121,6 +121,21 @@ describe PGresult do
 		}.to raise_error( IndexError, /-1 is out of range/i )
 	end
 
+	it "should raise allow for conversion to an array of arrays" do
+		@conn.exec( 'CREATE TABLE valuestest ( foo varchar(33) )' )
+		@conn.exec( 'INSERT INTO valuestest ("foo") values (\'bar\')' )
+		@conn.exec( 'INSERT INTO valuestest ("foo") values (\'bar2\')' )
+
+		res = @conn.exec('SELECT * FROM valuestest')
+		values = res.values
+		values.class.should == Array
+		values.size.should == 2
+		values[0].size.should == 1
+		values.each {|row| row.class.should == Array }
+		values[0][0].should == "bar"
+		values[1][0].should == "bar2"
+	end
+
 	# PQfmod
 	it "can return the type modifier for a result column" do
 		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )

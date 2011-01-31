@@ -3668,6 +3668,56 @@ pgresult_fields(VALUE self)
 	return ary;
 }
 
+/*
+ * call-seq:
+ *    res.values -> Array
+ *
+ * Returns all tuples as an array of arrays.
+ */
+static VALUE
+pgresult_values(VALUE self, VALUE index)
+{
+	PGresult* result = (PGresult*) get_pgresult(self);
+	int row;
+	int field;
+	int num_rows = PQntuples(result);
+	int num_fields = PQnfields(result);
+	VALUE ary = rb_ary_new2(num_rows);
+
+	for( row = 0; row < num_rows; row++ ) {
+		/* create new row */
+		VALUE new_row = rb_ary_new2(num_fields);
+
+		/* add to return array */
+		rb_ary_store( ary, row, new_row );
+
+		/* populate it */
+		for(field = 0; field < num_fields; field++) {
+			if(PQgetisnull(result, row, field)) {
+				rb_ary_store( new_row, field, Qnil );
+			}
+			else {
+				VALUE val = rb_tainted_str_new(PQgetvalue(result, row, field), 
+								  PQgetlength(result, row, field));
+
+				/* associate client encoding for text format only */
+				if(0 == PQfformat(result, field)) {
+					fflush( stdout );
+					ASSOCIATE_INDEX(val, self);
+				} else {
+#ifdef M17N_SUPPORTED
+					fflush( stdout );
+					rb_enc_associate(val, rb_ascii8bit_encoding());
+#endif
+				}
+
+				rb_ary_store( new_row, field, val );
+			}
+		}
+	}
+	return ary;
+}
+
 #ifdef M17N_SUPPORTED
 /**
  * The mapping from canonical encoding names in PostgreSQL to ones in Ruby.
@@ -4305,6 +4355,7 @@ Init_pg_ext()
 	rb_define_method(rb_cPGresult, "[]", pgresult_aref, 1);
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
+	rb_define_method(rb_cPGresult, "values", pgresult_values, 0);
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 
