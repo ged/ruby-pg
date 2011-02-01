@@ -126,14 +126,8 @@ describe PGresult do
 		@conn.exec( 'INSERT INTO valuestest ("foo") values (\'bar\')' )
 		@conn.exec( 'INSERT INTO valuestest ("foo") values (\'bar2\')' )
 
-		res = @conn.exec('SELECT * FROM valuestest')
-		values = res.values
-		values.class.should == Array
-		values.size.should == 2
-		values[0].size.should == 1
-		values.each {|row| row.class.should == Array }
-		values[0][0].should == "bar"
-		values[1][0].should == "bar2"
+		res = @conn.exec( 'SELECT * FROM valuestest' )
+		res.values.should == [ ["bar"], ["bar2"] ]
 	end
 
 	# PQfmod

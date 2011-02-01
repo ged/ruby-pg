@@ -3524,33 +3524,81 @@ pgresult_aref(VALUE self, VALUE index)
 	VALUE fname,val;
 	VALUE tuple;
 
-	if(tuple_num < 0 || tuple_num >= PQntuples(result))
-		rb_raise(rb_eIndexError, "Index %d is out of range", tuple_num);
+	if ( tuple_num < 0 || tuple_num >= PQntuples(result) )
+		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
+
 	tuple = rb_hash_new();
-	for(field_num = 0; field_num < PQnfields(result); field_num++) {
-		fname = rb_tainted_str_new2(PQfname(result,field_num));
+	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
+		fname = rb_tainted_str_new2( PQfname(result,field_num) );
 		ASSOCIATE_INDEX(fname, self);
-		if(PQgetisnull(result, tuple_num, field_num)) {
-			rb_hash_aset(tuple, fname, Qnil);
+		if ( PQgetisnull(result, tuple_num, field_num) ) {
+			rb_hash_aset( tuple, fname, Qnil );
 		}
 		else {
-			val = rb_tainted_str_new(PQgetvalue(result, tuple_num, field_num),
-				PQgetlength(result, tuple_num, field_num));
+			val = rb_tainted_str_new( PQgetvalue(result, tuple_num, field_num ),
+			                          PQgetlength(result, tuple_num, field_num) );
 
 			/* associate client encoding for text format only */
-			if(0 == PQfformat(result, field_num)) {
-				fflush( stdout );
-				ASSOCIATE_INDEX(val, self);
+			if ( 0 == PQfformat(result, field_num) ) {
+				ASSOCIATE_INDEX( val, self );
 			} else {
 #ifdef M17N_SUPPORTED
-				fflush( stdout );
-				rb_enc_associate(val, rb_ascii8bit_encoding());
+				rb_enc_associate( val, rb_ascii8bit_encoding() );
 #endif
 			}
-			rb_hash_aset(tuple, fname, val);
+			rb_hash_aset( tuple, fname, val );
 		}
 	}
 	return tuple;
+}
+
+
+/*
+ * call-seq:
+ *    res.values -> Array
+ *
+ * Returns all tuples as an array of arrays.
+ */
+static VALUE
+pgresult_values(VALUE self, VALUE index)
+{
+	PGresult* result = (PGresult*) get_pgresult(self);
+	int row;
+	int field;
+	int num_rows = PQntuples(result);
+	int num_fields = PQnfields(result);
+	VALUE ary = rb_ary_new2(num_rows);
+
+	for ( row = 0; row < num_rows; row++ ) {
+		/* create new row */
+		VALUE new_row = rb_ary_new2(num_fields);
+
+		/* add to return array */
+		rb_ary_store( ary, row, new_row );
+
+		/* populate it */
+		for ( field = 0; field < num_fields; field++ ) {
+			if ( PQgetisnull(result, row, field) ) {
+				rb_ary_store( new_row, field, Qnil );
+			}
+			else {
+				VALUE val = rb_tainted_str_new( PQgetvalue(result, row, field), 
+				                                PQgetlength(result, row, field) );
+
+				/* associate client encoding for text format only */
+				if ( 0 == PQfformat(result, field) ) {
+					ASSOCIATE_INDEX( val, self );
+				} else {
+#ifdef M17N_SUPPORTED
+					rb_enc_associate( val, rb_ascii8bit_encoding() );
+#endif
+				}
+
+				rb_ary_store( new_row, field, val );
+			}
+		}
+	}
+	return ary;
 }
 
 
@@ -3668,55 +3716,6 @@ pgresult_fields(VALUE self)
 	return ary;
 }
 
-/*
- * call-seq:
- *    res.values -> Array
- *
- * Returns all tuples as an array of arrays.
- */
-static VALUE
-pgresult_values(VALUE self, VALUE index)
-{
-	PGresult* result = (PGresult*) get_pgresult(self);
-	int row;
-	int field;
-	int num_rows = PQntuples(result);
-	int num_fields = PQnfields(result);
-	VALUE ary = rb_ary_new2(num_rows);
-
-	for( row = 0; row < num_rows; row++ ) {
-		/* create new row */
-		VALUE new_row = rb_ary_new2(num_fields);
-
-		/* add to return array */
-		rb_ary_store( ary, row, new_row );
-
-		/* populate it */
-		for(field = 0; field < num_fields; field++) {
-			if(PQgetisnull(result, row, field)) {
-				rb_ary_store( new_row, field, Qnil );
-			}
-			else {
-				VALUE val = rb_tainted_str_new(PQgetvalue(result, row, field), 
-								  PQgetlength(result, row, field));
-
-				/* associate client encoding for text format only */
-				if(0 == PQfformat(result, field)) {
-					fflush( stdout );
-					ASSOCIATE_INDEX(val, self);
-				} else {
-#ifdef M17N_SUPPORTED
-					fflush( stdout );
-					rb_enc_associate(val, rb_ascii8bit_encoding());
-#endif
-				}
-
-				rb_ary_store( new_row, field, val );
-			}
-		}
-	}
-	return ary;
-}
 
 #ifdef M17N_SUPPORTED
 /**
