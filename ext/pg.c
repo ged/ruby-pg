@@ -2129,10 +2129,10 @@ void create_crt_fd(fd_set *os_set, fd_set *crt_set)
 	crt_set->fd_count = os_set->fd_count;
 	for (i = 0; i < os_set->fd_count; i++) {
 		WSAPROTOCOL_INFO wsa_pi;
-		// dupicate the SOCKET
+		/* dupicate the SOCKET */
 		int r = WSADuplicateSocket(os_set->fd_array[i], GetCurrentProcessId(), &wsa_pi);
 		SOCKET s = WSASocket(wsa_pi.iAddressFamily, wsa_pi.iSocketType, wsa_pi.iProtocol, &wsa_pi, 0, 0);
-		// create the CRT fd so ruby can get back to the SOCKET
+		/* create the CRT fd so ruby can get back to the SOCKET */
 		int fd = _open_osfhandle(s, O_RDWR|O_BINARY);
 		os_set->fd_array[i] = s;
 		crt_set->fd_array[i] = fd;
@@ -2143,9 +2143,9 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
 {
 	int i;
 	for (i = 0; i < os_set->fd_count; i++) {
-		// cleanup the CRT fd
+		/* cleanup the CRT fd */
 		_close(crt_set->fd_array[i]);
-		// cleanup the duplicated SOCKET
+		/* cleanup the duplicated SOCKET */
 		closesocket(os_set->fd_array[i]);
 	}
 }
@@ -2182,7 +2182,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 #endif
 
 	if ( sd < 0 )
-		rb_bug("PQsocket(conn): couldn't fetch the connection's socket!");
+		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
 
 	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
 		timeout_sec = NUM2DBL( timeout_in );
@@ -2201,7 +2201,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 #endif
 
 		/* Wait for the socket to become readable before checking again */
-		ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
+		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
 
 #ifdef _WIN32
 		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
@@ -2215,7 +2215,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 
 		/* Read the socket */
 		if ( (ret = PQconsumeInput(conn)) != 1 )
-			rb_raise(rb_ePGError, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn));
+			rb_raise( rb_ePGError, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn) );
 	}
 
 	relname = rb_tainted_str_new2( notification->relname );
