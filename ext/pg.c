@@ -17,6 +17,11 @@
 # define M17N_SUPPORTED
 #endif
 
+#ifdef _WIN32
+	// for O_RDWR and O_BINARY
+	#include <fcntl.h>
+#endif
+
 #define rb_define_singleton_alias(klass,new,old) rb_define_alias(rb_singleton_class(klass),new,old)
 
 static VALUE rb_cPGconn;
@@ -2117,6 +2122,35 @@ pgconn_notifies(VALUE self)
 }
 
 
+#ifdef _WIN32
+void create_crt_fd(fd_set *os_set, fd_set *crt_set)
+{
+	int i;
+	crt_set->fd_count = os_set->fd_count;
+	for (i = 0; i < os_set->fd_count; i++) {
+		WSAPROTOCOL_INFO wsa_pi;
+		// dupicate the SOCKET
+		int r = WSADuplicateSocket(os_set->fd_array[i], GetCurrentProcessId(), &wsa_pi);
+		SOCKET s = WSASocket(wsa_pi.iAddressFamily, wsa_pi.iSocketType, wsa_pi.iProtocol, &wsa_pi, 0, 0);
+		// create the CRT fd so ruby can get back to the SOCKET
+		int fd = _open_osfhandle(s, O_RDWR|O_BINARY);
+		os_set->fd_array[i] = s;
+		crt_set->fd_array[i] = fd;
+	}
+}
+
+void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
+{
+	int i;
+	for (i = 0; i < os_set->fd_count; i++) {
+		// cleanup the CRT fd
+		_close(crt_set->fd_array[i]);
+		// cleanup the duplicated SOCKET
+		closesocket(os_set->fd_array[i]);
+	}
+}
+#endif
+
 /*
  * call-seq:
  *    conn.wait_for_notify( [ timeout ] ) -> String
@@ -2143,6 +2177,9 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	VALUE timeout_in, relname = Qnil, be_pid = Qnil, extra = Qnil;
 	double timeout_sec;
 	fd_set sd_rset;
+#ifdef _WIN32
+	fd_set crt_sd_rset;
+#endif
 
 	if ( sd < 0 )
 		rb_bug("PQsocket(conn): couldn't fetch the connection's socket!");
@@ -2159,8 +2196,18 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 		FD_ZERO( &sd_rset );
 		FD_SET( sd, &sd_rset );
 
+#ifdef _WIN32
+		create_crt_fd(&sd_rset, &crt_sd_rset);
+#endif
+
 		/* Wait for the socket to become readable before checking again */
-		if ( (ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout)) < 0 )
+		ret = rb_thread_select(sd+1, &sd_rset, NULL, NULL, ptimeout);
+
+#ifdef _WIN32
+		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
+#endif
+
+		if ( ret < 0 )
 			rb_sys_fail( 0 );
 
 		/* Return nil if the select timed out */
@@ -2607,6 +2654,9 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	VALUE timeout_in;
 	double timeout_sec;
 	fd_set sd_rset;
+#ifdef _WIN32
+	fd_set crt_sd_rset;
+#endif
 
 	/* Always set a timeout in WIN32, as rb_thread_select() sometimes
 	 * doesn't return when a second ruby thread is running although data
@@ -2630,7 +2680,16 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	while ( PQisBusy(conn) ) {
 		FD_ZERO( &sd_rset );
 		FD_SET( sd, &sd_rset );
-		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
+
+#ifdef _WIN32
+		create_crt_fd(&sd_rset, &crt_sd_rset);
+#endif
+
+		ret = rb_thread_select (sd+1, &sd_rset, NULL, NULL, ptimeout );
+
+#ifdef _WIN32
+		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
+#endif
 
 		/* Return false if there was a timeout argument and the select() timed out */
 		if ( ret == 0 && argc ) 
