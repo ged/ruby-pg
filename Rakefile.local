@@ -264,7 +264,7 @@ begin
 
 
 	# make libpq.a
-	file POSTGRESQL_LIB => [ POSTGRESQL_GLOBAL_MAKEFILE, POSTGRESQL_SHLIB_MAKEFILE ] do |t|
+	task POSTGRESQL_LIB => [ POSTGRESQL_GLOBAL_MAKEFILE, POSTGRESQL_SHLIB_MAKEFILE ] do |t|
 		Dir.chdir( POSTGRESQL_LIB.dirname ) do
 			sh 'make', "-j#{NUM_CPUS}", POSTGRESQL_LIB.basename.to_s, 'PORTNAME=win32'
 		end
