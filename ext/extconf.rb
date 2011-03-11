@@ -6,6 +6,17 @@ if pgdir = with_config( 'pg' )
 	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
+if ENV['CROSS_COMPILING']
+	$LDFLAGS << " -L#{CONFIG['libdir']}"
+
+	# Link against all required libraries for static build, if they are available
+	have_library( 'gdi32', 'CreateDC' ) && append_library( $libs, 'gdi32' )
+	have_library( 'secur32' ) && append_library( $libs, 'secur32' )
+	have_library( 'ws2_32', 'WSASocket') && append_library( $libs, 'ws2_32' )
+	have_library( 'crypto', 'BIO_new' ) && append_library( $libs, 'crypto' )
+	have_library( 'ssl', 'SSL_new' ) && append_library( $libs, 'ssl' )
+end
+
 dir_config 'pg'
 
 if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_executable('pg_config') )

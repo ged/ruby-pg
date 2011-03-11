@@ -240,7 +240,7 @@ begin
 			cmd << "CFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
 			cmd << "LDFLAGS=-L#{STATIC_OPENSSL_BUILDDIR}"
 			cmd << "LDFLAGS_SL=-L#{STATIC_OPENSSL_BUILDDIR}"
-			cmd << "LIBS=-lwsock32 -lgdi32"
+			cmd << "LIBS=-lwsock32 -lws2_32 -lgdi32"
 			cmd << "CPPFLAGS=-I#{STATIC_OPENSSL_BUILDDIR}/include"
 
 			run( *cmd )
