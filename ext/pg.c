@@ -2123,6 +2123,9 @@ pgconn_notifies(VALUE self)
 
 
 #ifdef _WIN32
+/* 
+ * Duplicate the sockets from libpq and create temporary CRT FDs
+ */
 void create_crt_fd(fd_set *os_set, fd_set *crt_set)
 {
 	int i;
@@ -2139,6 +2142,9 @@ void create_crt_fd(fd_set *os_set, fd_set *crt_set)
 	}
 }
 
+/*
+ * Clean up the CRT FDs from create_crt_fd()
+ */
 void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
 {
 	int i;
