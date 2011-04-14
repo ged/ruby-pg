@@ -2656,6 +2656,9 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	int sd = PQsocket(conn);
 	int ret;
 	struct timeval timeout;
+#if defined(_WIN32) && !defined(RUBY_18_COMPAT)
+	struct timeval zerotime;
+#endif
 	struct timeval *ptimeout = NULL;
 	VALUE timeout_in;
 	double timeout_sec;
@@ -2671,6 +2674,13 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 #if defined(_WIN32)
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 10000;
+# if defined(RUBY_18_COMPAT)
+	timeout.tv_usec = 10*1000; //10ms
+# else
+	timeout.tv_usec = 1*1000; //1ms
+	zerotime.tv_sec = 0;
+	zerotime.tv_usec = 0;
+# endif
 	ptimeout = &timeout;
 #endif
 
@@ -2681,7 +2691,10 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		ptimeout = &timeout;
 	}
 
-	PQconsumeInput( conn );
+	/* Check for connection errors (PQisBusy is true on connection errors) */
+	if( PQconsumeInput( conn )==0 ) {
+		rb_raise(rb_ePGError, PQerrorMessage(conn));
+	}
 
 	while ( PQisBusy(conn) ) {
 		FD_ZERO( &sd_rset );
@@ -2691,7 +2704,14 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		create_crt_fd(&sd_rset, &crt_sd_rset);
 #endif
 
+#if !defined(_WIN32) || RUBY_18_COMPAT
 		ret = rb_thread_select (sd+1, &sd_rset, NULL, NULL, ptimeout );
+#else
+		/* Wait minimal time (1ms) before running rb_thread_select which does not wait any time on foreign sockets */
+		if( !argc )
+			rb_thread_wait_for(timeout);
+		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, argc ? ptimeout : &zerotime );
+#endif
 
 #ifdef _WIN32
 		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
@@ -2701,7 +2721,10 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		if ( ret == 0 && argc ) 
 			return Qfalse;
 
-		PQconsumeInput( conn );
+		/* Check for connection errors (PQisBusy is true on connection errors) */
+		if( PQconsumeInput( conn )==0 ) {
+			rb_raise(rb_ePGError, PQerrorMessage(conn));
+		}
 	} 
 
 	return Qtrue;
@@ -2768,6 +2791,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	VALUE rb_pgresult = Qnil;
 
 	/* remove any remaining results from the queue */
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reding the last result */
 	pgconn_get_last_result( self );
 
 	pgconn_send_query( argc, argv, self );
