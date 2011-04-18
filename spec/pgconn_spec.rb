@@ -30,20 +30,64 @@ describe PGconn do
 		@conn.exec( 'BEGIN' )
 	end
 
+	it "can create a connection option string from a Hash of options" do
+		optstring = PGconn.parse_connect_args( 
+			:host => 'pgsql.example.com',
+			:dbname => 'db01',
+			'sslmode' => 'require'
+		  )
 
-	it "should connect successfully with connection string" do
+		optstring.should be_a( String )
+		optstring.should =~ /(^|\s)host='pgsql.example.com'/
+		optstring.should =~ /(^|\s)dbname='db01'/
+		optstring.should =~ /(^|\s)sslmode='require'/
+	end
+
+	it "can create a connection option string from positional parameters" do
+		optstring = PGconn.parse_connect_args( 'pgsql.example.com', nil, '-c geqo=off', nil, 
+		                                       'sales' )
+
+		optstring.should be_a( String )
+		optstring.should =~ /(^|\s)host='pgsql.example.com'/
+		optstring.should =~ /(^|\s)dbname='sales'/
+		optstring.should =~ /(^|\s)options='-c geqo=off'/
+		
+		optstring.should_not =~ /port=/
+		optstring.should_not =~ /tty=/
+	end
+
+	it "can create a connection option string from a mix of positional and hash parameters" do
+		optstring = PGconn.parse_connect_args( 'pgsql.example.com',
+		                                       :dbname => 'licensing', :user => 'jrandom' )
+
+		optstring.should be_a( String )
+		optstring.should =~ /(^|\s)host='pgsql.example.com'/
+		optstring.should =~ /(^|\s)dbname='licensing'/
+		optstring.should =~ /(^|\s)user='jrandom'/
+	end
+
+	it "escapes single quotes and backslashes in connection parameters" do
+		PGconn.parse_connect_args( "DB 'browser' \\" ).should == "host='DB \\'browser\\' \\\\'"
+
+	end
+
+	it "connects with defaults if no connection parameters are given" do
+		PGconn.parse_connect_args.should == ''
+	end
+
+	it "connects successfully with connection string" do
 		tmpconn = PGconn.connect(@conninfo)
 		tmpconn.status.should== PGconn::CONNECTION_OK
 		tmpconn.finish
 	end
 
-	it "should connect using 7 arguments converted to strings" do
+	it "connects using 7 arguments converted to strings" do
 		tmpconn = PGconn.connect('localhost', @port, nil, nil, :test, nil, nil)
 		tmpconn.status.should== PGconn::CONNECTION_OK
 		tmpconn.finish
 	end
 
-	it "should connect using hash" do
+	it "connects using a hash of connection parameters" do
 		tmpconn = PGconn.connect(
 			:host => 'localhost',
 			:port => @port,
@@ -52,7 +96,14 @@ describe PGconn do
 		tmpconn.finish
 	end
 
-	it "should connect asynchronously" do
+	it "raises an exception when connecting with an invalid number of arguments" do
+		expect {
+			PGconn.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
+		}.to raise_error( ArgumentError, /extra positional parameter/i )
+	end
+
+
+	it "can connect asynchronously" do
 		tmpconn = PGconn.connect_start(@conninfo)
 		socket = IO.for_fd(tmpconn.socket)
 		status = tmpconn.connect_poll
@@ -72,7 +123,7 @@ describe PGconn do
 		tmpconn.finish
 	end
 
-	it "should not leave stale server connections after finish" do
+	it "doesn't leave stale server connections after finish" do
 		PGconn.connect(@conninfo).finish
 		sleep 0.5
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
@@ -112,7 +163,7 @@ describe PGconn do
 		}.gsub( /^\t{2}/, '' ).lstrip
 
 	unless RUBY_PLATFORM =~ /mswin|mingw/
-		it "should trace and untrace client-server communication" do
+		it "trace and untrace client-server communication" do
 			# be careful to explicitly close files so that the
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
@@ -173,7 +224,7 @@ describe PGconn do
 		res.ntuples.should == 0
 	end
 
-	it "should not read past the end of a large object" do
+	it "not read past the end of a large object" do
 		@conn.transaction do
 			oid = @conn.lo_create( 0 )
 			fd = @conn.lo_open( oid, PGconn::INV_READ|PGconn::INV_WRITE )

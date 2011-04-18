@@ -77,34 +77,6 @@ static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
 
 
-/*
- * Used to quote the values passed in a Hash to PGconn.init
- * when building the connection string.
- */
-static VALUE
-pgconn_s_quote_connstr(VALUE string)
-{
-	char *str,*ptr;
-	int i,j=0,len;
-	VALUE result;
-
-	Check_Type(string, T_STRING);
-
-	ptr = RSTRING_PTR(string);
-	len = RSTRING_LEN(string);
-	str = ALLOC_N(char, len * 2 + 2 + 1);
-	str[j++] = '\'';
-	for(i = 0; i < len; i++) {
-		if(ptr[i] == '\'' || ptr[i] == '\\')
-			str[j++] = '\\';
-		str[j++] = ptr[i];	
-	}
-	str[j++] = '\'';
-	result = rb_str_new(str, j);
-	xfree(str);
-	return result;
-}
-
 static void
 free_pgconn(PGconn *conn)
 {
@@ -223,87 +195,6 @@ notice_processor_proxy(void *arg, const char *message)
 	return;
 }
 
-/*
- * Appends key='val' to conninfo_rstr
- */
-static void
-build_key_value_string(VALUE conninfo_rstr, char *key, VALUE val)
-{
-	if(val != Qnil) {
-		if(RSTRING_LEN(conninfo_rstr) > 0)
-			rb_str_cat2(conninfo_rstr, " ");
-		rb_str_cat2(conninfo_rstr, key);
-		rb_str_cat2(conninfo_rstr, "=");
-		rb_str_concat(conninfo_rstr, 
-			pgconn_s_quote_connstr(rb_obj_as_string(val)));
-	}
-	return;
-}
-
-static VALUE
-parse_connect_args(int argc, VALUE *argv, VALUE self)
-{
-	VALUE args,arg;
-	VALUE conninfo_rstr = rb_str_new("",0);
-	char *host, *port, *opt, *tty, *dbname, *login, *pwd;
-	host = port = opt = tty = dbname = login = pwd = NULL;
-
-	rb_scan_args(argc, argv, "0*", &args); 
-	if (RARRAY_LEN(args) == 1) { 
-		arg = rb_ary_entry(args,0);
-		if(TYPE(arg) == T_HASH) {
-			build_key_value_string(conninfo_rstr, "host", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("host"))));
-			build_key_value_string(conninfo_rstr, "hostaddr", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("hostaddr"))));
-			build_key_value_string(conninfo_rstr, "port", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("port"))));
-			build_key_value_string(conninfo_rstr, "dbname", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("dbname"))));
-			build_key_value_string(conninfo_rstr, "user", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("user"))));
-			build_key_value_string(conninfo_rstr, "password", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("password"))));
-			build_key_value_string(conninfo_rstr, "connect_timeout", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("connect_timeout"))));
-			build_key_value_string(conninfo_rstr, "options", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("options"))));
-			build_key_value_string(conninfo_rstr, "tty", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("tty"))));
-			build_key_value_string(conninfo_rstr, "sslmode", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("sslmode"))));
-			build_key_value_string(conninfo_rstr, "krbsrvname", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("krbsrvname"))));
-			build_key_value_string(conninfo_rstr, "gsslib", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("gsslib"))));
-			build_key_value_string(conninfo_rstr, "service", 
-				rb_hash_aref(arg, ID2SYM(rb_intern("service"))));
-		}
-		else if(TYPE(arg) == T_STRING) {
-			conninfo_rstr = arg;
-		}
-		else {
-			rb_raise(rb_eArgError, 
-				"Expecting String or Hash as single argument");
-		}
-	}
-	else if (RARRAY_LEN(args) == 7) {
-		build_key_value_string(conninfo_rstr, "host", rb_ary_entry(args,0));
-		build_key_value_string(conninfo_rstr, "port", rb_ary_entry(args,1));
-		build_key_value_string(conninfo_rstr, "options", rb_ary_entry(args,2));
-		build_key_value_string(conninfo_rstr, "tty", rb_ary_entry(args,3));
-		build_key_value_string(conninfo_rstr, "dbname", rb_ary_entry(args,4));
-		build_key_value_string(conninfo_rstr, "user", rb_ary_entry(args,5));
-		build_key_value_string(conninfo_rstr, "password", rb_ary_entry(args,6));
-	}
-	else {
-		rb_raise( rb_eArgError, 
-				  "Expected connection info string, hash, or 7 separate arguments, got a %s.",
-				  RSTRING_PTR(rb_obj_classname( args )) );
-	}
-
-	return conninfo_rstr;
-}
 
 /********************************************************************
  *
@@ -351,9 +242,10 @@ pgconn_alloc(VALUE klass)
  * Document-method: new
  *
  * call-seq:
+ *    PGconn.new -> PGconn
  *    PGconn.new(connection_hash) -> PGconn
  *    PGconn.new(connection_string) -> PGconn
- *    PGconn.new(host, port, options, tty, dbname, login, password) ->  PGconn
+ *    PGconn.new(host, port, options, tty, dbname, user, password) ->  PGconn
  * 
  * Create a connection to the specified server.
  * 
@@ -386,6 +278,9 @@ pgconn_alloc(VALUE klass)
  * 
  * Examples:
  * 
+ *   # Connect using all defaults
+ *   PGconn.connect
+ *
  *   # As a Hash
  *   PGconn.connect( :dbname => 'test', :port => 5432 )
  *   
@@ -411,7 +306,7 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	const char *encname;
 #endif
 
-	conninfo = parse_connect_args(argc, argv, self);
+	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
 	conn = PQconnectdb(StringValuePtr(conninfo));
 
 	if(conn == NULL)
@@ -473,7 +368,7 @@ pgconn_s_connect_start(int argc, VALUE *argv, VALUE self)
 	 */
 	rb_conn = pgconn_alloc(rb_cPGconn);
 
-	conninfo = parse_connect_args(argc, argv, self);
+	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
 	conn = PQconnectStart(StringValuePtr(conninfo));
 
 	if(conn == NULL)
@@ -4109,6 +4004,7 @@ Init_pg_ext()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
+	
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
 
