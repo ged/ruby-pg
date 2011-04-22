@@ -2,7 +2,7 @@
 
 begin
 	require 'pg_ext'
-rescue LoadError => err
+rescue LoadError
 	# If it's a Windows binary gem, try the <major>.<minor> subdirectory
 	if RUBY_PLATFORM =~/(mswin|mingw)/i
 		major_minor = RUBY_VERSION[ /^(\d+\.\d+)/ ] or
