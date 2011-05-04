@@ -21,8 +21,8 @@ dir_config 'pg'
 
 if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_executable('pg_config') )
 	$stderr.puts "Using config values from %s" % [ pgconfig ]
-	$CPPFLAGS << " -I%s" % [ `#{pgconfig} --includedir`.chomp ]
-	$LDFLAGS << " -L%s" % [ `#{pgconfig} --libdir`.chomp ]
+	$CPPFLAGS << " -I%s" % [ `"#{pgconfig}" --includedir`.chomp ]
+	$LDFLAGS << " -L%s" % [ `"#{pgconfig}" --libdir`.chomp ]
 else
 	$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
 		" --with-pg-config=/path/to/pg_config"
