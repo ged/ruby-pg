@@ -2740,14 +2740,21 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 #endif
 
 		/* Return false if there was a timeout argument and the select() timed out */
-		if ( ret == 0 && argc ) 
+		if ( ret == 0 && argc ) {
+#if defined(HAVE_RUBY_VM_H) && defined(_WIN32)
+			WSACloseEvent(hEvent);
+#endif
 			return Qfalse;
+		}
 
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if( PQconsumeInput( conn )==0 ) {
 			rb_raise(rb_ePGError, PQerrorMessage(conn));
 		}
 	} 
+#if defined(HAVE_RUBY_VM_H) && defined(_WIN32)
+	WSACloseEvent(hEvent);
+#endif
 
 	return Qtrue;
 }
