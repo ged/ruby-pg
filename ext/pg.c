@@ -784,7 +784,7 @@ pgconn_server_version(VALUE self)
 
 /*
  * call-seq:
- *    conn.error() -> String
+ *    conn.error_message -> String
  *
  * Returns the error message about connection.
  */
