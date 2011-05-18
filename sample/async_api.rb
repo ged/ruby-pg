@@ -81,9 +81,11 @@ abort "Connect failed: %s" % [ conn.error_message ] unless conn.status == PGconn
 output_progress "Sending query"
 conn.send_query( "SELECT * FROM pg_stat_activity" )
 
-# Fetch all the results
+# Fetch results until there aren't any more
 loop do
 	output_progress "  waiting for a response"
+
+	# Buffer any incoming data on the socket until a full result is ready. 
 	conn.consume_input
 	while conn.is_busy
 		select( [socket], nil, nil, TIMEOUT ) or
@@ -91,6 +93,7 @@ loop do
 		conn.consume_input
 	end
 
+	# Fetch the next result. If there isn't one, the query is finished
 	result = conn.get_result or break
 
 	puts "\n\nQuery result:\n%p\n" % [ result.values ]
