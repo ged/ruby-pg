@@ -1,4 +1,4 @@
-#!/usr/bin/env spec
+#!/usr/bin/env rspec
 # encoding: utf-8
 
 BEGIN {
