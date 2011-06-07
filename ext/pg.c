@@ -2532,7 +2532,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 }
 
 
-#ifdef HAVE_RUBY_VM_H
+#if defined(HAVE_RUBY_VM_H) && defined(_WIN32)
 int rb_w32_wait_events(HANDLE *events, int num, DWORD timeout);
 #endif
 
