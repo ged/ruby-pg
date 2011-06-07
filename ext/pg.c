@@ -2532,6 +2532,10 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 }
 
 
+#ifdef HAVE_RUBY_VM_H
+int rb_w32_wait_events(HANDLE *events, int num, DWORD timeout);
+#endif
+
 /*
  * call-seq:
  *    conn.block( [ timeout ] ) -> Boolean
@@ -2550,54 +2554,102 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	PGconn *conn = get_pgconn(self);
 	int sd = PQsocket(conn);
 	int ret;
+
+	/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs 
+	 * and does not wait (nor sleep) any time even if timeout is given.
+	 * Instead use the Winsock events and rb_w32_wait_events(). */
+
+#if !defined(HAVE_RUBY_VM_H) || !defined(_WIN32)
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
+	fd_set sd_rset;
+# ifdef _WIN32
+	fd_set crt_sd_rset;
+# endif
+#else // WIN32 and Ruby 1.9
+	DWORD timeout_milisec = INFINITY;
+	DWORD wait_ret;
+	WSAEVENT hEvent;
+#endif
 	VALUE timeout_in;
 	double timeout_sec;
-	fd_set sd_rset;
-#ifdef _WIN32
-	fd_set crt_sd_rset;
-#endif
 
+#ifdef _WIN32
+# ifdef HAVE_RUBY_VM_H
+	hEvent = WSACreateEvent();
+# else // Ruby 1.8
 	/* Always set a timeout in WIN32, as rb_thread_select() sometimes
 	 * doesn't return when a second ruby thread is running although data
 	 * could be read. So we use timeout-based polling instead.
 	 */
-#if defined(_WIN32)
 	timeout.tv_sec = 0;
-	timeout.tv_usec = 10000;
+	timeout.tv_usec = 10000; // 10ms
 	ptimeout = &timeout;
+# endif
 #endif
 
 	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
 		timeout_sec = NUM2DBL( timeout_in );
+#if !defined(HAVE_RUBY_VM_H) || !defined(_WIN32)
 		timeout.tv_sec = (long)timeout_sec;
 		timeout.tv_usec = (long)((timeout_sec - (long)timeout_sec) * 1e6);
 		ptimeout = &timeout;
+#else
+		timeout_milisec = (DWORD)((timeout_sec - (DWORD)timeout_sec) * 1e3);
+#endif
 	}
 
-	PQconsumeInput( conn );
+	/* Check for connection errors (PQisBusy is true on connection errors) */
+	if( PQconsumeInput( conn )==0 ) {
+		rb_raise(rb_ePGError, PQerrorMessage(conn));
+	}
 
 	while ( PQisBusy(conn) ) {
+#if !defined(HAVE_RUBY_VM_H) || !defined(_WIN32)
 		FD_ZERO( &sd_rset );
 		FD_SET( sd, &sd_rset );
 
-#ifdef _WIN32
+# ifdef _WIN32
 		create_crt_fd(&sd_rset, &crt_sd_rset);
-#endif
+# endif
 
 		ret = rb_thread_select (sd+1, &sd_rset, NULL, NULL, ptimeout );
+#else // WIN32 and Ruby 1.9
+		if( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE)==SOCKET_ERROR ) {
+			rb_raise(rb_ePGError, "WSAEventSelect socket error: %d", WSAGetLastError());
+		}
+		wait_ret = rb_w32_wait_events(&hEvent, 1, 100);
+		if( wait_ret==WAIT_TIMEOUT ) {
+			ret = 0;
+		} else if( wait_ret==WAIT_OBJECT_0 ) {
+			ret = 1;
+		} else if( wait_ret==WAIT_FAILED ) {
+			rb_raise(rb_ePGError, "Wait on socket error (WaitForMultipleObjects): %d", GetLastError());
+		} else {
+			rb_raise(rb_ePGError, "Wait on socket abandoned (WaitForMultipleObjects)");
+		}
+#endif
 
-#ifdef _WIN32
+#if !defined(HAVE_RUBY_VM_H) && defined(_WIN32)
 		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
 #endif
 
 		/* Return false if there was a timeout argument and the select() timed out */
-		if ( ret == 0 && argc ) 
+		if ( ret == 0 && argc ) {
+#if defined(HAVE_RUBY_VM_H) && defined(_WIN32)
+			WSACloseEvent(hEvent);
+#endif
 			return Qfalse;
+		}
 
-		PQconsumeInput( conn );
+		/* Check for connection errors (PQisBusy is true on connection errors) */
+		if( PQconsumeInput( conn )==0 ) {
+			rb_raise(rb_ePGError, PQerrorMessage(conn));
+		}
 	} 
+#if defined(HAVE_RUBY_VM_H) && defined(_WIN32)
+	WSACloseEvent(hEvent);
+#endif
 
 	return Qtrue;
 }
@@ -2663,6 +2715,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	VALUE rb_pgresult = Qnil;
 
 	/* remove any remaining results from the queue */
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
 	pgconn_get_last_result( self );
 
 	pgconn_send_query( argc, argv, self );
