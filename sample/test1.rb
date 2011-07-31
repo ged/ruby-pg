@@ -22,7 +22,7 @@ def main
     res.clear
 
     res = conn.exec("FETCH ALL in myportal")
-    if (res.status != PGresult::TUPLES_OK)
+    if (res.result_status != PGresult::PGRES_TUPLES_OK)
       raise PGerror,"FETCH ALL command didn't return tuples properly\n"
     end
 
@@ -31,7 +31,7 @@ def main
     end
     printf("\n\n")
 
-    res.result.each do |tupl|
+    res.values.each do |tupl|
       tupl.each do |fld|
 	printf("%-15s",fld)
       end
@@ -58,6 +58,3 @@ def main
 end
 
 main
-
-
-
