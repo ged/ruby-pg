@@ -28,7 +28,7 @@ static VALUE rb_cPGconn;
 static VALUE rb_cPGresult;
 static VALUE rb_ePGError;
 
-static const char *VERSION = "0.11.0";
+static const char *VERSION = "0.11.1";
 
 
 /* The following functions are part of libpq, but not
@@ -2584,7 +2584,8 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		FD_ZERO( &sd_rset );
 		FD_SET( sd, &sd_rset );
 
-		ret = rb_thread_select (sd+1, &sd_rset, NULL, NULL, ptimeout );
+		if ( (ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout )) < 0 )
+			rb_sys_fail( "rb_thread_select()" ); /* Raises */
 
 		/* Return false if there was a timeout argument and the select() timed out */
 		if ( ret == 0 && argc )
