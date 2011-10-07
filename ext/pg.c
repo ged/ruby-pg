@@ -293,7 +293,7 @@ pgconn_alloc(VALUE klass)
  * If the Ruby default internal encoding is set (i.e., Encoding.default_internal != nil), the
  * connection will have its +client_encoding+ set accordingly.
  * 
- * @raises [PGError] if the connection fails.
+ * Raises a PGError if the connection fails.
  */
 static VALUE
 pgconn_init(int argc, VALUE *argv, VALUE self)
@@ -1285,7 +1285,6 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
 /*
  * call-seq:
  *    conn.escape_string( str ) -> String
- *    PGconn.escape_string( str ) -> String  # DEPRECATED
  *
  * Connection instance method for versions of 8.1 and higher of libpq
  * uses PQescapeStringConn, which is safer. Avoid calling as a class method,
@@ -1343,7 +1342,6 @@ pgconn_s_escape(VALUE self, VALUE string)
 /*
  * call-seq:
  *   conn.escape_bytea( string ) -> String 
- *   PGconn.escape_bytea( string ) -> String # DEPRECATED
  *
  * Connection instance method for versions of 8.1 and higher of libpq
  * uses PQescapeByteaConn, which is safer. Avoid calling as a class method,
@@ -2127,10 +2125,12 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	}
 
 	relname = rb_tainted_str_new2( notification->relname );
+	ASSOCIATE_INDEX( relname, self );
 	be_pid = INT2NUM( notification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
 	if ( *notification->extra ) {
-		extra = rb_str_new2( notification->extra );
+		extra = rb_tainted_str_new2( notification->extra );
+		ASSOCIATE_INDEX( extra, self );
 	}
 #endif
 	PQfreemem( notification );
@@ -3207,10 +3207,10 @@ pgresult_result_error_message(VALUE self)
 static VALUE
 pgresult_result_error_field(VALUE self, VALUE field)
 {
-	PGresult *result = get_pgresult(self);
-	int fieldcode = NUM2INT(field);
-	VALUE ret = rb_tainted_str_new2(PQresultErrorField(result,fieldcode));
-	ASSOCIATE_INDEX(ret, self);
+	PGresult *result = get_pgresult( self );
+	int fieldcode = NUM2INT( field );
+ 	VALUE ret = rb_tainted_str_new2( PQresultErrorField(result, fieldcode) );
+	ASSOCIATE_INDEX( ret, self );
 	return ret;
 }
 
@@ -4143,7 +4143,6 @@ Init_pg_ext()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
-	
 
 	/******     PGconn CLASS CONSTANTS: Connection Status     ******/
 
