@@ -2,6 +2,11 @@ require 'pp'
 require 'mkmf'
 
 
+if ENV['MAINTAINER_MODE']
+	$stderr.puts "Maintainer mode enabled."
+	$CFLAGS << ' -Wall' << ' -ggdb' << ' -DDEBUG'
+end
+
 if pgdir = with_config( 'pg' )
 	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end

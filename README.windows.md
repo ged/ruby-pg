@@ -1,5 +1,4 @@
-
-= Compiling on MS Windows
+# Compiling 'pg' on MS Windows
 
 In order to build this extension on MS Windows you will need a couple things.
 
@@ -24,13 +23,13 @@ In order to build ruby-pg, just run 'rake'. If the pg_config.exe executable
 is not in your PATH, you'll need to explicitly point ruby-pg to where your
 PostgreSQL headers and libraries are with something like this:
 
-   rake --with-pg-dir=c:/progra~1/postgr~1/8.3
+	rake --with-pg-dir=c:/progra~1/postgr~1/8.3
 
 Adjust your path accordingly. BE SURE TO USE THE SHORT PATH NAMES! If you
 try to use a path with spaces in it, the nmake.exe program will choke.
 
 
-== Cross compiling for mswin32
+## Cross compiling for mswin32
 
 Using rake-compiler a cross compiled pg-gem can be build on a linux host for
 the win32 platform. The generated gem is statically linked against libpq and
@@ -39,37 +38,38 @@ There are no runtime dependencies to any but the standard Windows DLLs.
 
 Install mingw32. On a debian based system this should work:
 
-  apt-get install mingw32
+	apt-get install mingw32
 
 On MacOS X, if you have MacPorts installed:
 
-  port install i386-mingw32-gcc
+	port install i386-mingw32-gcc
 
 Install the rake-compiler:
 
-  gem install rake-compiler
+	gem install rake-compiler
 
 Download and cross compile ruby 1.8 and 1.9 for win32:
 
-  rake-compiler cross-ruby VERSION=1.8.7-p334
-  rake-compiler cross-ruby VERSION=1.9.2-p180
+	rake-compiler cross-ruby VERSION=1.8.7-p334
+	rake-compiler cross-ruby VERSION=1.9.2-p180
 
 Download and cross compile pg for win32:
 
-  rake cross native gem
+	rake cross native gem
+
 or with custom versions:
-  rake cross native gem RUBY_CC_VERSION=1.8.7:1.9.2 OPENSSL_VERSION=1.0.0d POSTGRESQL_VERSION=9.0.3
+
+	rake cross native gem RUBY_CC_VERSION=1.8.7:1.9.2 OPENSSL_VERSION=1.0.0d POSTGRESQL_VERSION=9.0.3
 
 If everything works, there should be pg-VERSION-x86-mswin32.gem in the pkg
 directory.
 
 
-If you have any problems you can submit them via the project's issue-tracker:
+## Reporting Problems
 
-  http://bitbucket.org/ged/ruby-pg/issues/new/
+If you have any problems you can submit them via [the project's issue-tracker][bitbucket], or you can join the mailing list:
 
-Or you can join the mailing list:
-
-  ruby-pg-general@rubyforge.org
+	ruby-pg-general@rubyforge.org
 
 And submit questions, problems, or solutions, so that it can be improved.
+

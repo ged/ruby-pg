@@ -1,0 +1,6 @@
+# pg
+
+* https://bitbucket.org/ged/ruby-pg
+
+This file needs translation. Anyone who is willing to volunteer, please mail <ged@FaerieMUD.org>.
+
