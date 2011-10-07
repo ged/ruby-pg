@@ -2056,6 +2056,7 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
  * call-seq:
  *    conn.wait_for_notify( [ timeout ] ) -> String
  *    conn.wait_for_notify( [ timeout ] ) { |event, pid| block }
+ *    conn.wait_for_notify( [ timeout ] ) { |event, pid, payload| block } # PostgreSQL 9.0
  *
  * Blocks while waiting for notification(s), or until the optional
  * _timeout_ is reached, whichever comes first.  _timeout_ is
@@ -2064,6 +2065,10 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
  * Returns +nil+ if _timeout_ is reached, the name of the NOTIFY
  * event otherwise.  If used in block form, passes the name of the
  * NOTIFY +event+ and the generating +pid+ into the block.
+ * 
+ * Under PostgreSQL 9.0 and later, if the notification is sent with
+ * the optional +payload+ string, it will be given to the block as the
+ * third argument.
  * 
  */
 static VALUE
