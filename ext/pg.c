@@ -2129,7 +2129,9 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	relname = rb_tainted_str_new2( notification->relname );
 	be_pid = INT2NUM( notification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
-	extra = rb_str_new2( notification->extra );
+	if ( *notification->extra ) {
+		extra = rb_str_new2( notification->extra );
+	}
 #endif
 	PQfreemem( notification );
 

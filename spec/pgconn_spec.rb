@@ -395,6 +395,28 @@ describe PGconn do
 			pid.should be_a_kind_of( Integer )
 		end
 
+		it "sends nil as the payload if the notification wasn't given one" do
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				conn.exec( %Q{NOTIFY knees} )
+				conn.finish
+				exit!
+			end
+
+			Process.wait( pid )
+
+			payload = :notnil
+			@conn.wait_for_notify( nil ) do |*args|
+				payload = args[ 2 ]
+			end
+			@conn.exec( 'UNLISTEN knees' )
+
+			payload.should be_nil()
+		end
+
 		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
 		   "two arguments" do
 
