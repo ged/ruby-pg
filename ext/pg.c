@@ -2080,7 +2080,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	int ret;
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
-	VALUE timeout_in, relname = Qnil, be_pid = Qnil, extra = Qnil;
+	VALUE timeout_in = Qnil, relname = Qnil, be_pid = Qnil, extra = Qnil;
 	double timeout_sec;
 	fd_set sd_rset;
 #ifdef _WIN32
@@ -2090,7 +2090,9 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	if ( sd < 0 )
 		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
 
-	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
+	rb_scan_args( argc, argv, "01", &timeout_in );
+
+	if ( RTEST(timeout_in) ) {
 		timeout_sec = NUM2DBL( timeout_in );
 		timeout.tv_sec = (long)timeout_sec;
 		timeout.tv_usec = (long)( (timeout_sec - (long)timeout_sec) * 1e6 );

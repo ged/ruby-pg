@@ -365,11 +365,34 @@ describe PGconn do
 			@conn.wait_for_notify( 10 ) do |*args|
 				event, pid, msg = *args
 			end
-			@conn.exec( 'UNLISTEN woo' )
+			@conn.exec( 'UNLISTEN knees' )
 
 			event.should == 'knees'
 			pid.should be_a_kind_of( Integer )
 			msg.should == 'skirt and boots'
+		end
+
+		it "accepts nil as the timeout in #wait_for_notify " do
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN knees' )
+
+			pid = fork do
+				conn = PGconn.connect( @conninfo )
+				conn.exec( %Q{NOTIFY knees} )
+				conn.finish
+				exit!
+			end
+
+			Process.wait( pid )
+
+			event, pid = nil
+			@conn.wait_for_notify( nil ) do |*args|
+				event, pid = *args
+			end
+			@conn.exec( 'UNLISTEN knees' )
+
+			event.should == 'knees'
+			pid.should be_a_kind_of( Integer )
 		end
 
 		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
@@ -391,7 +414,7 @@ describe PGconn do
 			@conn.wait_for_notify( 10 ) do |arg1, arg2|
 				event, pid, msg = arg1, arg2
 			end
-			@conn.exec( 'UNLISTEN woo' )
+			@conn.exec( 'UNLISTEN knees' )
 
 			event.should == 'knees'
 			pid.should be_a_kind_of( Integer )
@@ -417,7 +440,7 @@ describe PGconn do
 			@conn.wait_for_notify( 10 ) do
 				notification_received = true
 			end
-			@conn.exec( 'UNLISTEN woo' )
+			@conn.exec( 'UNLISTEN knees' )
 
 			notification_received.should be_true()
 		end
@@ -441,7 +464,7 @@ describe PGconn do
 			@conn.wait_for_notify( 10 ) do |arg1, arg2, arg3|
 				event, pid, msg = arg1, arg2, arg3
 			end
-			@conn.exec( 'UNLISTEN woo' )
+			@conn.exec( 'UNLISTEN knees' )
 
 			event.should == 'knees'
 			pid.should be_a_kind_of( Integer )
