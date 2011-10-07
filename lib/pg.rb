@@ -14,7 +14,8 @@ rescue LoadError
 
 end
 
-### The PG connection class.
+#--
+# The PG connection class.
 class PGconn
 
 	# The order the options are passed to the ::connect method.
@@ -22,16 +23,13 @@ class PGconn
 
 
 	### Quote the given +value+ for use in a connection-parameter string.
-	### @param [String] value  the option value to be quoted.
-	### @return [String]
 	def self::quote_connstr( value )
 		return "'" + value.to_s.gsub( /[\\']/ ) {|m| '\\' + m } + "'"
 	end
 
 
-	### Parse the connection +args+ into a connection-parameter string
-	### @param [Array<String>] args  the connection parameters
-	### @return [String]  a connection parameters string
+	### Parse the connection +args+ into a connection-parameter string. See PGconn.new
+	### for valid arguments.
 	def self::parse_connect_args( *args )
 		return '' if args.empty?
 

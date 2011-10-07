@@ -44,21 +44,25 @@ Hoe.plugins.delete :compiler
 
 # Hoe specification
 $hoespec = Hoe.spec 'pg' do
-	self.readme_file = 'README.md'
-	self.history_file = 'History.md'
+	self.readme_file = 'README.rdoc'
+	self.history_file = 'History.rdoc'
+	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
+	self.extra_rdoc_files.include( 'BSD', 'GPL', 'LICENSE' )
+	self.extra_rdoc_files.include( 'ext/*.c' )
 
 	self.developer 'Jeff Davis', 'ruby-pg@j-davis.com'
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 
 	self.dependency 'rake-compiler', '~> 0.7'
-	self.dependency	'rspec', '~> 2.4', :developer
+	self.dependency	'rspec', '~> 2.6', :developer
 
 	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
 
 	self.require_ruby_version( '>= 1.8.7' )
 
-	self.hg_sign_tags = true if self.plugin?( :mercurial )
+	self.hg_sign_tags = true if self.respond_to?( :hg_sign_tags= )
+	self.check_history_on_release = true if self.respond_to?( :check_history_on_release= )
 
 	self.rdoc_locations << "deveiate:/usr/local/www/public/code/#{remote_rdoc_dir}"
 end
@@ -66,7 +70,7 @@ end
 ENV['VERSION'] ||= $hoespec.spec.version.to_s
 
 # Tests should pass before checking in
-task 'hg:precheckin' => :spec
+task 'hg:precheckin' => [ :check_history, :check_manifest, :spec ]
 
 # Support for 'rvm specs'
 task :specs => :spec
