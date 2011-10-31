@@ -41,6 +41,8 @@ Hoe.plugin :signing
 Hoe.plugins.delete :rubyforge
 Hoe.plugins.delete :compiler
 
+load 'Rakefile.cross'
+
 
 # Hoe specification
 $hoespec = Hoe.spec 'pg' do
@@ -105,7 +107,16 @@ Rake::ExtensionTask.new do |ext|
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
 	ext.cross_compile  = true
-	ext.cross_platform = %w[i386-mswin32 i386-mingw32]
+	ext.cross_platform = %w[i386-mingw32]
+
+  # configure options only for cross compile
+  ext.cross_config_options += [
+    "--with-pg-include=#{STATIC_POSTGRESQL_LIBDIR}",
+    "--with-opt-include=#{STATIC_POSTGRESQL_INCDIR}",
+    "--with-pg-lib=#{STATIC_POSTGRESQL_LIBDIR}",
+    "--with-opt-lib=#{STATIC_OPENSSL_BUILDDIR}",
+    "--enable-static-build",
+  ]
 end
 
 
