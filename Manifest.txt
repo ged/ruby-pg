@@ -1,5 +1,6 @@
 .gemtest
 BSD
+ChangeLog
 Contributors.rdoc
 GPL
 History.rdoc
@@ -23,6 +24,7 @@ misc/openssl-pg-segfault.rb
 sample/async_api.rb
 sample/copyfrom.rb
 sample/copyto.rb
+sample/cursor.rb
 sample/losample.rb
 sample/notify_wait.rb
 sample/psql.rb

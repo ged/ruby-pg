@@ -3883,7 +3883,15 @@ static int enc_get_index(VALUE val)
 	return i;
 }
 
+#ifdef HAVE_RB_ENCDB_ALIAS
+#	define ENC_ALIAS(name, orig) rb_encdb_alias((name), (orig))
+#elif HAVE_RB_ENC_ALIAS
+#	define ENC_ALIAS(name, orig) rb_enc_alias((name), (orig))
+#else
 extern int rb_enc_alias(const char *alias, const char *orig); /* declaration missing in Ruby 1.9.1 */
+#	define ENC_ALIAS(name, orig) rb_enc_alias((name), (orig))
+#endif
+
 static rb_encoding *
 find_or_create_johab(void)
 {
@@ -3897,7 +3905,7 @@ find_or_create_johab(void)
 
 	enc_index = rb_define_dummy_encoding(aliases[0]);
 	for (i = 1; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
-		rb_enc_alias(aliases[i], aliases[0]);
+		ENC_ALIAS(aliases[i], aliases[0]);
 	}
 	return rb_enc_from_index(enc_index);
 }
