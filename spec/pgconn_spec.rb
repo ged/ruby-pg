@@ -167,7 +167,7 @@ describe PGconn do
 			# be careful to explicitly close files so that the
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
-			trace_file = @test_directory + "test_trace.out"
+			trace_file = TEST_DIRECTORY + "test_trace.out"
 			trace_io = trace_file.open( 'w', 0600 )
 			@conn.trace( trace_io )
 			trace_io.close

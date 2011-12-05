@@ -38,7 +38,34 @@ describe PGresult do
 
 	it "should insert nil AS NULL and return NULL as nil" do
 		res = @conn.exec("SELECT $1::int AS n", [nil])
-		res[0]['n'].should == nil
+		res[0]['n'].should be_nil()
+	end
+
+	it "encapsulates errors in a PGError object" do
+		exception = nil
+		begin
+			@conn.exec( "SELECT * FROM nonexistant_table" )
+		rescue PGError => err
+			exception = err
+		end
+
+		result = exception.result
+
+		result.should be_a( PGresult )
+		result.error_field( PGresult::PG_DIAG_SEVERITY ).should == 'ERROR'
+		result.error_field( PGresult::PG_DIAG_SQLSTATE ).should == '42P01'
+		result.error_field( PGresult::PG_DIAG_MESSAGE_PRIMARY ).
+			should == 'relation "nonexistant_table" does not exist'
+		result.error_field( PGresult::PG_DIAG_MESSAGE_DETAIL ).should be_nil()
+		result.error_field( PGresult::PG_DIAG_MESSAGE_HINT ).should be_nil()
+		result.error_field( PGresult::PG_DIAG_STATEMENT_POSITION ).should == '15'
+		result.error_field( PGresult::PG_DIAG_INTERNAL_POSITION ).should be_nil()
+		result.error_field( PGresult::PG_DIAG_INTERNAL_QUERY ).should be_nil()
+		result.error_field( PGresult::PG_DIAG_CONTEXT ).should be_nil()
+		result.error_field( PGresult::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$/
+		result.error_field( PGresult::PG_DIAG_SOURCE_LINE ).should == '857'
+		result.error_field( PGresult::PG_DIAG_SOURCE_FUNCTION ).should == 'parserOpenTable'
+
 	end
 
 	it "should detect division by zero as SQLSTATE 22012" do
@@ -46,8 +73,7 @@ describe PGresult do
 		begin
 			res = @conn.exec("SELECT 1/0")
 		rescue PGError => e
-			sqlstate = e.result.result_error_field(
-				PGresult::PG_DIAG_SQLSTATE).to_i
+			sqlstate = e.result.result_error_field( PGresult::PG_DIAG_SQLSTATE ).to_i
 		end
 		sqlstate.should == 22012
 	end

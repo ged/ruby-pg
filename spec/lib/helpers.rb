@@ -2,7 +2,9 @@
 
 require 'pathname'
 require 'rspec'
+require 'shellwords'
 
+TEST_DIRECTORY = Pathname.getwd + "tmp_test_specs"
 
 RSpec.configure do |config|
 	ruby_version_vec = RUBY_VERSION.split('.').map {|c| c.to_i }.pack( "N*" )
@@ -139,6 +141,7 @@ module PgTestingHelpers
 			else
 				$stdout.reopen( logfh )
 				$stderr.reopen( $stdout )
+				$stderr.puts( ">>> " + cmd.shelljoin )
 				exec( *cmd )
 				$stderr.puts "After the exec()?!??!"
 				exit!
@@ -184,8 +187,7 @@ module PgTestingHelpers
 		stop_existing_postmasters()
 
 		puts "Setting up test database for #{description} tests"
-		@test_directory = Pathname.getwd + "tmp_test_specs"
-		@test_pgdata = @test_directory + 'data'
+		@test_pgdata = TEST_DIRECTORY + 'data'
 		@test_pgdata.mkpath
 
 		@port = 54321
@@ -193,7 +195,7 @@ module PgTestingHelpers
 		ENV['PGHOST'] = 'localhost'
 		@conninfo = "host=localhost port=#{@port} dbname=test"
 
-		@logfile = @test_directory + 'setup.log'
+		@logfile = TEST_DIRECTORY + 'setup.log'
 		trace "Command output logged to #{@logfile}"
 
 		begin
@@ -204,7 +206,7 @@ module PgTestingHelpers
 			end
 
 			trace "Starting postgres"
-			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-k #{@test_directory.to_s.inspect}",
+			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-k #{TEST_DIRECTORY.to_s.dump}",
 				'-D', @test_pgdata.to_s, 'start'
 			sleep 2
 

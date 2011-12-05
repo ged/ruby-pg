@@ -3172,12 +3172,12 @@ pgresult_res_status(VALUE self, VALUE status)
 
 /*
  * call-seq:
- *    res.result_error_message() -> String
+ *    res.error_message() -> String
  *
  * Returns the error message of the command as a string. 
  */
 static VALUE
-pgresult_result_error_message(VALUE self)
+pgresult_error_message(VALUE self)
 {
 	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(get_pgresult(self)));
 	ASSOCIATE_INDEX(ret, self);
@@ -3186,7 +3186,7 @@ pgresult_result_error_message(VALUE self)
 
 /*
  * call-seq:
- *    res.result_error_field(fieldcode) -> String
+ *    res.error_field(fieldcode) -> String
  *
  * Returns the individual field of an error.
  *
@@ -3203,14 +3203,46 @@ pgresult_result_error_message(VALUE self)
  * * +PG_DIAG_SOURCE_FILE+
  * * +PG_DIAG_SOURCE_LINE+
  * * +PG_DIAG_SOURCE_FUNCTION+
+ *
+ * An example:
+ * 
+ *   begin
+ *       conn.exec( "SELECT * FROM nonexistant_table" )
+ *   rescue PGError => err
+ *       p [
+ *           result.error_field( PGresult::PG_DIAG_SEVERITY ),
+ *           result.error_field( PGresult::PG_DIAG_SQLSTATE ),
+ *           result.error_field( PGresult::PG_DIAG_MESSAGE_PRIMARY ),
+ *           result.error_field( PGresult::PG_DIAG_MESSAGE_DETAIL ),
+ *           result.error_field( PGresult::PG_DIAG_MESSAGE_HINT ),
+ *           result.error_field( PGresult::PG_DIAG_STATEMENT_POSITION ),
+ *           result.error_field( PGresult::PG_DIAG_INTERNAL_POSITION ),
+ *           result.error_field( PGresult::PG_DIAG_INTERNAL_QUERY ),
+ *           result.error_field( PGresult::PG_DIAG_CONTEXT ),
+ *           result.error_field( PGresult::PG_DIAG_SOURCE_FILE ),
+ *           result.error_field( PGresult::PG_DIAG_SOURCE_LINE ),
+ *           result.error_field( PGresult::PG_DIAG_SOURCE_FUNCTION ),
+ *       ]
+ *   end
+ * 
+ * Outputs:
+ * 
+ *   ["ERROR", "42P01", "relation \"nonexistant_table\" does not exist", nil, nil, 
+ *    "15", nil, nil, nil, "path/to/parse_relation.c", "857", "parserOpenTable"]
  */
 static VALUE
-pgresult_result_error_field(VALUE self, VALUE field)
+pgresult_error_field(VALUE self, VALUE field)
 {
 	PGresult *result = get_pgresult( self );
 	int fieldcode = NUM2INT( field );
- 	VALUE ret = rb_tainted_str_new2( PQresultErrorField(result, fieldcode) );
-	ASSOCIATE_INDEX( ret, self );
+	char * fieldstr = PQresultErrorField( result, fieldcode );
+	VALUE ret = Qnil;
+
+	if ( fieldstr ) {
+		ret = rb_tainted_str_new2( fieldstr );
+		ASSOCIATE_INDEX( ret, self );
+	}
+
 	return ret;
 }
 
@@ -4432,8 +4464,10 @@ Init_pg_ext()
 	/******     PGresult INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
 	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
-	rb_define_method(rb_cPGresult, "result_error_message", pgresult_result_error_message, 0);
-	rb_define_method(rb_cPGresult, "result_error_field", pgresult_result_error_field, 1);
+	rb_define_method(rb_cPGresult, "error_message", pgresult_error_message, 0);
+	rb_define_alias( rb_cPGresult, "result_error_message", "error_message");
+	rb_define_method(rb_cPGresult, "error_field", pgresult_error_field, 1);
+	rb_define_alias( rb_cPGresult, "result_error_field", "error_field" );
 	rb_define_method(rb_cPGresult, "clear", pgresult_clear, 0);
 	rb_define_method(rb_cPGresult, "ntuples", pgresult_ntuples, 0);
 	rb_define_alias(rb_cPGresult, "num_tuples", "ntuples");

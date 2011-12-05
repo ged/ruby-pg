@@ -29,9 +29,9 @@ TMPDIR  = BASEDIR + 'tmp'
 DLEXT   = Config::CONFIG['DLEXT']
 EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
-TESTING_TMPDIRS = Rake::FileList[ "#{Dir.tmpdir}/tmp_test_*" ]
+TEST_DIRECTORY = BASEDIR + "tmp_test_specs"
 
-CLOBBER.include( *TESTING_TMPDIRS )
+CLOBBER.include( TEST_DIRECTORY )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 
 # Set up Hoe plugins

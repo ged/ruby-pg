@@ -22,6 +22,7 @@ ext/vc/pg_19/pg_19.vcproj
 lib/pg.rb
 misc/openssl-pg-segfault.rb
 sample/async_api.rb
+sample/async_copyto.rb
 sample/copyfrom.rb
 sample/copyto.rb
 sample/cursor.rb
