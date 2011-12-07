@@ -11,6 +11,7 @@ README.ja.rdoc
 README.rdoc
 README.windows.rdoc
 Rakefile
+Rakefile.cross
 ext/compat.c
 ext/compat.h
 ext/extconf.rb

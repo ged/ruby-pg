@@ -1,4 +1,4 @@
-== v0.12.0 [2011-10-07] Michael Granger <ged@FaerieMUD.org>
+== v0.12.0 [2011-12-07] Michael Granger <ged@FaerieMUD.org>
 
 - PGconn#wait_for_notify
   * send nil as the payload argument if the NOTIFY didn't have one.
@@ -15,6 +15,7 @@
 - fixing unused variable warnings for ruby 1.9.3 (Aaron Patterson)
 - Build system bugfixes
 - Converted to Hoe
+- Updates for the Win32 binary gem builds (Lars Kanis)
 
 
 == v0.11.0 [2011-02-09] Michael Granger <ged@FaerieMUD.org>

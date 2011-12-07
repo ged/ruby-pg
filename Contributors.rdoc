@@ -1,5 +1,7 @@
 
-Thanks to all the great people that have contributed code, suggestions, and patches through the years. If you contribute a patch, please include a patch for this file that adds your name to the list.
+Thanks to all the great people that have contributed code, suggestions, and patches through the
+years. If you contribute a patch, please include a patch for this file that adds your name to the
+list.
 
 * Dennis Vshivkov <walrus@amur.ru>
 * Gabriel Emerson <gemerson@evalsoft.com>
@@ -32,6 +34,6 @@ Thanks to all the great people that have contributed code, suggestions, and patc
 * Bertram Scharpf <software@bertram-scharpf.de>
 * Michael Granger <ged@FaerieMUD.org>
 * Mahlon E. Smith <mahlon@martini.nu>
-
-Jason Yanowitz <me-bitbucket@jasonyanowitz.com>
+* Lars Kanis <kanis@comcard.de>
+* Jason Yanowitz <me-bitbucket@jasonyanowitz.com>
 

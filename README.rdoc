@@ -8,6 +8,11 @@ Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].
 
 It works with PostgreSQL 8.2 and later.
 
+This will be the last minor version to support 8.2 -- 0.13 will support 8.3 
+and later, following the 
+{PostgreSQL Release Support Policy}[http://bit.ly/6AfPhm].
+
+
 
 == Requirements
 
@@ -21,12 +26,12 @@ It may work with earlier versions as well, but those are not regularly tested.
 
 Install via RubyGems:
 
-	gem install pg
+    gem install pg
 
 You may need to specify the path to the 'pg_config' program installed with
 Postgres:
 
-	gem install pg -- --with-pg-config=<path to pg_config>
+    gem install pg -- --with-pg-config=<path to pg_config>
 
 See README.OS_X.rdoc for more information about installing under MacOS X, and
 README.windows.rdoc for Windows build/installation instructions.
@@ -40,7 +45,7 @@ Git, there's also a {Github mirror}[https://github.com/ged/ruby-pg].
 
 After checking out the source, run:
 
-	$ rake newb
+    $ rake newb
 
 This task will install any missing dependencies, run the tests/specs, and
 generate the API documentation.
