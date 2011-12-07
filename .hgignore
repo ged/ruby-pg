@@ -13,3 +13,4 @@ lowrite\.txt
 ^tmp/
 ^tmp_test_specs/
 ~$
+build/
