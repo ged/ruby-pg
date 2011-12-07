@@ -31,7 +31,7 @@ EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
 TEST_DIRECTORY = BASEDIR + "tmp_test_specs"
 
-CLOBBER.include( TEST_DIRECTORY )
+CLOBBER.include( TEST_DIRECTORY.to_s )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 
 # Set up Hoe plugins
