@@ -56,7 +56,12 @@ POSTGRESQL_SHLIB_MAKEFILE  = STATIC_POSTGRESQL_SRCDIR + 'Makefile.shlib'
 POSTGRESQL_SHLIB_MF_ORIG   = STATIC_POSTGRESQL_SRCDIR + 'Makefile.shlib.orig'
 POSTGRESQL_LIB             = STATIC_POSTGRESQL_LIBDIR + 'libpq.a'
 
-CROSS_PREFIX = Rake::ExtensionCompiler.mingw_host
+CROSS_PREFIX = begin
+	Rake::ExtensionCompiler.mingw_host
+rescue => err
+	$stderr.puts "Cross-compilation disabled -- %s" % [ err.message ]
+	'unknown'
+end
 
 
 # clean intermediate files and folders
