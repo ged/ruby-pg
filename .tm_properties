@@ -1,0 +1,13 @@
+# Settings
+projectDirectory     = "$CWD"
+windowTitle          = "${CWD/^.*\///} «$TM_DISPLAYNAME»"
+excludeInFileChooser = "{$exclude,.hg}"
+
+[ source.ruby ]
+softTabs         = false
+tabSize          = 4
+
+[ "**/*_spec.rb" ]
+fileType = 'text.ruby.rspec'
+
+
