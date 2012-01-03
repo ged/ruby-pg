@@ -14,7 +14,11 @@
 #endif /* HAVE_UNISTD_H */
 
 #include "ruby.h"
-#include "ruby/st.h"
+#ifdef HAVE_RUBY_ST_H
+  #include "ruby/st.h"
+#elif HAVE_ST_H
+  #include "st.h"
+#endif
 #include "libpq-fe.h"
 #include "libpq/libpq-fs.h"              /* large-object interface */
 #include "compat.h"
