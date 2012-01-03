@@ -61,7 +61,7 @@ $defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h' unless enable_config("static-build")
-have_header 'ruby/st.h' or abort "pg currently requires the ruby/st.h header"
+have_header 'ruby/st.h' or have_header 'st.h' or abort "pg currently requires the ruby/st.h header"
 
 create_header()
 create_makefile( "pg_ext" )
