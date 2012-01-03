@@ -29,6 +29,18 @@ describe PGresult do
 		@conn.exec( 'BEGIN' )
 	end
 
+	after( :each ) do
+		@conn.exec( 'ROLLBACK' )
+	end
+
+	after( :all ) do
+		teardown_testing_db( @conn )
+	end
+
+
+	#
+	# Examples
+	#
 
 	it "should act as an array of hashes" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
@@ -240,11 +252,4 @@ describe PGresult do
 		res.ftablecol(1).should == 0 # and it shouldn't raise an exception, either
 	end
 
-	after( :each ) do
-		@conn.exec( 'ROLLBACK' )
-	end
-
-	after( :all ) do
-		teardown_testing_db( @conn )
-	end
 end

@@ -22,6 +22,7 @@ require 'timeout'
 describe PGconn do
 	include PgTestingHelpers
 
+
 	before( :all ) do
 		@conn = setup_testing_db( "PGconn" )
 	end
@@ -29,6 +30,19 @@ describe PGconn do
 	before( :each ) do
 		@conn.exec( 'BEGIN' )
 	end
+
+	after( :each ) do
+		@conn.exec( 'ROLLBACK' )
+	end
+
+	after( :all ) do
+		teardown_testing_db( @conn )
+	end
+
+
+	#
+	# Examples
+	#
 
 	it "can create a connection option string from a Hash of options" do
 		optstring = PGconn.parse_connect_args( 
@@ -633,11 +647,4 @@ describe PGconn do
 		result.should == { 'one' => '47' }
 	end
 
-	after( :each ) do
-		@conn.exec( 'ROLLBACK' )
-	end
-
-	after( :all ) do
-		teardown_testing_db( @conn )
-	end
 end

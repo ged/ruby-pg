@@ -26,6 +26,18 @@ describe "multinationalization support", :ruby_19 => true do
 		@conn.exec( 'BEGIN' )
 	end
 
+	after( :each ) do
+		@conn.exec( 'ROLLBACK' ) if @conn
+	end
+
+	after( :all ) do
+		teardown_testing_db( @conn ) if @conn
+	end
+
+
+	#
+	# Examples
+	#
 
 	it "should return the same bytes in text format that are sent as inline text" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
@@ -140,12 +152,4 @@ describe "multinationalization support", :ruby_19 => true do
 
 	end
 
-
-	after( :each ) do
-		@conn.exec( 'ROLLBACK' ) if @conn
-	end
-
-	after( :all ) do
-		teardown_testing_db( @conn ) if @conn
-	end
 end
