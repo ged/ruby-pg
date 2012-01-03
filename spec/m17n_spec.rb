@@ -127,6 +127,7 @@ describe "multinationalization support", :ruby_19 => true do
 		end
 	end
 
+
 	describe "Ruby 1.9.x default_internal encoding" do
 
 		it "honors the Encoding.default_internal if it's set and the synchronous interface is used" do
@@ -150,6 +151,20 @@ describe "multinationalization support", :ruby_19 => true do
 			end
 		end
 
+	end
+
+
+	it "encodes exception messages with the connection's encoding (#96)" do
+		@conn.set_client_encoding( 'utf-8' )
+		@conn.exec "CREATE TABLE foo (bar TEXT)"
+
+		begin
+			@conn.exec "INSERT INTO foo VALUES ('Côte d'Ivoire')"
+		rescue => err
+			err.message.encoding.should == Encoding::UTF_8
+		else
+			fail "No exception raised?!"
+		end
 	end
 
 end

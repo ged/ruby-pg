@@ -134,14 +134,17 @@ new_pgresult(PGresult *result)
 static void
 pgresult_check(VALUE rb_pgconn, VALUE rb_pgresult)
 {
-	VALUE error;
+	VALUE error, exception;
 	PGconn *conn = get_pgconn(rb_pgconn);
 	PGresult *result;
 	Data_Get_Struct(rb_pgresult, PGresult, result);
+#ifdef M17N_SUPPORTED
+	rb_encoding *enc = pgconn_get_client_encoding_as_rb_encoding(conn);
+#endif
 
 	if(result == NULL)
 	{
-		error = rb_exc_new2(rb_ePGError, PQerrorMessage(conn));
+		error = rb_str_new2( PQerrorMessage(conn) );
 	}
 	else
 	{
@@ -156,17 +159,21 @@ pgresult_check(VALUE rb_pgconn, VALUE rb_pgresult)
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
 		case PGRES_NONFATAL_ERROR:
-			error = rb_exc_new2(rb_ePGError, PQresultErrorMessage(result));
+			error = rb_str_new2( PQresultErrorMessage(result) );
 			break;
 		default:
-			error = rb_exc_new2(rb_ePGError,
-				"internal error : unknown result status.");
+			error = rb_str_new2( "internal error : unknown result status." );
 		}
 	}
 
-	rb_iv_set(error, "@connection", rb_pgconn);
-	rb_iv_set(error, "@result", rb_pgresult);
-	rb_exc_raise(error);
+#ifdef M17N_SUPPORTED
+	rb_enc_set_index( error, rb_enc_to_index(enc) );
+#endif
+	exception = rb_exc_new3( rb_ePGError, error );
+	rb_iv_set( exception, "@connection", rb_pgconn );
+	rb_iv_set( exception, "@result", rb_pgresult );
+	rb_exc_raise( exception );
+
 	return;
 }
 
