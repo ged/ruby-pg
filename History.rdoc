@@ -1,7 +1,8 @@
-== v0.12.2 [2011-12-14] Michael Granger <ged@FaerieMUD.org>
+== v0.12.2 [2012-01-03] Michael Granger <ged@FaerieMUD.org>
 
 - Fix for the 1.8.7 breakage introduced by the st.h fix for alternative Ruby
   implementations (#97 and #98). Thanks to Lars Kanis for the patch.
+- Encode error messages with the connection's encoding under 1.9 (#96)
 
 
 == v0.12.1 [2011-12-14] Michael Granger <ged@FaerieMUD.org>
