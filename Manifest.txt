@@ -24,6 +24,7 @@ lib/pg.rb
 misc/openssl-pg-segfault.rb
 sample/async_api.rb
 sample/async_copyto.rb
+sample/async_mixed.rb
 sample/copyfrom.rb
 sample/copyto.rb
 sample/cursor.rb
