@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# This is an RVM Project .rvmrc file, used to automatically load the ruby
+# development environment upon cd'ing into the directory
+
+environment_id="ruby-1.9.3-p0@pg"
+rvmdir=${rvm_path:-$HOME/.rvm}
+gemset_file=".rvm.gems"
+
+if [[ -d "${rvmdir}/environments" && -s "${rvmdir}/environments/$environment_id" ]]; then
+	echo "Using ${environment_id}"
+	. "${rvmdir}/environments/$environment_id"
+
+	if [[ -s "${rvmdir}/hooks/after_use" ]]; then
+		. "${rvmdir}/hooks/after_use"
+	fi
+else
+	# If the environment file has not yet been created, use the RVM CLI to select.
+	if ! rvm --create use  "$environment_id"; then
+		echo "Failed to create RVM environment '${environment_id}'."
+		exit 1
+	fi
+fi
+
+if [[ -s "$gemset_file" ]]; then
+	rvm gemset import "$gemset_file" | grep -v already | grep -v listed | grep -v complete | sed '/^$/d'
+fi
+

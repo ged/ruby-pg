@@ -1,0 +1,2 @@
+---
+exclude: !ruby/regexp /\.(hg|DS_Store|rvm.*|irbrc|pryrc)|(coverage|manual|tmp\w*)\/|\.(bundle|so)$/
