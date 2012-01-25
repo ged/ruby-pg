@@ -1,8 +1,7 @@
 .gemtest
-BSD
+POSTGRES
 ChangeLog
 Contributors.rdoc
-GPL
 History.rdoc
 LICENSE
 Manifest.txt

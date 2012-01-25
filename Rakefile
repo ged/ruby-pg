@@ -49,7 +49,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.readme_file = 'README.rdoc'
 	self.history_file = 'History.rdoc'
 	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
-	self.extra_rdoc_files.include( 'BSD', 'GPL', 'LICENSE' )
+	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
 	self.extra_rdoc_files.include( 'ext/*.c' )
 
 	self.developer 'Jeff Davis', 'ruby-pg@j-davis.com'

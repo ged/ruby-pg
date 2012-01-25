@@ -36,4 +36,11 @@ list.
 * Mahlon E. Smith <mahlon@martini.nu>
 * Lars Kanis <kanis@comcard.de>
 * Jason Yanowitz <me-bitbucket@jasonyanowitz.com>
+* Charlie Savage <cfis@rubyforge.org>
+* Rafał Bigaj <rafal@Bonifacy.intranet>
+* Jason Yanowitz <me-bitbucket@jasonyanowitz.com>
+* Greg Hazel <ghazel@gmail.com>
+* Chris White <cwprogram@live.com>
+* Aaron Patterson <aaron.patterson@gmail.com>
+* Tim Felgentreff <timfelgentreff@gmail.com>
 
