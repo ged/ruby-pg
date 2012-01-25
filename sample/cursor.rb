@@ -6,7 +6,7 @@ require 'pg'
 # the cursor portion of testlibpq.c from src/test/examples.
 
 $stderr.puts "Opening database connection ..."
-conn = PGconn.connect( :dbname => 'test' )
+conn = PG.connect( :dbname => 'test' )
 
 # 
 conn.transaction do

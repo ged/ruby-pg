@@ -3,11 +3,10 @@ projectDirectory     = "$CWD"
 windowTitle          = "${CWD/^.*\///} «$TM_DISPLAYNAME»"
 excludeInFileChooser = "{$exclude,.hg}"
 
-[ source.ruby ]
+TM_MAKE      = 'rake'
+TM_MAKE_FILE = '${projectDirectory}/Rakefile'
+
+[ source ]
 softTabs         = false
 tabSize          = 4
-
-[ "**/*_spec.rb" ]
-fileType = 'text.ruby.rspec'
-
 

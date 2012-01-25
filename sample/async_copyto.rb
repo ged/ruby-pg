@@ -6,7 +6,7 @@ require 'stringio'
 # Using COPY asynchronously
 
 $stderr.puts "Opening database connection ..."
-conn = PGconn.connect( :dbname => 'test' )
+conn = PG.connect( :dbname => 'test' )
 conn.setnonblocking( true )
 
 socket = IO.for_fd( conn.socket )

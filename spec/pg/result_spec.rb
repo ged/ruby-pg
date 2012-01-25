@@ -3,26 +3,22 @@
 
 BEGIN {
 	require 'pathname'
-	require 'rbconfig'
 
-	basedir = Pathname( __FILE__ ).dirname.parent
+	basedir = Pathname( __FILE__ ).dirname.parent.parent
 	libdir = basedir + 'lib'
-	archlib = libdir + Config::CONFIG['sitearch']
 
 	$LOAD_PATH.unshift( basedir.to_s ) unless $LOAD_PATH.include?( basedir.to_s )
 	$LOAD_PATH.unshift( libdir.to_s ) unless $LOAD_PATH.include?( libdir.to_s )
-	$LOAD_PATH.unshift( archlib.to_s ) unless $LOAD_PATH.include?( archlib.to_s )
 }
 
 require 'rspec'
 require 'spec/lib/helpers'
 require 'pg'
 
-describe PGresult do
-	include PgTestingHelpers
+describe PG::Result do
 
 	before( :all ) do
-		@conn = setup_testing_db( "PGresult" )
+		@conn = setup_testing_db( "PG_Result" )
 	end
 
 	before( :each ) do
@@ -63,20 +59,20 @@ describe PGresult do
 
 		result = exception.result
 
-		result.should be_a( PGresult )
-		result.error_field( PGresult::PG_DIAG_SEVERITY ).should == 'ERROR'
-		result.error_field( PGresult::PG_DIAG_SQLSTATE ).should == '42P01'
-		result.error_field( PGresult::PG_DIAG_MESSAGE_PRIMARY ).
+		result.should be_a( described_class() )
+		result.error_field( PG::PG_DIAG_SEVERITY ).should == 'ERROR'
+		result.error_field( PG::PG_DIAG_SQLSTATE ).should == '42P01'
+		result.error_field( PG::PG_DIAG_MESSAGE_PRIMARY ).
 			should == 'relation "nonexistant_table" does not exist'
-		result.error_field( PGresult::PG_DIAG_MESSAGE_DETAIL ).should be_nil()
-		result.error_field( PGresult::PG_DIAG_MESSAGE_HINT ).should be_nil()
-		result.error_field( PGresult::PG_DIAG_STATEMENT_POSITION ).should == '15'
-		result.error_field( PGresult::PG_DIAG_INTERNAL_POSITION ).should be_nil()
-		result.error_field( PGresult::PG_DIAG_INTERNAL_QUERY ).should be_nil()
-		result.error_field( PGresult::PG_DIAG_CONTEXT ).should be_nil()
-		result.error_field( PGresult::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$/
-		result.error_field( PGresult::PG_DIAG_SOURCE_LINE ).should == '857'
-		result.error_field( PGresult::PG_DIAG_SOURCE_FUNCTION ).should == 'parserOpenTable'
+		result.error_field( PG::PG_DIAG_MESSAGE_DETAIL ).should be_nil()
+		result.error_field( PG::PG_DIAG_MESSAGE_HINT ).should be_nil()
+		result.error_field( PG::PG_DIAG_STATEMENT_POSITION ).should == '15'
+		result.error_field( PG::PG_DIAG_INTERNAL_POSITION ).should be_nil()
+		result.error_field( PG::PG_DIAG_INTERNAL_QUERY ).should be_nil()
+		result.error_field( PG::PG_DIAG_CONTEXT ).should be_nil()
+		result.error_field( PG::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$/
+		result.error_field( PG::PG_DIAG_SOURCE_LINE ).should == '857'
+		result.error_field( PG::PG_DIAG_SOURCE_FUNCTION ).should == 'parserOpenTable'
 
 	end
 
@@ -85,7 +81,7 @@ describe PGresult do
 		begin
 			res = @conn.exec("SELECT 1/0")
 		rescue PGError => e
-			sqlstate = e.result.result_error_field( PGresult::PG_DIAG_SQLSTATE ).to_i
+			sqlstate = e.result.result_error_field( PG::PG_DIAG_SQLSTATE ).to_i
 		end
 		sqlstate.should == 22012
 	end
@@ -103,7 +99,7 @@ describe PGresult do
 		in_bytes = File.open(binary_file, 'rb').read
 		out_bytes = nil
 		@conn.exec("SET standard_conforming_strings=on")
-		res = @conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 1)
+		res = @conn.exec("VALUES ('#{PG::Connection.escape_bytea(in_bytes)}'::bytea)", [], 1)
 		out_bytes = res[0]['column1']
 		out_bytes.should == in_bytes
 	end
@@ -113,7 +109,7 @@ describe PGresult do
 		bytes = File.open(binary_file, 'rb').read
 		res = @conn.exec('VALUES ($1::bytea)', 
 			[ { :value => bytes, :format => 1 } ])
-		PGconn.unescape_bytea(res[0]['column1']).should== bytes
+		PG::Connection.unescape_bytea(res[0]['column1']).should== bytes
 	end
 
 	it "should return the same bytes in text format that are sent as inline text" do
@@ -122,8 +118,8 @@ describe PGresult do
 
 		out_bytes = nil
 		@conn.exec("SET standard_conforming_strings=on")
-		res = @conn.exec("VALUES ('#{PGconn.escape_bytea(in_bytes)}'::bytea)", [], 0)
-		out_bytes = PGconn.unescape_bytea(res[0]['column1'])
+		res = @conn.exec("VALUES ('#{PG::Connection.escape_bytea(in_bytes)}'::bytea)", [], 0)
+		out_bytes = PG::Connection.unescape_bytea(res[0]['column1'])
 		out_bytes.should == in_bytes
 	end
 
@@ -175,19 +171,19 @@ describe PGresult do
 		res.fmod( 0 ).should == 33 + 4 # Column length + varlena size (4)
 	end
 
-	it "should raise an exception when an invalid index is passed to PGresult#fmod" do
+	it "should raise an exception when an invalid index is passed to PG::Result#fmod" do
 		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
 		res = @conn.exec( 'SELECT * FROM fmodtest' )
 		expect { res.fmod(1) }.to raise_error( ArgumentError )
 	end
 
-	it "should raise an exception when an invalid (negative) index is passed to PGresult#fmod" do
+	it "should raise an exception when an invalid (negative) index is passed to PG::Result#fmod" do
 		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
 		res = @conn.exec( 'SELECT * FROM fmodtest' )
 		expect { res.fmod(-11) }.to raise_error( ArgumentError )
 	end
 
-	it "shouldn't raise an exception when a valid index is passed to PGresult#fmod for a column with no typemod" do
+	it "shouldn't raise an exception when a valid index is passed to PG::Result#fmod for a column with no typemod" do
 		@conn.exec( 'CREATE TABLE fmodtest ( foo text )' )
 		res = @conn.exec( 'SELECT * FROM fmodtest' )
 		res.fmod( 0 ).should == -1 # and it shouldn't raise an exception, either
@@ -201,25 +197,25 @@ describe PGresult do
 		res.ftable( 0 ).should == be_nonzero()
 	end
 
-	it "should raise an exception when an invalid index is passed to PGresult#ftable" do
+	it "should raise an exception when an invalid index is passed to PG::Result#ftable" do
 		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
 		res = @conn.exec( 'SELECT * FROM ftabletest' )
 
 		expect { res.ftable(18) }.to raise_error( ArgumentError )
 	end
 
-	it "should raise an exception when an invalid (negative) index is passed to PGresult#ftable" do
+	it "should raise an exception when an invalid (negative) index is passed to PG::Result#ftable" do
 		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
 		res = @conn.exec( 'SELECT * FROM ftabletest' )
 
 		expect { res.ftable(-2) }.to raise_error( ArgumentError )
 	end
 
-	it "shouldn't raise an exception when a valid index is passed to PGresult#ftable for a " +
+	it "shouldn't raise an exception when a valid index is passed to PG::Result#ftable for a " +
 	   "column with no corresponding table" do
 		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
 		res = @conn.exec( 'SELECT foo, LENGTH(foo) as length FROM ftabletest' )
-		res.ftable( 1 ).should == PGresult::InvalidOid # and it shouldn't raise an exception, either
+		res.ftable( 1 ).should == PG::INVALID_OID # and it shouldn't raise an exception, either
 	end
 
 	# PQftablecol
@@ -231,21 +227,21 @@ describe PGresult do
 		res.ftablecol( 1 ).should == 2
 	end
 
-	it "should raise an exception when an invalid index is passed to PGresult#ftablecol" do
+	it "should raise an exception when an invalid index is passed to PG::Result#ftablecol" do
 		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text, bar numeric )' )
 		res = @conn.exec( 'SELECT * FROM ftablecoltest' )
 
 		expect { res.ftablecol(32) }.to raise_error( ArgumentError )
 	end
 
-	it "should raise an exception when an invalid (negative) index is passed to PGresult#ftablecol" do
+	it "should raise an exception when an invalid (negative) index is passed to PG::Result#ftablecol" do
 		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text, bar numeric )' )
 		res = @conn.exec( 'SELECT * FROM ftablecoltest' )
 
 		expect { res.ftablecol(-1) }.to raise_error( ArgumentError )
 	end
 
-	it "shouldn't raise an exception when a valid index is passed to PGresult#ftablecol for a " +
+	it "shouldn't raise an exception when a valid index is passed to PG::Result#ftablecol for a " +
 	   "column with no corresponding table" do
 		@conn.exec( 'CREATE TABLE ftablecoltest ( foo text )' )
 		res = @conn.exec( 'SELECT foo, LENGTH(foo) as length FROM ftablecoltest' )

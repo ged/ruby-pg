@@ -20,7 +20,7 @@ def main
   pgtty = nil
   dbname = ENV['USER'] 
   begin
-    conn = PGconn.connect(pghost,pgport,pgoptions,pgtty,dbname)
+    conn = PG.connect(pghost,pgport,pgoptions,pgtty,dbname)
   rescue PGError
     printf(STDERR, "Connection to database '%s' failed.\n",dbname)
     exit(2)

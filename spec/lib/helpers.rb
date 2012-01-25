@@ -3,17 +3,11 @@
 require 'pathname'
 require 'rspec'
 require 'shellwords'
+require 'pg'
 
 TEST_DIRECTORY = Pathname.getwd + "tmp_test_specs"
 
-RSpec.configure do |config|
-	ruby_version_vec = RUBY_VERSION.split('.').map {|c| c.to_i }.pack( "N*" )
-
-	config.mock_with :rspec
-	config.filter_run_excluding :ruby_19 => true if ruby_version_vec <= [1,9,1].pack( "N*" )
-end
-
-module PgTestingHelpers
+module PG::TestingHelpers
 
 
 	# Set some ANSI escape code constants (Shamelessly stolen from Perl's
@@ -221,7 +215,7 @@ module PgTestingHelpers
 			fail
 		end
 
-		conn = PGconn.connect( @conninfo )
+		conn = PG.connect( @conninfo )
 		conn.set_notice_processor do |message|
 			$stderr.puts( message ) if $DEBUG
 		end
@@ -237,4 +231,13 @@ module PgTestingHelpers
 	end
 end
 
+
+RSpec.configure do |config|
+	ruby_version_vec = RUBY_VERSION.split('.').map {|c| c.to_i }.pack( "N*" )
+
+	config.include( PG::TestingHelpers )
+
+	config.mock_with :rspec
+	config.filter_run_excluding :ruby_19 => true if ruby_version_vec <= [1,9,1].pack( "N*" )
+end
 

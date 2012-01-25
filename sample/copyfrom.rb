@@ -4,7 +4,7 @@ require 'pg'
 require 'stringio'
 
 $stderr.puts "Opening database connection ..."
-conn = PGconn.connect( :dbname => 'test' )
+conn = PG.connect( :dbname => 'test' )
 
 conn.exec( <<END_SQL )
 DROP TABLE IF EXISTS logs;

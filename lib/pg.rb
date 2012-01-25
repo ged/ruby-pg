@@ -14,56 +14,38 @@ rescue LoadError
 
 end
 
-#--
-# The PG connection class.
-class PGconn
 
-	# The order the options are passed to the ::connect method.
-	CONNECT_ARGUMENT_ORDER = %w[host port options tty dbname user password]
+# The top-level PG namespace.
+module PG
+
+	# Library version
+	VERSION = '0.13.0'
+
+	# VCS revision
+	REVISION = %q$Revision$
 
 
-	### Quote the given +value+ for use in a connection-parameter string.
-	def self::quote_connstr( value )
-		return "'" + value.to_s.gsub( /[\\']/ ) {|m| '\\' + m } + "'"
+	### Get the PG library version. If +include_buildnum+ is +true+, include the build ID.
+	def self::version_string( include_buildnum=false )
+		vstring = "%s %s" % [ self.name, VERSION ]
+		vstring << " (build %s)" % [ REVISION[/: ([[:xdigit:]]+)/, 1] || '0' ] if include_buildnum
+		return vstring
 	end
 
 
-	### Parse the connection +args+ into a connection-parameter string. See PGconn.new
-	### for valid arguments.
-	def self::parse_connect_args( *args )
-		return '' if args.empty?
-
-		# This will be swapped soon for code that makes options like those required for
-		# PQconnectdbParams()/PQconnectStartParams(). For now, stick to an options string for
-		# PQconnectdb()/PQconnectStart().
-		connopts = []
-
-		# Handle an options hash first
-		if args.last.is_a?( Hash )
-			opthash = args.pop 
-			opthash.each do |key, val|
-				connopts.push( "%s=%s" % [key, PGconn.quote_connstr(val)] )
-			end
-		end
-
-		# Option string style
-		if args.length == 1 && args.first.to_s.index( '=' )
-			connopts.unshift( args.first )
-
-		# Append positional parameters
-		else
-			args.each_with_index do |val, i|
-				next unless val # Skip nil placeholders
-
-				key = CONNECT_ARGUMENT_ORDER[ i ] or
-					raise ArgumentError, "Extra positional parameter %d: %p" % [ i+1, val ]
-				connopts.push( "%s=%s" % [key, PGconn.quote_connstr(val.to_s)] )
-			end
-		end
-
-		return connopts.join(' ')
+	### Convenience alias for PG::Connection.new.
+	def self::connect( *args )
+		return PG::Connection.new( *args )
 	end
 
-end # class PGconn
 
+	require 'pg/exceptions'
+	require 'pg/connection'
+	require 'pg/result'
+
+end # module PG
+
+
+# Backward-compatible aliase
+PGError = PG::Error
 

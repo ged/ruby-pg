@@ -141,8 +141,8 @@ def PSQLexec(ps, query)
     printf(STDERR, "%s\n", ps.db.error())
 
   else
-    if (res.status() == PGresult::COMMAND_OK ||
-	res.status() == PGresult::TUPLES_OK)
+    if (res.status() == PG::COMMAND_OK ||
+	res.status() == PG::TUPLES_OK)
       return res
     end
 
@@ -462,13 +462,13 @@ def do_connect(settings, new_dbname)
 
     begin 
       printf("closing connection to database: %s\n", dbname);
-      settings.db = PGconn.connect(olddb.host, olddb.port, "", "", new_dbname)
+      settings.db = PG.connect(olddb.host, olddb.port, "", "", new_dbname)
       printf("connecting to new database: %s\n", new_dbname)
       olddb.finish()
     rescue
       printf(STDERR, "%s\n", $!)
       printf("reconnecting to %s\n", dbname)
-      settings.db = PGconn.connect(olddb.host, olddb.port,"", "", dbname)
+      settings.db = PG.connect(olddb.host, olddb.port,"", "", dbname)
     ensure
       settings.prompt = settings.db.db + PROMPT
     end
@@ -832,7 +832,7 @@ def SendQuery(settings, query, copy_in, copy_out, copystream)
   begin
     results = settings.db.exec(query)
     case results.status
-    when PGresult::TUPLES_OK
+    when PG::TUPLES_OK
       success = TRUE
       if settings.gfname
 	setFout(settings, settings.gfname)
@@ -849,16 +849,16 @@ def SendQuery(settings, query, copy_in, copy_out, copystream)
       end
       results.clear
 
-    when PGresult::EMPTY_QUERY
+    when PG::EMPTY_QUERY
       success = TRUE
 
-    when PGresult::COMMAND_OK
+    when PG::COMMAND_OK
       success = TRUE
       if !settings.quiet
 	printf("%s\n", results.cmdstatus)
       end
 
-    when PGresult::COPY_OUT
+    when PG::COPY_OUT
       success = TRUE
       if copy_out
 	  handleCopyOut(settings, copystream)
@@ -870,7 +870,7 @@ def SendQuery(settings, query, copy_in, copy_out, copystream)
 	handleCopyOut(settings, STDOUT)
       end
 
-    when PGresult::COPY_IN
+    when PG::COPY_IN
       success = TRUE
       if copy_in
 	handleCopyIn(settings, FALSE, copystream)
@@ -879,7 +879,7 @@ def SendQuery(settings, query, copy_in, copy_out, copystream)
       end
     end
 
-    if (settings.db.status == PGconn::CONNECTION_BAD)
+    if (settings.db.status == PG::CONNECTION_BAD)
       printf(STDERR, "We have lost the connection to the backend, so ")
       printf(STDERR, "further processing is impossible.  ")
       printf(STDERR, "Terminating.\n")
@@ -1129,10 +1129,10 @@ def main
     dbname = "template1"
   end
 
-  settings.db = PGconn.connect(host, port, "", "", dbname);
+  settings.db = PG.connect(host, port, "", "", dbname);
   dbname = settings.db.db
 
-  if settings.db.status() == PGconn::CONNECTION_BAD
+  if settings.db.status() == PG::CONNECTION_BAD
     printf(STDERR, "Connection to database '%s' failed.\n", dbname)
     printf(STDERR, "%s", settings.db.error)
     exit(1)

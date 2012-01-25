@@ -6,7 +6,7 @@ require 'stringio'
 # An example of how to stream data to your local host from the database as CSV.
 
 $stderr.puts "Opening database connection ..."
-conn = PGconn.connect( :dbname => 'test' )
+conn = PG.connect( :dbname => 'test' )
 
 $stderr.puts "Running COPY command ..."
 buf = ''

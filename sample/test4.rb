@@ -20,8 +20,8 @@ def main
   pgtty = nil
 
   begin
-    conn1 = PGconn.connect(pghost,pgport,pgoptions,pgtty,dbname1)
-    conn2 = PGconn.connect(pghost,pgport,pgoptions,pgtty,dbname2)
+    conn1 = PG.connect(pghost,pgport,pgoptions,pgtty,dbname1)
+    conn2 = PG.connect(pghost,pgport,pgoptions,pgtty,dbname2)
   rescue PGError
     printf(STDERR,"connection to database.\n")
     exit(1)
@@ -33,7 +33,7 @@ def main
     res1.clear
 
     res1 = conn1.exec("FETCH ALL in myportal")
-    if (res1.status != PGresult::TUPLES_OK)
+    if (res1.status != PG::TUPLES_OK)
       raise PGerror,"FETCH ALL command didn't return tuples properly\n"
     end
 
@@ -54,7 +54,7 @@ def main
     conn1.close
 
   rescue PGError
-    if (conn1.status == PGconn::CONNECTION_BAD)
+    if (conn1.status == PG::CONNECTION_BAD)
       printf(STDERR, "We have lost the connection to the backend, so ")
       printf(STDERR, "further processing is impossible.  ")
       printf(STDERR, "Terminating.\n")

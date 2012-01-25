@@ -1,30 +1,25 @@
 #!/usr/bin/env rspec
-# encoding: utf-8
+#encoding: utf-8
 
 BEGIN {
 	require 'pathname'
-	require 'rbconfig'
 
-	basedir = Pathname( __FILE__ ).dirname.parent
+	basedir = Pathname( __FILE__ ).dirname.parent.parent
 	libdir = basedir + 'lib'
-	archlib = libdir + Config::CONFIG['sitearch']
 
 	$LOAD_PATH.unshift( basedir.to_s ) unless $LOAD_PATH.include?( basedir.to_s )
 	$LOAD_PATH.unshift( libdir.to_s ) unless $LOAD_PATH.include?( libdir.to_s )
-	$LOAD_PATH.unshift( archlib.to_s ) unless $LOAD_PATH.include?( archlib.to_s )
 }
 
 require 'rspec'
 require 'spec/lib/helpers'
-require 'pg'
 require 'timeout'
+require 'pg'
 
-describe PGconn do
-	include PgTestingHelpers
-
+describe PG::Connection do
 
 	before( :all ) do
-		@conn = setup_testing_db( "PGconn" )
+		@conn = setup_testing_db( "PG_Connection" )
 	end
 
 	before( :each ) do
@@ -45,7 +40,7 @@ describe PGconn do
 	#
 
 	it "can create a connection option string from a Hash of options" do
-		optstring = PGconn.parse_connect_args( 
+		optstring = described_class.parse_connect_args( 
 			:host => 'pgsql.example.com',
 			:dbname => 'db01',
 			'sslmode' => 'require'
@@ -58,7 +53,7 @@ describe PGconn do
 	end
 
 	it "can create a connection option string from positional parameters" do
-		optstring = PGconn.parse_connect_args( 'pgsql.example.com', nil, '-c geqo=off', nil, 
+		optstring = described_class.parse_connect_args( 'pgsql.example.com', nil, '-c geqo=off', nil, 
 		                                       'sales' )
 
 		optstring.should be_a( String )
@@ -71,7 +66,7 @@ describe PGconn do
 	end
 
 	it "can create a connection option string from a mix of positional and hash parameters" do
-		optstring = PGconn.parse_connect_args( 'pgsql.example.com',
+		optstring = described_class.parse_connect_args( 'pgsql.example.com',
 		                                       :dbname => 'licensing', :user => 'jrandom' )
 
 		optstring.should be_a( String )
@@ -81,64 +76,94 @@ describe PGconn do
 	end
 
 	it "escapes single quotes and backslashes in connection parameters" do
-		PGconn.parse_connect_args( "DB 'browser' \\" ).should == "host='DB \\'browser\\' \\\\'"
+		described_class.parse_connect_args( "DB 'browser' \\" ).should == "host='DB \\'browser\\' \\\\'"
 
 	end
 
 	it "connects with defaults if no connection parameters are given" do
-		PGconn.parse_connect_args.should == ''
+		described_class.parse_connect_args.should == ''
 	end
 
 	it "connects successfully with connection string" do
-		tmpconn = PGconn.connect(@conninfo)
-		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn = described_class.connect(@conninfo)
+		tmpconn.status.should== PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
 	it "connects using 7 arguments converted to strings" do
-		tmpconn = PGconn.connect('localhost', @port, nil, nil, :test, nil, nil)
-		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn = described_class.connect('localhost', @port, nil, nil, :test, nil, nil)
+		tmpconn.status.should== PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
 	it "connects using a hash of connection parameters" do
-		tmpconn = PGconn.connect(
+		tmpconn = described_class.connect(
 			:host => 'localhost',
 			:port => @port,
 			:dbname => :test)
-		tmpconn.status.should== PGconn::CONNECTION_OK
+		tmpconn.status.should== PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
 	it "raises an exception when connecting with an invalid number of arguments" do
 		expect {
-			PGconn.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
+			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
 		}.to raise_error( ArgumentError, /extra positional parameter/i )
 	end
 
 
 	it "can connect asynchronously" do
-		tmpconn = PGconn.connect_start(@conninfo)
-		socket = IO.for_fd(tmpconn.socket)
+		tmpconn = described_class.connect_start( @conninfo )
+		tmpconn.should be_a( described_class )
+		socket = IO.for_fd( tmpconn.socket )
 		status = tmpconn.connect_poll
-		while(status != PGconn::PGRES_POLLING_OK) do
-			if(status == PGconn::PGRES_POLLING_READING)
-				if(not select([socket],[],[],5.0))
+
+		while status != PG::PGRES_POLLING_OK
+			if status == PG::PGRES_POLLING_READING
+				select( [socket], [], [], 5.0 ) or
 					raise "Asynchronous connection timed out!"
-				end
-			elsif(status == PGconn::PGRES_POLLING_WRITING)
-				if(not select([],[socket],[],5.0))
+
+			elsif status == PG::PGRES_POLLING_WRITING
+				select( [], [socket], [], 5.0 ) or
 					raise "Asynchronous connection timed out!"
-				end
 			end
 			status = tmpconn.connect_poll
 		end
-		tmpconn.status.should== PGconn::CONNECTION_OK
+
+		tmpconn.status.should == PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
+	it "can connect asynchronously for the duration of a block" do
+		conn = nil
+
+		described_class.connect_start(@conninfo) do |tmpconn|
+			tmpconn.should be_a( described_class )
+			conn = tmpconn
+			socket = IO.for_fd(tmpconn.socket)
+			status = tmpconn.connect_poll
+
+			while status != PG::PGRES_POLLING_OK
+				if status == PG::PGRES_POLLING_READING
+					if(not select([socket],[],[],5.0))
+						raise "Asynchronous connection timed out!"
+					end
+				elsif(status == PG::PGRES_POLLING_WRITING)
+					if(not select([],[socket],[],5.0))
+						raise "Asynchronous connection timed out!"
+					end
+				end
+				status = tmpconn.connect_poll
+			end
+
+			tmpconn.status.should == PG::CONNECTION_OK
+		end
+
+		conn.should be_finished()
+	end
+
 	it "doesn't leave stale server connections after finish" do
-		PGconn.connect(@conninfo).finish
+		described_class.connect(@conninfo).finish
 		sleep 0.5
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
 							WHERE usename IS NOT NULL])
@@ -213,13 +238,13 @@ describe PGconn do
 		@conn.send_query("SELECT pg_sleep(1000)")
 		@conn.cancel
 		tmpres = @conn.get_result
-		if(tmpres.result_status != PGresult::PGRES_TUPLES_OK)
+		if(tmpres.result_status != PG::PGRES_TUPLES_OK)
 			error = true
 		end
 		error.should == true
 	end
 
-	it "automatically rolls back a transaction started with PGconn#transaction if an exception " +
+	it "automatically rolls back a transaction started with described_class#transaction if an exception " +
 	   "is raised" do
 		# abort the per-example transaction so we can test our own
 		@conn.exec( 'ROLLBACK' )
@@ -241,10 +266,10 @@ describe PGconn do
 	it "not read past the end of a large object" do
 		@conn.transaction do
 			oid = @conn.lo_create( 0 )
-			fd = @conn.lo_open( oid, PGconn::INV_READ|PGconn::INV_WRITE )
+			fd = @conn.lo_open( oid, PG::INV_READ|PG::INV_WRITE )
 			@conn.lo_write( fd, "foobar" )
 			@conn.lo_read( fd, 10 ).should be_nil()
-			@conn.lo_lseek( fd, 0, PGconn::SEEK_SET )
+			@conn.lo_lseek( fd, 0, PG::SEEK_SET )
 			@conn.lo_read( fd, 10 ).should == 'foobar'
 		end
 	end
@@ -256,7 +281,7 @@ describe PGconn do
 
 		pid = fork do
 			begin
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				sleep 1
 				conn.exec( 'NOTIFY woo' )
 			ensure
@@ -277,7 +302,7 @@ describe PGconn do
 
 		pid = fork do
 			begin
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				sleep 1
 				conn.exec( 'NOTIFY woo' )
 			ensure
@@ -304,7 +329,7 @@ describe PGconn do
 
 		pid = fork do
 			begin
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( 'NOTIFY woo' )
 				conn.exec( 'NOTIFY war' )
 				conn.exec( 'NOTIFY woz' )
@@ -336,7 +361,7 @@ describe PGconn do
 
 		pid = fork do
 			begin
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
@@ -367,7 +392,7 @@ describe PGconn do
 			@conn.exec( 'LISTEN knees' )
 
 			pid = fork do
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
 				conn.finish
 				exit!
@@ -391,7 +416,7 @@ describe PGconn do
 			@conn.exec( 'LISTEN knees' )
 
 			pid = fork do
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( %Q{NOTIFY knees} )
 				conn.finish
 				exit!
@@ -414,7 +439,7 @@ describe PGconn do
 			@conn.exec( 'LISTEN knees' )
 
 			pid = fork do
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( %Q{NOTIFY knees} )
 				conn.finish
 				exit!
@@ -438,7 +463,7 @@ describe PGconn do
 			@conn.exec( 'LISTEN knees' )
 
 			pid = fork do
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
 				conn.finish
 				exit!
@@ -464,7 +489,7 @@ describe PGconn do
 			@conn.exec( 'LISTEN knees' )
 
 			pid = fork do
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
 				conn.finish
 				exit!
@@ -488,7 +513,7 @@ describe PGconn do
 			@conn.exec( 'LISTEN knees' )
 
 			pid = fork do
-				conn = PGconn.connect( @conninfo )
+				conn = described_class.connect( @conninfo )
 				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
 				conn.finish
 				exit!
@@ -512,7 +537,7 @@ describe PGconn do
 	it "yields the result if block is given to exec" do
 		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
 			values = []
-			result.should be_kind_of( PGresult )
+			result.should be_kind_of( PG::Result )
 			result.ntuples.should == 2
 			result.each do |tuple|
 				values << tuple['a']
@@ -543,7 +568,7 @@ describe PGconn do
 	end
 
 
-	it "PGconn#block shouldn't block a second thread" do
+	it "described_class#block shouldn't block a second thread" do
 		t = Thread.new do
 			@conn.send_query( "select pg_sleep(3)" )
 			@conn.block
@@ -556,7 +581,7 @@ describe PGconn do
 		t.join
 	end
 
-	it "PGconn#block should allow a timeout" do
+	it "described_class#block should allow a timeout" do
 		@conn.send_query( "select pg_sleep(3)" )
 
 		start = Time.now
@@ -568,7 +593,7 @@ describe PGconn do
 
 
 	it "can encrypt a string given a password and username" do
-		PGconn.encrypt_password("postgres", "postgres").
+		described_class.encrypt_password("postgres", "postgres").
 			should =~ /\S+/
 	end
 
@@ -576,13 +601,13 @@ describe PGconn do
 	it "raises an appropriate error if either of the required arguments for encrypt_password " +
 	   "is not valid" do
 		expect {
-			PGconn.encrypt_password( nil, nil )
+			described_class.encrypt_password( nil, nil )
 		}.to raise_error( TypeError )
 		expect {
-			PGconn.encrypt_password( "postgres", nil )
+			described_class.encrypt_password( "postgres", nil )
 		}.to raise_error( TypeError )
 		expect {
-			PGconn.encrypt_password( nil, "postgres" )
+			described_class.encrypt_password( nil, "postgres" )
 		}.to raise_error( TypeError )
 	end
 
@@ -627,14 +652,14 @@ describe PGconn do
 
 	it "can connect asynchronously" do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
-		conn = PGconn.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		conn.connect_poll.should == PGconn::PGRES_POLLING_WRITING
+		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		conn.connect_poll.should == PG::PGRES_POLLING_WRITING
 		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
 		serv.close
-		if conn.connect_poll == PGconn::PGRES_POLLING_READING
+		if conn.connect_poll == PG::PGRES_POLLING_READING
 			select( [IO.for_fd(conn.socket)], nil, nil, 0.2 )
 		end
-		conn.connect_poll.should == PGconn::PGRES_POLLING_FAILED
+		conn.connect_poll.should == PG::PGRES_POLLING_FAILED
 	end
 
 	it "discards previous results (if any) before waiting on an #async_exec"
@@ -647,4 +672,124 @@ describe PGconn do
 		result.should == { 'one' => '47' }
 	end
 
+
+	describe "multinationalization support", :ruby_19 => true do
+
+		it "should return the same bytes in text format that are sent as inline text" do
+			binary_file   = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
+			in_bytes      = File.open(binary_file, 'r:ASCII-8BIT').read
+			escaped_bytes = described_class.escape_bytea( in_bytes )
+			out_bytes     = nil
+
+			@conn.transaction do |conn|
+				conn.exec("SET standard_conforming_strings=on")
+				res = conn.exec("VALUES ('#{escaped_bytes}'::bytea)", [], 0)
+				out_bytes = described_class.unescape_bytea( res[0]['column1'] )
+			end
+
+			out_bytes.should == in_bytes
+		end
+
+		describe "rubyforge #22925: m17n support" do
+			it "should return results in the same encoding as the client (iso-8859-1)" do
+				out_string = nil
+				@conn.transaction do |conn|
+					conn.internal_encoding = 'iso8859-1'
+					res = conn.exec("VALUES ('fantasia')", [], 0)
+					out_string = res[0]['column1']
+				end
+				out_string.should == 'fantasia'
+				out_string.encoding.should == Encoding::ISO8859_1
+			end
+
+			it "should return results in the same encoding as the client (utf-8)" do
+				out_string = nil
+				@conn.transaction do |conn|
+					conn.internal_encoding = 'utf-8'
+					res = conn.exec("VALUES ('世界線航跡蔵')", [], 0)
+					out_string = res[0]['column1']
+				end
+				out_string.should == '世界線航跡蔵'
+				out_string.encoding.should == Encoding::UTF_8
+			end
+
+			it "should return results in the same encoding as the client (EUC-JP)" do
+				out_string = nil
+				@conn.transaction do |conn|
+					conn.internal_encoding = 'EUC-JP'
+					stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
+					res = conn.exec(stmt, [], 0)
+					out_string = res[0]['column1']
+				end
+				out_string.should == '世界線航跡蔵'.encode('EUC-JP')
+				out_string.encoding.should == Encoding::EUC_JP
+			end
+
+			it "returns the results in the correct encoding even if the client_encoding has " +
+			   "changed since the results were fetched" do
+				out_string = nil
+				@conn.transaction do |conn|
+					conn.internal_encoding = 'EUC-JP'
+					stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
+					res = conn.exec(stmt, [], 0)
+					conn.internal_encoding = 'utf-8'
+					out_string = res[0]['column1']
+				end
+				out_string.should == '世界線航跡蔵'.encode('EUC-JP')
+				out_string.encoding.should == Encoding::EUC_JP
+			end
+
+			it "the connection should return ASCII-8BIT when the server encoding is SQL_ASCII" do
+				@conn.external_encoding.should == Encoding::ASCII_8BIT
+			end
+
+			it "works around the unsupported JOHAB encoding by returning stuff in 'ASCII_8BIT'" do
+				pending "figuring out how to create a string in the JOHAB encoding" do
+					out_string = nil
+					@conn.transaction do |conn|
+						conn.exec( "set client_encoding = 'JOHAB';" )
+						stmt = "VALUES ('foo')".encode('JOHAB')
+						res = conn.exec( stmt, [], 0 )
+						out_string = res[0]['column1']
+					end
+					out_string.should == 'foo'.encode( Encoding::ASCII_8BIT )
+					out_string.encoding.should == Encoding::ASCII_8BIT
+				end
+			end
+
+			it "uses the client encoding for escaped string" do
+				original = "string to escape".force_encoding( "euc-jp" )
+				@conn.set_client_encoding( "euc_jp" )
+				escaped  = @conn.escape( original )
+				escaped.encoding.should == Encoding::EUC_JP
+			end
+		end
+
+
+		describe "Ruby 1.9.x default_internal encoding" do
+
+			it "honors the Encoding.default_internal if it's set and the synchronous interface is used" do
+				@conn.transaction do |txn_conn|
+					txn_conn.internal_encoding = Encoding::ISO8859_1
+					txn_conn.exec( "CREATE TABLE defaultinternaltest ( foo text )" )
+					txn_conn.exec( "INSERT INTO defaultinternaltest VALUES ('Grün und Weiß')" )
+				end
+
+				begin
+					prev_encoding = Encoding.default_internal
+					Encoding.default_internal = Encoding::UTF_8
+
+					conn = described_class.connect( @conninfo )
+					conn.internal_encoding.should == Encoding::UTF_8
+					res = conn.exec( "SELECT foo FROM defaultinternaltest" )
+					res[0]['foo'].encoding.should == Encoding::UTF_8
+				ensure
+					conn.finish if conn
+					Encoding.default_internal = prev_encoding
+				end
+			end
+
+		end
+
+	end
 end

@@ -4,7 +4,7 @@ require 'pg'
 
 connhash = { :dbname => 'test' }
 
-db = PGconn.connect( connhash )
+db = PG.connect( connhash )
 db.exec "DROP TABLE IF EXISTS test"
 db.exec "CREATE TABLE test (a INTEGER, b BYTEA)"
 

@@ -31,7 +31,7 @@ BEGIN {
 
 require 'pg'
 
-conn = PGconn.connect( :dbname => 'test' )
+conn = PG.connect( :dbname => 'test' )
 conn.exec( 'LISTEN woo' )  # register interest in the 'woo' event
 
 puts "Waiting up to 30 seconds for for an event!"

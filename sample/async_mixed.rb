@@ -21,9 +21,9 @@ end
 
 # Start the (synchronous) connection
 output_progress "Starting connection..."
-conn = PGconn.connect( CONN_OPTS ) or abort "Unable to create a new connection!"
+conn = PG.connect( CONN_OPTS ) or abort "Unable to create a new connection!"
 
-abort "Connect failed: %s" % [ conn.error_message ] unless conn.status == PGconn::CONNECTION_OK
+abort "Connect failed: %s" % [ conn.error_message ] unless conn.status == PG::CONNECTION_OK
 
 # Now grab a reference to the underlying socket to select() on while the query is running
 socket = IO.for_fd( conn.socket )
