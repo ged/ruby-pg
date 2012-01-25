@@ -4,16 +4,10 @@ require 'pg'
 
 # This is a example of how to use the asynchronous API to query the
 # server without blocking other threads. It's intentionally low-level;
-# if you hooked up the PG::#socket to some kind of reactor, you
+# if you hooked up the PG::Connection#socket to some kind of reactor, you
 # could make this much nicer.
 
 TIMEOUT = 5.0 # seconds to wait for an async operation to complete
-CONN_OPTS = {
-	:host     => 'localhost',
-	:dbname   => 'test',
-	:user     => 'jrandom',
-	:password => 'banks!stealUR$',
-}
 
 # Print 'x' continuously to demonstrate that other threads aren't
 # blocked while waiting for the connection, for the query to be sent,
@@ -28,7 +22,8 @@ end
 
 # Start the connection
 output_progress "Starting connection..."
-conn = PG::Connection.connect_start( CONN_OPTS ) or abort "Unable to create a new connection!"
+conn = PG::Connection.connect_start( :dbname => 'test' ) or
+	abort "Unable to create a new connection!"
 abort "Connection failed: %s" % [ conn.error_message ] if
 	conn.status == PG::CONNECTION_BAD
 
