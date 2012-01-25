@@ -23,11 +23,11 @@ describe PG::Connection do
 	end
 
 	before( :each ) do
-		@conn.exec( 'BEGIN' )
+		@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
 	end
 
 	after( :each ) do
-		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'ROLLBACK' ) unless example.metadata[:without_transaction]
 	end
 
 	after( :all ) do
@@ -739,8 +739,9 @@ describe PG::Connection do
 				out_string.encoding.should == Encoding::EUC_JP
 			end
 
-			it "the connection should return ASCII-8BIT when the server encoding is SQL_ASCII" do
-				@conn.external_encoding.should == Encoding::ASCII_8BIT
+			it "the connection should return ASCII-8BIT when it's set to SQL_ASCII" do
+				@conn.exec "SET client_encoding TO SQL_ASCII"
+				@conn.client_encoding.should == Encoding::ASCII_8BIT
 			end
 
 			it "works around the unsupported JOHAB encoding by returning stuff in 'ASCII_8BIT'" do
@@ -779,13 +780,34 @@ describe PG::Connection do
 					prev_encoding = Encoding.default_internal
 					Encoding.default_internal = Encoding::UTF_8
 
-					conn = described_class.connect( @conninfo )
+					conn = PG.connect( @conninfo )
 					conn.internal_encoding.should == Encoding::UTF_8
 					res = conn.exec( "SELECT foo FROM defaultinternaltest" )
 					res[0]['foo'].encoding.should == Encoding::UTF_8
 				ensure
 					conn.finish if conn
 					Encoding.default_internal = prev_encoding
+				end
+			end
+
+		end
+
+
+		it "encodes exception messages with the connection's encoding (#96)", :without_transaction do
+			# Use a new connection so the client_encoding isn't set outside of this example
+			conn = PG.connect( @conninfo )
+			conn.client_encoding = 'iso-8859-15'
+
+			conn.transaction do
+				conn.exec "CREATE TABLE foo (bar TEXT)"
+
+				begin
+					query = "INSERT INTO foo VALUES ('Côte d'Ivoire')".encode( 'iso-8859-15' )
+					conn.exec( query )
+				rescue => err
+					err.message.encoding.should == Encoding::ISO8859_15
+				else
+					fail "No exception raised?!"
 				end
 			end
 

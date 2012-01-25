@@ -2350,6 +2350,19 @@ pgconn_get_client_encoding(VALUE self)
 
 /*
  * call-seq:
+ *    conn.client_encoding() -> Encoding
+ * 
+ * Returns the client encoding as an Encoding object.
+ */
+static VALUE
+pgconn_client_encoding(VALUE self)
+{
+	rb_encoding *enc = pg_conn_enc_get( pg_get_pgconn(self) );
+	return rb_enc_from_encoding( enc );
+}
+
+/*
+ * call-seq:
  *    conn.set_client_encoding( encoding )
  * 
  * Sets the client encoding to the _encoding_ String.
@@ -2357,10 +2370,14 @@ pgconn_get_client_encoding(VALUE self)
 static VALUE
 pgconn_set_client_encoding(VALUE self, VALUE str)
 {
+	PGconn *conn = pg_get_pgconn( self );
+
 	Check_Type(str, T_STRING);
-	if ((PQsetClientEncoding(pg_get_pgconn(self), StringValuePtr(str))) == -1){
-		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValuePtr(str));
+
+	if ( (PQsetClientEncoding(conn, StringValuePtr(str))) == -1 ) {
+		rb_raise(rb_ePGerror, "invalid f'ing encoding name: %s",StringValuePtr(str));
 	}
+
 	return Qnil;
 }
 
@@ -3116,7 +3133,7 @@ pgconn_external_encoding(VALUE self)
 
 	/* Use cached value if found */
 	if ( RTEST(encoding) ) return encoding;
-	
+
 	pg_encname = PQparameterStatus( conn, "server_encoding" );
 	enc = pg_get_pg_encname_as_rb_encoding( pg_encname );
 	encoding = rb_enc_from_encoding( enc );
@@ -3232,6 +3249,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_notice_processor", pgconn_set_notice_processor, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Other    ******/
+	rb_define_method(rb_cPGconn, "client_encoding", pgconn_client_encoding, 0);
 	rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
 	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");

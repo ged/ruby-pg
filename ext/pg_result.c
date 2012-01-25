@@ -26,7 +26,7 @@ pg_new_result(PGresult *result, PGconn *conn)
 	VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, pgresult_gc_free, result);
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
-	rb_enc_set_index( val, rb_enc_to_index(enc) );
+	ENCODING_SET( val, rb_enc_to_index(enc) );
 #endif
 
 	return val;

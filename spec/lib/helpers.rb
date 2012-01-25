@@ -196,7 +196,7 @@ module PG::TestingHelpers
 			unless (@test_pgdata+"postgresql.conf").exist?
 				FileUtils.rm_rf( @test_pgdata, :verbose => $DEBUG )
 				$stderr.puts "Running initdb"
-				log_and_run @logfile, 'initdb', '--no-locale', '-D', @test_pgdata.to_s
+				log_and_run @logfile, 'initdb', '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
 			end
 
 			trace "Starting postgres"
@@ -236,6 +236,7 @@ RSpec.configure do |config|
 	ruby_version_vec = RUBY_VERSION.split('.').map {|c| c.to_i }.pack( "N*" )
 
 	config.include( PG::TestingHelpers )
+	config.treat_symbols_as_metadata_keys_with_true_values = true
 
 	config.mock_with :rspec
 	config.filter_run_excluding :ruby_19 => true if ruby_version_vec <= [1,9,1].pack( "N*" )
