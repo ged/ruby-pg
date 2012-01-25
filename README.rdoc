@@ -27,7 +27,7 @@ A small example usage:
 
 == Requirements
 
-* Ruby 1.8.7-p249 or later.
+* Ruby 1.8.7-p249 or 1.9.3-p0.
 * PostgreSQL 8.3.x (with headers, -dev packages, etc).
 
 It may work with earlier versions of Ruby as well, but those are not regularly tested.
@@ -47,6 +47,10 @@ Postgres:
 See README-OS_X.rdoc for more information about installing under MacOS X, and
 README-Windows.rdoc for Windows build/installation instructions.
 
+There's also {a Google+ group}[http://goo.gl/TFy1U] and a
+{mailing list}[http://groups.google.com/group/ruby-pg] if you get stuck, or just
+want to chat about something.
+
 
 == Contributing
 
@@ -61,9 +65,7 @@ After checking out the source, run:
 This task will install any missing dependencies, run the tests/specs, and
 generate the API documentation.
 
-There's also {a Google+ group}[http://goo.gl/TFy1U] and a
-{mailing list}[http://groups.google.com/group/ruby-pg] if you get stuck, or just
-want to chat about something.
+The current maintainer is Michael Granger <ged@FaerieMUD.org>.
 
 
 == Copying

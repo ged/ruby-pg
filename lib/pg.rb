@@ -40,6 +40,7 @@ module PG
 
 
 	require 'pg/exceptions'
+	require 'pg/constants'
 	require 'pg/connection'
 	require 'pg/result'
 

@@ -52,7 +52,6 @@ $hoespec = Hoe.spec 'pg' do
 	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
 	self.extra_rdoc_files.include( 'ext/*.c' )
 
-	self.developer 'Jeff Davis', 'ruby-pg@j-davis.com'
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 
 	self.dependency 'rake-compiler', '~> 0.7', :developer

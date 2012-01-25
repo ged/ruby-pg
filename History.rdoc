@@ -1,3 +1,32 @@
+== v0.13.0 [] Michael Granger <ged@FaerieMUD.org>
+
+Reorganization of modules/classes to be better Ruby citizens (with backward-compatible aliases):
+- Created toplevel namespace 'PG' to correspond with the gem name.
+- Renamed PGconn to PG::Connection (with ::PGconn alias)
+- Renamed PGresult to PG::Result (with ::PGresult alias)
+- Renamed PGError to PG::Error (with ::PGError alias)
+- Declare all constants inside PG::Constants, then include them in
+  PG::Connection and PG::Result for backward-compatibility, and
+  in PG for convenience.
+- Split the extension source up by class/module.
+- Removed old compatibility code for PostgreSQL versions < 8.3
+
+Documentation:
+- Clarified licensing, updated to Ruby 1.9's license.
+- Merged authors list, added some missing people to the Contributor's
+  list.
+- Cleaned up the sample/ directory
+- Making contact info a bit clearer, link to the Google+ page and
+  the mailing list
+
+Enhancements:
+- Added a convenience method: PG.connect -> PG::Connection.new
+
+Bugfixes:
+- Fixed LATIN5-LATIN10 Postgres<->Ruby encoding conversions
+
+
+
 == v0.12.2 [2012-01-03] Michael Granger <ged@FaerieMUD.org>
 
 - Fix for the 1.8.7 breakage introduced by the st.h fix for alternative Ruby
