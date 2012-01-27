@@ -7,8 +7,8 @@ History.rdoc
 LICENSE
 Manifest.txt
 POSTGRES
-readme-os_x.rdoc
-readme-windows.rdoc
+README-OS_X.rdoc
+README-Windows.rdoc
 README.ja.rdoc
 README.rdoc
 Rakefile
