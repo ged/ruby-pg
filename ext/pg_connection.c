@@ -2348,18 +2348,6 @@ pgconn_get_client_encoding(VALUE self)
 	return rb_tainted_str_new2(encoding);
 }
 
-/*
- * call-seq:
- *    conn.client_encoding() -> Encoding
- * 
- * Returns the client encoding as an Encoding object.
- */
-static VALUE
-pgconn_client_encoding(VALUE self)
-{
-	rb_encoding *enc = pg_conn_enc_get( pg_get_pgconn(self) );
-	return rb_enc_from_encoding( enc );
-}
 
 /*
  * call-seq:
@@ -2375,7 +2363,7 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 	Check_Type(str, T_STRING);
 
 	if ( (PQsetClientEncoding(conn, StringValuePtr(str))) == -1 ) {
-		rb_raise(rb_ePGerror, "invalid f'ing encoding name: %s",StringValuePtr(str));
+		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValuePtr(str));
 	}
 
 	return Qnil;
@@ -3249,7 +3237,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_notice_processor", pgconn_set_notice_processor, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Other    ******/
-	rb_define_method(rb_cPGconn, "client_encoding", pgconn_client_encoding, 0);
 	rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
 	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");
@@ -3290,7 +3277,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "lo_unlink", pgconn_lounlink, 1);
 	rb_define_alias(rb_cPGconn, "lounlink", "lo_unlink");
 
-#ifdef M17N_SUPPORTED	
+#ifdef M17N_SUPPORTED
 	rb_define_method(rb_cPGconn, "internal_encoding", pgconn_internal_encoding, 0);
 	rb_define_method(rb_cPGconn, "internal_encoding=", pgconn_internal_encoding_set, 1);
 	rb_define_method(rb_cPGconn, "external_encoding", pgconn_external_encoding, 0);

@@ -23,6 +23,6 @@ else
 fi
 
 if [[ -s "$gemset_file" ]]; then
-	rvm gemset import "$gemset_file" | grep -v already | grep -v listed | grep -v complete | sed '/^$/d'
+	rvm gemset import "$gemset_file"
 fi
 

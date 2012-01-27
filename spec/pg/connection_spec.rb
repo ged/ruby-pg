@@ -741,7 +741,7 @@ describe PG::Connection do
 
 			it "the connection should return ASCII-8BIT when it's set to SQL_ASCII" do
 				@conn.exec "SET client_encoding TO SQL_ASCII"
-				@conn.client_encoding.should == Encoding::ASCII_8BIT
+				@conn.internal_encoding.should == Encoding::ASCII_8BIT
 			end
 
 			it "works around the unsupported JOHAB encoding by returning stuff in 'ASCII_8BIT'" do
@@ -811,6 +811,7 @@ describe PG::Connection do
 				end
 			end
 
+			conn.finish if conn
 		end
 
 	end
