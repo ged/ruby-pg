@@ -114,7 +114,6 @@ Rake::ExtensionTask.new do |ext|
 		"--with-opt-include=#{STATIC_POSTGRESQL_INCDIR}",
 		"--with-pg-lib=#{STATIC_POSTGRESQL_LIBDIR}",
 		"--with-opt-lib=#{STATIC_OPENSSL_BUILDDIR}",
-		"--enable-static-build",
 	]
 end
 

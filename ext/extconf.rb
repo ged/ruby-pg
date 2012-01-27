@@ -4,7 +4,7 @@ require 'mkmf'
 
 if ENV['MAINTAINER_MODE']
 	$stderr.puts "Maintainer mode enabled."
-	$CFLAGS << 
+	$CFLAGS <<
 		' -Wall' <<
 		' -ggdb' <<
 		' -DDEBUG' <<
@@ -32,7 +32,7 @@ if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_exe
 	$stderr.puts "Using config values from %s" % [ pgconfig ]
 	$CPPFLAGS << " -I%s" % [ `"#{pgconfig}" --includedir`.chomp ]
 	$LDFLAGS << " -L%s" % [ `"#{pgconfig}" --libdir`.chomp ]
-	$LIBS << " " << `"#{pgconfig}" --libs`.chomp
+	$LIBS << " " << `"#{pgconfig}" --libs`.chomp unless ENV['CROSS_COMPILING']
 else
 	$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
 		" --with-pg-config=/path/to/pg_config"
