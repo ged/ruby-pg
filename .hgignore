@@ -14,3 +14,4 @@ lowrite\.txt
 ^tmp_test_specs/
 ~$
 build/
+misc/ruby-pg/pkg
