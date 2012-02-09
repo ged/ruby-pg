@@ -17,5 +17,5 @@ still install it using an explicit version, like so:
 
 If you have any questions, the nice folks in the Google group can help:
 
-  http://goo.gl/OjOPP / postgres@googlegroups.com
+  http://goo.gl/OjOPP / ruby-pg@googlegroups.com
 
