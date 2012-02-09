@@ -1,4 +1,4 @@
-== v0.13.0 [] Michael Granger <ged@FaerieMUD.org>
+== v0.13.0 [2012-02-09] Michael Granger <ged@FaerieMUD.org>
 
 Reorganization of modules/classes to be better Ruby citizens (with backward-compatible aliases):
 - Created toplevel namespace 'PG' to correspond with the gem name.
