@@ -41,8 +41,8 @@ OPENSSL_PATCHES            = Rake::FileList[ MISCDIR + "openssl-#{OPENSSL_VERSIO
 # Static PostgreSQL build vars
 STATIC_POSTGRESQL_BUILDDIR = STATIC_BUILDDIR + "postgresql-#{POSTGRESQL_VERSION}"
 POSTGRESQL_SOURCE_URI      = begin
-	uristring = "http://ftp9.us.postgresql.org/pub/mirrors/postgresql/source/" +
-		"v%s/postgresql-%s.tar.bz2" % [ POSTGRESQL_VERSION, POSTGRESQL_VERSION ]
+	uristring = "http://ftp.postgresql.org/pub/source/v%s/postgresql-%s.tar.bz2" %
+		[ POSTGRESQL_VERSION, POSTGRESQL_VERSION ]
 	URI( uristring )
 end
 POSTGRESQL_TARBALL         = STATIC_SOURCESDIR + File.basename( POSTGRESQL_SOURCE_URI.path )
