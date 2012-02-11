@@ -96,7 +96,7 @@ task :maint do
 	ENV['MAINTAINER_MODE'] = 'yes'
 end
 
-ENV['RUBY_CC_VERSION'] = '1.8.7:1.9.2'
+ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.2'
 
 # Rake-compiler task
 Rake::ExtensionTask.new do |ext|
