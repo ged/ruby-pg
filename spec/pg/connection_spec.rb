@@ -672,6 +672,13 @@ describe PG::Connection do
 		result.should == { 'one' => '47' }
 	end
 
+	it "raises a rescue-able error if #finish is called twice", :without_transaction do
+		conn = PG.connect( @conninfo )
+
+		conn.finish
+		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
+	end
+
 
 	describe "multinationalization support", :ruby_19 => true do
 

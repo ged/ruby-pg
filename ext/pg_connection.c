@@ -46,7 +46,7 @@ pg_get_pgconn( VALUE self )
 	PGconn *conn = pgconn_check( self );
 
 	if ( !conn )
-		rb_fatal( "Use of uninitialized PG::Connection." );
+		rb_raise( rb_ePGerror, "connection is closed" );
 
 	return conn;
 }
