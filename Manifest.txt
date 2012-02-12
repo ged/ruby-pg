@@ -1,6 +1,5 @@
 .gemtest
-.hoerc
-.tm_properties
+BSDL
 ChangeLog
 Contributors.rdoc
 History.rdoc
@@ -26,7 +25,6 @@ lib/pg/connection.rb
 lib/pg/constants.rb
 lib/pg/exceptions.rb
 lib/pg/result.rb
-misc/openssl-pg-segfault.rb
 sample/async_api.rb
 sample/async_copyto.rb
 sample/async_mixed.rb

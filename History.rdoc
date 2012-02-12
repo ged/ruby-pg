@@ -1,3 +1,10 @@
+== v0.13.1 [2012-02-12] Michael Granger <ged@FaerieMUD.org>
+
+- Made use of a finished PG::Connection raise a PG::Error instead of
+  a fatal error (#110).
+- Added missing BSDL license file (#108)
+
+
 == v0.13.0 [2012-02-09] Michael Granger <ged@FaerieMUD.org>
 
 Reorganization of modules/classes to be better Ruby citizens (with backward-compatible aliases):
