@@ -47,7 +47,9 @@ abort "Can't find the PostgreSQL client library (libpq)" unless
 	have_library( 'ms/libpq', 'PQconnectdb', ['libpq-fe.h'] )
 
 # optional headers/functions
-have_func 'PQconnectionUsedPassword'
+have_func 'PQconnectionUsedPassword' or
+	abort "Your PostgreSQL is too old. Either install an older version " +
+	      "of this gem or upgrade your database."
 have_func 'PQisthreadsafe'
 have_func 'PQprepare'
 have_func 'PQexecParams'
