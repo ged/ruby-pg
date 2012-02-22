@@ -1,3 +1,9 @@
+== v0.13.2 [2012-02-22] Michael Granger <ged@FaerieMUD.org>
+
+- Make builds against PostgreSQL earlier than 8.3 fail with a descriptive
+  message instead of a compile failure.
+
+
 == v0.13.1 [2012-02-12] Michael Granger <ged@FaerieMUD.org>
 
 - Made use of a finished PG::Connection raise a PG::Error instead of
