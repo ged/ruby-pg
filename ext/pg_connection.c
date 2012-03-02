@@ -3273,8 +3273,12 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "make_empty_pgresult", pgconn_make_empty_pgresult, 1);
 	rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	rb_define_alias(rb_cPGconn, "escape", "escape_string");
+#ifdef HAVE_PQESCAPELITERAL
 	rb_define_method(rb_cPGconn, "escape_literal", pgconn_s_escape_literal, 1);
+#endif
+#ifdef HAVE_PQESCAPEIDENTIFIER
 	rb_define_method(rb_cPGconn, "escape_identifier", pgconn_s_escape_identifier, 1);
+#endif
 	rb_define_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
 
