@@ -781,6 +781,12 @@ describe PG::Connection do
 				escaped  = @conn.escape( original )
 				escaped.encoding.should == Encoding::EUC_JP
 			end
+
+			it "escapes string as literal" do
+				original = "string to\0 escape"
+				escaped  = @conn.escape_literal( original )
+				escaped.should == "'string to'"
+			end
 		end
 
 
