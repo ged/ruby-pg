@@ -640,6 +640,20 @@ pgconn_protocol_version(VALUE self)
 	return INT2NUM(PQprotocolVersion(pg_get_pgconn(self)));
 }
 
+#ifdef HAVE_PQLIBVERSION
+/*
+ * call-seq:
+ *   PG::Connection.library_version -> Integer
+ *
+ * Get the version of the libpq library in use.
+ */
+static VALUE
+pgconn_s_library_version(VALUE self)
+{
+	return INT2NUM(PQlibVersion());
+}
+#endif
+
 /* 
  * call-seq: 
  *   conn.server_version -> Integer
@@ -1299,7 +1313,7 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
  * Escape an arbitrary String _str_ as a literal.
  */
 static VALUE
-pgconn_s_escape_literal(VALUE self, VALUE string)
+pgconn_escape_literal(VALUE self, VALUE string)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	char *escaped = NULL;
@@ -1333,7 +1347,7 @@ pgconn_s_escape_literal(VALUE self, VALUE string)
  * Escape an arbitrary String _str_ as an identifier.
  */
 static VALUE
-pgconn_s_escape_identifier(VALUE self, VALUE string)
+pgconn_escape_identifier(VALUE self, VALUE string)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	char *escaped = NULL;
@@ -3218,12 +3232,6 @@ init_pg_connection()
 	SINGLETON_ALIAS(rb_cPGconn, "setdblogin", "new");
 	rb_define_singleton_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	SINGLETON_ALIAS(rb_cPGconn, "escape", "escape_string");
-#ifdef HAVE_PQESCAPELITERAL
-	rb_define_singleton_method(rb_cPGconn, "escape_literal", pgconn_s_escape_literal, 1);
-#endif
-#ifdef HAVE_PQESCAPEIDENTIFIER
-	rb_define_singleton_method(rb_cPGconn, "escape_identifier", pgconn_s_escape_identifier, 1);
-#endif
 	rb_define_singleton_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
@@ -3231,6 +3239,9 @@ init_pg_connection()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
+#ifdef HAVE_PQLIBVERSION
+	rb_define_singleton_method(rb_cPGconn, "library_version", pgconn_s_library_version, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: Connection Control     ******/
 	rb_define_method(rb_cPGconn, "initialize", pgconn_init, -1);
@@ -3274,10 +3285,10 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	rb_define_alias(rb_cPGconn, "escape", "escape_string");
 #ifdef HAVE_PQESCAPELITERAL
-	rb_define_method(rb_cPGconn, "escape_literal", pgconn_s_escape_literal, 1);
+	rb_define_method(rb_cPGconn, "escape_literal", pgconn_escape_literal, 1);
 #endif
 #ifdef HAVE_PQESCAPEIDENTIFIER
-	rb_define_method(rb_cPGconn, "escape_identifier", pgconn_s_escape_identifier, 1);
+	rb_define_method(rb_cPGconn, "escape_identifier", pgconn_escape_identifier, 1);
 #endif
 	rb_define_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
