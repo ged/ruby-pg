@@ -1303,7 +1303,6 @@ pgconn_s_escape_literal(VALUE self, VALUE string)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	char *escaped = NULL;
-	size_t size;
 	VALUE error;
 	VALUE result = Qnil;
 
@@ -1338,7 +1337,6 @@ pgconn_s_escape_identifier(VALUE self, VALUE string)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	char *escaped = NULL;
-	size_t size;
 	VALUE error;
 	VALUE result = Qnil;
 
