@@ -105,6 +105,16 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
+	it "connects using a hash of optional connection parameters" do
+		tmpconn = described_class.connect(
+			:host => 'localhost',
+			:port => @port,
+			:dbname => :test,
+			:keepalives => 1)
+		tmpconn.status.should== PG::CONNECTION_OK
+		tmpconn.finish
+	end
+
 	it "raises an exception when connecting with an invalid number of arguments" do
 		expect {
 			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )

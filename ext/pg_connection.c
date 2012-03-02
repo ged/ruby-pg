@@ -1290,6 +1290,76 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 	return ret;
 }
 
+#ifdef HAVE_PQESCAPELITERAL
+/*
+ * call-seq:
+ *    conn.escape_literal( str ) -> String
+ *
+ * 
+ * Escape an arbitrary String _str_ as a literal.
+ */
+static VALUE
+pgconn_s_escape_literal(VALUE self, VALUE string)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	char *escaped = NULL;
+	size_t size;
+	VALUE error;
+	VALUE result = Qnil;
+
+	Check_Type(string, T_STRING);
+
+	escaped = PQescapeLiteral(conn, RSTRING_PTR(string), RSTRING_LEN(string));
+	if (escaped == NULL)
+	{
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		rb_iv_set(error, "@connection", self);
+		rb_exc_raise(error);
+		return Qnil;
+	}
+	result = rb_str_new2(escaped);
+	PQfreemem(escaped);
+	OBJ_INFECT(result, string);
+
+	return result;
+}
+#endif
+
+#ifdef HAVE_PQESCAPEIDENTIFIER
+/*
+ * call-seq:
+ *    conn.escape_identifier( str ) -> String
+ *
+ * 
+ * Escape an arbitrary String _str_ as an identifier.
+ */
+static VALUE
+pgconn_s_escape_identifier(VALUE self, VALUE string)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	char *escaped = NULL;
+	size_t size;
+	VALUE error;
+	VALUE result = Qnil;
+
+	Check_Type(string, T_STRING);
+
+	escaped = PQescapeIdentifier(conn, RSTRING_PTR(string), RSTRING_LEN(string));
+	if (escaped == NULL)
+	{
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		rb_iv_set(error, "@connection", self);
+		rb_exc_raise(error);
+		return Qnil;
+	}
+	result = rb_str_new2(escaped);
+	PQfreemem(escaped);
+	OBJ_INFECT(result, string);
+
+	return result;
+}
+#endif
+
 /*
  * call-seq:
  *    conn.send_query(sql [, params, result_format ] ) -> nil
@@ -3150,6 +3220,12 @@ init_pg_connection()
 	SINGLETON_ALIAS(rb_cPGconn, "setdblogin", "new");
 	rb_define_singleton_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	SINGLETON_ALIAS(rb_cPGconn, "escape", "escape_string");
+#ifdef HAVE_PQESCAPELITERAL
+	rb_define_singleton_method(rb_cPGconn, "escape_literal", pgconn_s_escape_literal, 1);
+#endif
+#ifdef HAVE_PQESCAPEIDENTIFIER
+	rb_define_singleton_method(rb_cPGconn, "escape_identifier", pgconn_s_escape_identifier, 1);
+#endif
 	rb_define_singleton_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
