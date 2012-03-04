@@ -121,6 +121,36 @@ describe PG::Connection do
 		}.to raise_error( ArgumentError, /extra positional parameter/i )
 	end
 
+	it "pings successfully with connection string" do
+		ping = described_class.ping(@conninfo)
+		ping.should== PG::PQPING_OK
+	end
+
+	it "pings using 7 arguments converted to strings" do
+		ping = described_class.ping('localhost', @port, nil, nil, :test, nil, nil)
+		ping.should== PG::PQPING_OK
+	end
+
+	it "pings using a hash of connection parameters" do
+		ping = described_class.ping(
+			:host => 'localhost',
+			:port => @port,
+			:dbname => :test)
+		ping.should== PG::PQPING_OK
+	end
+
+	it "returns correct response when ping connection cannot be established" do
+		ping = described_class.ping(
+			:host => 'localhost',
+			:port => 9999,
+			:dbname => :test)
+		ping.should== PG::PQPING_NO_RESPONSE
+	end
+
+	it "returns correct response when ping connection arguments are wrong" do
+		ping = described_class.ping('localhost', 'localhost', nil, nil, :test, nil, nil)
+		ping.should== PG::PQPING_NO_ATTEMPT
+	end
 
 	it "can connect asynchronously" do
 		tmpconn = described_class.connect_start( @conninfo )

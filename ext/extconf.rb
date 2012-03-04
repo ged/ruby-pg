@@ -63,6 +63,7 @@ have_func 'pg_encoding_to_char'
 have_func 'pg_char_to_encoding'
 have_func 'PQsetClientEncoding'
 have_func 'PQlibVersion'
+have_func 'PQping'
 
 have_func 'rb_encdb_alias'
 have_func 'rb_enc_alias'

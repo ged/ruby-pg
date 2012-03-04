@@ -251,6 +251,41 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	return rb_conn;
 }
 
+#ifdef HAVE_PQPING
+/*
+ * call-seq:
+ *    PG::Connection.ping(connection_hash)       -> Fixnum
+ *    PG::Connection.ping(connection_string)     -> Fixnum
+ *    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Fixnum
+ *
+ * Check server status.
+ *
+ * Returns one of:
+ * [+PQPING_OK+]
+ *   server is accepting connections
+ * [+PQPING_REJECT+]
+ *   server is alive but rejecting connections
+ * [+PQPING_NO_RESPONSE+]
+ *   could not establish connection
+ * [+PQPING_NO_ATTEMPT+]
+ *   connection not attempted (bad params)
+ */
+static VALUE
+pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
+{
+	PGPing ping;
+	VALUE rb_conn;
+	VALUE conninfo;
+	VALUE error;
+
+	rb_conn  = pgconn_s_allocate( klass );
+	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
+	ping     = PQping( StringValuePtr(conninfo) );
+
+	return INT2FIX((int)ping);
+}
+#endif
+
 /*
  * call-seq:
  *    PG::Connection.conndefaults() -> Array
@@ -3241,6 +3276,9 @@ init_pg_connection()
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 #ifdef HAVE_PQLIBVERSION
 	rb_define_singleton_method(rb_cPGconn, "library_version", pgconn_s_library_version, 0);
+#endif
+#ifdef HAVE_PQPING
+	rb_define_singleton_method(rb_cPGconn, "ping", pgconn_s_ping, -1);
 #endif
 
 	/******     PG::Connection INSTANCE METHODS: Connection Control     ******/
