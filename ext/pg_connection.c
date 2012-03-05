@@ -1191,6 +1191,7 @@ pgconn_describe_portal(self, stmt_name)
  * * +PGRES_BAD_RESPONSE+
  * * +PGRES_NONFATAL_ERROR+
  * * +PGRES_FATAL_ERROR+
+ * * +PGRES_COPY_BOTH+
  */
 static VALUE
 pgconn_make_empty_pgresult(VALUE self, VALUE status)
