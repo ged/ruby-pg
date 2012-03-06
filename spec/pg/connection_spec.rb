@@ -105,12 +105,52 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
+	it "connects using a hash of optional connection parameters" do
+		tmpconn = described_class.connect(
+			:host => 'localhost',
+			:port => @port,
+			:dbname => :test,
+			:keepalives => 1)
+		tmpconn.status.should== PG::CONNECTION_OK
+		tmpconn.finish
+	end
+
 	it "raises an exception when connecting with an invalid number of arguments" do
 		expect {
 			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
 		}.to raise_error( ArgumentError, /extra positional parameter/i )
 	end
 
+	it "pings successfully with connection string" do
+		ping = described_class.ping(@conninfo)
+		ping.should== PG::PQPING_OK
+	end
+
+	it "pings using 7 arguments converted to strings" do
+		ping = described_class.ping('localhost', @port, nil, nil, :test, nil, nil)
+		ping.should== PG::PQPING_OK
+	end
+
+	it "pings using a hash of connection parameters" do
+		ping = described_class.ping(
+			:host => 'localhost',
+			:port => @port,
+			:dbname => :test)
+		ping.should== PG::PQPING_OK
+	end
+
+	it "returns correct response when ping connection cannot be established" do
+		ping = described_class.ping(
+			:host => 'localhost',
+			:port => 9999,
+			:dbname => :test)
+		ping.should== PG::PQPING_NO_RESPONSE
+	end
+
+	it "returns correct response when ping connection arguments are wrong" do
+		ping = described_class.ping('localhost', 'localhost', nil, nil, :test, nil, nil)
+		ping.should== PG::PQPING_NO_ATTEMPT
+	end
 
 	it "can connect asynchronously" do
 		tmpconn = described_class.connect_start( @conninfo )
@@ -770,6 +810,12 @@ describe PG::Connection do
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape( original )
 				escaped.encoding.should == Encoding::EUC_JP
+			end
+
+			it "escapes string as literal" do
+				original = "string to\0 escape"
+				escaped  = @conn.escape_literal( original )
+				escaped.should == "'string to'"
 			end
 		end
 

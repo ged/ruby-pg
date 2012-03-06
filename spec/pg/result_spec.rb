@@ -123,7 +123,7 @@ describe PG::Result do
 		out_bytes.should == in_bytes
 	end
 
-	it "should return the parameter type of the specified prepared statment parameter" do
+	it "should return the parameter type of the specified prepared statement parameter" do
 		query = 'SELECT * FROM pg_stat_activity WHERE user = $1::name AND current_query = $2::text'
 		@conn.prepare( 'queryfinder', query )
 		res = @conn.describe_prepared( 'queryfinder' )

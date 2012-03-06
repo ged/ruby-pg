@@ -285,6 +285,8 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "CONNECTION_SSL_STARTUP", INT2FIX(CONNECTION_SSL_STARTUP));
 	/* Negotiating environment-driven parameter settings. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_SETENV", INT2FIX(CONNECTION_SETENV));
+	/* Internal state: connect() needed. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_NEEDED", INT2FIX(CONNECTION_NEEDED));
 
 	/******     PG::Connection CLASS CONSTANTS: Nonblocking connection polling status     ******/
 
@@ -319,6 +321,19 @@ Init_pg_ext()
 	/* Verbose error verbosity level (#set_error_verbosity) */
 	rb_define_const(rb_mPGconstants, "PQERRORS_VERBOSE", INT2FIX(PQERRORS_VERBOSE));
 
+#ifdef HAVE_PQPING
+	/******     PG::Connection CLASS CONSTANTS: Check Server Status ******/
+
+	/* Server is accepting connections. */
+	rb_define_const(rb_mPGconstants, "PQPING_OK", INT2FIX(PQPING_OK));
+	/* Server is alive but rejecting connections. */
+	rb_define_const(rb_mPGconstants, "PQPING_REJECT", INT2FIX(PQPING_REJECT));
+	/* Could not establish connection. */
+	rb_define_const(rb_mPGconstants, "PQPING_NO_RESPONSE", INT2FIX(PQPING_NO_RESPONSE));
+	/* Connection not attempted (bad params). */
+	rb_define_const(rb_mPGconstants, "PQPING_NO_ATTEMPT", INT2FIX(PQPING_NO_ATTEMPT));
+#endif
+
 	/******     PG::Connection CLASS CONSTANTS: Large Objects     ******/
 
 	/* Flag for #lo_creat, #lo_open -- open for writing */
@@ -331,7 +346,6 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "SEEK_CUR", INT2FIX(SEEK_CUR));
 	/* Flag for #lo_lseek -- seek from object end */
 	rb_define_const(rb_mPGconstants, "SEEK_END", INT2FIX(SEEK_END));
-
 
 	/******     PG::Result CONSTANTS: result status      ******/
 
@@ -352,6 +366,8 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "PGRES_NONFATAL_ERROR",INT2FIX(PGRES_NONFATAL_ERROR));
 	/* #result_status constant: A fatal error occurred. */
 	rb_define_const(rb_mPGconstants, "PGRES_FATAL_ERROR", INT2FIX(PGRES_FATAL_ERROR));
+	/* #result_status constant: Copy In/Out data transfer in progress. */
+	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
 
 	/******     Result CONSTANTS: result error field codes      ******/
 

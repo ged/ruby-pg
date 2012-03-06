@@ -65,6 +65,8 @@ until poll_status == PG::PGRES_POLLING_OK ||
 		output_progress "  negotiating SSL encryption."
 	when PG::CONNECTION_SETENV
 		output_progress "  negotiating environment-driven parameter settings."
+	when PG::CONNECTION_NEEDED
+		output_progress "  internal state: connect() needed."
 	end
 
 	# Check to see if it's finished or failed yet
