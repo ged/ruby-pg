@@ -423,7 +423,7 @@ Init_pg_ext()
 	/* #result_status constant: A fatal error occurred. */
 	rb_define_const(rb_mPGconstants, "PGRES_FATAL_ERROR", INT2FIX(PGRES_FATAL_ERROR));
 	/* #result_status constant: Copy In/Out data transfer in progress. */
-#ifdef HAVE_PGRES_COPY_BOTH
+#ifdef HAVE_CONST_PGRES_COPY_BOTH
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
 #endif
 
