@@ -59,7 +59,9 @@ pg_check_result(VALUE rb_pgconn, VALUE rb_pgresult)
 		case PGRES_TUPLES_OK:
 		case PGRES_COPY_OUT:
 		case PGRES_COPY_IN:
+#ifdef HAVE_PGRES_COPY_BOTH
 		case PGRES_COPY_BOTH:
+#endif
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
 			return;

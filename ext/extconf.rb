@@ -68,6 +68,8 @@ have_func 'PQping'
 have_func 'rb_encdb_alias'
 have_func 'rb_enc_alias'
 
+have_const 'PGRES_COPY_BOTH', 'libpq-fe.h'
+
 $defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
 	have_struct_member 'struct pgNotify', 'extra', 'libpq-fe.h'
 
