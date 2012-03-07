@@ -274,11 +274,9 @@ static VALUE
 pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 {
 	PGPing ping;
-	VALUE rb_conn;
 	VALUE conninfo;
 	VALUE error;
 
-	rb_conn  = pgconn_s_allocate( klass );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
 	ping     = PQping( StringValuePtr(conninfo) );
 
@@ -370,19 +368,6 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 	return rval;
 }
 
-
-/*
- * call-seq:
- *    PG::Connection.isthreadsafe() -> Boolean
- *
- * Returns +true+ if libpq is thread safe, +false+ otherwise.
- */
-static VALUE
-pgconn_s_isthreadsafe(VALUE self)
-{
-	UNUSED( self );
-	return PQisthreadsafe() ? Qtrue : Qfalse;
-}
 
 /**************************************************************************
  * PG::Connection INSTANCE METHODS
@@ -674,20 +659,6 @@ pgconn_protocol_version(VALUE self)
 {
 	return INT2NUM(PQprotocolVersion(pg_get_pgconn(self)));
 }
-
-#ifdef HAVE_PQLIBVERSION
-/*
- * call-seq:
- *   PG::Connection.library_version -> Integer
- *
- * Get the version of the libpq library in use.
- */
-static VALUE
-pgconn_s_library_version(VALUE self)
-{
-	return INT2NUM(PQlibVersion());
-}
-#endif
 
 /* 
  * call-seq: 
@@ -3270,14 +3241,10 @@ init_pg_connection()
 	SINGLETON_ALIAS(rb_cPGconn, "escape", "escape_string");
 	rb_define_singleton_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_singleton_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
-	rb_define_singleton_method(rb_cPGconn, "isthreadsafe", pgconn_s_isthreadsafe, 0);
 	rb_define_singleton_method(rb_cPGconn, "encrypt_password", pgconn_s_encrypt_password, 2);
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
-#ifdef HAVE_PQLIBVERSION
-	rb_define_singleton_method(rb_cPGconn, "library_version", pgconn_s_library_version, 0);
-#endif
 #ifdef HAVE_PQPING
 	rb_define_singleton_method(rb_cPGconn, "ping", pgconn_s_ping, -1);
 #endif

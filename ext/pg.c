@@ -250,12 +250,68 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
 #endif /* M17N_SUPPORTED */
 
 
+/**************************************************************************
+ * Module Methods
+ **************************************************************************/
+
+#ifdef HAVE_PQLIBVERSION
+/*
+ * call-seq:
+ *   PG.library_version -> Integer
+ *
+ * Get the version of the libpq library in use. The number is formed by
+ * converting the major, minor, and revision numbers into two-decimal-
+ * digit numbers and appending them together.
+ * For example, version 7.4.2 will be returned as 70402, and version
+ * 8.1 will be returned as 80100 (leading zeroes are not shown). Zero
+ * is returned if the connection is bad.
+ */
+static VALUE
+pg_s_library_version(VALUE self)
+{
+	UNUSED( self );
+	return INT2NUM(PQlibVersion());
+}
+#endif
+
+
+/*
+ * call-seq:
+ *    PG.isthreadsafe            -> Boolean
+ *    PG.is_threadsafe?          -> Boolean
+ *    PG.threadsafe?             -> Boolean
+ *
+ * Returns +true+ if libpq is thread-safe, +false+ otherwise.
+ */
+static VALUE
+pg_s_threadsafe_p(VALUE self)
+{
+	UNUSED( self );
+	return PQisthreadsafe() ? Qtrue : Qfalse;
+}
+
+
+
+/**************************************************************************
+ * Initializer
+ **************************************************************************/
+
 void
 Init_pg_ext()
 {
 	rb_mPG = rb_define_module( "PG" );
 	rb_ePGerror = rb_define_class_under( rb_mPG, "Error", rb_eStandardError );
 	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );
+
+	/*************************
+	 *  PG module methods
+	 *************************/
+#ifdef HAVE_PQLIBVERSION
+	rb_define_singleton_method( rb_mPG, "library_version", pg_s_library_version, 0 );
+#endif
+	rb_define_singleton_method( rb_mPG, "isthreadsafe", pg_s_threadsafe_p, 0 );
+	SINGLETON_ALIAS( rb_mPG, "is_threadsafe?", "isthreadsafe" );
+	SINGLETON_ALIAS( rb_mPG, "threadsafe?", "isthreadsafe" );
 
 	/*************************
 	 *  PG::Error
@@ -367,7 +423,9 @@ Init_pg_ext()
 	/* #result_status constant: A fatal error occurred. */
 	rb_define_const(rb_mPGconstants, "PGRES_FATAL_ERROR", INT2FIX(PGRES_FATAL_ERROR));
 	/* #result_status constant: Copy In/Out data transfer in progress. */
+#ifdef HAVE_PGRES_COPY_BOTH
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
+#endif
 
 	/******     Result CONSTANTS: result error field codes      ******/
 

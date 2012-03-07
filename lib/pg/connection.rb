@@ -51,6 +51,13 @@ class PG::Connection
 		return connopts.join(' ')
 	end
 
+
+	# Backward-compatibility aliases for stuff that's moved into PG.
+	class << self
+		define_method( :isthreadsafe, &PG.method(:isthreadsafe) )
+	end
+
+
 end # class PG::Connection
 
 # Backward-compatible alias

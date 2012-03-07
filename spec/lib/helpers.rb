@@ -239,6 +239,11 @@ RSpec.configure do |config|
 	config.treat_symbols_as_metadata_keys_with_true_values = true
 
 	config.mock_with :rspec
-	config.filter_run_excluding :ruby_19 => true if ruby_version_vec <= [1,9,1].pack( "N*" )
+	config.filter_run_excluding :ruby_19 if ruby_version_vec <= [1,9,1].pack( "N*" )
+
+	config.filter_run_excluding :postgresql_90 unless
+		PG::Connection.instance_methods.map( &:to_sym ).include?( :escape_literal )
+	config.filter_run_excluding :postgresql_91 unless
+		PG.respond_to?( :library_version )
 end
 

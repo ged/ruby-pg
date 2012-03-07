@@ -86,13 +86,13 @@ describe PG::Connection do
 
 	it "connects successfully with connection string" do
 		tmpconn = described_class.connect(@conninfo)
-		tmpconn.status.should== PG::CONNECTION_OK
+		tmpconn.status.should == PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
 	it "connects using 7 arguments converted to strings" do
 		tmpconn = described_class.connect('localhost', @port, nil, nil, :test, nil, nil)
-		tmpconn.status.should== PG::CONNECTION_OK
+		tmpconn.status.should == PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
@@ -101,7 +101,7 @@ describe PG::Connection do
 			:host => 'localhost',
 			:port => @port,
 			:dbname => :test)
-		tmpconn.status.should== PG::CONNECTION_OK
+		tmpconn.status.should == PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
@@ -111,7 +111,7 @@ describe PG::Connection do
 			:port => @port,
 			:dbname => :test,
 			:keepalives => 1)
-		tmpconn.status.should== PG::CONNECTION_OK
+		tmpconn.status.should == PG::CONNECTION_OK
 		tmpconn.finish
 	end
 
@@ -119,37 +119,6 @@ describe PG::Connection do
 		expect {
 			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
 		}.to raise_error( ArgumentError, /extra positional parameter/i )
-	end
-
-	it "pings successfully with connection string" do
-		ping = described_class.ping(@conninfo)
-		ping.should== PG::PQPING_OK
-	end
-
-	it "pings using 7 arguments converted to strings" do
-		ping = described_class.ping('localhost', @port, nil, nil, :test, nil, nil)
-		ping.should== PG::PQPING_OK
-	end
-
-	it "pings using a hash of connection parameters" do
-		ping = described_class.ping(
-			:host => 'localhost',
-			:port => @port,
-			:dbname => :test)
-		ping.should== PG::PQPING_OK
-	end
-
-	it "returns correct response when ping connection cannot be established" do
-		ping = described_class.ping(
-			:host => 'localhost',
-			:port => 9999,
-			:dbname => :test)
-		ping.should== PG::PQPING_NO_RESPONSE
-	end
-
-	it "returns correct response when ping connection arguments are wrong" do
-		ping = described_class.ping('localhost', 'localhost', nil, nil, :test, nil, nil)
-		ping.should== PG::PQPING_NO_ATTEMPT
 	end
 
 	it "can connect asynchronously" do
@@ -419,10 +388,156 @@ describe PG::Connection do
 		@conn.exec( 'UNLISTEN woo' )
 	end
 
-	context "under PostgreSQL 9" do
+	it "yields the result if block is given to exec" do
+		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
+			values = []
+			result.should be_kind_of( PG::Result )
+			result.ntuples.should == 2
+			result.each do |tuple|
+				values << tuple['a']
+			end
+			values
+		end
+
+		rval.should have( 2 ).members
+		rval.should include( '5678', '1234' )
+	end
+
+
+	it "correctly finishes COPY queries passed to #async_exec" do
+		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
+
+		results = []
+		begin
+			data = @conn.get_copy_data( true )
+			if false == data
+				@conn.block( 2.0 )
+				data = @conn.get_copy_data( true )
+			end
+			results << data if data
+		end until data.nil?
+
+		results.should have( 2 ).members
+		results.should include( "1\n", "2\n" )
+	end
+
+
+	it "described_class#block shouldn't block a second thread" do
+		t = Thread.new do
+			@conn.send_query( "select pg_sleep(3)" )
+			@conn.block
+		end
+
+		# :FIXME: There's a race here, but hopefully it's pretty small.
+		t.should be_alive()
+
+		@conn.cancel
+		t.join
+	end
+
+	it "described_class#block should allow a timeout" do
+		@conn.send_query( "select pg_sleep(3)" )
+
+		start = Time.now
+		@conn.block( 0.1 )
+		finish = Time.now
+
+		(finish - start).should be_within( 0.05 ).of( 0.1 )
+	end
+
+
+	it "can encrypt a string given a password and username" do
+		described_class.encrypt_password("postgres", "postgres").
+			should =~ /\S+/
+	end
+
+
+	it "raises an appropriate error if either of the required arguments for encrypt_password " +
+	   "is not valid" do
+		expect {
+			described_class.encrypt_password( nil, nil )
+		}.to raise_error( TypeError )
+		expect {
+			described_class.encrypt_password( "postgres", nil )
+		}.to raise_error( TypeError )
+		expect {
+			described_class.encrypt_password( nil, "postgres" )
+		}.to raise_error( TypeError )
+	end
+
+
+	it "allows fetching a column of values from a result by column number" do
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
+		res.column_values( 0 ).should == %w[1 2 3]
+		res.column_values( 1 ).should == %w[2 3 4]
+	end
+
+
+	it "allows fetching a column of values from a result by field name" do
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
+		res.field_values( 'column1' ).should == %w[1 2 3]
+		res.field_values( 'column2' ).should == %w[2 3 4]
+	end
+
+
+	it "raises an error if selecting an invalid column index" do
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
+		expect {
+			res.column_values( 20 )
+		}.to raise_error( IndexError )
+	end
+
+
+	it "raises an error if selecting an invalid field name" do
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
+		expect {
+			res.field_values( 'hUUuurrg' )
+		}.to raise_error( IndexError )
+	end
+
+
+	it "raises an error if column index is not a number" do
+		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
+		expect {
+			res.column_values( 'hUUuurrg' )
+		}.to raise_error( TypeError )
+	end
+
+
+	it "can connect asynchronously" do
+		serv = TCPServer.new( '127.0.0.1', 54320 )
+		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		conn.connect_poll.should == PG::PGRES_POLLING_WRITING
+		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
+		serv.close
+		if conn.connect_poll == PG::PGRES_POLLING_READING
+			select( [IO.for_fd(conn.socket)], nil, nil, 0.2 )
+		end
+		conn.connect_poll.should == PG::PGRES_POLLING_FAILED
+	end
+
+	it "discards previous results (if any) before waiting on an #async_exec"
+
+	it "calls the block if one is provided to #async_exec" do
+		result = nil
+		@conn.async_exec( "select 47 as one" ) do |pg_res|
+			result = pg_res[0]
+		end
+		result.should == { 'one' => '47' }
+	end
+
+	it "raises a rescue-able error if #finish is called twice", :without_transaction do
+		conn = PG.connect( @conninfo )
+
+		conn.finish
+		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
+	end
+
+
+	context "under PostgreSQL 9", :postgresql_90 do
 
 		before( :each ) do
-			pending "only works under PostgreSQL 9" if @conn.server_version < 9_00_00
+			pending "only works with a PostgreSQL >= 9.0 server" if @conn.server_version < 9_00_00
 		end
 
 		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
@@ -574,153 +689,43 @@ describe PG::Connection do
 
 	end
 
-	it "yields the result if block is given to exec" do
-		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
-			values = []
-			result.should be_kind_of( PG::Result )
-			result.ntuples.should == 2
-			result.each do |tuple|
-				values << tuple['a']
-			end
-			values
+	context "under PostgreSQL 9.1 client library", :postgresql_91, :without_transaction do
+
+		it "pings successfully with connection string" do
+			ping = described_class.ping(@conninfo)
+			ping.should == PG::PQPING_OK
 		end
 
-		rval.should have( 2 ).members
-		rval.should include( '5678', '1234' )
-	end
-
-
-	it "correctly finishes COPY queries passed to #async_exec" do
-		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
-
-		results = []
-		begin
-			data = @conn.get_copy_data( true )
-			if false == data
-				@conn.block( 2.0 )
-				data = @conn.get_copy_data( true )
-			end
-			results << data if data
-		end until data.nil?
-
-		results.should have( 2 ).members
-		results.should include( "1\n", "2\n" )
-	end
-
-
-	it "described_class#block shouldn't block a second thread" do
-		t = Thread.new do
-			@conn.send_query( "select pg_sleep(3)" )
-			@conn.block
+		it "pings using 7 arguments converted to strings" do
+			ping = described_class.ping('localhost', @port, nil, nil, :test, nil, nil)
+			ping.should == PG::PQPING_OK
 		end
 
-		# :FIXME: There's a race here, but hopefully it's pretty small.
-		t.should be_alive()
-
-		@conn.cancel
-		t.join
-	end
-
-	it "described_class#block should allow a timeout" do
-		@conn.send_query( "select pg_sleep(3)" )
-
-		start = Time.now
-		@conn.block( 0.1 )
-		finish = Time.now
-
-		(finish - start).should be_within( 0.05 ).of( 0.1 )
-	end
-
-
-	it "can encrypt a string given a password and username" do
-		described_class.encrypt_password("postgres", "postgres").
-			should =~ /\S+/
-	end
-
-
-	it "raises an appropriate error if either of the required arguments for encrypt_password " +
-	   "is not valid" do
-		expect {
-			described_class.encrypt_password( nil, nil )
-		}.to raise_error( TypeError )
-		expect {
-			described_class.encrypt_password( "postgres", nil )
-		}.to raise_error( TypeError )
-		expect {
-			described_class.encrypt_password( nil, "postgres" )
-		}.to raise_error( TypeError )
-	end
-
-
-	it "allows fetching a column of values from a result by column number" do
-		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
-		res.column_values( 0 ).should == %w[1 2 3]
-		res.column_values( 1 ).should == %w[2 3 4]
-	end
-
-
-	it "allows fetching a column of values from a result by field name" do
-		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
-		res.field_values( 'column1' ).should == %w[1 2 3]
-		res.field_values( 'column2' ).should == %w[2 3 4]
-	end
-
-
-	it "raises an error if selecting an invalid column index" do
-		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
-		expect {
-			res.column_values( 20 )
-		}.to raise_error( IndexError )
-	end
-
-
-	it "raises an error if selecting an invalid field name" do
-		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
-		expect {
-			res.field_values( 'hUUuurrg' )
-		}.to raise_error( IndexError )
-	end
-
-
-	it "raises an error if column index is not a number" do
-		res = @conn.exec( 'VALUES (1,2),(2,3),(3,4)' )
-		expect {
-			res.column_values( 'hUUuurrg' )
-		}.to raise_error( TypeError )
-	end
-
-
-	it "can connect asynchronously" do
-		serv = TCPServer.new( '127.0.0.1', 54320 )
-		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		conn.connect_poll.should == PG::PGRES_POLLING_WRITING
-		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
-		serv.close
-		if conn.connect_poll == PG::PGRES_POLLING_READING
-			select( [IO.for_fd(conn.socket)], nil, nil, 0.2 )
+		it "pings using a hash of connection parameters" do
+			ping = described_class.ping(
+				:host => 'localhost',
+				:port => @port,
+				:dbname => :test)
+			ping.should == PG::PQPING_OK
 		end
-		conn.connect_poll.should == PG::PGRES_POLLING_FAILED
-	end
 
-	it "discards previous results (if any) before waiting on an #async_exec"
-
-	it "calls the block if one is provided to #async_exec" do
-		result = nil
-		@conn.async_exec( "select 47 as one" ) do |pg_res|
-			result = pg_res[0]
+		it "returns correct response when ping connection cannot be established" do
+			ping = described_class.ping(
+				:host => 'localhost',
+				:port => 9999,
+				:dbname => :test)
+			ping.should == PG::PQPING_NO_RESPONSE
 		end
-		result.should == { 'one' => '47' }
+
+		it "returns correct response when ping connection arguments are wrong" do
+			ping = described_class.ping('localhost', 'localhost', nil, nil, :test, nil, nil)
+			ping.should == PG::PQPING_NO_ATTEMPT
+		end
+
+
 	end
 
-	it "raises a rescue-able error if #finish is called twice", :without_transaction do
-		conn = PG.connect( @conninfo )
-
-		conn.finish
-		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
-	end
-
-
-	describe "multinationalization support", :ruby_19 => true do
+	context "multinationalization support", :ruby_19 do
 
 		it "should return the same bytes in text format that are sent as inline text" do
 			binary_file   = File.join(Dir.pwd, 'spec/data', 'random_binary_data')

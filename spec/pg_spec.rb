@@ -17,6 +17,15 @@ require 'pg'
 
 describe PG do
 
+	it "knows what version of the libpq library is loaded", :postgresql_91 do
+		PG.library_version.should be_an( Integer )
+		PG.library_version.should >= 90100
+	end
+
+
+	it "knows whether or not the library is threadsafe" do
+		PG.should be_threadsafe()
+	end
 
 end
 
