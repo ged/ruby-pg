@@ -55,7 +55,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 
 	self.dependency 'rake-compiler', '~> 0.7', :developer
-	self.dependency	'rspec', '~> 2.6', :developer
+	self.dependency	'rspec', '~> 2.8', :developer
 
 	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
