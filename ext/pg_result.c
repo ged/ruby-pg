@@ -495,7 +495,7 @@ pgresult_fsize(VALUE self, VALUE index)
 static VALUE
 pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 {
-	VALUE ret;
+	VALUE val;
 	PGresult *result;
 	int i = NUM2INT(tup_num);
 	int j = NUM2INT(field_num);
@@ -509,10 +509,19 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	}
 	if(PQgetisnull(result, i, j))
 		return Qnil;
-	ret = rb_tainted_str_new(PQgetvalue(result, i, j), 
+	val = rb_tainted_str_new(PQgetvalue(result, i, j),
 				PQgetlength(result, i, j));
-	ASSOCIATE_INDEX(ret, self);
-	return ret;
+
+#ifdef M17N_SUPPORTED
+	/* associate client encoding for text format only */
+	if ( 0 == PQfformat(result, j) ) {
+		ASSOCIATE_INDEX( val, self );
+	} else {
+		rb_enc_associate( val, rb_ascii8bit_encoding() );
+	}
+#endif
+
+	return val;
 }
 
 /*
