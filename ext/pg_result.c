@@ -709,19 +709,15 @@ pgresult_values(VALUE self)
 	int field;
 	int num_rows = PQntuples(result);
 	int num_fields = PQnfields(result);
-	VALUE ary = rb_ary_new2(num_rows);
+	VALUE rows[ num_rows ];
 
 	for ( row = 0; row < num_rows; row++ ) {
-		/* create new row */
-		VALUE new_row = rb_ary_new2(num_fields);
+		VALUE new_row[ num_fields ];
 
-		/* add to return array */
-		rb_ary_store( ary, row, new_row );
-
-		/* populate it */
+		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
 			if ( PQgetisnull(result, row, field) ) {
-				rb_ary_store( new_row, field, Qnil );
+				new_row[ field ] = Qnil;
 			}
 			else {
 				VALUE val = rb_tainted_str_new( PQgetvalue(result, row, field), 
@@ -735,16 +731,18 @@ pgresult_values(VALUE self)
 					rb_enc_associate( val, rb_ascii8bit_encoding() );
 				}
 #endif
-
-				rb_ary_store( new_row, field, val );
+				new_row[ field ] = val;
 			}
 		}
+
+		rows[ row ] = rb_ary_new4( num_fields, new_row );
 	}
-	return ary;
+
+	return rb_ary_new4( num_rows, rows );
 }
 
 
-/* 
+/*
  * Make a Ruby array out of the encoded values from the specified
  * column in the given result.
  */
@@ -752,16 +750,17 @@ static VALUE
 make_column_result_array( VALUE self, int col )
 {
 	PGresult *result = pgresult_get( self );
-	int row = PQntuples( result );
-	VALUE ary = rb_ary_new2( row );
+	int rows = PQntuples( result );
+	int i;
 	VALUE val = Qnil;
+	VALUE results[ rows ];
 
 	if ( col >= PQnfields(result) )
 		rb_raise( rb_eIndexError, "no column %d in result", col );
 
-	while ( row-- ) {
-		val = rb_tainted_str_new( PQgetvalue(result, row, col),
-		                          PQgetlength(result, row, col) );
+	for ( i=0; i < rows; i++ ) {
+		val = rb_tainted_str_new( PQgetvalue(result, i, col),
+		                          PQgetlength(result, i, col) );
 
 #ifdef M17N_SUPPORTED
 		/* associate client encoding for text format only */
@@ -772,10 +771,10 @@ make_column_result_array( VALUE self, int col )
 		}
 #endif
 
-		rb_ary_store( ary, row, val );
+		results[ i ] = val;
 	}
 
-	return ary;
+	return rb_ary_new4( rows, results );
 }
 
 
@@ -843,19 +842,18 @@ pgresult_each(VALUE self)
 static VALUE
 pgresult_fields(VALUE self)
 {
-	PGresult *result;
-	VALUE ary;
-	int n, i;
+	PGresult *result = pgresult_get( self );
+	int n = PQnfields( result );
+	VALUE fields[ n ];
+	int i;
 
-	result = pgresult_get(self);
-	n = PQnfields(result);
-	ary = rb_ary_new2(n);
-	for (i=0;i<n;i++) {
+	for ( i = 0; i < n; i++ ) {
 		VALUE val = rb_tainted_str_new2(PQfname(result, i));
 		ASSOCIATE_INDEX(val, self);
-		rb_ary_push(ary, val);
+		fields[ i ] = val;
 	}
-	return ary;
+
+	return rb_ary_new4( n, fields );
 }
 
 
