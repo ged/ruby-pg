@@ -31,9 +31,16 @@ sample/async_mixed.rb
 sample/copyfrom.rb
 sample/copyto.rb
 sample/cursor.rb
+sample/disk_usage_report.rb
+sample/issue-119.rb
 sample/losample.rb
+sample/minimal-testcase.rb
 sample/notify_wait.rb
+sample/pg_statistics.rb
+sample/replication_monitor.rb
 sample/test_binary_values.rb
+sample/wal_shipper.rb
+sample/warehouse_partitions.rb
 spec/data/expected_trace.out
 spec/data/random_binary_data
 spec/lib/helpers.rb
