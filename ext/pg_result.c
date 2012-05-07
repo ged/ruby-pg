@@ -33,7 +33,7 @@ pg_new_result(PGresult *result, PGconn *conn)
 }
 
 /*
- * Raises appropriate exception if PGresult is
+ * Raises appropriate exception if PG::Result is
  * in a bad state.
  */
 void
@@ -97,7 +97,7 @@ pg_check_result(VALUE rb_pgconn, VALUE rb_pgresult)
  * call-seq:
  *    res.clear() -> nil
  *
- * Clears the PGresult object as the result of the query.
+ * Clears the PG::Result object as the result of the query.
  */
 VALUE
 pg_result_clear(VALUE self)
@@ -138,7 +138,7 @@ pgresult_get(VALUE self)
 
 /********************************************************************
  * 
- * Document-class: PGresult
+ * Document-class: PG::Result
  *
  * The class to represent the query result tuples (rows). 
  * An instance of this class is created as the result of every query.
@@ -156,7 +156,7 @@ pgresult_get(VALUE self)
  */
 
 /**************************************************************************
- * PGresult INSTANCE METHODS
+ * PG::Result INSTANCE METHODS
  **************************************************************************/
 
 /*
@@ -232,20 +232,20 @@ pgresult_error_message(VALUE self)
  * 
  *   begin
  *       conn.exec( "SELECT * FROM nonexistant_table" )
- *   rescue PGError => err
+ *   rescue PG::Error => err
  *       p [
- *           result.error_field( PGresult::PG_DIAG_SEVERITY ),
- *           result.error_field( PGresult::PG_DIAG_SQLSTATE ),
- *           result.error_field( PGresult::PG_DIAG_MESSAGE_PRIMARY ),
- *           result.error_field( PGresult::PG_DIAG_MESSAGE_DETAIL ),
- *           result.error_field( PGresult::PG_DIAG_MESSAGE_HINT ),
- *           result.error_field( PGresult::PG_DIAG_STATEMENT_POSITION ),
- *           result.error_field( PGresult::PG_DIAG_INTERNAL_POSITION ),
- *           result.error_field( PGresult::PG_DIAG_INTERNAL_QUERY ),
- *           result.error_field( PGresult::PG_DIAG_CONTEXT ),
- *           result.error_field( PGresult::PG_DIAG_SOURCE_FILE ),
- *           result.error_field( PGresult::PG_DIAG_SOURCE_LINE ),
- *           result.error_field( PGresult::PG_DIAG_SOURCE_FUNCTION ),
+ *           result.error_field( PG::Result::PG_DIAG_SEVERITY ),
+ *           result.error_field( PG::Result::PG_DIAG_SQLSTATE ),
+ *           result.error_field( PG::Result::PG_DIAG_MESSAGE_PRIMARY ),
+ *           result.error_field( PG::Result::PG_DIAG_MESSAGE_DETAIL ),
+ *           result.error_field( PG::Result::PG_DIAG_MESSAGE_HINT ),
+ *           result.error_field( PG::Result::PG_DIAG_STATEMENT_POSITION ),
+ *           result.error_field( PG::Result::PG_DIAG_INTERNAL_POSITION ),
+ *           result.error_field( PG::Result::PG_DIAG_INTERNAL_QUERY ),
+ *           result.error_field( PG::Result::PG_DIAG_CONTEXT ),
+ *           result.error_field( PG::Result::PG_DIAG_SOURCE_FILE ),
+ *           result.error_field( PG::Result::PG_DIAG_SOURCE_LINE ),
+ *           result.error_field( PG::Result::PG_DIAG_SOURCE_FUNCTION ),
  *       ]
  *   end
  * 
@@ -624,7 +624,7 @@ pgresult_cmd_status(VALUE self)
  *
  * Returns the number of tuples (rows) affected by the SQL command.
  *
- * If the SQL command that generated the PGresult was not one of:
+ * If the SQL command that generated the PG::Result was not one of:
  * * +INSERT+
  * * +UPDATE+
  * * +DELETE+

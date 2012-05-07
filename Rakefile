@@ -65,6 +65,11 @@ $hoespec = Hoe.spec 'pg' do
 
 	self.hg_sign_tags = true if self.respond_to?( :hg_sign_tags= )
 	self.check_history_on_release = true if self.respond_to?( :check_history_on_release= )
+	self.spec_extras[:rdoc_options] = [
+		'-f', 'fivefish',
+		'-t', 'pg: The Ruby Interface to PostgreSQL',
+		'-m', 'README.rdoc',
+	]
 
 	self.rdoc_locations << "deveiate:/usr/local/www/public/code/#{remote_rdoc_dir}"
 end

@@ -21,7 +21,7 @@
  *    # Equivalent to:
  *    #  res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
  *
- * See the PGresult class for information on working with the results of a query.
+ * See the PG::Result class for information on working with the results of a query.
  *
  */
 VALUE rb_cPGconn;
@@ -753,12 +753,12 @@ pgconn_connection_used_password(VALUE self)
 
 /*
  * call-seq:
- *    conn.exec(sql [, params, result_format ] ) -> PGresult
+ *    conn.exec(sql [, params, result_format ] ) -> PG::Result
  *    conn.exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL.
- * Returns a PGresult instance on success.
- * On failure, it raises a PGError exception.
+ * Returns a PG::Result instance on success.
+ * On failure, it raises a PG::Error.
  *
  * +params+ is an optional array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
@@ -784,7 +784,7 @@ pgconn_connection_used_password(VALUE self)
  * for binary.
  *
  * If the optional code block is given, it will be passed <i>result</i> as an argument, 
- * and the PGresult object will  automatically be cleared when the block terminates. 
+ * and the PG::Result object will  automatically be cleared when the block terminates. 
  * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
@@ -907,11 +907,11 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.prepare(stmt_name, sql [, param_types ] ) -> PGresult
+ *    conn.prepare(stmt_name, sql [, param_types ] ) -> PG::Result
  *
  * Prepares statement _sql_ with name _name_ to be executed later.
- * Returns a PGresult instance on success.
- * On failure, it raises a PGError exception.
+ * Returns a PG::Result instance on success.
+ * On failure, it raises a PG::Error.
  *
  * +param_types+ is an optional parameter to specify the Oids of the 
  * types of the parameters.
@@ -966,12 +966,12 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PGresult
+ *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PG::Result
  *    conn.exec_prepared(statement_name [, params, result_format ] ) {|pg_result| block }
  *
  * Execute prepared named statement specified by _statement_name_.
- * Returns a PGresult instance on success.
- * On failure, it raises a PGError exception.
+ * Returns a PG::Result instance on success.
+ * On failure, it raises a PG::Error.
  *
  * +params+ is an array of the optional bind parameters for the 
  * SQL query. Each element of the +params+ array may be either:
@@ -990,7 +990,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * for binary.
  *
  * If the optional code block is given, it will be passed <i>result</i> as an argument, 
- * and the PGresult object will  automatically be cleared when the block terminates. 
+ * and the PG::Result object will  automatically be cleared when the block terminates. 
  * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
  */
 static VALUE
@@ -1094,7 +1094,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.describe_prepared( statement_name ) -> PGresult
+ *    conn.describe_prepared( statement_name ) -> PG::Result
  *
  * Retrieve information about the prepared statement
  * _statement_name_.
@@ -1122,7 +1122,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 
 /*
  * call-seq:
- *    conn.describe_portal( portal_name ) -> PGresult
+ *    conn.describe_portal( portal_name ) -> PG::Result
  *
  * Retrieve information about the portal _portal_name_.
  */
@@ -1150,9 +1150,9 @@ pgconn_describe_portal(self, stmt_name)
 
 /*
  * call-seq:
- *    conn.make_empty_pgresult( status ) -> PGresult
+ *    conn.make_empty_pgresult( status ) -> PG::Result
  *
- * Constructs and empty PGresult with status _status_.
+ * Constructs and empty PG::Result with status _status_.
  * _status_ may be one of:
  * * +PGRES_EMPTY_QUERY+
  * * +PGRES_COMMAND_OK+
@@ -1385,7 +1385,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL for
  * asynchronous processing, and immediately returns.
- * On failure, it raises a PGError exception.
+ * On failure, it raises a PG::Error.
  *
  * +params+ is an optional array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
@@ -1531,7 +1531,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
  *
  * Prepares statement _sql_ with name _name_ to be executed later.
  * Sends prepare command asynchronously, and returns immediately.
- * On failure, it raises a PGError exception.
+ * On failure, it raises a PG::Error.
  *
  * +param_types+ is an optional parameter to specify the Oids of the 
  * types of the parameters.
@@ -1594,7 +1594,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  *
  * Execute prepared named statement specified by _statement_name_
  * asynchronously, and returns immediately.
- * On failure, it raises a PGError exception.
+ * On failure, it raises a PG::Error.
  *
  * +params+ is an array of the optional bind parameters for the 
  * SQL query. Each element of the +params+ array may be either:
@@ -1756,7 +1756,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 
 /*
  * call-seq:
- *    conn.get_result() -> PGresult
+ *    conn.get_result() -> PG::Result
  *    conn.get_result() {|pg_result| block }
  *
  * Blocks waiting for the next result from a call to
@@ -1767,7 +1767,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
  * you will not be able to issue further commands.
  *
  * If the optional code block is given, it will be passed <i>result</i> as an argument, 
- * and the PGresult object will  automatically be cleared when the block terminates. 
+ * and the PG::Result object will  automatically be cleared when the block terminates. 
  * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
@@ -1886,7 +1886,7 @@ pgconn_isnonblocking(self)
  * Returns +true+ if data is successfully flushed, +false+
  * if not (can only return +false+ if connection is
  * nonblocking.
- * Raises PGError exception if some other failure occurred.
+ * Raises PG::Error if some other failure occurred.
  */
 static VALUE
 pgconn_flush(self)
@@ -2332,7 +2332,7 @@ notice_receiver_proxy(void *arg, const PGresult *result)
  * the work in the notice receiver.
  *
  * This function takes a new block to act as the handler, which should
- * accept a single parameter that will be a PGresult object, and returns 
+ * accept a single parameter that will be a PG::Result object, and returns 
  * the Proc object previously set, or +nil+ if it was previously the default.
  *
  * If you pass no arguments, it will reset the handler to the default.
@@ -2753,7 +2753,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 
 /*
  * call-seq:
- *    conn.get_last_result( ) -> PGresult
+ *    conn.get_last_result( ) -> PG::Result
  *
  * This function retrieves all available results
  * on the current connection (from previously issued
@@ -2796,7 +2796,7 @@ pgconn_get_last_result(VALUE self)
 
 /*
  * call-seq:
- *    conn.async_exec(sql [, params, result_format ] ) -> PGresult
+ *    conn.async_exec(sql [, params, result_format ] ) -> PG::Result
  *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * This function has the same behavior as #exec,
@@ -2834,7 +2834,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
  *    conn.lo_creat( [mode] ) -> Fixnum
  *
  * Creates a large object with mode _mode_. Returns a large object Oid.
- * On failure, it raises PGError exception.
+ * On failure, it raises PG::Error.
  */
 static VALUE
 pgconn_locreat(int argc, VALUE *argv, VALUE self)
@@ -2861,7 +2861,7 @@ pgconn_locreat(int argc, VALUE *argv, VALUE self)
  *    conn.lo_create( oid ) -> Fixnum
  *
  * Creates a large object with oid _oid_. Returns the large object Oid.
- * On failure, it raises PGError exception.
+ * On failure, it raises PG::Error.
  */
 static VALUE
 pgconn_locreate(VALUE self, VALUE in_lo_oid)
@@ -2883,7 +2883,7 @@ pgconn_locreate(VALUE self, VALUE in_lo_oid)
  *
  * Import a file to a large object. Returns a large object Oid.
  *
- * On failure, it raises a PGError exception.
+ * On failure, it raises a PG::Error.
  */
 static VALUE
 pgconn_loimport(VALUE self, VALUE filename)
@@ -3196,9 +3196,8 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
  * call-seq:
  *   conn.external_encoding() -> Encoding
  *
- * defined in Ruby 1.9 or later.
- * - Returns the server_encoding of the connected database as a Ruby Encoding object.
- * - Maps 'SQL_ASCII' to ASCII-8BIT.
+ * Return the +server_encoding+ of the connected database as a Ruby Encoding object.
+ * The <tt>SQL_ASCII</tt> encoding is mapped to to <tt>ASCII_8BIT</tt>.
  */
 static VALUE
 pgconn_external_encoding(VALUE self)

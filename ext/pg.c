@@ -53,7 +53,7 @@ VALUE rb_mPGconstants;
 
 
 /*
- * Document-class: PGError
+ * Document-class: PG::Error
  *
  * This is the exception class raised when an error is returned from
  * a libpq API call.
