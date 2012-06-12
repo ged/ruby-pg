@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # vim: set nosta noet ts=4 sw=4:
 #
-# Script to automatically move old partitioned tables
+# Script to automatically move partitioned tables and their indexes
 # to a separate area on disk.
 #
 # Mahlon E. Smith <mahlon@martini.nu>
@@ -28,7 +28,7 @@
 #
 # You'd run this script like so:
 #
-#    ./warehouse_partitions.rb -t syslog -F syslog_%Y_%U
+#    ./warehouse_partitions.rb -F syslog_%Y_%U
 #
 # Assuming this was week 12 of the year, tables syslog_2012_06 through
 # syslog_2012_11 would start sequentially migrating into the tablespace
@@ -43,7 +43,6 @@ begin
 	require 'pathname'
 	require 'etc'
 	require 'pg'
-	require 'pp'
 
 rescue LoadError # 1.8 support
 	unless Object.const_defined?( :Gem )
@@ -70,7 +69,7 @@ class PGWarehouse
 		)
 		@db.exec "SET search_path TO %s" % [ opts.schema ] if opts.schema
 
-		@tables = self.tables
+		@relations = self.relations
 	end
 
 	attr_reader :db
@@ -82,23 +81,40 @@ class PGWarehouse
 	### Perform the tablespace moves.
 	###
 	def migrate
-		if @tables.empty?
+		if @relations.empty?
 			$stderr.puts 'No tables were found for warehousing.'
-		else
-			$stderr.puts "Found %d tables to move." % [ tables.length ]
+			return
+		end
 
-			@tables.sort_by{|_,v| v[:name] }.each do |_, val|
-				$stderr.print "  - Moving table '%s' to '%s'... "  % [
-					val[:name], @opts.tablespace
+		$stderr.puts "Found %d relation%s to move." % [ relations.length, relations.length == 1 ? '' : 's' ]
+		@relations.sort_by{|_,v| v[:name] }.each do |_, val|
+			$stderr.print "  - Moving table '%s' to '%s'... "  % [
+				val[:name], @opts.tablespace
+			]
+
+			if @opts.dryrun
+				$stderr.puts '(not really)'
+
+			else
+				age = self.timer do
+					db.exec "ALTER TABLE %s SET TABLESPACE %s;" % [
+						val[:name], @opts.tablespace
+					]
+				end
+				puts age
+			end
+
+			val[ :indexes ].each do |idx|
+				$stderr.print "      - Moving index '%s' to '%s'... "  % [
+					idx, @opts.tablespace
 				]
-
 				if @opts.dryrun
 					$stderr.puts '(not really)'
 
 				else
 					age = self.timer do
-						db.exec "ALTER TABLE %s SET TABLESPACE %s;" % [
-							val[:name], @opts.tablespace
+						db.exec "ALTER INDEX %s SET TABLESPACE %s;" % [
+							idx, @opts.tablespace
 						]
 					end
 					puts age
@@ -115,48 +131,77 @@ class PGWarehouse
 	### Get OIDs and current tablespaces for everything under the
 	### specified schema.
 	###
-	def tables
-		return @tables if @tables
-		tables = {}
+	def relations
+		return @relations if @relations
+		relations = {}
 
 		query =  %q{
-			SELECT c.oid AS oid, c.relname AS table, t.spcname AS tspace
-			FROM pg_class c
+			SELECT c.oid AS oid,
+				c.relname AS name,
+				c.relkind AS kind,
+				t.spcname AS tspace
+			FROM pg_class AS c
 			LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
 			LEFT JOIN pg_tablespace t ON t.oid = c.reltablespace
-			WHERE c.relkind = 'r'::"char" }
+			WHERE c.relkind = 'r' }
 		query << "AND n.nspname='#{@opts.schema}'" if @opts.schema
 
-		# Get the table list, along with each table's current tablespace.
+		# Get the relations list, along with each element's current tablespace.
 		#
 		self.db.exec( query ) do |res|
 			res.each do |row|
-				tables[ row['oid'] ] =
-					{ :name => row['table'], :tablespace => row['tspace'], :parent => nil }
+				relations[ row['oid'] ] = { 
+					:name       => row['name'],
+					:tablespace => row['tspace'],
+					:indexes    => [],
+					:parent     => nil
+				}
 			end
 		end
 
 		# Add table inheritence information.
 		#
-		db.exec 'SELECT inhrelid AS table, inhparent AS parent FROM pg_inherits' do |res|
+		db.exec 'SELECT inhrelid AS oid, inhparent AS parent FROM pg_inherits' do |res|
 			res.each do |row|
-				tables[ row['table'] ][ :parent ] = row['parent']
+				relations[ row['oid'] ][ :parent ] = row['parent']
 			end
 		end
 
 		# Remove tables that don't qualify for warehousing.
 		#
-		#   - Tables that are not children of the parent (or any parent)
+		#   - Tables that are not children of a parent
 		#   - Tables that are already in the warehouse tablespace
 		#   - The currently active child (it's likely being written to!)
+		#   - Any table that can't be parsed into the specified format
 		#
-		tables.reject! do |oid, val|
-			val[:parent].nil? ||
-			val[:tablespace] == @opts.tablespace ||
-			val[:name] == Time.now.strftime( @opts.format )
+		relations.reject! do |oid, val|
+			begin
+				val[:parent].nil? ||
+				val[:tablespace] == @opts.tablespace ||
+				val[:name] == Time.now.strftime( @opts.format ) ||
+				! DateTime.strptime( val[:name], @opts.format )
+			rescue ArgumentError
+				true
+			end
 		end
 
-		return tables
+		query = %q{
+			SELECT c.oid AS oid,
+				i.indexname AS name
+			FROM pg_class AS c
+			INNER JOIN pg_indexes AS i
+				ON i.tablename = c.relname }
+		query << "AND i.schemaname='#{@opts.schema}'" if @opts.schema
+
+		# Attach index names to tables.
+		#
+		db.exec( query ) do |res|
+			res.each do |row|
+				relations[ row['oid'] ][ :indexes ] << row['name'] if relations[ row['oid'] ]
+			end
+		end
+
+		return relations
 	end
 
 
@@ -215,11 +260,6 @@ def parse_args( args )
 			options.schema = schema
 		end
 
-		opts.on( '-t', '--table TABLE', String,
-				"operate on the named parent table (default: none)" ) do |table|
-			options.table = table
-		end
-
 		opts.on( '-T', '--tablespace SPACE', String,
 				"move old tables to this tablespace (default: \"#{options.tablespace}\")" ) do |tb|
 			options.tablespace = tb
@@ -271,7 +311,6 @@ end
 
 if __FILE__ == $0
 	opts = parse_args( ARGV )
-	raise ArgumentError, "A parent table (-t) is required." unless opts.table
 	raise ArgumentError, "A naming format (-F) is required." unless opts.format
 
 	$stdout.sync = true
