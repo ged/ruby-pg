@@ -848,6 +848,19 @@ describe PG::Connection do
 				end
 			end
 
+			it "allows users of the async interface to set the client_encoding to the default_internal" do
+				begin
+					prev_encoding = Encoding.default_internal
+					Encoding.default_internal = Encoding::KOI8_U
+
+					@conn.set_default_encoding
+
+					@conn.internal_encoding.should == Encoding::KOI8_U
+				ensure
+					Encoding.default_internal = prev_encoding
+				end
+			end
+
 		end
 
 

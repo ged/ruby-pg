@@ -31,7 +31,9 @@ static PQnoticeProcessor default_notice_processor = NULL;
 
 static PGconn *pgconn_check( VALUE );
 static VALUE pgconn_finish( VALUE );
-
+#ifdef M17N_SUPPORTED
+static VALUE pgconn_set_default_encoding( VALUE self );
+#endif
 
 /*
  * Global functions
@@ -164,10 +166,6 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	PGconn *conn = NULL;
 	VALUE conninfo;
 	VALUE error;
-#ifdef M17N_SUPPORTED	
-	rb_encoding *enc;
-	const char *encname;
-#endif
 
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
 	conn = PQconnectdb(StringValuePtr(conninfo));
@@ -185,14 +183,7 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	}
 
 #ifdef M17N_SUPPORTED
-	/* If Ruby has its Encoding.default_internal set, set PostgreSQL's client_encoding 
-	 * to match */
-	if (( enc = rb_default_internal_encoding() )) {
-		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( PQsetClientEncoding(conn, encname) != 0 )
-			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
-			         encname, PQerrorMessage(conn) );
-	}
+	pgconn_set_default_encoding( self );
 #endif
 
 	if (rb_block_given_p()) {
@@ -3219,6 +3210,35 @@ pgconn_external_encoding(VALUE self)
 	return encoding;
 }
 
+
+
+/*
+ * call-seq:
+ *   conn.set_default_encoding() -> Encoding
+ *
+ * If Ruby has its Encoding.default_internal set, set PostgreSQL's client_encoding
+ * to match. Returns the new Encoding, or +nil+ if the default internal encoding
+ * wasn't set.
+ */
+static VALUE
+pgconn_set_default_encoding( VALUE self )
+{
+	PGconn *conn = pg_get_pgconn( self );
+	rb_encoding *enc;
+	const char *encname;
+
+	if (( enc = rb_default_internal_encoding() )) {
+		encname = pg_get_rb_encoding_as_pg_encoding( enc );
+		if ( PQsetClientEncoding(conn, encname) != 0 )
+			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
+			         encname, PQerrorMessage(conn) );
+		return rb_enc_from_encoding( enc );
+	} else {
+		return Qnil;
+	}
+}
+
+
 #endif /* M17N_SUPPORTED */
 
 
@@ -3377,6 +3397,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "internal_encoding", pgconn_internal_encoding, 0);
 	rb_define_method(rb_cPGconn, "internal_encoding=", pgconn_internal_encoding_set, 1);
 	rb_define_method(rb_cPGconn, "external_encoding", pgconn_external_encoding, 0);
+	rb_define_method(rb_cPGconn, "set_default_encoding", pgconn_set_default_encoding, 0);
 #endif /* M17N_SUPPORTED */
 
 }
