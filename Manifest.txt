@@ -28,6 +28,7 @@ lib/pg/result.rb
 sample/async_api.rb
 sample/async_copyto.rb
 sample/async_mixed.rb
+sample/check_conn.rb
 sample/copyfrom.rb
 sample/copyto.rb
 sample/cursor.rb
