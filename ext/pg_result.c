@@ -21,32 +21,38 @@ static PGresult* pgresult_get( VALUE );
  * Result constructor
  */
 VALUE
-pg_new_result(PGresult *result, PGconn *conn)
+pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
+	PGconn *conn = pg_get_pgconn( rb_pgconn );
 	VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, pgresult_gc_free, result);
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
 	ENCODING_SET( val, rb_enc_to_index(enc) );
 #endif
 
+	rb_iv_set( val, "@connection", rb_pgconn );
+
 	return val;
 }
 
 /*
- * Raises appropriate exception if PG::Result is
- * in a bad state.
+ * call-seq:
+ *    res.result -> nil
+ *
+ * Raises appropriate exception if PG::Result is in a bad state.
  */
-void
-pg_check_result(VALUE rb_pgconn, VALUE rb_pgresult)
+VALUE
+pg_result_check( VALUE self )
 {
 	VALUE error, exception;
+	VALUE rb_pgconn = rb_iv_get( self, "@connection" );
 	PGconn *conn = pg_get_pgconn(rb_pgconn);
 	PGresult *result;
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
 #endif
 
-	Data_Get_Struct(rb_pgresult, PGresult, result);
+	Data_Get_Struct(self, PGresult, result);
 
 	if(result == NULL)
 	{
@@ -64,7 +70,7 @@ pg_check_result(VALUE rb_pgconn, VALUE rb_pgresult)
 #endif
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
-			return;
+			return Qnil;
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
 		case PGRES_NONFATAL_ERROR:
@@ -80,10 +86,11 @@ pg_check_result(VALUE rb_pgconn, VALUE rb_pgresult)
 #endif
 	exception = rb_exc_new3( rb_ePGerror, error );
 	rb_iv_set( exception, "@connection", rb_pgconn );
-	rb_iv_set( exception, "@result", rb_pgresult );
+	rb_iv_set( exception, "@result", self );
 	rb_exc_raise( exception );
 
-	return;
+	/* Not reached */
+	return Qnil;
 }
 
 
@@ -881,6 +888,8 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "error_field", pgresult_error_field, 1);
 	rb_define_alias( rb_cPGresult, "result_error_field", "error_field" );
 	rb_define_method(rb_cPGresult, "clear", pg_result_clear, 0);
+	rb_define_method(rb_cPGresult, "check", pg_result_check, 0);
+	rb_define_alias (rb_cPGresult, "check_result", "check");
 	rb_define_method(rb_cPGresult, "ntuples", pgresult_ntuples, 0);
 	rb_define_alias(rb_cPGresult, "num_tuples", "ntuples");
 	rb_define_method(rb_cPGresult, "nfields", pgresult_nfields, 0);

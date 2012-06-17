@@ -1,2 +1,2 @@
 --- 
-exclude: !ruby/regexp /(?:\.(hg|hoe|bundle|irb|pry|rvm|tm)|tmp|misc)/
+exclude: !ruby/regexp /(?:\.(hg|hoe|bundle|irb|pry|rvm|tm|DS_Store)|tmp|misc)/

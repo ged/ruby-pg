@@ -252,4 +252,12 @@ describe PG::Result do
 		res.ftablecol(1).should == 0 # and it shouldn't raise an exception, either
 	end
 
+	it "can be manually checked for failed result status (async API)" do
+		@conn.send_query( "SELECT * FROM nonexistant_table" )
+		res = @conn.get_result
+		expect {
+			res.check
+		}.to raise_error( PG::Error, /relation "nonexistant_table" does not exist/ )
+	end
+
 end

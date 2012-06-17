@@ -804,8 +804,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
 		result = PQexec(conn, StringValuePtr(command));
-		rb_pgresult = pg_new_result(result, conn);
-		pg_check_result(self, rb_pgresult);
+		rb_pgresult = pg_new_result(result, self);
+		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
 			return rb_ensure(rb_yield, rb_pgresult, pg_result_clear, rb_pgresult);
 		}
@@ -887,8 +887,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	xfree(paramLengths);
 	xfree(paramFormats);
 
-	rb_pgresult = pg_new_result(result, conn);
-	pg_check_result(self, rb_pgresult);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
 	if (rb_block_given_p()) {
 		return rb_ensure(rb_yield, rb_pgresult, 
 			pg_result_clear, rb_pgresult);
@@ -950,8 +950,8 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 	xfree(paramTypes);
 
-	rb_pgresult = pg_new_result(result, conn);
-	pg_check_result(self, rb_pgresult);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
 	return rb_pgresult;
 }
 
@@ -1074,8 +1074,8 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	xfree(paramLengths);
 	xfree(paramFormats);
 
-	rb_pgresult = pg_new_result(result, conn);
-	pg_check_result(self, rb_pgresult);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
 	if (rb_block_given_p()) {
 		return rb_ensure(rb_yield, rb_pgresult, 
 			pg_result_clear, rb_pgresult);
@@ -1105,8 +1105,8 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 		stmt = StringValuePtr(stmt_name);
 	}
 	result = PQdescribePrepared(conn, stmt);
-	rb_pgresult = pg_new_result(result, conn);
-	pg_check_result(self, rb_pgresult);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
 	return rb_pgresult;
 }
 
@@ -1133,8 +1133,8 @@ pgconn_describe_portal(self, stmt_name)
 		stmt = StringValuePtr(stmt_name);
 	}
 	result = PQdescribePortal(conn, stmt);
-	rb_pgresult = pg_new_result(result, conn);
-	pg_check_result(self, rb_pgresult);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
 	return rb_pgresult;
 }
 
@@ -1162,8 +1162,8 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
 	VALUE rb_pgresult;
 	PGconn *conn = pg_get_pgconn(self);
 	result = PQmakeEmptyPGresult(conn, NUM2INT(status));
-	rb_pgresult = pg_new_result(result, conn);
-	pg_check_result(self, rb_pgresult);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
 	return rb_pgresult;
 }
 
@@ -1771,7 +1771,7 @@ pgconn_get_result(VALUE self)
 	result = PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
-	rb_pgresult = pg_new_result(result, conn);
+	rb_pgresult = pg_new_result(result, self);
 	if (rb_block_given_p()) {
 		return rb_ensure(rb_yield, rb_pgresult,
 			pg_result_clear, rb_pgresult);
@@ -2467,19 +2467,19 @@ pgconn_transaction(VALUE self)
 
 	if (rb_block_given_p()) {
 		result = PQexec(conn, "BEGIN");
-		rb_pgresult = pg_new_result(result, conn);
-		pg_check_result(self, rb_pgresult);
+		rb_pgresult = pg_new_result(result, self);
+		pg_result_check(rb_pgresult);
 		rb_protect(rb_yield, self, &status);
 		if(status == 0) {
 			result = PQexec(conn, "COMMIT");
-			rb_pgresult = pg_new_result(result, conn);
-			pg_check_result(self, rb_pgresult);
+			rb_pgresult = pg_new_result(result, self);
+			pg_result_check(rb_pgresult);
 		}
 		else {
 			/* exception occurred, ROLLBACK and re-raise */
 			result = PQexec(conn, "ROLLBACK");
-			rb_pgresult = pg_new_result(result, conn);
-			pg_check_result(self, rb_pgresult);
+			rb_pgresult = pg_new_result(result, self);
+			pg_result_check(rb_pgresult);
 			rb_jump_tag(status);
 		}
 
@@ -2777,8 +2777,8 @@ pgconn_get_last_result(VALUE self)
 	}
 
 	if (prev) {
-		rb_pgresult = pg_new_result(prev, conn);
-		pg_check_result(self, rb_pgresult);
+		rb_pgresult = pg_new_result( prev, self );
+		pg_result_check(rb_pgresult);
 	}
 
 	return rb_pgresult;

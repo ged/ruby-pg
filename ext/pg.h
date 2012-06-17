@@ -107,8 +107,8 @@ void init_pg_result                                    _(( void ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 
-VALUE pg_new_result                                    _(( PGresult *, PGconn * ));
-void pg_check_result                                   _(( VALUE, VALUE ));
+VALUE pg_new_result                                    _(( PGresult *, VALUE ));
+VALUE pg_result_check                                  _(( VALUE ));
 VALUE pg_result_clear                                  _(( VALUE ));
 
 #ifdef M17N_SUPPORTED
