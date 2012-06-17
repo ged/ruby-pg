@@ -26,7 +26,7 @@ EXTDIR  = BASEDIR + 'ext'
 PKGDIR  = BASEDIR + 'pkg'
 TMPDIR  = BASEDIR + 'tmp'
 
-DLEXT   = Config::CONFIG['DLEXT']
+DLEXT   = RbConfig::CONFIG['DLEXT']
 EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
 TEST_DIRECTORY = BASEDIR + "tmp_test_specs"
