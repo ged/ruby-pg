@@ -1,3 +1,31 @@
+== v0.14.0 [2012-06-17] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+  #47, #104
+
+
+New Methods for PostgreSQL 9 and async API support:
+PG
+- ::library_version
+
+PG::Connection
+- ::ping
+- #escape_literal
+- #escape_identifier
+- #set_default_encoding
+
+PG::Result
+- #check
+
+
+New Samples:
+
+This release also comes with a collection of contributed sample scripts for
+doing resource-utilization reports, graphing database statistics,
+monitoring for replication lag, shipping WAL files for replication,
+automated tablespace partitioning, etc. See the samples/ directory.
+
+
 == v0.13.2 [2012-02-22] Michael Granger <ged@FaerieMUD.org>
 
 - Make builds against PostgreSQL earlier than 8.3 fail with a descriptive

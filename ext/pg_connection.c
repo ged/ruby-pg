@@ -1307,8 +1307,7 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
  * call-seq:
  *    conn.escape_literal( str ) -> String
  *
- * 
- * Escape an arbitrary String _str_ as a literal.
+ * Escape an arbitrary String +str+ as a literal.
  */
 static VALUE
 pgconn_escape_literal(VALUE self, VALUE string)
@@ -1341,8 +1340,7 @@ pgconn_escape_literal(VALUE self, VALUE string)
  * call-seq:
  *    conn.escape_identifier( str ) -> String
  *
- * 
- * Escape an arbitrary String _str_ as an identifier.
+ * Escape an arbitrary String +str+ as an identifier.
  */
 static VALUE
 pgconn_escape_identifier(VALUE self, VALUE string)
