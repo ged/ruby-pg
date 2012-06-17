@@ -19,6 +19,7 @@ if ENV['CROSS_COMPILING']
 	$LDFLAGS << " -L#{CONFIG['libdir']}"
 
 	# Link against all required libraries for static build, if they are available
+	have_library( 'crypt32', 'CertOpenStore' ) && append_library( $libs, 'crypt32' )
 	have_library( 'gdi32', 'CreateDC' ) && append_library( $libs, 'gdi32' )
 	have_library( 'secur32' ) && append_library( $libs, 'secur32' )
 	have_library( 'ws2_32', 'WSASocket') && append_library( $libs, 'ws2_32' )

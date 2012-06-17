@@ -1,0 +1,422 @@
+From 1a0c76c32fe470142d3663dd84ac960d75a4e8db Mon Sep 17 00:00:00 2001
+From: Andrew Dunstan <andrew@dunslane.net>
+Date: Sat, 10 Dec 2011 15:35:41 -0500
+Subject: [PATCH] Enable compiling with the mingw-w64 32 bit compiler.
+
+Original patch by Lars Kanis, reviewed by Nishiyama Tomoaki and tweaked some by me.
+
+This compiler, or at least the latest version of it, is currently broken, and
+only passes the regression tests if built with -O0.
+---
+ config/ac_func_accept_argtypes.m4  |    2 +-
+ configure                          |  159 +++++++++++++++++++++++++++++++++++-
+ configure.in                       |    7 ++-
+ src/include/c.h                    |    3 +-
+ src/include/pg_config.h.in         |    3 +
+ src/include/port/win32.h           |   26 ++++++-
+ src/interfaces/ecpg/test/resultmap |    3 +
+ src/interfaces/libpq/win32.h       |    6 ++
+ src/port/getaddrinfo.c             |    4 +-
+ src/test/regress/resultmap         |    3 +
+ 10 files changed, 207 insertions(+), 9 deletions(-)
+
+diff --git a/config/ac_func_accept_argtypes.m4 b/config/ac_func_accept_argtypes.m4
+index 1e77179..a82788d 100644
+--- a/config/ac_func_accept_argtypes.m4
++++ b/config/ac_func_accept_argtypes.m4
+@@ -46,7 +46,7 @@ AC_DEFUN([AC_FUNC_ACCEPT_ARGTYPES],
+  [AC_CACHE_VAL(ac_cv_func_accept_arg1,dnl
+   [AC_CACHE_VAL(ac_cv_func_accept_arg2,dnl
+    [AC_CACHE_VAL(ac_cv_func_accept_arg3,dnl
+-    [for ac_cv_func_accept_return in 'int' 'unsigned int PASCAL' 'SOCKET'; do
++    [for ac_cv_func_accept_return in 'int' 'unsigned int PASCAL' 'SOCKET WSAAPI'; do
+       for ac_cv_func_accept_arg1 in 'int' 'unsigned int' 'SOCKET'; do
+        for ac_cv_func_accept_arg2 in 'struct sockaddr *' 'const struct sockaddr *' 'void *'; do
+         for ac_cv_func_accept_arg3 in 'int' 'size_t' 'socklen_t' 'unsigned int' 'void'; do
+diff --git a/configure b/configure
+index ebe69cd..67c5632 100755
+--- a/configure
++++ b/configure
+@@ -14328,6 +14328,159 @@ done
+ 
+ fi
+ 
++if test "$PORTNAME" = "win32" ; then
++
++for ac_header in crtdefs.h
++do
++as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
++if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
++  { $as_echo "$as_me:$LINENO: checking for $ac_header" >&5
++$as_echo_n "checking for $ac_header... " >&6; }
++if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
++  $as_echo_n "(cached) " >&6
++fi
++ac_res=`eval 'as_val=${'$as_ac_Header'}
++		 $as_echo "$as_val"'`
++	       { $as_echo "$as_me:$LINENO: result: $ac_res" >&5
++$as_echo "$ac_res" >&6; }
++else
++  # Is the header compilable?
++{ $as_echo "$as_me:$LINENO: checking $ac_header usability" >&5
++$as_echo_n "checking $ac_header usability... " >&6; }
++cat >conftest.$ac_ext <<_ACEOF
++/* confdefs.h.  */
++_ACEOF
++cat confdefs.h >>conftest.$ac_ext
++cat >>conftest.$ac_ext <<_ACEOF
++/* end confdefs.h.  */
++$ac_includes_default
++#include <$ac_header>
++_ACEOF
++rm -f conftest.$ac_objext
++if { (ac_try="$ac_compile"
++case "(($ac_try" in
++  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++  *) ac_try_echo=$ac_try;;
++esac
++eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++$as_echo "$ac_try_echo") >&5
++  (eval "$ac_compile") 2>conftest.er1
++  ac_status=$?
++  grep -v '^ *+' conftest.er1 >conftest.err
++  rm -f conftest.er1
++  cat conftest.err >&5
++  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); } && {
++	 test -z "$ac_c_werror_flag" ||
++	 test ! -s conftest.err
++       } && test -s conftest.$ac_objext; then
++  ac_header_compiler=yes
++else
++  $as_echo "$as_me: failed program was:" >&5
++sed 's/^/| /' conftest.$ac_ext >&5
++
++	ac_header_compiler=no
++fi
++
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++{ $as_echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
++$as_echo "$ac_header_compiler" >&6; }
++
++# Is the header present?
++{ $as_echo "$as_me:$LINENO: checking $ac_header presence" >&5
++$as_echo_n "checking $ac_header presence... " >&6; }
++cat >conftest.$ac_ext <<_ACEOF
++/* confdefs.h.  */
++_ACEOF
++cat confdefs.h >>conftest.$ac_ext
++cat >>conftest.$ac_ext <<_ACEOF
++/* end confdefs.h.  */
++#include <$ac_header>
++_ACEOF
++if { (ac_try="$ac_cpp conftest.$ac_ext"
++case "(($ac_try" in
++  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++  *) ac_try_echo=$ac_try;;
++esac
++eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++$as_echo "$ac_try_echo") >&5
++  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
++  ac_status=$?
++  grep -v '^ *+' conftest.er1 >conftest.err
++  rm -f conftest.er1
++  cat conftest.err >&5
++  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); } >/dev/null && {
++	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
++	 test ! -s conftest.err
++       }; then
++  ac_header_preproc=yes
++else
++  $as_echo "$as_me: failed program was:" >&5
++sed 's/^/| /' conftest.$ac_ext >&5
++
++  ac_header_preproc=no
++fi
++
++rm -f conftest.err conftest.$ac_ext
++{ $as_echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
++$as_echo "$ac_header_preproc" >&6; }
++
++# So?  What about this header?
++case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
++  yes:no: )
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&5
++$as_echo "$as_me: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&2;}
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the compiler's result" >&5
++$as_echo "$as_me: WARNING: $ac_header: proceeding with the compiler's result" >&2;}
++    ac_header_preproc=yes
++    ;;
++  no:yes:* )
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: present but cannot be compiled" >&5
++$as_echo "$as_me: WARNING: $ac_header: present but cannot be compiled" >&2;}
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header:     check for missing prerequisite headers?" >&5
++$as_echo "$as_me: WARNING: $ac_header:     check for missing prerequisite headers?" >&2;}
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: see the Autoconf documentation" >&5
++$as_echo "$as_me: WARNING: $ac_header: see the Autoconf documentation" >&2;}
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&5
++$as_echo "$as_me: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&2;}
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the preprocessor's result" >&5
++$as_echo "$as_me: WARNING: $ac_header: proceeding with the preprocessor's result" >&2;}
++    { $as_echo "$as_me:$LINENO: WARNING: $ac_header: in the future, the compiler will take precedence" >&5
++$as_echo "$as_me: WARNING: $ac_header: in the future, the compiler will take precedence" >&2;}
++    ( cat <<\_ASBOX
++## ---------------------------------------- ##
++## Report this to pgsql-bugs@postgresql.org ##
++## ---------------------------------------- ##
++_ASBOX
++     ) | sed "s/^/$as_me: WARNING:     /" >&2
++    ;;
++esac
++{ $as_echo "$as_me:$LINENO: checking for $ac_header" >&5
++$as_echo_n "checking for $ac_header... " >&6; }
++if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
++  $as_echo_n "(cached) " >&6
++else
++  eval "$as_ac_Header=\$ac_header_preproc"
++fi
++ac_res=`eval 'as_val=${'$as_ac_Header'}
++		 $as_echo "$as_val"'`
++	       { $as_echo "$as_me:$LINENO: result: $ac_res" >&5
++$as_echo "$ac_res" >&6; }
++
++fi
++as_val=`eval 'as_val=${'$as_ac_Header'}
++		 $as_echo "$as_val"'`
++   if test "x$as_val" = x""yes; then
++  cat >>confdefs.h <<_ACEOF
++#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
++_ACEOF
++
++fi
++
++done
++
++fi
+ 
+ ##
+ ## Types, structures, compiler characteristics
+@@ -17997,7 +18150,8 @@ fi
+ # compiler characteristic, but you'd be wrong.  We must check this before
+ # probing existence of related functions such as fseeko, since the largefile
+ # defines can affect what is generated for that.
+-# Check whether --enable-largefile was given.
++if test "$PORTNAME" != "win32"; then
++   # Check whether --enable-largefile was given.
+ if test "${enable_largefile+set}" = set; then
+   enableval=$enable_largefile;
+ fi
+@@ -18353,6 +18507,7 @@ rm -rf conftest*
+   fi
+ fi
+ 
++fi
+ 
+ # Check for largefile support (must be after AC_SYS_LARGEFILE)
+ # The cast to long int works around a bug in the HP C Compiler
+@@ -18808,7 +18963,7 @@ else
+      if test "${ac_cv_func_accept_arg3+set}" = set; then
+   $as_echo_n "(cached) " >&6
+ else
+-      for ac_cv_func_accept_return in 'int' 'unsigned int PASCAL' 'SOCKET'; do
++      for ac_cv_func_accept_return in 'int' 'unsigned int PASCAL' 'SOCKET WSAAPI'; do
+       for ac_cv_func_accept_arg1 in 'int' 'unsigned int' 'SOCKET'; do
+        for ac_cv_func_accept_arg2 in 'struct sockaddr *' 'const struct sockaddr *' 'void *'; do
+         for ac_cv_func_accept_arg3 in 'int' 'size_t' 'socklen_t' 'unsigned int' 'void'; do
+diff --git a/configure.in b/configure.in
+index 5591b93..9cf084d 100644
+--- a/configure.in
++++ b/configure.in
+@@ -1101,6 +1101,9 @@ if test "$with_ossp_uuid" = yes ; then
+       [AC_MSG_ERROR([header file <ossp/uuid.h> or <uuid.h> is required for OSSP-UUID])])])
+ fi
+ 
++if test "$PORTNAME" = "win32" ; then
++   AC_CHECK_HEADERS(crtdefs.h)
++fi
+ 
+ ##
+ ## Types, structures, compiler characteristics
+@@ -1174,7 +1177,9 @@ fi
+ # compiler characteristic, but you'd be wrong.  We must check this before
+ # probing existence of related functions such as fseeko, since the largefile
+ # defines can affect what is generated for that.
+-AC_SYS_LARGEFILE
++if test "$PORTNAME" != "win32"; then
++   AC_SYS_LARGEFILE
++fi
+ 
+ # Check for largefile support (must be after AC_SYS_LARGEFILE)
+ AC_CHECK_SIZEOF([off_t])
+diff --git a/src/include/c.h b/src/include/c.h
+index 0391860..cb9b150 100644
+--- a/src/include/c.h
++++ b/src/include/c.h
+@@ -58,7 +58,8 @@
+ #endif
+ #include "postgres_ext.h"
+ 
+-#if _MSC_VER >= 1400 || defined(WIN64)
++#define HAVE_CRTDEFS_H 1
++#if _MSC_VER >= 1400 || defined(HAVE_CRTDEFS_H)
+ #define errcode __msvc_errcode
+ #include <crtdefs.h>
+ #undef errcode
+diff --git a/src/include/pg_config.h.in b/src/include/pg_config.h.in
+index 15fe0bf..b969d8c 100644
+--- a/src/include/pg_config.h.in
++++ b/src/include/pg_config.h.in
+@@ -99,6 +99,9 @@
+ /* Define to 1 if you have the `class' function. */
+ #undef HAVE_CLASS
+ 
++/* Define to 1 if you have the <crtdefs.h> header file. */
++#undef HAVE_CRTDEFS_H
++
+ /* Define to 1 if you have the `crypt' function. */
+ #undef HAVE_CRYPT
+ 
+diff --git a/src/include/port/win32.h b/src/include/port/win32.h
+index 34f4004..afc9628 100644
+--- a/src/include/port/win32.h
++++ b/src/include/port/win32.h
+@@ -31,7 +31,7 @@
+  * The Mingw64 headers choke if this is already defined - they
+  * define it themselves.
+  */
+-#if !defined(WIN64) || defined(WIN32_ONLY_COMPILER)
++#if !defined(__MINGW64_VERSION_MAJOR) || defined(WIN32_ONLY_COMPILER)
+ #define _WINSOCKAPI_
+ #endif
+ #include <winsock2.h>
+@@ -225,9 +225,13 @@ int			setitimer(int which, const struct itimerval * value, struct itimerval * ov
+ #define fseeko(stream, offset, origin) _fseeki64(stream, offset, origin)
+ #define ftello(stream) _ftelli64(stream)
+ #else
++#ifndef fseeko
+ #define fseeko(stream, offset, origin) fseeko64(stream, offset, origin)
++#endif
++#ifndef ftello
+ #define ftello(stream) ftello64(stream)
+ #endif
++#endif
+ 
+ /*
+  * Supplement to <sys/types.h>.
+@@ -264,16 +268,36 @@ typedef int pid_t;
+ #undef EINTR
+ #define EINTR WSAEINTR
+ #define EAGAIN WSAEWOULDBLOCK
++#ifndef EMSGSIZE
+ #define EMSGSIZE WSAEMSGSIZE
++#endif
++#ifndef EAFNOSUPPORT
+ #define EAFNOSUPPORT WSAEAFNOSUPPORT
++#endif
++#ifndef EWOULDBLOCK
+ #define EWOULDBLOCK WSAEWOULDBLOCK
++#endif
++#ifndef ECONNRESET
+ #define ECONNRESET WSAECONNRESET
++#endif
++#ifndef EINPROGRESS
+ #define EINPROGRESS WSAEINPROGRESS
++#endif
++#ifndef ENOBUFS
+ #define ENOBUFS WSAENOBUFS
++#endif
++#ifndef EPROTONOSUPPORT
+ #define EPROTONOSUPPORT WSAEPROTONOSUPPORT
++#endif
++#ifndef ECONNREFUSED
+ #define ECONNREFUSED WSAECONNREFUSED
++#endif
++#ifndef EBADFD
+ #define EBADFD WSAENOTSOCK
++#endif
++#ifndef EOPNOTSUPP
+ #define EOPNOTSUPP WSAEOPNOTSUPP
++#endif
+ 
+ /*
+  * Extended locale functions with gratuitous underscore prefixes.
+diff --git a/src/interfaces/ecpg/test/resultmap b/src/interfaces/ecpg/test/resultmap
+index 95ea583..aef7338 100644
+--- a/src/interfaces/ecpg/test/resultmap
++++ b/src/interfaces/ecpg/test/resultmap
+@@ -1,9 +1,12 @@
+ compat_informix/dec_test:stdout:i.86-pc-win32vc=compat_informix-dec_test-MinGW32.stdout
+ compat_informix/dec_test:stdout:i.86-pc-mingw32=compat_informix-dec_test-MinGW32.stdout
+ compat_informix/dec_test:stdout:x86_64-w64-mingw32=compat_informix-dec_test-MinGW32.stdout
++compat_informix/dec_test:stdout:i.86-w64-mingw32=compat_informix-dec_test-MinGW32.stdout
+ pgtypeslib/num_test:stdout:i.86-pc-win32vc=pgtypeslib-num_test-MinGW32.stdout
+ pgtypeslib/num_test:stdout:i.86-pc-mingw32=pgtypeslib-num_test-MinGW32.stdout
+ pgtypeslib/num_test:stdout:x86_64-w64-mingw32=pgtypeslib-num_test-MinGW32.stdout
++pgtypeslib/num_test:stdout:i.86-w64-mingw32=pgtypeslib-num_test-MinGW32.stdout
+ pgtypeslib/num_test2:stdout:i.86-pc-win32vc=pgtypeslib-num_test2-MinGW32.stdout
+ pgtypeslib/num_test2:stdout:i.86-pc-mingw32=pgtypeslib-num_test2-MinGW32.stdout
+ pgtypeslib/num_test2:stdout:x86_64-w64-mingw32=pgtypeslib-num_test2-MinGW32.stdout
++pgtypeslib/num_test2:stdout:i.86-w64-mingw32=pgtypeslib-num_test2-MinGW32.stdout
+diff --git a/src/interfaces/libpq/win32.h b/src/interfaces/libpq/win32.h
+index b65da9a..be00ea7 100644
+--- a/src/interfaces/libpq/win32.h
++++ b/src/interfaces/libpq/win32.h
+@@ -22,9 +22,15 @@
+ #undef EAGAIN					/* doesn't apply on sockets */
+ #undef EINTR
+ #define EINTR WSAEINTR
++#ifndef EWOULDBLOCK
+ #define EWOULDBLOCK WSAEWOULDBLOCK
++#endif
++#ifndef ECONNRESET
+ #define ECONNRESET WSAECONNRESET
++#endif
++#ifndef EINPROGRESS
+ #define EINPROGRESS WSAEINPROGRESS
++#endif
+ 
+ /*
+  * support for handling Windows Socket errors
+diff --git a/src/port/getaddrinfo.c b/src/port/getaddrinfo.c
+index db19878..b6368ae 100644
+--- a/src/port/getaddrinfo.c
++++ b/src/port/getaddrinfo.c
+@@ -328,12 +328,10 @@ gai_strerror(int errcode)
+ 		case EAI_MEMORY:
+ 			return "Not enough memory";
+ #endif
+-#ifdef EAI_NODATA
+-#if !defined(WIN64) && !defined(WIN32_ONLY_COMPILER)	/* MSVC/WIN64 duplicate */
++#if defined(EAI_NODATA) && EAI_NODATA != EAI_NONAME /* MSVC/WIN64 duplicate */
+ 		case EAI_NODATA:
+ 			return "No host data of that type was found";
+ #endif
+-#endif
+ #ifdef EAI_SERVICE
+ 		case EAI_SERVICE:
+ 			return "Class type not found";
+diff --git a/src/test/regress/resultmap b/src/test/regress/resultmap
+index d02d221..04ba99f 100644
+--- a/src/test/regress/resultmap
++++ b/src/test/regress/resultmap
+@@ -1,5 +1,6 @@
+ float4:out:i.86-pc-mingw32=float4-exp-three-digits.out
+ float4:out:x86_64-w64-mingw32=float4-exp-three-digits.out
++float4:out:i.86-w64-mingw32=float4-exp-three-digits.out
+ float4:out:i.86-pc-win32vc=float4-exp-three-digits.out
+ float8:out:i.86-.*-freebsd=float8-small-is-zero.out
+ float8:out:i.86-.*-openbsd=float8-small-is-zero.out
+@@ -7,8 +8,10 @@ float8:out:i.86-.*-netbsd=float8-small-is-zero.out
+ float8:out:m68k-.*-netbsd=float8-small-is-zero.out
+ float8:out:i.86-pc-mingw32=float8-exp-three-digits-win32.out
+ float8:out:x86_64-w64-mingw32=float8-exp-three-digits-win32.out
++float8:out:i.86-w64-mingw32=float8-exp-three-digits-win32.out
+ float8:out:i.86-pc-win32vc=float8-exp-three-digits-win32.out
+ float8:out:i.86-pc-cygwin=float8-small-is-zero.out
+ int8:out:i.86-pc-mingw32=int8-exp-three-digits.out
+ int8:out:x86_64-w64-mingw32=int8-exp-three-digits.out
++int8:out:i.86-w64-mingw32=int8-exp-three-digits.out
+ int8:out:i.86-pc-win32vc=int8-exp-three-digits.out
+-- 
+1.7.2.5

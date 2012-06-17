@@ -18,8 +18,8 @@ else
 end
 
 # Cross-compilation constants
-OPENSSL_VERSION            = ENV['OPENSSL_VERSION'] || '1.0.0e'
-POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.1.1'
+OPENSSL_VERSION            = ENV['OPENSSL_VERSION'] || '1.0.1c'
+POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.1.4'
 
 COMPILE_HOME               = Pathname( "./build" ).expand_path
 STATIC_SOURCESDIR          = COMPILE_HOME + 'sources'
@@ -36,7 +36,7 @@ OPENSSL_MAKEFILE           = STATIC_OPENSSL_BUILDDIR + 'Makefile'
 LIBSSLEAY32                = STATIC_OPENSSL_BUILDDIR + 'libssleay32.a'
 LIBEAY32                   = STATIC_OPENSSL_BUILDDIR + 'libeay32.a'
 
-OPENSSL_PATCHES            = Rake::FileList[ MISCDIR + "openssl-#{OPENSSL_VERSION}.*.patch" ]
+OPENSSL_PATCHES            = Rake::FileList[ (MISCDIR + "openssl-#{OPENSSL_VERSION}.*.patch").to_s ]
 
 # Static PostgreSQL build vars
 STATIC_POSTGRESQL_BUILDDIR = STATIC_BUILDDIR + "postgresql-#{POSTGRESQL_VERSION}"
@@ -55,6 +55,7 @@ POSTGRESQL_GLOBAL_MAKEFILE = STATIC_POSTGRESQL_SRCDIR + 'Makefile.global'
 POSTGRESQL_SHLIB_MAKEFILE  = STATIC_POSTGRESQL_SRCDIR + 'Makefile.shlib'
 POSTGRESQL_SHLIB_MF_ORIG   = STATIC_POSTGRESQL_SRCDIR + 'Makefile.shlib.orig'
 POSTGRESQL_LIB             = STATIC_POSTGRESQL_LIBDIR + 'libpq.a'
+POSTGRESQL_PATCHES         = Rake::FileList[ (MISCDIR + "postgresql-#{POSTGRESQL_VERSION}.*.patch").to_s ]
 
 CROSS_PREFIX = begin
 	Rake::ExtensionCompiler.mingw_host
@@ -171,6 +172,12 @@ file STATIC_POSTGRESQL_BUILDDIR => POSTGRESQL_TARBALL do |t|
 	STATIC_POSTGRESQL_BUILDDIR.mkpath
 	run 'tar', '-xjf', POSTGRESQL_TARBALL.to_s, '-C', STATIC_POSTGRESQL_BUILDDIR.parent.to_s
 	mv POSTGRESQL_SHLIB_MAKEFILE, POSTGRESQL_SHLIB_MF_ORIG
+	
+	POSTGRESQL_PATCHES.each do |patchfile|
+		puts "  applying patch #{patchfile}..."
+		run 'patch', '-Np1', '-d', STATIC_POSTGRESQL_BUILDDIR.to_s,
+		'-i', File.expand_path( patchfile, BASEDIR )
+	end
 end
 
 # generate the makefile in a clean build location
@@ -200,7 +207,7 @@ end
 # patch the Makefile.shlib -- depend on the build dir so it's only
 # rewritten if the tarball is re-extracted.
 file POSTGRESQL_SHLIB_MAKEFILE => POSTGRESQL_SHLIB_MF_ORIG do |t|
-	tf = Tempfile.new( POSTGRESQL_SHLIB_MAKEFILE.basename )
+	tf = Tempfile.new( POSTGRESQL_SHLIB_MAKEFILE.basename.to_s )
 	POSTGRESQL_SHLIB_MF_ORIG.open( File::RDONLY ) do |ifh|
 		ifh.each_line do |line|
 			tf.print( line.sub(/^(\s*haslibarule\s*=\s*yes)/, "# \\1 ") )
