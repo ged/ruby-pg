@@ -179,6 +179,7 @@ pgresult_get(VALUE self)
  * * +PGRES_BAD_RESPONSE+
  * * +PGRES_NONFATAL_ERROR+
  * * +PGRES_FATAL_ERROR+
+ * * +PGRES_COPY_BOTH+
  */
 static VALUE
 pgresult_result_status(VALUE self)
