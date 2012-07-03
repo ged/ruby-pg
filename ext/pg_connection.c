@@ -2325,6 +2325,10 @@ notice_receiver_proxy(void *arg, const PGresult *result)
  * the Proc object previously set, or +nil+ if it was previously the default.
  *
  * If you pass no arguments, it will reset the handler to the default.
+ *
+ * *Note:* The +result+ passed to the block should not be used outside
+ * of the block, since the corresponding C object could be freed after the
+ * block finishes.
  */
 static VALUE
 pgconn_set_notice_receiver(VALUE self)
