@@ -14,6 +14,7 @@ BEGIN {
 require 'rspec'
 require 'spec/lib/helpers'
 require 'timeout'
+require 'socket'
 require 'pg'
 
 describe PG::Connection do
