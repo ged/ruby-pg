@@ -68,6 +68,9 @@ pg_result_check( VALUE self )
 #ifdef HAVE_CONST_PGRES_COPY_BOTH
 		case PGRES_COPY_BOTH:
 #endif
+#ifdef HAVE_CONST_PGRES_SINGLE_TUPLE
+		case PGRES_SINGLE_TUPLE:
+#endif
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
 			return Qnil;
