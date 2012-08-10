@@ -729,12 +729,12 @@ pgresult_values(VALUE self)
 	VALUE ary = rb_ary_new2(num_rows);
 
 	for ( row = 0; row < num_rows; row++ ) {
-		VALUE new_row[ num_fields ];
+		VALUE new_row = rb_ary_new2(num_fields);
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
 			if ( PQgetisnull(result, row, field) ) {
-				new_row[ field ] = Qnil;
+				rb_ary_store( new_row, field, Qnil );
 			}
 			else {
 				VALUE val = rb_tainted_str_new( PQgetvalue(result, row, field), 
@@ -748,11 +748,11 @@ pgresult_values(VALUE self)
 					rb_enc_associate( val, rb_ascii8bit_encoding() );
 				}
 #endif
-				new_row[ field ] = val;
+				rb_ary_store( new_row, field, val );
 			}
 		}
 
-		rb_ary_store( ary, row, rb_ary_new4(num_fields, new_row) );
+		rb_ary_store( ary, row, new_row );
 	}
 
 	return ary;
@@ -770,7 +770,7 @@ make_column_result_array( VALUE self, int col )
 	int rows = PQntuples( result );
 	int i;
 	VALUE val = Qnil;
-	VALUE results[ rows ];
+	VALUE results = rb_ary_new2( rows );
 
 	if ( col >= PQnfields(result) )
 		rb_raise( rb_eIndexError, "no column %d in result", col );
@@ -788,10 +788,10 @@ make_column_result_array( VALUE self, int col )
 		}
 #endif
 
-		results[ i ] = val;
+		rb_ary_store( results, i, val );
 	}
 
-	return rb_ary_new4( rows, results );
+	return results;
 }
 
 
