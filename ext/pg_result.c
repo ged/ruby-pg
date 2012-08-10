@@ -726,7 +726,7 @@ pgresult_values(VALUE self)
 	int field;
 	int num_rows = PQntuples(result);
 	int num_fields = PQnfields(result);
-	VALUE rows[ num_rows ];
+	VALUE ary = rb_ary_new2(num_rows);
 
 	for ( row = 0; row < num_rows; row++ ) {
 		VALUE new_row[ num_fields ];
@@ -752,10 +752,10 @@ pgresult_values(VALUE self)
 			}
 		}
 
-		rows[ row ] = rb_ary_new4( num_fields, new_row );
+		rb_ary_store( ary, row, rb_ary_new4(num_fields, new_row) );
 	}
 
-	return rb_ary_new4( num_rows, rows );
+	return ary;
 }
 
 
