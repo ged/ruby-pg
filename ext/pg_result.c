@@ -861,16 +861,16 @@ pgresult_fields(VALUE self)
 {
 	PGresult *result = pgresult_get( self );
 	int n = PQnfields( result );
-	VALUE fields[ n ];
+	VALUE fields = rb_ary_new2( n );
 	int i;
 
 	for ( i = 0; i < n; i++ ) {
 		VALUE val = rb_tainted_str_new2(PQfname(result, i));
 		ASSOCIATE_INDEX(val, self);
-		fields[ i ] = val;
+		rb_ary_store( fields, i, val );
 	}
 
-	return rb_ary_new4( n, fields );
+	return fields;
 }
 
 
