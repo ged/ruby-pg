@@ -1,3 +1,22 @@
+== v0.14.1 [2012-08-12] Michael Granger <ged@FaerieMUD.org>
+
+Important bugfix:
+
+- Fix stack overflow bug in PG::Result#values and #column_values (#135). Thanks
+  to everyone who reported the bug, and Lars Kanis especially for figuring out
+  the problem.
+
+PostgreSQL 9.2 beta fixes:
+
+- Recognize PGRES_SINGLE_TUPLE as OK when checking PGresult (Jeremy Evans)
+
+Documentation fixes:
+
+- Add note about the usage scope of the result object received by the
+  #set_notice_receiver block. (Lars Kanis)
+- Add PGRES_COPY_BOTH to documentation of PG::Result#result_status. (Lars Kanis)
+
+
 == v0.14.0 [2012-06-17] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
