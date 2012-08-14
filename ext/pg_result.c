@@ -331,10 +331,24 @@ pgresult_fname(VALUE self, VALUE index)
  * call-seq:
  *    res.fnumber( name ) -> Fixnum
  *
- * Returns the index of the field specified by the string _name_.
+ * Returns the index of the field specified by the string +name+.
+ * The given +name+ is treated like an identifier in an SQL command, that is,
+ * it is downcased unless double-quoted. For example, given a query result
+ * generated from the SQL command:
  *
- * Raises an ArgumentError if the specified _name_ isn't one of the field names;
- * raises a TypeError if _name_ is not a String.
+ *   result = conn.exec( %{SELECT 1 AS FOO, 2 AS "BAR"} )
+ *
+ * we would have the results:
+ *
+ *   result.fname( 0 )            # => "foo"
+ *   result.fname( 1 )            # => "BAR"
+ *   result.fnumber( "FOO" )      # => 0
+ *   result.fnumber( "foo" )      # => 0
+ *   result.fnumber( "BAR" )      # => ArgumentError
+ *   result.fnumber( %{"BAR"} )   # => 1
+ *
+ * Raises an ArgumentError if the specified +name+ isn't one of the field names;
+ * raises a TypeError if +name+ is not a String.
  */
 static VALUE
 pgresult_fnumber(VALUE self, VALUE name)
