@@ -1,4 +1,4 @@
-== v0.14.1 [2012-08-12] Michael Granger <ged@FaerieMUD.org>
+== v0.14.1 [2012-09-02] Michael Granger <ged@FaerieMUD.org>
 
 Important bugfix:
 
@@ -15,6 +15,7 @@ Documentation fixes:
 - Add note about the usage scope of the result object received by the
   #set_notice_receiver block. (Lars Kanis)
 - Add PGRES_COPY_BOTH to documentation of PG::Result#result_status. (Lars Kanis)
+- Add some documentation to PG::Result#fnumber (fix for #139)
 
 
 == v0.14.0 [2012-06-17] Michael Granger <ged@FaerieMUD.org>
