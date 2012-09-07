@@ -37,7 +37,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 
 /*
  * call-seq:
- *    res.result -> nil
+ *    res.check -> nil
  *
  * Raises appropriate exception if PG::Result is in a bad state.
  */
