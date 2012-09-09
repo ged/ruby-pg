@@ -23,11 +23,11 @@ class PG::Connection
 		# This will be swapped soon for code that makes options like those required for
 		# PQconnectdbParams()/PQconnectStartParams(). For now, stick to an options string for
 		# PQconnectdb()/PQconnectStart().
-		connopts = []
+		connopts = ["fallback_application_name=#{quote_connstr($0)}"]
 
 		# Handle an options hash first
 		if args.last.is_a?( Hash )
-			opthash = args.pop 
+			opthash = args.pop
 			opthash.each do |key, val|
 				connopts.push( "%s=%s" % [key, PG::Connection.quote_connstr(val)] )
 			end
