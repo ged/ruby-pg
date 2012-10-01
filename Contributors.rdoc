@@ -37,7 +37,7 @@ list.
 * Lars Kanis <kanis@comcard.de>
 * Jason Yanowitz <me-bitbucket@jasonyanowitz.com>
 * Charlie Savage <cfis@rubyforge.org>
-* Rafał Bigaj <rafal@Bonifacy.intranet>
+* Rafał Bigaj <rafal.bigaj@gmail.com>
 * Jason Yanowitz <me-bitbucket@jasonyanowitz.com>
 * Greg Hazel <ghazel@gmail.com>
 * Chris White <cwprogram@live.com>
