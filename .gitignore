@@ -1,0 +1,13 @@
+tmp_test_specs/
+*~
+tmp/
+lib/pg_ext.so
+*.class
+.classpath
+.project
+ext/errorcodes.def
+Gemfile.lock
+ChangeLog
+pg_ext.jar
+TAGS
+refresh_tags.sh
