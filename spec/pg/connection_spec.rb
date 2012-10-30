@@ -61,7 +61,7 @@ describe PG::Connection do
 		optstring.should =~ /(^|\s)host='pgsql.example.com'/
 		optstring.should =~ /(^|\s)dbname='sales'/
 		optstring.should =~ /(^|\s)options='-c geqo=off'/
-		
+
 		optstring.should_not =~ /port=/
 		optstring.should_not =~ /tty=/
 	end
@@ -77,7 +77,8 @@ describe PG::Connection do
 	end
 
 	it "escapes single quotes and backslashes in connection parameters" do
-		described_class.parse_connect_args( "DB 'browser' \\" ).should == "host='DB \\'browser\\' \\\\'"
+		described_class.parse_connect_args( "DB 'browser' \\" ).
+			should =~ /host='DB \\'browser\\' \\\\'/
 
 	end
 
@@ -532,6 +533,10 @@ describe PG::Connection do
 
 		conn.finish
 		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
+	end
+
+	it "sets the fallback_application_name on new connections" do
+		PG::Connection.parse_connect_args( 'dbname=test' ).should include( $0 )
 	end
 
 

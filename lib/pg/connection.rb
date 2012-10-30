@@ -23,7 +23,9 @@ class PG::Connection
 		# This will be swapped soon for code that makes options like those required for
 		# PQconnectdbParams()/PQconnectStartParams(). For now, stick to an options string for
 		# PQconnectdb()/PQconnectStart().
-		connopts = ["fallback_application_name=#{quote_connstr($0)}"]
+
+		appname = PG::Connection.quote_connstr( $0 )
+		connopts = ["fallback_application_name=#{appname}"]
 
 		# Handle an options hash first
 		if args.last.is_a?( Hash )
@@ -48,6 +50,7 @@ class PG::Connection
 			end
 		end
 
+		$stderr.puts "Connecting with options: %p" % [ connopts.join(' ') ]
 		return connopts.join(' ')
 	end
 
