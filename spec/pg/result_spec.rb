@@ -71,7 +71,7 @@ describe PG::Result do
 		result.error_field( PG::PG_DIAG_INTERNAL_QUERY ).should be_nil()
 		result.error_field( PG::PG_DIAG_CONTEXT ).should be_nil()
 		result.error_field( PG::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$/
-		result.error_field( PG::PG_DIAG_SOURCE_LINE ).should == '857'
+		result.error_field( PG::PG_DIAG_SOURCE_LINE ).should =~ /^\d+$/
 		result.error_field( PG::PG_DIAG_SOURCE_FUNCTION ).should == 'parserOpenTable'
 
 	end
@@ -127,8 +127,8 @@ describe PG::Result do
 		out_bytes.should == in_bytes
 	end
 
-	it "should return the parameter type of the specified prepared statement parameter" do
-		query = 'SELECT * FROM pg_stat_activity WHERE user = $1::name AND current_query = $2::text'
+	it "should return the parameter type of the specified prepared statement parameter", :postgresql_92 do
+		query = 'SELECT * FROM pg_stat_activity WHERE user = $1::name AND query = $2::text'
 		@conn.prepare( 'queryfinder', query )
 		res = @conn.describe_prepared( 'queryfinder' )
 
