@@ -260,4 +260,11 @@ describe PG::Result do
 		}.to raise_error( PG::Error, /relation "nonexistant_table" does not exist/ )
 	end
 
+	it "can return the values of a single field" do
+		res = @conn.exec( "SELECT 1 AS x, 'a' AS y UNION ALL SELECT 2, 'b'" )
+		res.field_values( 'x' ).should == ['1', '2']
+		res.field_values( 'y' ).should == ['a', 'b']
+		expect{ res.field_values( '' ) }.should raise_error(IndexError)
+		expect{ res.field_values( :x ) }.should raise_error(TypeError)
+	end
 end
