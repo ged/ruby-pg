@@ -24,8 +24,14 @@ class PG::Connection
 		# PQconnectdbParams()/PQconnectStartParams(). For now, stick to an options string for
 		# PQconnectdb()/PQconnectStart().
 
-		appname = PG::Connection.quote_connstr( $0 )
-		connopts = ["fallback_application_name=#{appname}"]
+		# Parameter 'fallback_application_name' was introduced in PostgreSQL 9.0
+		# together with PQescapeLiteral().
+		if PG::Connection.instance_methods.find{|m| m.to_sym == :escape_literal }
+			appname = PG::Connection.quote_connstr( $0 )
+			connopts = ["fallback_application_name=#{appname}"]
+		else
+			connopts = []
+		end
 
 		# Handle an options hash first
 		if args.last.is_a?( Hash )
