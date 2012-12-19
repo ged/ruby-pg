@@ -56,7 +56,6 @@ class PG::Connection
 			end
 		end
 
-		$stderr.puts "Connecting with options: %p" % [ connopts.join(' ') ]
 		return connopts.join(' ')
 	end
 
