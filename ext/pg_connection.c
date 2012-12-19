@@ -8,10 +8,10 @@
 
 
 /********************************************************************
- * 
+ *
  * Document-class: PG::Connection
  *
- * The class to access PostgreSQL RDBMS, based on the libpq interface, 
+ * The class to access PostgreSQL RDBMS, based on the libpq interface,
  * provides convenient OO methods to interact with PostgreSQL.
  *
  * For example, to send query to the database on the localhost:
@@ -92,7 +92,7 @@ pgconn_gc_free( PGconn *conn )
 
 /*
  * Document-method: allocate
- * 
+ *
  * call-seq:
  *   PG::Connection.allocate -> conn
  */
@@ -111,9 +111,9 @@ pgconn_s_allocate( VALUE klass )
  *    PG::Connection.new(connection_hash) -> conn
  *    PG::Connection.new(connection_string) -> conn
  *    PG::Connection.new(host, port, options, tty, dbname, user, password) ->  conn
- * 
+ *
  * Create a connection to the specified server.
- * 
+ *
  * [+host+]
  *   server hostname
  * [+hostaddr+]
@@ -140,24 +140,24 @@ pgconn_s_allocate( VALUE klass )
  *   GSS library to use for GSSAPI authentication
  * [+service+]
  *   service name to use for additional parameters
- * 
+ *
  * Examples:
- * 
+ *
  *   # Connect using all defaults
  *   PG::Connection.new
  *
  *   # As a Hash
  *   PG::Connection.new( :dbname => 'test', :port => 5432 )
- *   
+ *
  *   # As a String
  *   PG::Connection.new( "dbname=test port=5432" )
- *   
+ *
  *   # As an Array
  *   PG::Connection.new( nil, 5432, nil, nil, 'test', nil, nil )
- *  
+ *
  * If the Ruby default internal encoding is set (i.e., Encoding.default_internal != nil), the
  * connection will have its +client_encoding+ set accordingly.
- * 
+ *
  * Raises a PG::Error if the connection fails.
  */
 static VALUE
@@ -202,11 +202,11 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
  *
  * Use #connect_poll to poll the status of the connection.
  *
- * NOTE: this does *not* set the connection's +client_encoding+ for you if 
- * Encoding.default_internal is set. To set it after the connection is established, 
- * call #internal_encoding=. You can also set it automatically by setting 
+ * NOTE: this does *not* set the connection's +client_encoding+ for you if
+ * Encoding.default_internal is set. To set it after the connection is established,
+ * call #internal_encoding=. You can also set it automatically by setting
  * ENV['PGCLIENTENCODING'], or include the 'options' connection parameter.
- * 
+ *
  */
 static VALUE
 pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
@@ -333,7 +333,7 @@ pgconn_s_conndefaults(VALUE self)
  *
  * This function is intended to be used by client applications that
  * send commands like: +ALTER USER joe PASSWORD 'pwd'+.
- * The arguments are the cleartext password, and the SQL name 
+ * The arguments are the cleartext password, and the SQL name
  * of the user it is for.
  *
  * Return value is the encrypted password.
@@ -439,7 +439,7 @@ pgconn_finished_p( VALUE self )
  * call-seq:
  *    conn.reset()
  *
- * Resets the backend connection. This method closes the 
+ * Resets the backend connection. This method closes the
  * backend connection and tries to re-connect.
  */
 static VALUE
@@ -456,7 +456,7 @@ pgconn_reset(VALUE self)
  * Initiate a connection reset in a nonblocking manner.
  * This will close the current connection and attempt to
  * reconnect using the same connection parameters.
- * Use #reset_poll to check the status of the 
+ * Use #reset_poll to check the status of the
  * connection reset.
  */
 static VALUE
@@ -617,14 +617,14 @@ pgconn_transaction_status(VALUE self)
  * _param_name_ is one of
  * * +server_version+
  * * +server_encoding+
- * * +client_encoding+ 
+ * * +client_encoding+
  * * +is_superuser+
  * * +session_authorization+
  * * +DateStyle+
  * * +TimeZone+
  * * +integer_datetimes+
  * * +standard_conforming_strings+
- * 
+ *
  * Returns nil if the value of the parameter is not known.
  */
 static VALUE
@@ -641,8 +641,8 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
  * call-seq:
  *   conn.protocol_version -> Integer
  *
- * The 3.0 protocol will normally be used when communicating with PostgreSQL 7.4 
- * or later servers; pre-7.4 servers support only protocol 2.0. (Protocol 1.0 is 
+ * The 3.0 protocol will normally be used when communicating with PostgreSQL 7.4
+ * or later servers; pre-7.4 servers support only protocol 2.0. (Protocol 1.0 is
  * obsolete and not supported by libpq.)
  */
 static VALUE
@@ -651,16 +651,16 @@ pgconn_protocol_version(VALUE self)
 	return INT2NUM(PQprotocolVersion(pg_get_pgconn(self)));
 }
 
-/* 
- * call-seq: 
+/*
+ * call-seq:
  *   conn.server_version -> Integer
- * 
+ *
  * The number is formed by converting the major, minor, and revision
  * numbers into two-decimal-digit numbers and appending them together.
  * For example, version 7.4.2 will be returned as 70402, and version
  * 8.1 will be returned as 80100 (leading zeroes are not shown). Zero
  * is returned if the connection is bad.
- * 
+ *
  */
 static VALUE
 pgconn_server_version(VALUE self)
@@ -760,11 +760,11 @@ pgconn_connection_used_password(VALUE self)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
- * 
+ *
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
- * 
+ *
  * If the types are not specified, they will be inferred by PostgreSQL.
  * Instead of specifying type oids, it's recommended to simply add
  * explicit casts in the query to ensure that the right type is used.
@@ -774,8 +774,8 @@ pgconn_connection_used_password(VALUE self)
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
  *
- * If the optional code block is given, it will be passed <i>result</i> as an argument, 
- * and the PG::Result object will  automatically be cleared when the block terminates. 
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
@@ -830,7 +830,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
 	nParams = (int)RARRAY_LEN(params);
-	paramTypes = ALLOC_N(Oid, nParams); 
+	paramTypes = ALLOC_N(Oid, nParams);
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
 	paramFormats = ALLOC_N(int, nParams);
@@ -877,7 +877,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes, 
+	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -890,7 +890,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(rb_yield, rb_pgresult, 
+		return rb_ensure(rb_yield, rb_pgresult,
 			pg_result_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -904,7 +904,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
  * Returns a PG::Result instance on success.
  * On failure, it raises a PG::Error.
  *
- * +param_types+ is an optional parameter to specify the Oids of the 
+ * +param_types+ is an optional parameter to specify the Oids of the
  * types of the parameters.
  *
  * If the types are not specified, they will be inferred by PostgreSQL.
@@ -912,7 +912,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
  * explicit casts in the query to ensure that the right type is used.
  *
  * For example: "SELECT $1::int"
- * 
+ *
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query.
  */
@@ -935,7 +935,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
 		nParams = (int)RARRAY_LEN(in_paramtypes);
-		paramTypes = ALLOC_N(Oid, nParams); 
+		paramTypes = ALLOC_N(Oid, nParams);
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
 			Check_Type(param, T_FIXNUM);
@@ -964,7 +964,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * Returns a PG::Result instance on success.
  * On failure, it raises a PG::Error.
  *
- * +params+ is an array of the optional bind parameters for the 
+ * +params+ is an array of the optional bind parameters for the
  * SQL query. Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
@@ -972,7 +972,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
- * 
+ *
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
@@ -980,8 +980,8 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
  *
- * If the optional code block is given, it will be passed <i>result</i> as an argument, 
- * and the PG::Result object will  automatically be cleared when the block terminates. 
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
  */
 static VALUE
@@ -1064,8 +1064,8 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQexecPrepared(conn, StringValuePtr(name), nParams, 
-		(const char * const *)paramValues, paramLengths, paramFormats, 
+	result = PQexecPrepared(conn, StringValuePtr(name), nParams,
+		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -1077,7 +1077,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	if (rb_block_given_p()) {
-		return rb_ensure(rb_yield, rb_pgresult, 
+		return rb_ensure(rb_yield, rb_pgresult,
 			pg_result_clear, rb_pgresult);
 	}
 	return rb_pgresult;
@@ -1175,12 +1175,12 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * Connection instance method for versions of 8.1 and higher of libpq
  * uses PQescapeStringConn, which is safer. Avoid calling as a class method,
  * the class method uses the deprecated PQescapeString() API function.
- * 
+ *
  * Returns a SQL-safe version of the String _str_.
- * This is the preferred way to make strings safe for inclusion in 
+ * This is the preferred way to make strings safe for inclusion in
  * SQL queries.
- * 
- * Consider using exec_params, which avoids the need for passing values 
+ *
+ * Consider using exec_params, which avoids the need for passing values
  * inside of SQL commands.
  *
  * Encoding of escaped string will be equal to client encoding of connection.
@@ -1192,7 +1192,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	size_t size;
 	int error;
 	VALUE result;
-#ifdef M17N_SUPPORTED	
+#ifdef M17N_SUPPORTED
 	rb_encoding* enc;
 #endif
 
@@ -1200,7 +1200,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 
 	escaped = ALLOC_N(char, RSTRING_LEN(string) * 2 + 1);
 	if(rb_obj_class(self) == rb_cPGconn) {
-		size = PQescapeStringConn(pg_get_pgconn(self), escaped, 
+		size = PQescapeStringConn(pg_get_pgconn(self), escaped,
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
 			xfree(escaped);
@@ -1227,7 +1227,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 
 /*
  * call-seq:
- *   conn.escape_bytea( string ) -> String 
+ *   conn.escape_bytea( string ) -> String
  *
  * Connection instance method for versions of 8.1 and higher of libpq
  * uses PQescapeByteaConn, which is safer. Avoid calling as a class method,
@@ -1237,16 +1237,16 @@ pgconn_s_escape(VALUE self, VALUE string)
  * class method.
  *
  * Escapes binary data for use within an SQL command with the type +bytea+.
- * 
+ *
  * Certain byte values must be escaped (but all byte values may be escaped)
  * when used as part of a +bytea+ literal in an SQL statement. In general, to
  * escape a byte, it is converted into the three digit octal number equal to
  * the octet value, and preceded by two backslashes. The single quote (') and
  * backslash (\) characters have special alternative escape sequences.
- * #escape_bytea performs this operation, escaping only the minimally required 
+ * #escape_bytea performs this operation, escaping only the minimally required
  * bytes.
- * 
- * Consider using exec_params, which avoids the need for passing values inside of 
+ *
+ * Consider using exec_params, which avoids the need for passing values inside of
  * SQL commands.
  */
 static VALUE
@@ -1368,6 +1368,32 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 }
 #endif
 
+#ifdef HAVE_PQSETSINGLEROWMODE
+/*
+ * call-seq:
+ *    conn.set_single_row_mode -> self
+ *
+ * To enter single-row mode, call this method immediately after a successful
+ * call of send_query (or a sibling function). This mode selection is effective
+ * only for the currently executing query.
+ */
+static VALUE
+pgconn_set_single_row_mode(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	VALUE error;
+
+	if( PQsetSingleRowMode(conn) == 0 )
+	{
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		rb_iv_set(error, "@connection", self);
+		rb_exc_raise(error);
+	}
+
+	return self;
+}
+#endif
+
 /*
  * call-seq:
  *    conn.send_query(sql [, params, result_format ] ) -> nil
@@ -1385,11 +1411,11 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
- * 
+ *
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
- * 
+ *
  * If the types are not specified, they will be inferred by PostgreSQL.
  * Instead of specifying type oids, it's recommended to simply add
  * explicit casts in the query to ensure that the right type is used.
@@ -1449,7 +1475,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
 	nParams = (int)RARRAY_LEN(params);
-	paramTypes = ALLOC_N(Oid, nParams); 
+	paramTypes = ALLOC_N(Oid, nParams);
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
 	paramFormats = ALLOC_N(int, nParams);
@@ -1496,10 +1522,10 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes, 
+	result = PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
-	rb_gc_unregister_address(&gc_array);	
+	rb_gc_unregister_address(&gc_array);
 
 	xfree(paramTypes);
 	xfree(paramValues);
@@ -1522,7 +1548,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
  * Sends prepare command asynchronously, and returns immediately.
  * On failure, it raises a PG::Error.
  *
- * +param_types+ is an optional parameter to specify the Oids of the 
+ * +param_types+ is an optional parameter to specify the Oids of the
  * types of the parameters.
  *
  * If the types are not specified, they will be inferred by PostgreSQL.
@@ -1530,7 +1556,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
  * explicit casts in the query to ensure that the right type is used.
  *
  * For example: "SELECT $1::int"
- * 
+ *
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query.
  */
@@ -1553,7 +1579,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
 		nParams = (int)RARRAY_LEN(in_paramtypes);
-		paramTypes = ALLOC_N(Oid, nParams); 
+		paramTypes = ALLOC_N(Oid, nParams);
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
 			Check_Type(param, T_FIXNUM);
@@ -1585,7 +1611,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  * asynchronously, and returns immediately.
  * On failure, it raises a PG::Error.
  *
- * +params+ is an array of the optional bind parameters for the 
+ * +params+ is an array of the optional bind parameters for the
  * SQL query. Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
@@ -1593,7 +1619,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
- * 
+ *
  * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
@@ -1681,8 +1707,8 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQsendQueryPrepared(conn, StringValuePtr(name), nParams, 
-		(const char * const *)paramValues, paramLengths, paramFormats, 
+	result = PQsendQueryPrepared(conn, StringValuePtr(name), nParams,
+		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -1703,7 +1729,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
  * call-seq:
  *    conn.send_describe_prepared( statement_name ) -> nil
  *
- * Asynchronously send _command_ to the server. Does not block. 
+ * Asynchronously send _command_ to the server. Does not block.
  * Use in combination with +conn.get_result+.
  */
 static VALUE
@@ -1725,7 +1751,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
  * call-seq:
  *    conn.send_describe_portal( portal_name ) -> nil
  *
- * Asynchronously send _command_ to the server. Does not block. 
+ * Asynchronously send _command_ to the server. Does not block.
  * Use in combination with +conn.get_result+.
  */
 static VALUE
@@ -1755,8 +1781,8 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
  * Note: call this function repeatedly until it returns +nil+, or else
  * you will not be able to issue further commands.
  *
- * If the optional code block is given, it will be passed <i>result</i> as an argument, 
- * and the PG::Result object will  automatically be cleared when the block terminates. 
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
@@ -1818,7 +1844,7 @@ pgconn_is_busy(self)
  * call-seq:
  *    conn.setnonblocking(Boolean) -> nil
  *
- * Sets the nonblocking status of the connection. 
+ * Sets the nonblocking status of the connection.
  * In the blocking state, calls to #send_query
  * will block until the message is sent to the server,
  * but will not wait for the query results.
@@ -1826,7 +1852,7 @@ pgconn_is_busy(self)
  * will return an error if the socket is not ready for
  * writing.
  * Note: This function does not affect #exec, because
- * that function doesn't return until the server has 
+ * that function doesn't return until the server has
  * processed the query and returned the results.
  * Returns +nil+.
  */
@@ -1970,7 +1996,7 @@ pgconn_notifies(VALUE self)
 
 
 #ifdef _WIN32
-/* 
+/*
  * Duplicate the sockets from libpq and create temporary CRT FDs
  */
 void create_crt_fd(fd_set *os_set, fd_set *crt_set)
@@ -2017,11 +2043,11 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
  * Returns +nil+ if _timeout_ is reached, the name of the NOTIFY
  * event otherwise.  If used in block form, passes the name of the
  * NOTIFY +event+ and the generating +pid+ into the block.
- * 
+ *
  * Under PostgreSQL 9.0 and later, if the notification is sent with
  * the optional +payload+ string, it will be given to the block as the
  * third argument.
- * 
+ *
  */
 static VALUE
 pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
@@ -2138,7 +2164,7 @@ pgconn_put_copy_data(self, buffer)
  * Returns true if the end-of-data was sent, false if it was
  * not sent (false is only possible if the connection
  * is in nonblocking mode, and this command would block).
- */ 
+ */
 static VALUE
 pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 {
@@ -2167,7 +2193,7 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
  *    conn.get_copy_data( [ async = false ] ) -> String
  *
  * Return a string containing one row of data, +nil+
- * if the copy is done, or +false+ if the call would 
+ * if the copy is done, or +false+ if the call would
  * block (only possible if _async_ is true).
  *
  */
@@ -2225,8 +2251,8 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 /*
  * call-seq:
  *    conn.trace( stream ) -> nil
- * 
- * Enables tracing message passing between backend. The 
+ *
+ * Enables tracing message passing between backend. The
  * trace message will be written to the stream _stream_,
  * which must implement a method +fileno+ that returns
  * a writable file descriptor.
@@ -2269,7 +2295,7 @@ pgconn_trace(VALUE self, VALUE stream)
 /*
  * call-seq:
  *    conn.untrace() -> nil
- * 
+ *
  * Disables the message tracing.
  */
 static VALUE
@@ -2295,7 +2321,7 @@ notice_receiver_proxy(void *arg, const PGresult *result)
 	VALUE self = (VALUE)arg;
 
 	if ((proc = rb_iv_get(self, "@notice_receiver")) != Qnil) {
-		rb_funcall(proc, rb_intern("call"), 1, 
+		rb_funcall(proc, rb_intern("call"), 1,
 			Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result));
 	}
 	return;
@@ -2313,15 +2339,15 @@ notice_receiver_proxy(void *arg, const PGresult *result)
  * application can override this behavior by supplying its own handling
  * function.
  *
- * For historical reasons, there are two levels of notice handling, called the 
- * notice receiver and notice processor. The default behavior is for the notice 
- * receiver to format the notice and pass a string to the notice processor for 
- * printing. However, an application that chooses to provide its own notice 
- * receiver will typically ignore the notice processor layer and just do all 
+ * For historical reasons, there are two levels of notice handling, called the
+ * notice receiver and notice processor. The default behavior is for the notice
+ * receiver to format the notice and pass a string to the notice processor for
+ * printing. However, an application that chooses to provide its own notice
+ * receiver will typically ignore the notice processor layer and just do all
  * the work in the notice receiver.
  *
  * This function takes a new block to act as the handler, which should
- * accept a single parameter that will be a PG::Result object, and returns 
+ * accept a single parameter that will be a PG::Result object, and returns
  * the Proc object previously set, or +nil+ if it was previously the default.
  *
  * If you pass no arguments, it will reset the handler to the default.
@@ -2336,8 +2362,8 @@ pgconn_set_notice_receiver(VALUE self)
 	VALUE proc, old_proc;
 	PGconn *conn = pg_get_pgconn(self);
 
-	/* If default_notice_receiver is unset, assume that the current 
-	 * notice receiver is the default, and save it to a global variable. 
+	/* If default_notice_receiver is unset, assume that the current
+	 * notice receiver is the default, and save it to a global variable.
 	 * This should not be a problem because the default receiver is
 	 * always the same, so won't vary among connections.
 	 */
@@ -2382,7 +2408,7 @@ notice_processor_proxy(void *arg, const char *message)
  * See #set_notice_receiver for the desription of what this and the
  * notice_processor methods do.
  *
- * This function takes a new block to act as the notice processor and returns 
+ * This function takes a new block to act as the notice processor and returns
  * the Proc object previously set, or +nil+ if it was previously the default.
  * The block should accept a single PG::Result object.
  *
@@ -2394,8 +2420,8 @@ pgconn_set_notice_processor(VALUE self)
 	VALUE proc, old_proc;
 	PGconn *conn = pg_get_pgconn(self);
 
-	/* If default_notice_processor is unset, assume that the current 
-	 * notice processor is the default, and save it to a global variable. 
+	/* If default_notice_processor is unset, assume that the current
+	 * notice processor is the default, and save it to a global variable.
 	 * This should not be a problem because the default processor is
 	 * always the same, so won't vary among connections.
 	 */
@@ -2420,7 +2446,7 @@ pgconn_set_notice_processor(VALUE self)
 /*
  * call-seq:
  *    conn.get_client_encoding() -> String
- * 
+ *
  * Returns the client encoding as a String.
  */
 static VALUE
@@ -2434,7 +2460,7 @@ pgconn_get_client_encoding(VALUE self)
 /*
  * call-seq:
  *    conn.set_client_encoding( encoding )
- * 
+ *
  * Sets the client encoding to the _encoding_ String.
  */
 static VALUE
@@ -2456,7 +2482,7 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
  *    conn.transaction { |conn| ... } -> nil
  *
  * Executes a +BEGIN+ at the start of the block,
- * and a +COMMIT+ at the end of the block, or 
+ * and a +COMMIT+ at the end of the block, or
  * +ROLLBACK+ if any exception occurs.
  */
 static VALUE
@@ -2502,7 +2528,7 @@ pgconn_transaction(VALUE self)
  * Returns a string that is safe for inclusion in a SQL query as an
  * identifier. Note: this is not a quote function for values, but for
  * identifiers.
- * 
+ *
  * For example, in a typical SQL query: <tt>SELECT FOO FROM MYTABLE</tt>
  * The identifier <tt>FOO</tt> is folded to lower case, so it actually
  * means <tt>foo</tt>. If you really want to access the case-sensitive
@@ -2510,7 +2536,7 @@ pgconn_transaction(VALUE self)
  * <tt>PG::Connection.quote_ident('FOO')</tt>, which will return <tt>"FOO"</tt>
  * (with double-quotes). PostgreSQL will see the double-quotes, and
  * it will not fold to lower case.
- * 
+ *
  * Similarly, this function also protects against special characters,
  * and other things that might allow SQL injection if the identifier
  * comes from an untrusted source.
@@ -2528,13 +2554,13 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	UNUSED( self );
 
 	if(strlen(str) >= NAMEDATALEN) {
-		rb_raise(rb_eArgError, 
+		rb_raise(rb_eArgError,
 			"Input string is longer than NAMEDATALEN-1 (%d)",
 			NAMEDATALEN-1);
 	}
 	buffer[j++] = '"';
 	for(i = 0; i < strlen(str) && str[i]; i++) {
-		if(str[i] == '"') 
+		if(str[i] == '"')
 			buffer[j++] = '"';
 		buffer[j++] = str[i];
 	}
@@ -2551,12 +2577,12 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
  * call-seq:
  *    conn.block( [ timeout ] ) -> Boolean
  *
- * Blocks until the server is no longer busy, or until the 
+ * Blocks until the server is no longer busy, or until the
  * optional _timeout_ is reached, whichever comes first.
  * _timeout_ is measured in seconds and can be fractional.
- * 
+ *
  * Returns +false+ if _timeout_ is reached, +true+ otherwise.
- * 
+ *
  * If +true+ is returned, +conn.is_busy+ will return +false+
  * and +conn.get_result+ will not block.
  */
@@ -2566,7 +2592,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	int sd = PQsocket( conn );
 	int ret;
 
-	/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs 
+	/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
 	 * and does not wait (nor sleep) any time even if timeout is given.
 	 * Instead use the Winsock events and rb_w32_wait_events(). */
 
@@ -2610,7 +2636,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 #else /* _WIN32 */
 
 /*
- * Win32 PG::Connection#block -- on Windows, use platform-specific strategies to wait for the socket 
+ * Win32 PG::Connection#block -- on Windows, use platform-specific strategies to wait for the socket
  * instead of rb_thread_select().
  */
 
@@ -2619,7 +2645,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 
 int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
 
-/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs 
+/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
  * and does not wait (nor sleep) any time even if timeout is given.
  * Instead use the Winsock events and rb_w32_wait_events(). */
 
@@ -2793,8 +2819,8 @@ pgconn_get_last_result(VALUE self)
  *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * This function has the same behavior as #exec,
- * except that it's implemented using asynchronous command 
- * processing and ruby's +rb_thread_select+ in order to 
+ * except that it's implemented using asynchronous command
+ * processing and ruby's +rb_thread_select+ in order to
  * allow other threads to process while waiting for the
  * server to complete the request.
  */
@@ -2922,7 +2948,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
  * call-seq:
  *    conn.lo_open( oid, [mode] ) -> Fixnum
  *
- * Open a large object of _oid_. Returns a large object descriptor 
+ * Open a large object of _oid_. Returns a large object descriptor
  * instance on success. The _mode_ argument specifies the mode for
  * the opened large object,which is either +INV_READ+, or +INV_WRITE+.
  *
@@ -2968,7 +2994,7 @@ pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 	if( RSTRING_LEN(buffer) < 0) {
 		rb_raise(rb_ePGerror, "write buffer zero string");
 	}
-	if((n = lo_write(conn, fd, StringValuePtr(buffer), 
+	if((n = lo_write(conn, fd, StringValuePtr(buffer),
 				RSTRING_LEN(buffer))) < 0) {
 		rb_raise(rb_ePGerror, "lo_write failed: %s", PQerrorMessage(conn));
 	}
@@ -3250,7 +3276,7 @@ init_pg_connection()
 {
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
-	
+
 	/******     PG::Connection CLASS METHODS     ******/
 	rb_define_alloc_func( rb_cPGconn, pgconn_s_allocate );
 
@@ -3319,6 +3345,9 @@ init_pg_connection()
 #endif
 	rb_define_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
+#ifdef HAVE_PQSETSINGLEROWMODE
+	rb_define_method(rb_cPGconn, "set_single_row_mode", pgconn_set_single_row_mode, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: Asynchronous Command Processing     ******/
 	rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);
