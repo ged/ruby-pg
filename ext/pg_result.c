@@ -839,7 +839,7 @@ static VALUE
 pgresult_field_values( VALUE self, VALUE field )
 {
 	PGresult *result = pgresult_get( self );
-	const char *fieldname = RSTRING_PTR( field );
+	const char *fieldname = StringValuePtr( field );
 	int fnum = PQfnumber( result, fieldname );
 
 	if ( fnum < 0 )
