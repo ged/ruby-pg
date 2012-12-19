@@ -535,15 +535,15 @@ describe PG::Connection do
 		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
 	end
 
-	it "sets the fallback_application_name on new connections" do
-		PG::Connection.parse_connect_args( 'dbname=test' ).should include( $0 )
-	end
-
 
 	context "under PostgreSQL 9", :postgresql_90 do
 
 		before( :each ) do
 			pending "only works with a PostgreSQL >= 9.0 server" if @conn.server_version < 9_00_00
+		end
+
+		it "sets the fallback_application_name on new connections" do
+			PG::Connection.parse_connect_args( 'dbname=test' ).should include( $0 )
 		end
 
 		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
