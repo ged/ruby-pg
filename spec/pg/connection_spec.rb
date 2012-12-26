@@ -762,18 +762,35 @@ describe PG::Connection do
 			end
 
 			it "should receive rows before entire query is finished" do
-				# The full query needs at minimum 1 second to complete
-				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT generate_series(1000,1999), pg_sleep(0.001);" )
+				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(1);" )
 				@conn.set_single_row_mode
 
 				start_time = Time.now
 				first_row_time = nil
 				loop do
-					@conn.block
-					@conn.get_result or break
+					res = @conn.get_result or break
+					res.check
 					first_row_time = Time.now unless first_row_time
 				end
+				(Time.now - start_time).should >= 1.0
 				(first_row_time - start_time).should < 1.0
+			end
+
+			it "should receive rows before entire query fails" do
+				@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
+				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, errfunc();" )
+				@conn.set_single_row_mode
+
+				first_result = nil
+				expect do
+					loop do
+						res = @conn.get_result or break
+						res.check
+						first_result ||= res
+					end
+				end.to raise_error(PG::Error)
+				first_result.kind_of?(PG::Result).should be_true
+				first_result.result_status.should == PG::PGRES_SINGLE_TUPLE
 			end
 		end
 	end
