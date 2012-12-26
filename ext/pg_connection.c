@@ -1376,6 +1376,35 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  * To enter single-row mode, call this method immediately after a successful
  * call of send_query (or a sibling function). This mode selection is effective
  * only for the currently executing query.
+ * Then call Connection#get_result repeatedly, until it returns nil.
+ *
+ * Each (but the last) received Result has exactly one row and a
+ * Result#result_status of PGRES_SINGLE_TUPLE. The last row has
+ * zero rows and is used to indicate a successful execution of the query.
+ * All of these Result objects will contain the same row description data
+ * (column names, types, etc) that an ordinary Result object for the query
+ * would have.
+ *
+ * *Caution:* While processing a query, the server may return some rows and
+ * then encounter an error, causing the query to be aborted. Ordinarily, pg
+ * discards any such rows and reports only the error. But in single-row mode,
+ * those rows will have already been returned to the application. Hence, the
+ * application will see some Result objects followed by an Error raised in get_result.
+ * For proper transactional behavior, the application must be designed to discard
+ * or undo whatever has been done with the previously-processed rows, if the query
+ * ultimately fails.
+ *
+ * Example:
+ *   conn.send_query( "your SQL command" )
+ *   conn.set_single_row_mode
+ *   loop do
+ *     res = conn.get_result or break
+ *     res.check
+ *     res.each do |row|
+ *       # do something with the received row
+ *     end
+ *   end
+ *
  */
 static VALUE
 pgconn_set_single_row_mode(VALUE self)
