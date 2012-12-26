@@ -427,7 +427,7 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
 #endif
 	/* #result_status constant: Single tuple from larger resultset. */
-#ifdef HAVE_PQSETSINGLEROWMODE
+#ifdef HAVE_CONST_PGRES_SINGLE_TUPLE
 	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
 #endif
 
