@@ -2134,12 +2134,16 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	}
 
 	relname = rb_tainted_str_new2( notification->relname );
-	ASSOCIATE_INDEX( relname, self );
+#ifdef M17N_SUPPORTED
+	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
+#endif
 	be_pid = INT2NUM( notification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
 	if ( *notification->extra ) {
 		extra = rb_tainted_str_new2( notification->extra );
-		ASSOCIATE_INDEX( extra, self );
+#ifdef M17N_SUPPORTED
+		ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
+#endif
 	}
 #endif
 	PQfreemem( notification );

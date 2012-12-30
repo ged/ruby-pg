@@ -983,5 +983,21 @@ describe PG::Connection do
 			end
 		end
 
+		it "receives properly encoded text from wait_for_notify" do
+			@conn.internal_encoding = 'utf-8'
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN "Möhre"' )
+			@conn.exec( %Q{NOTIFY "Möhre", '世界線航跡蔵'} )
+			event, pid, msg = nil
+			@conn.wait_for_notify( 10 ) do |*args|
+				event, pid, msg = *args
+			end
+			@conn.exec( 'UNLISTEN "Möhre"' )
+
+			event.should == "Möhre"
+			event.encoding.should == Encoding::UTF_8
+			msg.should == '世界線航跡蔵'
+			msg.encoding.should == Encoding::UTF_8
+		end
 	end
 end
