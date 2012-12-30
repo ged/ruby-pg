@@ -955,5 +955,33 @@ describe PG::Connection do
 			conn.finish if conn
 		end
 
+		it "receives properly encoded messages in the notice callbacks" do
+			[:receiver, :processor].each do |kind|
+				notices = []
+				@conn.internal_encoding = 'utf-8'
+				if kind == :processor
+					@conn.set_notice_processor do |msg|
+						notices << msg
+					end
+				else
+					@conn.set_notice_receiver do |result|
+						notices << result.error_message
+					end
+				end
+
+				3.times do
+					@conn.exec "do $$ BEGIN RAISE NOTICE '世界線航跡蔵'; END; $$ LANGUAGE plpgsql;"
+				end
+
+				notices.length.should == 3
+				notices.each do |notice|
+					notice.should =~ /^NOTICE:.*世界線航跡蔵/
+					notice.encoding.should == Encoding::UTF_8
+				end
+				@conn.set_notice_receiver
+				@conn.set_notice_processor
+			end
+		end
+
 	end
 end

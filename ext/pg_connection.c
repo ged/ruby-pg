@@ -2350,8 +2350,13 @@ notice_receiver_proxy(void *arg, const PGresult *result)
 	VALUE self = (VALUE)arg;
 
 	if ((proc = rb_iv_get(self, "@notice_receiver")) != Qnil) {
-		rb_funcall(proc, rb_intern("call"), 1,
-			Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result));
+		VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result);
+#ifdef M17N_SUPPORTED
+		PGconn *conn = pg_get_pgconn( self );
+		rb_encoding *enc = pg_conn_enc_get( conn );
+		ENCODING_SET( val, rb_enc_to_index(enc) );
+#endif
+		rb_funcall(proc, rb_intern("call"), 1, val);
 	}
 	return;
 }
@@ -2425,7 +2430,13 @@ notice_processor_proxy(void *arg, const char *message)
 	VALUE self = (VALUE)arg;
 
 	if ((proc = rb_iv_get(self, "@notice_processor")) != Qnil) {
-		rb_funcall(proc, rb_intern("call"), 1, rb_tainted_str_new2(message));
+		VALUE message_str = rb_tainted_str_new2(message);
+#ifdef M17N_SUPPORTED
+		PGconn *conn = pg_get_pgconn( self );
+		rb_encoding *enc = pg_conn_enc_get( conn );
+		ENCODING_SET( message_str, rb_enc_to_index(enc) );
+#endif
+		rb_funcall(proc, rb_intern("call"), 1, message_str);
 	}
 	return;
 }
@@ -2439,7 +2450,7 @@ notice_processor_proxy(void *arg, const char *message)
  *
  * This function takes a new block to act as the notice processor and returns
  * the Proc object previously set, or +nil+ if it was previously the default.
- * The block should accept a single PG::Result object.
+ * The block should accept a single String object.
  *
  * If you pass no arguments, it will reset the handler to the default.
  */
