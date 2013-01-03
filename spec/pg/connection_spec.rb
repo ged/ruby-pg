@@ -999,5 +999,20 @@ describe PG::Connection do
 			msg.should == '世界線航跡蔵'
 			msg.encoding.should == Encoding::UTF_8
 		end
+
+		it "returns properly encoded text from notifies" do
+			@conn.internal_encoding = 'utf-8'
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN "Möhre"' )
+			@conn.exec( %Q{NOTIFY "Möhre", '世界線航跡蔵'} )
+			@conn.exec( 'UNLISTEN "Möhre"' )
+
+			notification = @conn.notifies
+			notification[:relname].should == "Möhre"
+			notification[:relname].encoding.should == Encoding::UTF_8
+			notification[:extra].should == '世界線航跡蔵'
+			notification[:extra].encoding.should == Encoding::UTF_8
+			notification[:be_pid].should > 0
+		end
 	end
 end

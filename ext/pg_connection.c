@@ -2014,6 +2014,10 @@ pgconn_notifies(VALUE self)
 	relname = rb_tainted_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
 	extra = rb_tainted_str_new2(notification->extra);
+#ifdef M17N_SUPPORTED
+	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
+	ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
+#endif
 
 	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
