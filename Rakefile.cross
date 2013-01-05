@@ -19,7 +19,7 @@ end
 
 # Cross-compilation constants
 OPENSSL_VERSION            = ENV['OPENSSL_VERSION'] || '1.0.1c'
-POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.1.4'
+POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.2.2'
 
 COMPILE_HOME               = Pathname( "./build" ).expand_path
 STATIC_SOURCESDIR          = COMPILE_HOME + 'sources'
@@ -172,7 +172,7 @@ file STATIC_POSTGRESQL_BUILDDIR => POSTGRESQL_TARBALL do |t|
 	STATIC_POSTGRESQL_BUILDDIR.mkpath
 	run 'tar', '-xjf', POSTGRESQL_TARBALL.to_s, '-C', STATIC_POSTGRESQL_BUILDDIR.parent.to_s
 	mv POSTGRESQL_SHLIB_MAKEFILE, POSTGRESQL_SHLIB_MF_ORIG
-	
+
 	POSTGRESQL_PATCHES.each do |patchfile|
 		puts "  applying patch #{patchfile}..."
 		run 'patch', '-Np1', '-d', STATIC_POSTGRESQL_BUILDDIR.to_s,
