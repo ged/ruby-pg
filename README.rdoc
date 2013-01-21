@@ -1,3 +1,5 @@
+{<img src="https://travis-ci.org/larskanis/ruby-pg.png?branch=master" alt="Build Status" />}[https://travis-ci.org/larskanis/ruby-pg]
+
 = pg
 
 * https://bitbucket.org/ged/ruby-pg
