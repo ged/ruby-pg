@@ -89,7 +89,7 @@ describe PG::Result do
 	it "should return the same bytes in binary format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
-		res = @conn.exec('VALUES ($1::bytea)', 
+		res = @conn.exec('VALUES ($1::bytea)',
 			[ { :value => bytes, :format => 1 } ], 1)
 		res[0]['column1'].should== bytes
 		res.getvalue(0,0).should == bytes
@@ -111,7 +111,7 @@ describe PG::Result do
 	it "should return the same bytes in text format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
-		res = @conn.exec('VALUES ($1::bytea)', 
+		res = @conn.exec('VALUES ($1::bytea)',
 			[ { :value => bytes, :format => 1 } ])
 		PG::Connection.unescape_bytea(res[0]['column1']).should== bytes
 	end
@@ -264,7 +264,7 @@ describe PG::Result do
 		res = @conn.exec( "SELECT 1 AS x, 'a' AS y UNION ALL SELECT 2, 'b'" )
 		res.field_values( 'x' ).should == ['1', '2']
 		res.field_values( 'y' ).should == ['a', 'b']
-		expect{ res.field_values( '' ) }.should raise_error(IndexError)
-		expect{ res.field_values( :x ) }.should raise_error(TypeError)
+		expect{ res.field_values( '' ) }.to raise_error(IndexError)
+		expect{ res.field_values( :x ) }.to raise_error(TypeError)
 	end
 end
