@@ -290,35 +290,33 @@ describe PG::Connection do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
-		pid = fork do
+		t = Thread.new do
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 1
-				conn.exec( 'NOTIFY woo' )
+				conn.async_exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
-				exit!
 			end
 		end
 
 		@conn.wait_for_notify( 10 ).should == 'woo'
 		@conn.exec( 'UNLISTEN woo' )
 
-		Process.wait( pid )
+		t.join
 	end
 
 	it "calls a block for NOTIFY events if one is given" do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
-		pid = fork do
+		t = Thread.new do
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 1
-				conn.exec( 'NOTIFY woo' )
+				conn.async_exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
-				exit!
 			end
 		end
 
@@ -329,7 +327,7 @@ describe PG::Connection do
 
 		@conn.exec( 'UNLISTEN woo' )
 
-		Process.wait( pid )
+		t.join
 	end
 
 	it "doesn't collapse sequential notifications" do
@@ -338,19 +336,14 @@ describe PG::Connection do
 		@conn.exec( 'LISTEN war' )
 		@conn.exec( 'LISTEN woz' )
 
-		pid = fork do
-			begin
-				conn = described_class.connect( @conninfo )
-				conn.exec( 'NOTIFY woo' )
-				conn.exec( 'NOTIFY war' )
-				conn.exec( 'NOTIFY woz' )
-			ensure
-				conn.finish
-				exit!
-			end
+		begin
+			conn = described_class.connect( @conninfo )
+			conn.exec( 'NOTIFY woo' )
+			conn.exec( 'NOTIFY war' )
+			conn.exec( 'NOTIFY woz' )
+		ensure
+			conn.finish
 		end
-
-		Process.wait( pid )
 
 		channels = []
 		3.times do
@@ -370,18 +363,12 @@ describe PG::Connection do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
-		pid = fork do
-			begin
-				conn = described_class.connect( @conninfo )
-				conn.exec( 'NOTIFY woo' )
-			ensure
-				conn.finish
-				exit!
-			end
+		begin
+			conn = described_class.connect( @conninfo )
+			conn.exec( 'NOTIFY woo' )
+		ensure
+			conn.finish
 		end
-
-		# Wait for the forked child to send the notification
-		Process.wait( pid )
 
 		# Cause the notification to buffer, but not be read yet
 		@conn.exec( 'SELECT 1' )
@@ -552,14 +539,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			event, pid, msg = nil
 			@conn.wait_for_notify( 10 ) do |*args|
@@ -576,14 +558,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees} )
+			conn.finish
 
 			event, pid = nil
 			@conn.wait_for_notify( nil ) do |*args|
@@ -599,14 +576,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees} )
+			conn.finish
 
 			payload = :notnil
 			@conn.wait_for_notify( nil ) do |*args|
@@ -623,14 +595,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			event, pid, msg = nil
 			@conn.wait_for_notify( 10 ) do |arg1, arg2|
@@ -649,14 +616,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			notification_received = false
 			@conn.wait_for_notify( 10 ) do
@@ -673,14 +635,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			event, pid, msg = nil
 			@conn.wait_for_notify( 10 ) do |arg1, arg2, arg3|
