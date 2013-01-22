@@ -797,21 +797,6 @@ describe PG::Connection do
 
 	context "multinationalization support", :ruby_19 do
 
-		it "should return the same bytes in text format that are sent as inline text" do
-			binary_file   = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
-			in_bytes      = File.open(binary_file, 'r:ASCII-8BIT').read
-			escaped_bytes = described_class.escape_bytea( in_bytes )
-			out_bytes     = nil
-
-			@conn.transaction do |conn|
-				conn.exec("SET standard_conforming_strings=on")
-				res = conn.exec("VALUES ('#{escaped_bytes}'::bytea)", [], 0)
-				out_bytes = described_class.unescape_bytea( res[0]['column1'] )
-			end
-
-			out_bytes.should == in_bytes
-		end
-
 		describe "rubyforge #22925: m17n support" do
 			it "should return results in the same encoding as the client (iso-8859-1)" do
 				out_string = nil
