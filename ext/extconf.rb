@@ -69,6 +69,8 @@ have_func 'PQsetSingleRowMode'
 
 have_func 'rb_encdb_alias'
 have_func 'rb_enc_alias'
+have_func 'rb_thread_call_without_gvl'
+have_func 'rb_thread_call_with_gvl'
 
 have_const 'PGRES_COPY_BOTH', 'libpq-fe.h'
 have_const 'PGRES_SINGLE_TUPLE', 'libpq-fe.h'

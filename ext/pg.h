@@ -77,6 +77,7 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
+#include "gvl_wrappers.h"
 
 /***************************************************************************
  * Globals
@@ -119,5 +120,7 @@ int pg_enc_get_index                                   _(( VALUE ));
 rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 #endif /* M17N_SUPPORTED */
 
+void notice_receiver_proxy(void *arg, const PGresult *result);
+void notice_processor_proxy(void *arg, const char *message);
 
 #endif /* end __pg_h */

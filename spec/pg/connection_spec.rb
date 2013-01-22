@@ -1000,4 +1000,16 @@ describe PG::Connection do
 			notification[:be_pid].should > 0
 		end
 	end
+
+	context "OS thread support", :ruby_19 do
+		it "described_class#exec shouldn't block a second thread" do
+			t = Thread.new do
+				@conn.exec( "select pg_sleep(1)" )
+			end
+
+			sleep 0.5
+			t.should be_alive()
+			t.join
+		end
+	end
 end

@@ -742,6 +742,7 @@ pgconn_connection_used_password(VALUE self)
 /* :TODO: get_ssl */
 
 
+
 /*
  * call-seq:
  *    conn.exec(sql [, params, result_format ] ) -> PG::Result
@@ -803,7 +804,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
-		result = PQexec(conn, StringValuePtr(command));
+		result = gvl_PQexec(conn, StringValuePtr(command));
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
@@ -877,7 +878,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
+	result = gvl_PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -945,7 +946,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2INT(param);
 		}
 	}
-	result = PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1064,7 +1065,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQexecPrepared(conn, StringValuePtr(name), nParams,
+	result = gvl_PQexecPrepared(conn, StringValuePtr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
@@ -1104,7 +1105,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 		Check_Type(stmt_name, T_STRING);
 		stmt = StringValuePtr(stmt_name);
 	}
-	result = PQdescribePrepared(conn, stmt);
+	result = gvl_PQdescribePrepared(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1132,7 +1133,7 @@ pgconn_describe_portal(self, stmt_name)
 		Check_Type(stmt_name, T_STRING);
 		stmt = StringValuePtr(stmt_name);
 	}
-	result = PQdescribePortal(conn, stmt);
+	result = gvl_PQdescribePortal(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1821,7 +1822,7 @@ pgconn_get_result(VALUE self)
 	PGresult *result;
 	VALUE rb_pgresult;
 
-	result = PQgetResult(conn);
+	result = gvl_PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
 	rb_pgresult = pg_new_result(result, self);
@@ -2179,7 +2180,7 @@ pgconn_put_copy_data(self, buffer)
 	PGconn *conn = pg_get_pgconn(self);
 	Check_Type(buffer, T_STRING);
 
-	ret = PQputCopyData(conn, RSTRING_PTR(buffer), (int)RSTRING_LEN(buffer));
+	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), (int)RSTRING_LEN(buffer));
 	if(ret == -1) {
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2216,7 +2217,7 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 	else
 		error_message = StringValuePtr(str);
 
-	ret = PQputCopyEnd(conn, error_message);
+	ret = gvl_PQputCopyEnd(conn, error_message);
 	if(ret == -1) {
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2250,7 +2251,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 	else
 		async = (async_in == Qfalse || async_in == Qnil) ? 0 : 1;
 
-	ret = PQgetCopyData(conn, &buffer, async);
+	ret = gvl_PQgetCopyData(conn, &buffer, async);
 	if(ret == -2) { /* error */
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2351,7 +2352,7 @@ pgconn_untrace(VALUE self)
  * Notice callback proxy function -- delegate the callback to the
  * currently-registered Ruby notice_receiver object.
  */
-static void
+void
 notice_receiver_proxy(void *arg, const PGresult *result)
 {
 	VALUE proc;
@@ -2415,7 +2416,7 @@ pgconn_set_notice_receiver(VALUE self)
 	old_proc = rb_iv_get(self, "@notice_receiver");
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeReceiver(conn, notice_receiver_proxy, (void *)self);
+		PQsetNoticeReceiver(conn, gvl_notice_receiver_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
@@ -2431,7 +2432,7 @@ pgconn_set_notice_receiver(VALUE self)
  * Notice callback proxy function -- delegate the callback to the
  * currently-registered Ruby notice_processor object.
  */
-static void
+void
 notice_processor_proxy(void *arg, const char *message)
 {
 	VALUE proc;
@@ -2479,7 +2480,7 @@ pgconn_set_notice_processor(VALUE self)
 	old_proc = rb_iv_get(self, "@notice_processor");
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeProcessor(conn, notice_processor_proxy, (void *)self);
+		PQsetNoticeProcessor(conn, gvl_notice_processor_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
@@ -2542,18 +2543,18 @@ pgconn_transaction(VALUE self)
 	int status;
 
 	if (rb_block_given_p()) {
-		result = PQexec(conn, "BEGIN");
+		result = gvl_PQexec(conn, "BEGIN");
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		rb_protect(rb_yield, self, &status);
 		if(status == 0) {
-			result = PQexec(conn, "COMMIT");
+			result = gvl_PQexec(conn, "COMMIT");
 			rb_pgresult = pg_new_result(result, self);
 			pg_result_check(rb_pgresult);
 		}
 		else {
 			/* exception occurred, ROLLBACK and re-raise */
-			result = PQexec(conn, "ROLLBACK");
+			result = gvl_PQexec(conn, "ROLLBACK");
 			rb_pgresult = pg_new_result(result, self);
 			pg_result_check(rb_pgresult);
 			rb_jump_tag(status);
@@ -2660,7 +2661,6 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if ( PQconsumeInput(conn) == 0 )
 		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
-
 	while ( PQisBusy(conn) ) {
 		FD_ZERO( &sd_rset );
 		FD_SET( sd, &sd_rset );
@@ -2841,7 +2841,7 @@ pgconn_get_last_result(VALUE self)
 
 
 	cur = prev = NULL;
-	while ((cur = PQgetResult(conn)) != NULL) {
+	while ((cur = gvl_PQgetResult(conn)) != NULL) {
 		int status;
 
 		if (prev) PQclear(prev);
@@ -3480,5 +3480,4 @@ init_pg_connection()
 #endif /* M17N_SUPPORTED */
 
 }
-
 
