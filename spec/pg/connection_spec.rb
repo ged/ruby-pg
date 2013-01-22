@@ -107,7 +107,7 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "connects using a hash of optional connection parameters" do
+	it "connects using a hash of optional connection parameters", :postgresql_90 do
 		tmpconn = described_class.connect(
 			:host => 'localhost',
 			:port => @port,
