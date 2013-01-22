@@ -887,7 +887,7 @@ describe PG::Connection do
 				escaped.encoding.should == Encoding::EUC_JP
 			end
 
-			it "escapes string as literal" do
+			it "escapes string as literal", :postgresql_90 do
 				original = "string to\0 escape"
 				escaped  = @conn.escape_literal( original )
 				escaped.should == "'string to'"
@@ -955,7 +955,7 @@ describe PG::Connection do
 			conn.finish if conn
 		end
 
-		it "receives properly encoded messages in the notice callbacks" do
+		it "receives properly encoded messages in the notice callbacks", :postgresql_90 do
 			[:receiver, :processor].each do |kind|
 				notices = []
 				@conn.internal_encoding = 'utf-8'
@@ -983,7 +983,7 @@ describe PG::Connection do
 			end
 		end
 
-		it "receives properly encoded text from wait_for_notify" do
+		it "receives properly encoded text from wait_for_notify", :postgresql_90 do
 			@conn.internal_encoding = 'utf-8'
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
@@ -1000,7 +1000,7 @@ describe PG::Connection do
 			msg.encoding.should == Encoding::UTF_8
 		end
 
-		it "returns properly encoded text from notifies" do
+		it "returns properly encoded text from notifies", :postgresql_90 do
 			@conn.internal_encoding = 'utf-8'
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
