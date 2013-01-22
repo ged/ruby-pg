@@ -509,7 +509,7 @@ describe PG::Connection do
 	it "can connect asynchronously" do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		conn.connect_poll.should == PG::PGRES_POLLING_WRITING
+		[PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK].should include conn.connect_poll
 		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
 		serv.close
 		if conn.connect_poll == PG::PGRES_POLLING_READING
