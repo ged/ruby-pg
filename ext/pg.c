@@ -129,7 +129,7 @@ static ID s_id_index;
 
 /*
  * Get the index of encoding +val+.
- * :FIXME: Look into replacing this with rb_enc_get_index() since 1.9.1 isn't really 
+ * :FIXME: Look into replacing this with rb_enc_get_index() since 1.9.1 isn't really
  * used anymore.
  */
 int
@@ -174,7 +174,7 @@ pg_find_or_create_johab(void)
  * - returns ASCII-8BIT if the client encoding is unknown.
  */
 rb_encoding *
-pg_get_pg_encoding_as_rb_encoding( int enc_id ) 
+pg_get_pg_encoding_as_rb_encoding( int enc_id )
 {
 	rb_encoding *enc;
 
@@ -409,7 +409,7 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "PGRES_EMPTY_QUERY", INT2FIX(PGRES_EMPTY_QUERY));
 	/* #result_status constant: Successful completion of a command returning no data. */
 	rb_define_const(rb_mPGconstants, "PGRES_COMMAND_OK", INT2FIX(PGRES_COMMAND_OK));
-		/* #result_status constant: Successful completion of a command returning data 
+		/* #result_status constant: Successful completion of a command returning data
 	   (such as a SELECT or SHOW). */
 	rb_define_const(rb_mPGconstants, "PGRES_TUPLES_OK", INT2FIX(PGRES_TUPLES_OK));
 	/* #result_status constant: Copy Out (from server) data transfer started. */
@@ -425,6 +425,10 @@ Init_pg_ext()
 	/* #result_status constant: Copy In/Out data transfer in progress. */
 #ifdef HAVE_CONST_PGRES_COPY_BOTH
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
+#endif
+	/* #result_status constant: Single tuple from larger resultset. */
+#ifdef HAVE_CONST_PGRES_SINGLE_TUPLE
+	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
 #endif
 
 	/******     Result CONSTANTS: result error field codes      ******/
@@ -509,7 +513,7 @@ Init_pg_ext()
 	/* Add the constants to the toplevel namespace */
 	rb_include_module( rb_mPG, rb_mPGconstants );
 
-#ifdef M17N_SUPPORTED	
+#ifdef M17N_SUPPORTED
 	enc_pg2ruby = st_init_numtable();
 	s_id_index = rb_intern("@encoding");
 #endif

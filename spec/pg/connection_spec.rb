@@ -41,7 +41,7 @@ describe PG::Connection do
 	#
 
 	it "can create a connection option string from a Hash of options" do
-		optstring = described_class.parse_connect_args( 
+		optstring = described_class.parse_connect_args(
 			:host => 'pgsql.example.com',
 			:dbname => 'db01',
 			'sslmode' => 'require'
@@ -54,7 +54,7 @@ describe PG::Connection do
 	end
 
 	it "can create a connection option string from positional parameters" do
-		optstring = described_class.parse_connect_args( 'pgsql.example.com', nil, '-c geqo=off', nil, 
+		optstring = described_class.parse_connect_args( 'pgsql.example.com', nil, '-c geqo=off', nil,
 		                                       'sales' )
 
 		optstring.should be_a( String )
@@ -731,6 +731,70 @@ describe PG::Connection do
 
 	end
 
+	context "under PostgreSQL 9.2 client library", :postgresql_92 do
+		describe "set_single_row_mode" do
+
+			it "raises an error when called at the wrong time" do
+				expect {
+					@conn.set_single_row_mode
+				}.to raise_error(PG::Error)
+			end
+
+			it "should work in single row mode" do
+				@conn.send_query( "SELECT generate_series(1,10)" )
+				@conn.set_single_row_mode
+
+				results = []
+				loop do
+					@conn.block
+					res = @conn.get_result or break
+					results << res
+				end
+				results.length.should == 11
+				results[0..-2].each do |res|
+					res.result_status.should == PG::PGRES_SINGLE_TUPLE
+					values = res.field_values('generate_series')
+					values.length.should == 1
+					values.first.to_i.should > 0
+				end
+				results.last.result_status.should == PG::PGRES_TUPLES_OK
+				results.last.ntuples.should == 0
+			end
+
+			it "should receive rows before entire query is finished" do
+				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(1);" )
+				@conn.set_single_row_mode
+
+				start_time = Time.now
+				first_row_time = nil
+				loop do
+					res = @conn.get_result or break
+					res.check
+					first_row_time = Time.now unless first_row_time
+				end
+				(Time.now - start_time).should >= 1.0
+				(first_row_time - start_time).should < 1.0
+			end
+
+			it "should receive rows before entire query fails" do
+				@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
+				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, errfunc();" )
+				@conn.set_single_row_mode
+
+				first_result = nil
+				expect do
+					loop do
+						res = @conn.get_result or break
+						res.check
+						first_result ||= res
+					end
+				end.to raise_error(PG::Error)
+				first_result.kind_of?(PG::Result).should be_true
+				first_result.result_status.should == PG::PGRES_SINGLE_TUPLE
+			end
+		end
+	end
+
 	context "multinationalization support", :ruby_19 do
 
 		it "should return the same bytes in text format that are sent as inline text" do
@@ -891,5 +955,64 @@ describe PG::Connection do
 			conn.finish if conn
 		end
 
+		it "receives properly encoded messages in the notice callbacks" do
+			[:receiver, :processor].each do |kind|
+				notices = []
+				@conn.internal_encoding = 'utf-8'
+				if kind == :processor
+					@conn.set_notice_processor do |msg|
+						notices << msg
+					end
+				else
+					@conn.set_notice_receiver do |result|
+						notices << result.error_message
+					end
+				end
+
+				3.times do
+					@conn.exec "do $$ BEGIN RAISE NOTICE '世界線航跡蔵'; END; $$ LANGUAGE plpgsql;"
+				end
+
+				notices.length.should == 3
+				notices.each do |notice|
+					notice.should =~ /^NOTICE:.*世界線航跡蔵/
+					notice.encoding.should == Encoding::UTF_8
+				end
+				@conn.set_notice_receiver
+				@conn.set_notice_processor
+			end
+		end
+
+		it "receives properly encoded text from wait_for_notify" do
+			@conn.internal_encoding = 'utf-8'
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN "Möhre"' )
+			@conn.exec( %Q{NOTIFY "Möhre", '世界線航跡蔵'} )
+			event, pid, msg = nil
+			@conn.wait_for_notify( 10 ) do |*args|
+				event, pid, msg = *args
+			end
+			@conn.exec( 'UNLISTEN "Möhre"' )
+
+			event.should == "Möhre"
+			event.encoding.should == Encoding::UTF_8
+			msg.should == '世界線航跡蔵'
+			msg.encoding.should == Encoding::UTF_8
+		end
+
+		it "returns properly encoded text from notifies" do
+			@conn.internal_encoding = 'utf-8'
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( 'LISTEN "Möhre"' )
+			@conn.exec( %Q{NOTIFY "Möhre", '世界線航跡蔵'} )
+			@conn.exec( 'UNLISTEN "Möhre"' )
+
+			notification = @conn.notifies
+			notification[:relname].should == "Möhre"
+			notification[:relname].encoding.should == Encoding::UTF_8
+			notification[:extra].should == '世界線航跡蔵'
+			notification[:extra].encoding.should == Encoding::UTF_8
+			notification[:be_pid].should > 0
+		end
 	end
 end
