@@ -921,11 +921,11 @@ describe PG::Connection do
 			it "allows users of the async interface to set the client_encoding to the default_internal" do
 				begin
 					prev_encoding = Encoding.default_internal
-					Encoding.default_internal = Encoding::KOI8_U
+					Encoding.default_internal = Encoding::KOI8_R
 
 					@conn.set_default_encoding
 
-					@conn.internal_encoding.should == Encoding::KOI8_U
+					@conn.internal_encoding.should == Encoding::KOI8_R
 				ensure
 					Encoding.default_internal = prev_encoding
 				end
