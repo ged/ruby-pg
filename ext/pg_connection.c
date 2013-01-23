@@ -695,6 +695,10 @@ pgconn_error_message(VALUE self)
  *    conn.socket() -> Fixnum
  *
  * Returns the socket's file descriptor for this connection.
+ * IO.for_fd() can be used to build a proper IO object to the socket.
+ *
+ * *Note:* On Windows the file descriptor is not really usable,
+ * since it can not be used to build a Ruby IO object.
  */
 static VALUE
 pgconn_socket(VALUE self)

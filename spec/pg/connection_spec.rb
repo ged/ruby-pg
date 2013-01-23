@@ -123,7 +123,7 @@ describe PG::Connection do
 		}.to raise_error( ArgumentError, /extra positional parameter/i )
 	end
 
-	it "can connect asynchronously" do
+	it "can connect asynchronously", :unix do
 		tmpconn = described_class.connect_start( @conninfo )
 		tmpconn.should be_a( described_class )
 		socket = IO.for_fd( tmpconn.socket )
@@ -145,7 +145,7 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "can connect asynchronously for the duration of a block" do
+	it "can connect asynchronously for the duration of a block", :unix do
 		conn = nil
 
 		described_class.connect_start(@conninfo) do |tmpconn|
@@ -494,7 +494,7 @@ describe PG::Connection do
 	end
 
 
-	it "can connect asynchronously" do
+	it "can connect asynchronously", :unix do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 		[PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK].should include conn.connect_poll

@@ -241,6 +241,7 @@ RSpec.configure do |config|
 
 	config.mock_with :rspec
 	config.filter_run_excluding :ruby_19 if ruby_version_vec <= [1,9,1].pack( "N*" )
+	config.filter_run_excluding :unix if RUBY_PLATFORM =~ /mingw|mswin/
 
 	config.filter_run_excluding :postgresql_90 unless
 		PG::Connection.instance_methods.map( &:to_sym ).include?( :escape_literal )
