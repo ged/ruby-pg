@@ -412,16 +412,17 @@ describe PG::Connection do
 
 
 	it "described_class#block shouldn't block a second thread" do
+		start = Time.now
 		t = Thread.new do
 			@conn.send_query( "select pg_sleep(3)" )
 			@conn.block
 		end
 
-		# :FIXME: There's a race here, but hopefully it's pretty small.
+		sleep 0.5
 		t.should be_alive()
-
 		@conn.cancel
 		t.join
+		(Time.now - start).should < 3
 	end
 
 	it "described_class#block should allow a timeout" do
