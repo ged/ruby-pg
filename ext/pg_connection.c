@@ -40,6 +40,7 @@ static VALUE pgconn_set_default_encoding( VALUE self );
 #define rb_fd_init(f)
 #define rb_fd_zero(f)  FD_ZERO(f)
 #define rb_fd_set(n, f)  FD_SET(n, f)
+#define rb_fd_term(f)
 #define rb_thread_fd_select rb_thread_select
 #endif
 
@@ -2111,7 +2112,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if( PQconsumeInput(conn) == 0 ) {
 		WSACloseEvent( hEvent );
-		rb_raise( rb_ePGerror, PQerrorMessage(conn) );
+		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
 	}
 
 	while ( !(retval=is_readable(conn)) ) {
@@ -2138,7 +2139,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if ( PQconsumeInput(conn) == 0 ) {
 			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, PQerrorMessage(conn) );
+			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
 		}
 	}
 
@@ -2189,18 +2190,25 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
 #endif
 
-		if ( ret < 0 )
+		if ( ret < 0 ){
+			rb_fd_term( &sd_rset );
 			rb_sys_fail( "rb_thread_select()" );
+		}
 
 		/* Return false if the select() timed out */
-		if ( ret == 0 )
+		if ( ret == 0 ){
+			rb_fd_term( &sd_rset );
 			return NULL;
+		}
 
 		/* Check for connection errors (PQisBusy is true on connection errors) */
-		if ( PQconsumeInput(conn) == 0 )
+		if ( PQconsumeInput(conn) == 0 ){
+			rb_fd_term( &sd_rset );
 			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+		}
 	}
 
+	rb_fd_term( &sd_rset );
 	return retval;
 }
 
