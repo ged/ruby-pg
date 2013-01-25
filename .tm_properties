@@ -6,7 +6,11 @@ excludeInFileChooser = "{$exclude,.hg}"
 TM_MAKE      = 'rake'
 TM_MAKE_FILE = '${projectDirectory}/Rakefile'
 
-[ source ]
+[ source.ruby ]
+softTabs         = false
+tabSize          = 4
+
+[ source.ruby.rspec ]
 softTabs         = false
 tabSize          = 4
 
