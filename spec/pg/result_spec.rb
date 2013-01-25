@@ -66,13 +66,14 @@ describe PG::Result do
 			should == 'relation "nonexistant_table" does not exist'
 		result.error_field( PG::PG_DIAG_MESSAGE_DETAIL ).should be_nil()
 		result.error_field( PG::PG_DIAG_MESSAGE_HINT ).should be_nil()
-		result.error_field( PG::PG_DIAG_STATEMENT_POSITION ).should == '15'
+		statement_pos = RSpec.configuration.exclusion_filter[:postgresql_90] ? nil : '15'
+		result.error_field( PG::PG_DIAG_STATEMENT_POSITION ).should == statement_pos
 		result.error_field( PG::PG_DIAG_INTERNAL_POSITION ).should be_nil()
 		result.error_field( PG::PG_DIAG_INTERNAL_QUERY ).should be_nil()
 		result.error_field( PG::PG_DIAG_CONTEXT ).should be_nil()
-		result.error_field( PG::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$/
+		result.error_field( PG::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$|namespace\.c$/
 		result.error_field( PG::PG_DIAG_SOURCE_LINE ).should =~ /^\d+$/
-		result.error_field( PG::PG_DIAG_SOURCE_FUNCTION ).should == 'parserOpenTable'
+		result.error_field( PG::PG_DIAG_SOURCE_FUNCTION ).should =~ /^parserOpenTable$|^RangeVarGetRelid$/
 
 	end
 
@@ -89,7 +90,7 @@ describe PG::Result do
 	it "should return the same bytes in binary format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
-		res = @conn.exec('VALUES ($1::bytea)', 
+		res = @conn.exec('VALUES ($1::bytea)',
 			[ { :value => bytes, :format => 1 } ], 1)
 		res[0]['column1'].should== bytes
 		res.getvalue(0,0).should == bytes
@@ -111,7 +112,7 @@ describe PG::Result do
 	it "should return the same bytes in text format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
-		res = @conn.exec('VALUES ($1::bytea)', 
+		res = @conn.exec('VALUES ($1::bytea)',
 			[ { :value => bytes, :format => 1 } ])
 		PG::Connection.unescape_bytea(res[0]['column1']).should== bytes
 	end
@@ -264,7 +265,7 @@ describe PG::Result do
 		res = @conn.exec( "SELECT 1 AS x, 'a' AS y UNION ALL SELECT 2, 'b'" )
 		res.field_values( 'x' ).should == ['1', '2']
 		res.field_values( 'y' ).should == ['a', 'b']
-		expect{ res.field_values( '' ) }.should raise_error(IndexError)
-		expect{ res.field_values( :x ) }.should raise_error(TypeError)
+		expect{ res.field_values( '' ) }.to raise_error(IndexError)
+		expect{ res.field_values( :x ) }.to raise_error(TypeError)
 	end
 end

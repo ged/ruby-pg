@@ -107,7 +107,7 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "connects using a hash of optional connection parameters" do
+	it "connects using a hash of optional connection parameters", :postgresql_90 do
 		tmpconn = described_class.connect(
 			:host => 'localhost',
 			:port => @port,
@@ -123,7 +123,7 @@ describe PG::Connection do
 		}.to raise_error( ArgumentError, /extra positional parameter/i )
 	end
 
-	it "can connect asynchronously" do
+	it "can connect asynchronously", :unix do
 		tmpconn = described_class.connect_start( @conninfo )
 		tmpconn.should be_a( described_class )
 		socket = IO.for_fd( tmpconn.socket )
@@ -145,7 +145,7 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "can connect asynchronously for the duration of a block" do
+	it "can connect asynchronously for the duration of a block", :unix do
 		conn = nil
 
 		described_class.connect_start(@conninfo) do |tmpconn|
@@ -290,35 +290,33 @@ describe PG::Connection do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
-		pid = fork do
+		t = Thread.new do
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 1
-				conn.exec( 'NOTIFY woo' )
+				conn.async_exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
-				exit!
 			end
 		end
 
 		@conn.wait_for_notify( 10 ).should == 'woo'
 		@conn.exec( 'UNLISTEN woo' )
 
-		Process.wait( pid )
+		t.join
 	end
 
 	it "calls a block for NOTIFY events if one is given" do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
-		pid = fork do
+		t = Thread.new do
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 1
-				conn.exec( 'NOTIFY woo' )
+				conn.async_exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
-				exit!
 			end
 		end
 
@@ -329,7 +327,7 @@ describe PG::Connection do
 
 		@conn.exec( 'UNLISTEN woo' )
 
-		Process.wait( pid )
+		t.join
 	end
 
 	it "doesn't collapse sequential notifications" do
@@ -338,19 +336,14 @@ describe PG::Connection do
 		@conn.exec( 'LISTEN war' )
 		@conn.exec( 'LISTEN woz' )
 
-		pid = fork do
-			begin
-				conn = described_class.connect( @conninfo )
-				conn.exec( 'NOTIFY woo' )
-				conn.exec( 'NOTIFY war' )
-				conn.exec( 'NOTIFY woz' )
-			ensure
-				conn.finish
-				exit!
-			end
+		begin
+			conn = described_class.connect( @conninfo )
+			conn.exec( 'NOTIFY woo' )
+			conn.exec( 'NOTIFY war' )
+			conn.exec( 'NOTIFY woz' )
+		ensure
+			conn.finish
 		end
-
-		Process.wait( pid )
 
 		channels = []
 		3.times do
@@ -370,18 +363,12 @@ describe PG::Connection do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
 
-		pid = fork do
-			begin
-				conn = described_class.connect( @conninfo )
-				conn.exec( 'NOTIFY woo' )
-			ensure
-				conn.finish
-				exit!
-			end
+		begin
+			conn = described_class.connect( @conninfo )
+			conn.exec( 'NOTIFY woo' )
+		ensure
+			conn.finish
 		end
-
-		# Wait for the forked child to send the notification
-		Process.wait( pid )
 
 		# Cause the notification to buffer, but not be read yet
 		@conn.exec( 'SELECT 1' )
@@ -425,16 +412,17 @@ describe PG::Connection do
 
 
 	it "described_class#block shouldn't block a second thread" do
+		start = Time.now
 		t = Thread.new do
 			@conn.send_query( "select pg_sleep(3)" )
 			@conn.block
 		end
 
-		# :FIXME: There's a race here, but hopefully it's pretty small.
+		sleep 0.5
 		t.should be_alive()
-
 		@conn.cancel
 		t.join
+		(Time.now - start).should < 3
 	end
 
 	it "described_class#block should allow a timeout" do
@@ -506,10 +494,10 @@ describe PG::Connection do
 	end
 
 
-	it "can connect asynchronously" do
+	it "can connect asynchronously", :unix do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		conn.connect_poll.should == PG::PGRES_POLLING_WRITING
+		[PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK].should include conn.connect_poll
 		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
 		serv.close
 		if conn.connect_poll == PG::PGRES_POLLING_READING
@@ -552,14 +540,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			event, pid, msg = nil
 			@conn.wait_for_notify( 10 ) do |*args|
@@ -576,14 +559,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees} )
+			conn.finish
 
 			event, pid = nil
 			@conn.wait_for_notify( nil ) do |*args|
@@ -599,14 +577,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees} )
+			conn.finish
 
 			payload = :notnil
 			@conn.wait_for_notify( nil ) do |*args|
@@ -623,14 +596,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			event, pid, msg = nil
 			@conn.wait_for_notify( 10 ) do |arg1, arg2|
@@ -649,14 +617,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			notification_received = false
 			@conn.wait_for_notify( 10 ) do
@@ -673,14 +636,9 @@ describe PG::Connection do
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN knees' )
 
-			pid = fork do
-				conn = described_class.connect( @conninfo )
-				conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-				conn.finish
-				exit!
-			end
-
-			Process.wait( pid )
+			conn = described_class.connect( @conninfo )
+			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+			conn.finish
 
 			event, pid, msg = nil
 			@conn.wait_for_notify( 10 ) do |arg1, arg2, arg3|
@@ -797,21 +755,6 @@ describe PG::Connection do
 
 	context "multinationalization support", :ruby_19 do
 
-		it "should return the same bytes in text format that are sent as inline text" do
-			binary_file   = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
-			in_bytes      = File.open(binary_file, 'r:ASCII-8BIT').read
-			escaped_bytes = described_class.escape_bytea( in_bytes )
-			out_bytes     = nil
-
-			@conn.transaction do |conn|
-				conn.exec("SET standard_conforming_strings=on")
-				res = conn.exec("VALUES ('#{escaped_bytes}'::bytea)", [], 0)
-				out_bytes = described_class.unescape_bytea( res[0]['column1'] )
-			end
-
-			out_bytes.should == in_bytes
-		end
-
 		describe "rubyforge #22925: m17n support" do
 			it "should return results in the same encoding as the client (iso-8859-1)" do
 				out_string = nil
@@ -887,7 +830,7 @@ describe PG::Connection do
 				escaped.encoding.should == Encoding::EUC_JP
 			end
 
-			it "escapes string as literal" do
+			it "escapes string as literal", :postgresql_90 do
 				original = "string to\0 escape"
 				escaped  = @conn.escape_literal( original )
 				escaped.should == "'string to'"
@@ -921,11 +864,11 @@ describe PG::Connection do
 			it "allows users of the async interface to set the client_encoding to the default_internal" do
 				begin
 					prev_encoding = Encoding.default_internal
-					Encoding.default_internal = Encoding::KOI8_U
+					Encoding.default_internal = Encoding::KOI8_R
 
 					@conn.set_default_encoding
 
-					@conn.internal_encoding.should == Encoding::KOI8_U
+					@conn.internal_encoding.should == Encoding::KOI8_R
 				ensure
 					Encoding.default_internal = prev_encoding
 				end
@@ -955,7 +898,7 @@ describe PG::Connection do
 			conn.finish if conn
 		end
 
-		it "receives properly encoded messages in the notice callbacks" do
+		it "receives properly encoded messages in the notice callbacks", :postgresql_90 do
 			[:receiver, :processor].each do |kind|
 				notices = []
 				@conn.internal_encoding = 'utf-8'
@@ -983,7 +926,7 @@ describe PG::Connection do
 			end
 		end
 
-		it "receives properly encoded text from wait_for_notify" do
+		it "receives properly encoded text from wait_for_notify", :postgresql_90 do
 			@conn.internal_encoding = 'utf-8'
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
@@ -1000,7 +943,7 @@ describe PG::Connection do
 			msg.encoding.should == Encoding::UTF_8
 		end
 
-		it "returns properly encoded text from notifies" do
+		it "returns properly encoded text from notifies", :postgresql_90 do
 			@conn.internal_encoding = 'utf-8'
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
@@ -1013,6 +956,18 @@ describe PG::Connection do
 			notification[:extra].should == '世界線航跡蔵'
 			notification[:extra].encoding.should == Encoding::UTF_8
 			notification[:be_pid].should > 0
+		end
+	end
+
+	context "OS thread support", :ruby_19 do
+		it "described_class#exec shouldn't block a second thread" do
+			t = Thread.new do
+				@conn.exec( "select pg_sleep(1)" )
+			end
+
+			sleep 0.5
+			t.should be_alive()
+			t.join
 		end
 	end
 end

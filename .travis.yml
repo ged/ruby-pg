@@ -1,0 +1,41 @@
+language: ruby
+rvm:
+  - "1.8.7"
+#   - "1.9.2"
+  - "1.9.3"
+#   - jruby-18mode # JRuby in 1.8 mode
+#   - jruby-19mode # JRuby in 1.9 mode
+  - rbx-18mode
+  - rbx-19mode
+env:
+  - "PGVERSION=9.2.2-1-linux PATH=\"/opt/PostgreSQL/9.2/bin:$PATH\" LD_LIBRARY_PATH=/opt/PostgreSQL/9.2/lib"
+  - "PGVERSION=8.3.22-1-linux PATH=\"/opt/PostgreSQL/8.3/bin:$PATH\" LD_LIBRARY_PATH=/opt/PostgreSQL/8.3/lib"
+  - "PGCROSS=true"
+matrix:
+  # Test cross compilation only with 1.8.7
+  exclude:
+    - rvm: 1.9.2
+      env: "PGCROSS=true"
+    - rvm: 1.9.3
+      env: "PGCROSS=true"
+    - rvm: jruby-18mode
+      env: "PGCROSS=true"
+    - rvm: jruby-19mode
+      env: "PGCROSS=true"
+    - rvm: rbx-18mode
+      env: "PGCROSS=true"
+    - rvm: rbx-19mode
+      env: "PGCROSS=true"
+before_install:
+  - gem install hoe rake-compiler rspec;
+  # Download and install postgresql version to test against in /opt (for non-cross compile only)
+  - "if [ -z \"$PGCROSS\" ]; then
+      wget http://get.enterprisedb.com/postgresql/postgresql-$PGVERSION.run &&
+      chmod +x postgresql-$PGVERSION.run &&
+      sudo ./postgresql-$PGVERSION.run --mode unattended;
+    fi"
+  # Install compiler and ruby versions for cross compile (as seperate tasks to not exceed timeout limits)
+  - "if [ -n \"$PGCROSS\" ]; then sudo apt-get install gcc-mingw-w64-i686 binutils-mingw-w64-i686; fi"
+  - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=1.8.7-p371; fi"
+  - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=1.9.3-p125; fi"
+script: "if [ -z \"$PGCROSS\" ]; then rake compile test; else rake cross compile; fi"
