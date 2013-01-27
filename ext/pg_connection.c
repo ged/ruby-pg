@@ -275,7 +275,6 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 {
 	PGPing ping;
 	VALUE conninfo;
-	VALUE error;
 
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
 	ping     = PQping( StringValuePtr(conninfo) );
