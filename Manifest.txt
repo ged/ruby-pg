@@ -13,6 +13,8 @@ README.rdoc
 Rakefile
 Rakefile.cross
 ext/extconf.rb
+ext/gvl_wrappers.c
+ext/gvl_wrappers.h
 ext/pg.c
 ext/pg.h
 ext/pg_connection.c
@@ -25,6 +27,7 @@ lib/pg/connection.rb
 lib/pg/constants.rb
 lib/pg/exceptions.rb
 lib/pg/result.rb
+sample/array_insert.rb
 sample/async_api.rb
 sample/async_copyto.rb
 sample/async_mixed.rb
