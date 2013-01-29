@@ -44,6 +44,13 @@ describe PG::Result do
 		res[0]['b'].should== '2'
 	end
 
+	it "should yield a row as an array" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		list = []
+		res.each_row { |r| list << r }
+		list.should eq [['1', '2']]
+	end
+
 	it "should insert nil AS NULL and return NULL as nil" do
 		res = @conn.exec("SELECT $1::int AS n", [nil])
 		res[0]['n'].should be_nil()

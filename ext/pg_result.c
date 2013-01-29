@@ -728,22 +728,20 @@ pgresult_aref(VALUE self, VALUE index)
 	return tuple;
 }
 
-
 /*
  * call-seq:
- *    res.values -> Array
+ *    res.each_row { |row| ... }
  *
- * Returns all tuples as an array of arrays.
+ * Yields each row of the result. The row is a list of column values.
  */
 static VALUE
-pgresult_values(VALUE self)
+pgresult_each_row(VALUE self)
 {
 	PGresult* result = (PGresult*) pgresult_get(self);
 	int row;
 	int field;
 	int num_rows = PQntuples(result);
 	int num_fields = PQnfields(result);
-	VALUE ary = rb_ary_new2(num_rows);
 
 	for ( row = 0; row < num_rows; row++ ) {
 		VALUE new_row = rb_ary_new2(num_fields);
@@ -768,11 +766,10 @@ pgresult_values(VALUE self)
 				rb_ary_store( new_row, field, val );
 			}
 		}
-
-		rb_ary_store( ary, row, new_row );
+		rb_yield( new_row );
 	}
 
-	return ary;
+	return Qnil;
 }
 
 
@@ -934,7 +931,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "[]", pgresult_aref, 1);
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
-	rb_define_method(rb_cPGresult, "values", pgresult_values, 0);
+	rb_define_method(rb_cPGresult, "each_row", pgresult_each_row, 0);
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 }
