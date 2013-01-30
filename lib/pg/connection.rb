@@ -66,6 +66,18 @@ class PG::Connection
 	end
 
 
+	### Fetch a memoized IO object created from the Connection's underlying socket.
+	### Using this avoids the problem of the underlying connection being closed by
+	### Ruby when an IO created using <tt>IO.for_fd(conn.socket)</tt> goes out of scope.
+	def socket_io
+		unless @socket_io
+			@socket_io = IO.for_fd( self.socket )
+			@socket_io.autoclose = false if @socket_io.respond_to?( :autoclose= )
+		end
+
+		return @socket_io
+	end
+
 end # class PG::Connection
 
 # Backward-compatible alias

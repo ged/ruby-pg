@@ -126,7 +126,7 @@ describe PG::Connection do
 	it "can connect asynchronously", :unix do
 		tmpconn = described_class.connect_start( @conninfo )
 		tmpconn.should be_a( described_class )
-		socket = IO.for_fd( tmpconn.socket )
+		socket = tmpconn.socket_io
 		status = tmpconn.connect_poll
 
 		while status != PG::PGRES_POLLING_OK
@@ -151,7 +151,7 @@ describe PG::Connection do
 		described_class.connect_start(@conninfo) do |tmpconn|
 			tmpconn.should be_a( described_class )
 			conn = tmpconn
-			socket = IO.for_fd(tmpconn.socket)
+			socket = tmpconn.socket_io
 			status = tmpconn.connect_poll
 
 			while status != PG::PGRES_POLLING_OK
@@ -498,10 +498,10 @@ describe PG::Connection do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 		[PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK].should include conn.connect_poll
-		select( nil, [IO.for_fd(conn.socket)], nil, 0.2 )
+		select( nil, [conn.socket_io], nil, 0.2 )
 		serv.close
 		if conn.connect_poll == PG::PGRES_POLLING_READING
-			select( [IO.for_fd(conn.socket)], nil, nil, 0.2 )
+			select( [conn.socket_io], nil, nil, 0.2 )
 		end
 		conn.connect_poll.should == PG::PGRES_POLLING_FAILED
 	end

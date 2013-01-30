@@ -9,7 +9,7 @@ $stderr.puts "Opening database connection ..."
 conn = PG.connect( :dbname => 'test' )
 conn.setnonblocking( true )
 
-socket = IO.for_fd( conn.socket )
+socket = conn.socket_io
 
 $stderr.puts "Running COPY command ..."
 buf = ''

@@ -695,7 +695,12 @@ pgconn_error_message(VALUE self)
  *    conn.socket() -> Fixnum
  *
  * Returns the socket's file descriptor for this connection.
- * IO.for_fd() can be used to build a proper IO object to the socket.
+ * <tt>IO.for_fd()</tt> can be used to build a proper IO object to the socket.
+ * If you do so, you will likely also want to set <tt>autoclose=false</tt>
+ * on it to prevent Ruby from closing the socket to PostgreSQL if it
+ * goes out of scope. Alternatively, you can use #socket_io, which
+ * creates an IO that's associated with the connection object itself,
+ * and so won't go out of scope until the connection does.
  *
  * *Note:* On Windows the file descriptor is not really usable,
  * since it can not be used to build a Ruby IO object.

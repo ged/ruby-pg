@@ -29,7 +29,7 @@ abort "Connection failed: %s" % [ conn.error_message ] if
 
 # Now grab a reference to the underlying socket so we know when the
 # connection is established
-socket = IO.for_fd( conn.socket )
+socket = conn.socket_io
 
 # Track the progress of the connection, waiting for the socket to become readable/writable
 # before polling it
