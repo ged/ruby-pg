@@ -5,8 +5,8 @@ Bugfixes:
 - Fix segfault in PG::Result#field_values when called with non String value.
 - Fix encoding of messages delivered by notice callbacks.
 - Fix text encoding for Connection#wait_for_notify and Connection#notifies.
-- Fix 'Bad file descriptor' respectively wrong behaviour of #wait_for_notify()
-  on Windows and fix timeout handling of #block on Ruby 1.9 on Windows.
+- Fix 'Bad file descriptor' problems under Windows: wrong behaviour of
+  #wait_for_notify() and timeout handling of #block on Ruby 1.9.
 
 Documentation fixes:
 
@@ -24,6 +24,8 @@ Enhancements:
   rb_thread_select().
 - Add an example of how to insert array data using a prepared statement (#145).
 - Add continous integration tests on travis-ci.org.
+- Add PG::Result#each_value for looping over result sets by row. Thanks to
+  Aaron Patterson for the patch.
 
 Specs:
 
