@@ -110,8 +110,6 @@ module PG::TestingHelpers
 	end
 
 
-	NOFORK_PLATFORMS = %w{java}
-
 	### Run the specified command +cmd+ after redirecting stdout and stderr to the specified
 	### +logpath+, failing if the execution fails.
 	def log_and_run( logpath, *cmd )
@@ -126,11 +124,14 @@ module PG::TestingHelpers
 		# Eliminate the noise of creating/tearing down the database by
 		# redirecting STDERR/STDOUT to a logfile if the Ruby interpreter
 		# supports fork()
-		if NOFORK_PLATFORMS.include?( RUBY_PLATFORM )
+		logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
+		begin
+			pid = fork
+		rescue NotImplementedError
+			logfh.close
 			system( *cmd )
 		else
-			logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
-			if pid = fork
+			if pid
 				logfh.close
 			else
 				$stdout.reopen( logfh )
@@ -240,6 +241,7 @@ RSpec.configure do |config|
 
 	config.mock_with :rspec
 	config.filter_run_excluding :ruby_19 if ruby_version_vec <= [1,9,1].pack( "N*" )
+	config.filter_run_excluding :unix if RUBY_PLATFORM =~ /mingw|mswin/
 
 	config.filter_run_excluding :postgresql_90 unless
 		PG::Connection.instance_methods.map( &:to_sym ).include?( :escape_literal )

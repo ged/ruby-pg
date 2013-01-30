@@ -35,6 +35,15 @@ static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
 #endif
 
+#ifndef HAVE_RB_THREAD_FD_SELECT
+#define rb_fdset_t fd_set
+#define rb_fd_init(f)
+#define rb_fd_zero(f)  FD_ZERO(f)
+#define rb_fd_set(n, f)  FD_SET(n, f)
+#define rb_fd_term(f)
+#define rb_thread_fd_select rb_thread_select
+#endif
+
 /*
  * Global functions
  */
@@ -266,7 +275,6 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 {
 	PGPing ping;
 	VALUE conninfo;
-	VALUE error;
 
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
 	ping     = PQping( StringValuePtr(conninfo) );
@@ -687,6 +695,10 @@ pgconn_error_message(VALUE self)
  *    conn.socket() -> Fixnum
  *
  * Returns the socket's file descriptor for this connection.
+ * IO.for_fd() can be used to build a proper IO object to the socket.
+ *
+ * *Note:* On Windows the file descriptor is not really usable,
+ * since it can not be used to build a Ruby IO object.
  */
 static VALUE
 pgconn_socket(VALUE self)
@@ -740,6 +752,7 @@ pgconn_connection_used_password(VALUE self)
 
 
 /* :TODO: get_ssl */
+
 
 
 /*
@@ -803,7 +816,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 	/* If called with no parameters, use PQexec */
 	if(NIL_P(params)) {
-		result = PQexec(conn, StringValuePtr(command));
+		result = gvl_PQexec(conn, StringValuePtr(command));
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
@@ -877,7 +890,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
+	result = gvl_PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -945,7 +958,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2INT(param);
 		}
 	}
-	result = PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1064,7 +1077,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQexecPrepared(conn, StringValuePtr(name), nParams,
+	result = gvl_PQexecPrepared(conn, StringValuePtr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
@@ -1104,7 +1117,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 		Check_Type(stmt_name, T_STRING);
 		stmt = StringValuePtr(stmt_name);
 	}
-	result = PQdescribePrepared(conn, stmt);
+	result = gvl_PQdescribePrepared(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1132,7 +1145,7 @@ pgconn_describe_portal(self, stmt_name)
 		Check_Type(stmt_name, T_STRING);
 		stmt = StringValuePtr(stmt_name);
 	}
-	result = PQdescribePortal(conn, stmt);
+	result = gvl_PQdescribePortal(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1821,7 +1834,7 @@ pgconn_get_result(VALUE self)
 	PGresult *result;
 	VALUE rb_pgresult;
 
-	result = PQgetResult(conn);
+	result = gvl_PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
 	rb_pgresult = pg_new_result(result, self);
@@ -2027,8 +2040,9 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
+/* Win32 + Ruby 1.8 */
+#if !defined( HAVE_RUBY_VM_H ) && defined( _WIN32 )
 
-#ifdef _WIN32
 /*
  * Duplicate the sockets from libpq and create temporary CRT FDs
  */
@@ -2063,6 +2077,149 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
 }
 #endif
 
+/* Win32 + Ruby 1.9+ */
+#if defined( HAVE_RUBY_VM_H ) && defined( _WIN32 )
+/*
+ * On Windows, use platform-specific strategies to wait for the socket
+ * instead of rb_thread_select().
+ */
+
+int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
+
+/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
+ * and does not wait (nor sleep) any time even if timeout is given.
+ * Instead use the Winsock events and rb_w32_wait_events(). */
+
+static void *
+wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *) )
+{
+	int sd = PQsocket( conn );
+	void *retval;
+	DWORD timeout_milisec = INFINITE;
+	DWORD wait_ret;
+	WSAEVENT hEvent;
+
+	if ( sd < 0 )
+		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
+
+	hEvent = WSACreateEvent();
+
+	if ( ptimeout ) {
+		timeout_milisec = (DWORD)( ptimeout->tv_sec * 1e3 + ptimeout->tv_usec / 1e3 );
+	}
+
+	/* Check for connection errors (PQisBusy is true on connection errors) */
+	if( PQconsumeInput(conn) == 0 ) {
+		WSACloseEvent( hEvent );
+		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+	}
+
+	while ( !(retval=is_readable(conn)) ) {
+		if ( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_ePGerror, "WSAEventSelect socket error: %d", WSAGetLastError() );
+		}
+
+		wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
+
+		if ( wait_ret == WAIT_TIMEOUT ) {
+			WSACloseEvent( hEvent );
+			return NULL;
+		} else if ( wait_ret == WAIT_OBJECT_0 ) {
+			/* The event we were waiting for. */
+		} else if ( wait_ret == WAIT_FAILED ) {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_ePGerror, "Wait on socket error (WaitForMultipleObjects): %d", GetLastError() );
+		} else {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_ePGerror, "Wait on socket abandoned (WaitForMultipleObjects)" );
+		}
+
+		/* Check for connection errors (PQisBusy is true on connection errors) */
+		if ( PQconsumeInput(conn) == 0 ) {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+		}
+	}
+
+	WSACloseEvent( hEvent );
+	return retval;
+}
+
+#else
+
+/* non Win32 or Win32+Ruby-1.8 */
+
+static void *
+wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
+{
+	int sd = PQsocket( conn );
+	int ret;
+	void *retval;
+	rb_fdset_t sd_rset;
+#ifdef _WIN32
+	rb_fdset_t crt_sd_rset;
+#endif
+
+	if ( sd < 0 )
+		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
+
+	/* Check for connection errors (PQisBusy is true on connection errors) */
+	if ( PQconsumeInput(conn) == 0 )
+		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+
+  rb_fd_init( &sd_rset );
+
+	while ( !(retval=is_readable(conn)) ) {
+		rb_fd_zero( &sd_rset );
+		rb_fd_set( sd, &sd_rset );
+
+#ifdef _WIN32
+		/* Ruby's FD_SET is modified on win32 to convert a file descriptor
+		 * to osfhandle, but we already get a osfhandle from PQsocket().
+		 * Therefore it's overwritten here. */
+		sd_rset.fd_array[0] = sd;
+		create_crt_fd(&sd_rset, &crt_sd_rset);
+#endif
+
+		/* Wait for the socket to become readable before checking again */
+		ret = rb_thread_fd_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
+
+#ifdef _WIN32
+		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
+#endif
+
+		if ( ret < 0 ){
+			rb_fd_term( &sd_rset );
+			rb_sys_fail( "rb_thread_select()" );
+		}
+
+		/* Return false if the select() timed out */
+		if ( ret == 0 ){
+			rb_fd_term( &sd_rset );
+			return NULL;
+		}
+
+		/* Check for connection errors (PQisBusy is true on connection errors) */
+		if ( PQconsumeInput(conn) == 0 ){
+			rb_fd_term( &sd_rset );
+			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+		}
+	}
+
+	rb_fd_term( &sd_rset );
+	return retval;
+}
+
+
+#endif
+
+static void *
+notify_readable(PGconn *conn)
+{
+	return (void*)PQnotifies(conn);
+}
+
 /*
  * call-seq:
  *    conn.wait_for_notify( [ timeout ] ) -> String
@@ -2086,20 +2243,11 @@ static VALUE
 pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = pg_get_pgconn( self );
-	PGnotify *notification;
-	int sd = PQsocket( conn );
-	int ret;
+	PGnotify *pnotification;
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
 	VALUE timeout_in = Qnil, relname = Qnil, be_pid = Qnil, extra = Qnil;
 	double timeout_sec;
-	fd_set sd_rset;
-#ifdef _WIN32
-	fd_set crt_sd_rset;
-#endif
-
-	if ( sd < 0 )
-		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
 
 	rb_scan_args( argc, argv, "01", &timeout_in );
 
@@ -2110,47 +2258,25 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 		ptimeout = &timeout;
 	}
 
-	/* Check for notifications */
-	while ( (notification = PQnotifies(conn)) == NULL ) {
-		FD_ZERO( &sd_rset );
-		FD_SET( sd, &sd_rset );
+	pnotification = (PGnotify*) wait_socket_readable( conn, ptimeout, notify_readable);
 
-#ifdef _WIN32
-		create_crt_fd(&sd_rset, &crt_sd_rset);
-#endif
+	/* Return nil if the select timed out */
+	if ( !pnotification ) return Qnil;
 
-		/* Wait for the socket to become readable before checking again */
-		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
-
-#ifdef _WIN32
-		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
-#endif
-
-		if ( ret < 0 )
-			rb_sys_fail( 0 );
-
-		/* Return nil if the select timed out */
-		if ( ret == 0 ) return Qnil;
-
-		/* Read the socket */
-		if ( (ret = PQconsumeInput(conn)) != 1 )
-			rb_raise( rb_ePGerror, "PQconsumeInput == %d: %s", ret, PQerrorMessage(conn) );
-	}
-
-	relname = rb_tainted_str_new2( notification->relname );
+	relname = rb_tainted_str_new2( pnotification->relname );
 #ifdef M17N_SUPPORTED
 	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
 #endif
-	be_pid = INT2NUM( notification->be_pid );
+	be_pid = INT2NUM( pnotification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
-	if ( *notification->extra ) {
-		extra = rb_tainted_str_new2( notification->extra );
+	if ( *pnotification->extra ) {
+		extra = rb_tainted_str_new2( pnotification->extra );
 #ifdef M17N_SUPPORTED
 		ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
 #endif
 	}
 #endif
-	PQfreemem( notification );
+	PQfreemem( pnotification );
 
 	if ( rb_block_given_p() )
 		rb_yield_values( 3, relname, be_pid, extra );
@@ -2179,7 +2305,7 @@ pgconn_put_copy_data(self, buffer)
 	PGconn *conn = pg_get_pgconn(self);
 	Check_Type(buffer, T_STRING);
 
-	ret = PQputCopyData(conn, RSTRING_PTR(buffer), (int)RSTRING_LEN(buffer));
+	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), (int)RSTRING_LEN(buffer));
 	if(ret == -1) {
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2216,7 +2342,7 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 	else
 		error_message = StringValuePtr(str);
 
-	ret = PQputCopyEnd(conn, error_message);
+	ret = gvl_PQputCopyEnd(conn, error_message);
 	if(ret == -1) {
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2250,7 +2376,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 	else
 		async = (async_in == Qfalse || async_in == Qnil) ? 0 : 1;
 
-	ret = PQgetCopyData(conn, &buffer, async);
+	ret = gvl_PQgetCopyData(conn, &buffer, async);
 	if(ret == -2) { /* error */
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2351,7 +2477,7 @@ pgconn_untrace(VALUE self)
  * Notice callback proxy function -- delegate the callback to the
  * currently-registered Ruby notice_receiver object.
  */
-static void
+void
 notice_receiver_proxy(void *arg, const PGresult *result)
 {
 	VALUE proc;
@@ -2415,7 +2541,7 @@ pgconn_set_notice_receiver(VALUE self)
 	old_proc = rb_iv_get(self, "@notice_receiver");
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeReceiver(conn, notice_receiver_proxy, (void *)self);
+		PQsetNoticeReceiver(conn, gvl_notice_receiver_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
@@ -2431,7 +2557,7 @@ pgconn_set_notice_receiver(VALUE self)
  * Notice callback proxy function -- delegate the callback to the
  * currently-registered Ruby notice_processor object.
  */
-static void
+void
 notice_processor_proxy(void *arg, const char *message)
 {
 	VALUE proc;
@@ -2479,7 +2605,7 @@ pgconn_set_notice_processor(VALUE self)
 	old_proc = rb_iv_get(self, "@notice_processor");
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeProcessor(conn, notice_processor_proxy, (void *)self);
+		PQsetNoticeProcessor(conn, gvl_notice_processor_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
@@ -2542,18 +2668,18 @@ pgconn_transaction(VALUE self)
 	int status;
 
 	if (rb_block_given_p()) {
-		result = PQexec(conn, "BEGIN");
+		result = gvl_PQexec(conn, "BEGIN");
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		rb_protect(rb_yield, self, &status);
 		if(status == 0) {
-			result = PQexec(conn, "COMMIT");
+			result = gvl_PQexec(conn, "COMMIT");
 			rb_pgresult = pg_new_result(result, self);
 			pg_result_check(rb_pgresult);
 		}
 		else {
 			/* exception occurred, ROLLBACK and re-raise */
-			result = PQexec(conn, "ROLLBACK");
+			result = gvl_PQexec(conn, "ROLLBACK");
 			rb_pgresult = pg_new_result(result, self);
 			pg_result_check(rb_pgresult);
 			rb_jump_tag(status);
@@ -2619,7 +2745,12 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 }
 
 
-#ifndef _WIN32
+static void *
+get_result_readable(PGconn *conn)
+{
+	return PQisBusy(conn) ? NULL : (void*)1;
+}
+
 
 /*
  * call-seq:
@@ -2637,8 +2768,6 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 static VALUE
 pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	PGconn *conn = pg_get_pgconn( self );
-	int sd = PQsocket( conn );
-	int ret;
 
 	/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
 	 * and does not wait (nor sleep) any time even if timeout is given.
@@ -2646,9 +2775,9 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
-	fd_set sd_rset;
 	VALUE timeout_in;
 	double timeout_sec;
+	void *ret;
 
 	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
 		timeout_sec = NUM2DBL( timeout_in );
@@ -2657,165 +2786,13 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		ptimeout = &timeout;
 	}
 
-	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if ( PQconsumeInput(conn) == 0 )
-		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+	ret = wait_socket_readable( conn, ptimeout, get_result_readable);
 
-	while ( PQisBusy(conn) ) {
-		FD_ZERO( &sd_rset );
-		FD_SET( sd, &sd_rset );
-
-		if ( (ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout )) < 0 )
-			rb_sys_fail( "rb_thread_select()" ); /* Raises */
-
-		/* Return false if there was a timeout argument and the select() timed out */
-		if ( ret == 0 && argc )
-			return Qfalse;
-
-		/* Check for connection errors (PQisBusy is true on connection errors) */
-		if ( PQconsumeInput(conn) == 0 )
-			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
-	}
+	if( !ret )
+		return Qfalse;
 
 	return Qtrue;
 }
-
-
-#else /* _WIN32 */
-
-/*
- * Win32 PG::Connection#block -- on Windows, use platform-specific strategies to wait for the socket
- * instead of rb_thread_select().
- */
-
-/* Win32 + Ruby 1.9+ */
-#ifdef HAVE_RUBY_VM_H
-
-int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
-
-/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
- * and does not wait (nor sleep) any time even if timeout is given.
- * Instead use the Winsock events and rb_w32_wait_events(). */
-
-static VALUE
-pgconn_block( int argc, VALUE *argv, VALUE self ) {
-	PGconn *conn = pg_get_pgconn( self );
-	int sd = PQsocket( conn );
-	int ret;
-
-	DWORD timeout_milisec = INFINITY;
-	DWORD wait_ret;
-	WSAEVENT hEvent;
-	VALUE timeout_in;
-	double timeout_sec;
-
-	hEvent = WSACreateEvent();
-
-	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
-		timeout_sec = NUM2DBL( timeout_in );
-		timeout_milisec = (DWORD)( (timeout_sec - (DWORD)timeout_sec) * 1e3 );
-	}
-
-	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if( PQconsumeInput(conn) == 0 ) {
-		WSACloseEvent( hEvent );
-		rb_raise( rb_ePGerror, PQerrorMessage(conn) );
-	}
-
-	while ( PQisBusy(conn) ) {
-		if ( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "WSAEventSelect socket error: %d", WSAGetLastError() );
-		}
-
-		wait_ret = rb_w32_wait_events( &hEvent, 1, 100 );
-
-		if ( wait_ret == WAIT_TIMEOUT ) {
-			ret = 0;
-		} else if ( wait_ret == WAIT_OBJECT_0 ) {
-			ret = 1;
-		} else if ( wait_ret == WAIT_FAILED ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "Wait on socket error (WaitForMultipleObjects): %d", GetLastError() );
-		} else {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "Wait on socket abandoned (WaitForMultipleObjects)" );
-		}
-
-		/* Return false if there was a timeout argument and the select() timed out */
-		if ( ret == 0 && argc ) {
-			WSACloseEvent( hEvent );
-			return Qfalse;
-		}
-
-		/* Check for connection errors (PQisBusy is true on connection errors) */
-		if ( PQconsumeInput(conn) == 0 ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, PQerrorMessage(conn) );
-		}
-	}
-
-	WSACloseEvent( hEvent );
-
-	return Qtrue;
-}
-
-#else /* Win32 + Ruby < 1.9 */
-
-static VALUE
-pgconn_block( int argc, VALUE *argv, VALUE self ) {
-	PGconn *conn = pg_get_pgconn( self );
-	int sd = PQsocket( conn );
-	int ret;
-
-	struct timeval timeout;
-	struct timeval *ptimeout = NULL;
-	fd_set sd_rset;
-	fd_set crt_sd_rset;
-	VALUE timeout_in;
-	double timeout_sec;
-
-	/* Always set a timeout, as rb_thread_select() sometimes
-	 * doesn't return when a second ruby thread is running although data
-	 * could be read. So we use timeout-based polling instead.
-	 */
-	timeout.tv_sec = 0;
-	 timeout.tv_usec = 10000; /* 10ms */
-	ptimeout = &timeout;
-
-	if ( rb_scan_args(argc, argv, "01", &timeout_in) == 1 ) {
-		timeout_sec = NUM2DBL( timeout_in );
-		timeout.tv_sec = (time_t)timeout_sec;
-		timeout.tv_usec = (suseconds_t)((timeout_sec - (long)timeout_sec) * 1e6);
-		ptimeout = &timeout;
-	}
-
-	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if( PQconsumeInput(conn) == 0 )
-		rb_raise( rb_ePGerror, PQerrorMessage(conn) );
-
-	while ( PQisBusy(conn) ) {
-		FD_ZERO( &sd_rset );
-		FD_SET( sd, &sd_rset );
-
-		create_crt_fd( &sd_rset, &crt_sd_rset );
-		ret = rb_thread_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
-		cleanup_crt_fd( &sd_rset, &crt_sd_rset );
-
-		/* Return false if there was a timeout argument and the select() timed out */
-		if ( ret == 0 && argc )
-			return Qfalse;
-
-		/* Check for connection errors (PQisBusy is true on connection errors) */
-		if ( PQconsumeInput(conn) == 0 )
-			rb_raise( rb_ePGerror, PQerrorMessage(conn) );
-	}
-
-	return Qtrue;
-}
-
-#endif /* Ruby 1.9 */
-#endif /* Win32 */
 
 
 /*
@@ -2841,7 +2818,7 @@ pgconn_get_last_result(VALUE self)
 
 
 	cur = prev = NULL;
-	while ((cur = PQgetResult(conn)) != NULL) {
+	while ((cur = gvl_PQgetResult(conn)) != NULL) {
 		int status;
 
 		if (prev) PQclear(prev);
@@ -3480,5 +3457,4 @@ init_pg_connection()
 #endif /* M17N_SUPPORTED */
 
 }
-
 
