@@ -759,17 +759,64 @@ pgconn_connection_used_password(VALUE self)
 /* :TODO: get_ssl */
 
 
+static VALUE pgconn_exec_params( int, VALUE *, VALUE );
 
 /*
  * call-seq:
- *    conn.exec(sql [, params, result_format ] ) -> PG::Result
- *    conn.exec(sql [, params, result_format ] ) {|pg_result| block }
+ *    conn.exec(sql) -> PG::Result
+ *    conn.exec(sql) {|pg_result| block }
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL.
  * Returns a PG::Result instance on success.
  * On failure, it raises a PG::Error.
  *
- * +params+ is an optional array of the bind parameters for the SQL query.
+ * For backward compatibility, if you pass more than one parameter to this method,
+ * it will call #exec_params for you. New code should explicitly use #exec_params if
+ * argument placeholders are used.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
+ * In this instance, <code>conn.exec</code> returns the value of the block.
+ */
+static VALUE
+pgconn_exec(int argc, VALUE *argv, VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	PGresult *result = NULL;
+	VALUE rb_pgresult;
+
+	/* If called with no parameters, use PQexec */
+	if ( argc == 1 ) {
+		Check_Type(argv[0], T_STRING);
+
+		result = gvl_PQexec(conn, StringValuePtr(argv[0]));
+		rb_pgresult = pg_new_result(result, self);
+		pg_result_check(rb_pgresult);
+		if (rb_block_given_p()) {
+			return rb_ensure(rb_yield, rb_pgresult, pg_result_clear, rb_pgresult);
+		}
+		return rb_pgresult;
+	}
+	
+	/* Otherwise, just call #exec_params instead for backward-compatibility */
+	else {
+		return pgconn_exec_params( argc, argv, self );
+	}
+
+}
+
+
+/*
+ * call-seq:
+ *    conn.exec_params(sql, params[, result_format ] ) -> PG::Result
+ *    conn.exec_params(sql, params[, result_format ] ) {|pg_result| block }
+ *
+ * Sends SQL query request specified by +sql+ to PostgreSQL using placeholders
+ * for parameters.
+ *
+ * Returns a PG::Result instance on success. On failure, it raises a PG::Error.
+ *
+ * +params+ is an array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
@@ -797,7 +844,7 @@ pgconn_connection_used_password(VALUE self)
  * In this instance, <code>conn.exec</code> returns the value of the block.
  */
 static VALUE
-pgconn_exec(int argc, VALUE *argv, VALUE self)
+pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 {
 	PGconn *conn = pg_get_pgconn(self);
 	PGresult *result = NULL;
@@ -817,25 +864,17 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 	rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
 
-	Check_Type(command, T_STRING);
-
-	/* If called with no parameters, use PQexec */
-	if(NIL_P(params)) {
-		result = gvl_PQexec(conn, StringValuePtr(command));
-		rb_pgresult = pg_new_result(result, self);
-		pg_result_check(rb_pgresult);
-		if (rb_block_given_p()) {
-			return rb_ensure(rb_yield, rb_pgresult, pg_result_clear, rb_pgresult);
-		}
-		return rb_pgresult;
-	}
-
-	/* If called with parameters, and optionally result_format,
-	 * use PQexecParams
+	/*
+	 * Handle the edge-case where the caller is coming from #exec, but passed an explict +nil+
+	 * for the second parameter.
 	 */
+	if ( NIL_P(params) ) {
+		return pgconn_exec( 1, argv, self );
+		}
+
 	Check_Type(params, T_ARRAY);
 
-	if(NIL_P(in_res_fmt)) {
+	if ( NIL_P(in_res_fmt) ) {
 		resultFormat = 0;
 	}
 	else {
@@ -844,6 +883,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 	gc_array = rb_ary_new();
 	rb_gc_register_address(&gc_array);
+
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
@@ -852,7 +892,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	paramValues = ALLOC_N(char *, nParams);
 	paramLengths = ALLOC_N(int, nParams);
 	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
+
+	for ( i = 0; i < nParams; i++ ) {
 		param = rb_ary_entry(params, i);
 		if (TYPE(param) == T_HASH) {
 			param_type = rb_hash_aref(param, sym_type);
@@ -907,10 +948,11 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
+
 	if (rb_block_given_p()) {
-		return rb_ensure(rb_yield, rb_pgresult,
-			pg_result_clear, rb_pgresult);
+		return rb_ensure(rb_yield, rb_pgresult, pg_result_clear, rb_pgresult);
 	}
+
 	return rb_pgresult;
 }
 
@@ -3360,6 +3402,7 @@ init_pg_connection()
 	/******     PG::Connection INSTANCE METHODS: Command Execution     ******/
 	rb_define_method(rb_cPGconn, "exec", pgconn_exec, -1);
 	rb_define_alias(rb_cPGconn, "query", "exec");
+	rb_define_method(rb_cPGconn, "exec_params", pgconn_exec_params, -1);
 	rb_define_method(rb_cPGconn, "prepare", pgconn_prepare, -1);
 	rb_define_method(rb_cPGconn, "exec_prepared", pgconn_exec_prepared, -1);
 	rb_define_method(rb_cPGconn, "describe_prepared", pgconn_describe_prepared, 1);

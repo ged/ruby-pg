@@ -286,6 +286,27 @@ describe PG::Connection do
 	end
 
 
+	it "supports parameters passed to #exec (backward compatibility)" do
+		@conn.exec( "CREATE TABLE students ( name TEXT, age INTEGER )" )
+		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Wally', 8] )
+		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Sally', 6] )
+		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Dorothy', 4] )
+
+		res = @conn.exec( "SELECT name FROM students WHERE age >= $1", [6] )
+		res.values.should == [ ['Wally'], ['Sally'] ]
+	end
+
+	it "supports explicitly calling #exec_params" do
+		@conn.exec( "CREATE TABLE students ( name TEXT, age INTEGER )" )
+		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Wally', 8] )
+		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Sally', 6] )
+		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Dorothy', 4] )
+
+		res = @conn.exec_params( "SELECT name FROM students WHERE age >= $1", [6] )
+		res.values.should == [ ['Wally'], ['Sally'] ]
+	end
+
+
 	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
