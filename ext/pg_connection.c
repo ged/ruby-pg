@@ -797,7 +797,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		}
 		return rb_pgresult;
 	}
-	
+
 	/* Otherwise, just call #exec_params instead for backward-compatibility */
 	else {
 		return pgconn_exec_params( argc, argv, self );
@@ -2176,7 +2176,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 			/* The event we were waiting for. */
 		} else if ( wait_ret == WAIT_FAILED ) {
 			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "Wait on socket error (WaitForMultipleObjects): %d", GetLastError() );
+			rb_raise( rb_ePGerror, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
 		} else {
 			WSACloseEvent( hEvent );
 			rb_raise( rb_ePGerror, "Wait on socket abandoned (WaitForMultipleObjects)" );
