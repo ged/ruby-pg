@@ -3,7 +3,7 @@
 # This is an RVM Project .rvmrc file, used to automatically load the ruby
 # development environment upon cd'ing into the directory
 
-environment_id="ruby-1.9.3@pg"
+environment_id="ruby-2.0.0@pg"
 rvmdir=${rvm_path:-$HOME/.rvm}
 gemset_file=".rvm.gems"
 
