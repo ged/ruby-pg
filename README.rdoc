@@ -1,8 +1,9 @@
-{<img src="https://travis-ci.org/ged/ruby-pg.png?branch=master" alt="Build Status" />}[https://travis-ci.org/ged/ruby-pg]
-
 = pg
 
-* https://bitbucket.org/ged/ruby-pg
+home :: https://bitbucket.org/ged/ruby-pg
+mirror :: https://github.com/ged/ruby-pg
+docs :: http://deveiate.org/code/pg
+
 
 == Description
 
@@ -26,10 +27,14 @@ A small example usage:
     end
   end
 
+== Build Status
+
+{<img src="https://travis-ci.org/ged/ruby-pg.png?branch=master" alt="Build Status" />}[https://travis-ci.org/ged/ruby-pg]
+
 
 == Requirements
 
-* Ruby 1.8.7-p249 or 1.9.3-p0.
+* Ruby 1.8.7-p371, 1.9.3-p392, or 2.0.0-p0.
 * PostgreSQL 8.3.x (with headers, -dev packages, etc).
 
 It may work with earlier versions of Ruby as well, but those are not regularly tested.
