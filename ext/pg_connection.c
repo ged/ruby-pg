@@ -64,6 +64,22 @@ pg_get_pgconn( VALUE self )
 
 
 /*
+ * Close the associated socket IO object if there is one.
+ */
+void
+pgconn_close_socket_io( VALUE self )
+{
+	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+
+	if ( RTEST(socket_io) ) {
+		rb_funcall( socket_io, rb_intern("close"), 0 );
+	}
+
+	rb_iv_set( self, "@socket_io", Qnil );
+}
+
+
+/*
  * Allocation/
  */
 
@@ -388,7 +404,7 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
  *
  * Example:
  *   conn = PG::Connection.connect_start("dbname=mydatabase")
- *   socket = IO.for_fd(conn.socket)
+ *   socket = conn.socket_io
  *   status = conn.connect_poll
  *   while(status != PG::PGRES_POLLING_OK) do
  *     # do some work while waiting for the connection to complete
@@ -421,10 +437,11 @@ pgconn_connect_poll(VALUE self)
  * Closes the backend connection.
  */
 static VALUE
-pgconn_finish(VALUE self)
+pgconn_finish( VALUE self )
 {
-	PQfinish(pg_get_pgconn(self));
-	DATA_PTR(self) = NULL;
+	pgconn_close_socket_io( self );
+	PQfinish( pg_get_pgconn(self) );
+	DATA_PTR( self ) = NULL;
 	return Qnil;
 }
 
@@ -451,9 +468,10 @@ pgconn_finished_p( VALUE self )
  * backend connection and tries to re-connect.
  */
 static VALUE
-pgconn_reset(VALUE self)
+pgconn_reset( VALUE self )
 {
-	PQreset(pg_get_pgconn(self));
+	pgconn_close_socket_io( self );
+	PQreset( pg_get_pgconn(self) );
 	return self;
 }
 
@@ -470,6 +488,7 @@ pgconn_reset(VALUE self)
 static VALUE
 pgconn_reset_start(VALUE self)
 {
+	pgconn_close_socket_io( self );
 	if(PQresetStart(pg_get_pgconn(self)) == 0)
 		rb_raise(rb_ePGerror, "reset has failed");
 	return Qnil;

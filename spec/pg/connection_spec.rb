@@ -20,11 +20,13 @@ require 'pg'
 describe PG::Connection do
 
 	before( :all ) do
-		@conn = setup_testing_db( "PG_Connection" )
+		@conn = setup_testing_db( described_class.name )
 	end
 
 	before( :each ) do
 		@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
+		@conn.exec_params %Q{SET application_name TO '%s'} %
+			[@conn.escape_string(example.description[0,60])]
 	end
 
 	after( :each ) do
@@ -212,8 +214,7 @@ describe PG::Connection do
 		From backend> T
 		}.gsub( /^\t{2}/, '' ).lstrip
 
-	unless RUBY_PLATFORM =~ /mswin|mingw/
-		it "trace and untrace client-server communication" do
+	it "trace and untrace client-server communication", :unix do
 			# be careful to explicitly close files so that the
 			# directory can be removed and we don't have to wait for
 			# the GC to run.
@@ -242,7 +243,6 @@ describe PG::Connection do
 
 			trace_data.should == expected_trace_output
 		end
-	end
 
 	it "allows a query to be cancelled" do
 		error = false
@@ -255,7 +255,7 @@ describe PG::Connection do
 		error.should == true
 	end
 
-	it "automatically rolls back a transaction started with described_class#transaction if an exception " +
+	it "automatically rolls back a transaction started with Connection#transaction if an exception " +
 	   "is raised" do
 		# abort the per-example transaction so we can test our own
 		@conn.exec( 'ROLLBACK' )
@@ -542,6 +542,23 @@ describe PG::Connection do
 
 		conn.finish
 		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
+	end
+
+	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction do
+		conn = PG.connect( @conninfo )
+		io = conn.socket_io
+		conn.finish
+		io.should be_closed()
+		expect { conn.socket_io }.to raise_error( PG::Error, /connection is closed/i )
+	end
+
+	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction do
+		conn = PG.connect( @conninfo )
+		io = conn.socket_io
+		conn.reset
+		io.should be_closed()
+		conn.socket_io.should_not equal( io )
+		conn.finish
 	end
 
 

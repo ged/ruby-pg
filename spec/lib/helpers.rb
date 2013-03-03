@@ -181,7 +181,7 @@ module PG::TestingHelpers
 		require 'pg'
 		stop_existing_postmasters()
 
-		puts "Setting up test database for #{description} tests"
+		puts "Setting up test database for #{description}"
 		@test_pgdata = TEST_DIRECTORY + 'data'
 		@test_pgdata.mkpath
 
@@ -218,7 +218,7 @@ module PG::TestingHelpers
 
 		conn = PG.connect( @conninfo )
 		conn.set_notice_processor do |message|
-			$stderr.puts( message ) if $DEBUG
+			$stderr.puts( description + ':' + message ) if $DEBUG
 		end
 
 		return conn
@@ -227,8 +227,28 @@ module PG::TestingHelpers
 
 	def teardown_testing_db( conn )
 		puts "Tearing down test database"
-		conn.finish if conn
+
+		# {"datid"=>"16697", "datname"=>"test", "pid"=>"42581", "usesysid"=>"10", "usename"=>"mgranger", "application_name"=>"/Users/mgranger/.rvm/gems/ruby-2.0.0-p0@pg/bin/rspec", "client_addr"=>"::1", "client_hostname"=>"", "client_port"=>"51962", "backend_start"=>"2013-03-03 06:43:48.03735-08", "xact_start"=>"2013-03-03 06:43:48.08376-08", "query_start"=>"2013-03-03 06:43:48.08376-08", "state_change"=>"2013-03-03 06:43:48.083761-08", "waiting"=>"f", "state"=>"active", "query"=>"SELECT * FROM pg_stat_activity"}
+
+		if conn
+			check_for_lingering_connections( conn )
+			conn.finish
+		end
+
 		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
+	end
+
+
+	def check_for_lingering_connections( conn )
+		conn.exec( "SELECT * FROM pg_stat_activity" ) do |res|
+			conns = res.find_all {|row| row['pid'].to_i != conn.backend_pid }
+			unless conns.empty?
+				puts "Lingering connections remain:"
+				conns.each do |row|
+					puts "  [%d] {%s} %s -- %s" % row.values_at( 'pid', 'state', 'application_name', 'query' )
+				end
+			end
+		end
 	end
 end
 
@@ -241,7 +261,11 @@ RSpec.configure do |config|
 
 	config.mock_with :rspec
 	config.filter_run_excluding :ruby_19 if ruby_version_vec <= [1,9,1].pack( "N*" )
-	config.filter_run_excluding :unix if RUBY_PLATFORM =~ /mingw|mswin/
+	if RUBY_PLATFORM =~ /mingw|mswin/
+		config.filter_run_excluding :unix
+	else
+		config.filter_run_excluding :windows
+	end
 
 	config.filter_run_excluding :postgresql_90 unless
 		PG::Connection.instance_methods.map( &:to_sym ).include?( :escape_literal )
