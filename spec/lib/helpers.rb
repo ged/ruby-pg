@@ -228,8 +228,6 @@ module PG::TestingHelpers
 	def teardown_testing_db( conn )
 		puts "Tearing down test database"
 
-		# {"datid"=>"16697", "datname"=>"test", "pid"=>"42581", "usesysid"=>"10", "usename"=>"mgranger", "application_name"=>"/Users/mgranger/.rvm/gems/ruby-2.0.0-p0@pg/bin/rspec", "client_addr"=>"::1", "client_hostname"=>"", "client_port"=>"51962", "backend_start"=>"2013-03-03 06:43:48.03735-08", "xact_start"=>"2013-03-03 06:43:48.08376-08", "query_start"=>"2013-03-03 06:43:48.08376-08", "state_change"=>"2013-03-03 06:43:48.083761-08", "waiting"=>"f", "state"=>"active", "query"=>"SELECT * FROM pg_stat_activity"}
-
 		if conn
 			check_for_lingering_connections( conn )
 			conn.finish
