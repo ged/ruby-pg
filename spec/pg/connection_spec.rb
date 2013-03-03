@@ -25,8 +25,10 @@ describe PG::Connection do
 
 	before( :each ) do
 		@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
-		@conn.exec_params %Q{SET application_name TO '%s'} %
-			[@conn.escape_string(example.description[0,60])]
+		if PG.library_version >= 90000
+			@conn.exec_params %Q{SET application_name TO '%s'} %
+				[@conn.escape_string(example.description[0,60])]
+		end
 	end
 
 	after( :each ) do
