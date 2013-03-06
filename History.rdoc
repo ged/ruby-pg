@@ -1,4 +1,4 @@
-== v0.15.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v0.15.0 [2013-03-03] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
 
@@ -14,6 +14,7 @@ Documentation fixes:
 
 Enhancements:
 
+- Tested under Ruby 2.0.0p0.
 - Add single row mode of PostgreSQL 9.2.
 - Set fallback_application_name to programm name $0. Thanks to Will Leinweber
   for the patch.
@@ -24,8 +25,10 @@ Enhancements:
   rb_thread_select().
 - Add an example of how to insert array data using a prepared statement (#145).
 - Add continous integration tests on travis-ci.org.
-- Add PG::Result#each_value for looping over result sets by row. Thanks to
+- Add PG::Result#each_row for iterative over result sets by row. Thanks to
   Aaron Patterson for the patch.
+- Add a PG::Connection#socket_io method for fetching a (non-autoclosing) IO
+  object for the connection's socket.
 
 Specs:
 
