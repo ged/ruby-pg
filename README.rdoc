@@ -51,6 +51,10 @@ Postgres:
 
     gem install pg -- --with-pg-config=<path to pg_config>
 
+If you're installing via Bundler, you can provide compile hints like so:
+
+    bundle config build.pg --with-pg-config=<path to pg_config>
+
 See README-OS_X.rdoc for more information about installing under MacOS X, and
 README-Windows.rdoc for Windows build/installation instructions.
 
