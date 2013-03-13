@@ -243,11 +243,16 @@ class CrossLibrary < OpenStruct
 	end
 end
 
-CrossLibraries = [
-	['i386-mingw32', 'mingw'],
-	['x64-mingw32', 'mingw64'],
-].map do |platform, openssl_config|
-	CrossLibrary.new platform, openssl_config
+if File.exist?(File.expand_path("~/.rake-compiler/config.yml"))
+	CrossLibraries = [
+		['i386-mingw32', 'mingw'],
+		['x64-mingw32', 'mingw64'],
+	].map do |platform, openssl_config|
+		CrossLibrary.new platform, openssl_config
+	end
+else
+	$stderr.puts "Cross-compilation disabled -- rake-compiler not properly installed"
+	CrossLibraries = []
 end
 
 desc 'cross compile pg for win32'
