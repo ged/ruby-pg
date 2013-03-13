@@ -55,8 +55,8 @@ $hoespec = Hoe.spec 'pg' do
 
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 
-	self.dependency 'rake-compiler', '~> 0.7', :developer
-	self.dependency	'hoe-deveiate', '~> 0.1', :developer
+	self.dependency 'rake-compiler', '~> 0.8', :developer
+	self.dependency	'hoe-deveiate', '~> 0.2', :developer
 
 	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
@@ -102,7 +102,7 @@ task :maint do
 	ENV['MAINTAINER_MODE'] = 'yes'
 end
 
-ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.2'
+ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.2:2.0.0'
 
 # Rake-compiler task
 Rake::ExtensionTask.new do |ext|

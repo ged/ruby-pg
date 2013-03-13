@@ -69,7 +69,7 @@ end
 CLEAN.include( STATIC_BUILDDIR.to_s )
 
 
-ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.3'
+ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.3:2.0.0'
 
 def download(url, save_to)
 	part = save_to+".part"
