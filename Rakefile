@@ -112,15 +112,18 @@ Rake::ExtensionTask.new do |ext|
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
 	ext.cross_compile  = true
-	ext.cross_platform = %w[i386-mingw32]
+	ext.cross_platform = CrossLibraries.map &:for_platform
 
-	# configure options only for cross compile
-	ext.cross_config_options += [
-		"--with-pg-include=#{STATIC_POSTGRESQL_LIBDIR}",
-		"--with-opt-include=#{STATIC_POSTGRESQL_INCDIR}",
-		"--with-pg-lib=#{STATIC_POSTGRESQL_LIBDIR}",
-		"--with-opt-lib=#{STATIC_OPENSSL_BUILDDIR}",
-	]
+  ext.cross_config_options += CrossLibraries.map do |lib|
+    {
+      lib.for_platform => [
+        "--with-pg-include=#{lib.static_postgresql_libdir}",
+        "--with-opt-include=#{lib.static_postgresql_incdir}",
+        "--with-pg-lib=#{lib.static_postgresql_libdir}",
+        "--with-opt-lib=#{lib.static_openssl_builddir}",
+      ]
+    }
+  end
 end
 
 
