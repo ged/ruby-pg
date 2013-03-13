@@ -18,8 +18,8 @@ else
 end
 
 # Cross-compilation constants
-OPENSSL_VERSION            = ENV['OPENSSL_VERSION'] || '1.0.1c'
-POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.2.2'
+OPENSSL_VERSION            = ENV['OPENSSL_VERSION'] || '1.0.1e'
+POSTGRESQL_VERSION         = ENV['POSTGRESQL_VERSION'] || '9.2.3'
 
 COMPILE_HOME               = Pathname( "./build" ).expand_path
 STATIC_SOURCESDIR          = COMPILE_HOME + 'sources'
