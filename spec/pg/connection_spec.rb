@@ -546,7 +546,7 @@ describe PG::Connection do
 		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
 	end
 
-	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction do
+	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction, :unix do
 		conn = PG.connect( @conninfo )
 		io = conn.socket_io
 		conn.finish
@@ -554,7 +554,7 @@ describe PG::Connection do
 		expect { conn.socket_io }.to raise_error( PG::Error, /connection is closed/i )
 	end
 
-	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction do
+	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction, :unix do
 		conn = PG.connect( @conninfo )
 		io = conn.socket_io
 		conn.reset
