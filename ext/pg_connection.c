@@ -2907,6 +2907,7 @@ pgconn_get_last_result(VALUE self)
 	return rb_pgresult;
 }
 
+#if !defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
 
 /*
  * call-seq:
@@ -2914,10 +2915,14 @@ pgconn_get_last_result(VALUE self)
  *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * This function has the same behavior as #exec,
- * except that it's implemented using asynchronous command
- * processing and ruby's +rb_thread_select+ in order to
- * allow other threads to process while waiting for the
- * server to complete the request.
+ * but ensures that other threads can process while
+ * waiting for the server to complete the request.
+ *
+ * On Ruby platforms with native threads (MRI-1.9+ and all others)
+ * this method is an alias to #exec.
+ *
+ * On MRI-1.8 it's implemented using asynchronous command
+ * processing and ruby's +rb_thread_select+ .
  */
 static VALUE
 pgconn_async_exec(int argc, VALUE *argv, VALUE self)
@@ -2938,6 +2943,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	return rb_pgresult;
 }
 
+#endif
 
 /**************************************************************************
  * LARGE OBJECT SUPPORT
@@ -3488,7 +3494,11 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
+#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+	rb_define_alias(rb_cPGconn, "async_exec", "exec");
+#else
 	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
+#endif
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
 
