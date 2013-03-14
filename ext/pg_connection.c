@@ -2193,6 +2193,10 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 			return NULL;
 		} else if ( wait_ret == WAIT_OBJECT_0 ) {
 			/* The event we were waiting for. */
+		} else if ( wait_ret == WAIT_OBJECT_0 + 1) {
+			/* This indicates interruption from timer thread, GC, exception
+			 * from other threads etc... */
+			rb_thread_check_ints();
 		} else if ( wait_ret == WAIT_FAILED ) {
 			WSACloseEvent( hEvent );
 			rb_raise( rb_ePGerror, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
