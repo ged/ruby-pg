@@ -264,6 +264,8 @@ RSpec.configure do |config|
 	else
 		config.filter_run_excluding :windows
 	end
+	config.filter_run_excluding :socket_io unless
+		PG::Connection.instance_methods.map( &:to_sym ).include?( :socket_io )
 
 	config.filter_run_excluding :postgresql_90 unless
 		PG::Connection.instance_methods.map( &:to_sym ).include?( :escape_literal )

@@ -70,8 +70,15 @@ void
 pgconn_close_socket_io( VALUE self )
 {
 	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+	int ruby_sd;
 
 	if ( RTEST(socket_io) ) {
+#if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
+		ruby_sd = NUM2INT(rb_funcall( socket_io, rb_intern("fileno"), 0 ));
+		if( rb_w32_unwrap_io_handle(ruby_sd) ){
+			rb_raise(rb_ePGerror, "Could not unwrap win32 socket handle");
+		}
+#endif
 		rb_funcall( socket_io, rb_intern("close"), 0 );
 	}
 
@@ -733,6 +740,55 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
+
+#if !defined(_WIN32) || defined(HAVE_RB_W32_WRAP_IO_HANDLE)
+
+/*
+ * call-seq:
+ *    conn.socket_io() -> IO
+ *
+ * Fetch a memoized IO object created from the Connection's underlying socket.
+ * This object can be used for IO.select to wait for events while running
+ * asynchronous API calls.
+ *
+ * Using this instead of #socket avoids the problem of the underlying connection
+ * being closed by Ruby when an IO created using <tt>IO.for_fd(conn.socket)</tt>
+ * goes out of scope.
+ *
+ * This method can also be used on Windows but requires Ruby-2.0+.
+ */
+static VALUE
+pgconn_socket_io(VALUE self)
+{
+	int sd;
+	int ruby_sd;
+	int id_autoclose = rb_intern("autoclose=");
+	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+
+	if ( !RTEST(socket_io) ) {
+		if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
+			rb_raise(rb_ePGerror, "Can't get socket descriptor");
+
+		#ifdef _WIN32
+			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
+		#else
+			ruby_sd = sd;
+		#endif
+
+		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 1, INT2NUM(ruby_sd) );
+
+		/* Disable autoclose feature, when supported */
+		if( rb_respond_to(socket_io, id_autoclose) ){
+			rb_funcall( socket_io, id_autoclose, 1, Qfalse );
+		}
+
+		rb_iv_set( self, "@socket_io", socket_io );
+	}
+
+	return socket_io;
+}
+
+#endif
 
 /*
  * call-seq:
@@ -3423,6 +3479,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "server_version", pgconn_server_version, 0);
 	rb_define_method(rb_cPGconn, "error_message", pgconn_error_message, 0);
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
+#if !defined(_WIN32) || defined(HAVE_RB_W32_WRAP_IO_HANDLE)
+	rb_define_method(rb_cPGconn, "socket_io", pgconn_socket_io, 0);
+#endif
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);
