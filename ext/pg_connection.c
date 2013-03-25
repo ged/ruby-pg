@@ -70,11 +70,10 @@ void
 pgconn_close_socket_io( VALUE self )
 {
 	VALUE socket_io = rb_iv_get( self, "@socket_io" );
-	int ruby_sd;
 
 	if ( RTEST(socket_io) ) {
 #if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
-		ruby_sd = NUM2INT(rb_funcall( socket_io, rb_intern("fileno"), 0 ));
+		int ruby_sd = NUM2INT(rb_funcall( socket_io, rb_intern("fileno"), 0 ));
 		if( rb_w32_unwrap_io_handle(ruby_sd) ){
 			rb_raise(rb_ePGerror, "Could not unwrap win32 socket handle");
 		}
