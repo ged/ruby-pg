@@ -42,7 +42,7 @@ def report( opts )
 	# -----------------------------------------
 
 	db_info = db.exec %Q{
-		SELECT 
+		SELECT
 			count(oid) AS num_relations,
 			pg_size_pretty(pg_database_size('#{opts.database}')) AS dbsize
 		FROM

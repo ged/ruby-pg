@@ -416,7 +416,7 @@ rsync: /usr/bin/rsync
 ssh: /usr/bin/ssh
 ssh_timeout: 10
 
-destinations: 
+destinations:
 
 - label: rsync-example
   port: 2222

@@ -5,7 +5,7 @@ require 'pg'
 $stdout.sync = true
 
 # This is a example of how to mix and match synchronous and async APIs. In this case,
-# the connection to the server is made syncrhonously, and then queries are 
+# the connection to the server is made syncrhonously, and then queries are
 # asynchronous.
 
 TIMEOUT = 5.0 # seconds to wait for an async operation to complete
@@ -36,7 +36,7 @@ conn.send_query( "SELECT * FROM pg_stat_activity" )
 loop do
 	output_progress "  waiting for a response"
 
-	# Buffer any incoming data on the socket until a full result is ready. 
+	# Buffer any incoming data on the socket until a full result is ready.
 	conn.consume_input
 	while conn.is_busy
 		output_progress "  waiting for data to be available on %p..." % [ socket ]

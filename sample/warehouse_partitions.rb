@@ -150,7 +150,7 @@ class PGWarehouse
 		#
 		self.db.exec( query ) do |res|
 			res.each do |row|
-				relations[ row['oid'] ] = { 
+				relations[ row['oid'] ] = {
 					:name       => row['name'],
 					:tablespace => row['tspace'],
 					:indexes    => [],

@@ -42,8 +42,7 @@ module PG::TestingHelpers
 	def ansi_code( *attributes )
 		attributes.flatten!
 		attributes.collect! {|at| at.to_s }
-		# $stderr.puts "Returning ansicode for TERM = %p: %p" %
-		# 	[ ENV['TERM'], attributes ]
+
 		return '' unless /(?:vt10[03]|xterm(?:-color)?|linux|screen)/i =~ ENV['TERM']
 		attributes = ANSI_ATTRIBUTES.values_at( *attributes ).compact.join(';')
 

@@ -8,7 +8,7 @@ require 'pg'
 $stderr.puts "Opening database connection ..."
 conn = PG.connect( :dbname => 'test' )
 
-# 
+#
 conn.transaction do
     conn.exec( "DECLARE myportal CURSOR FOR select * from pg_database" )
     res = conn.exec( "FETCH ALL IN myportal" )

@@ -11,7 +11,7 @@ TIMEOUT = 5.0 # seconds to wait for an async operation to complete
 
 # Print 'x' continuously to demonstrate that other threads aren't
 # blocked while waiting for the connection, for the query to be sent,
-# for results, etc. You might want to sleep inside the loop or 
+# for results, etc. You might want to sleep inside the loop or
 # comment this out entirely for cleaner output.
 progress_thread = Thread.new { loop { print 'x' } }
 
@@ -82,7 +82,7 @@ conn.send_query( "SELECT * FROM pg_stat_activity" )
 loop do
 	output_progress "  waiting for a response"
 
-	# Buffer any incoming data on the socket until a full result is ready. 
+	# Buffer any incoming data on the socket until a full result is ready.
 	conn.consume_input
 	while conn.is_busy
 		select( [socket], nil, nil, TIMEOUT ) or

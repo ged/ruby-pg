@@ -147,10 +147,10 @@ pgresult_get(VALUE self)
 
 
 /********************************************************************
- * 
+ *
  * Document-class: PG::Result
  *
- * The class to represent the query result tuples (rows). 
+ * The class to represent the query result tuples (rows).
  * An instance of this class is created as the result of every query.
  * You may need to invoke the #clear method of the instance when finished with
  * the result for better memory performance.
@@ -162,7 +162,7 @@ pgresult_get(VALUE self)
  *    res.getvalue(0,0) # '1'
  *    res[0]['b']       # '2'
  *    res[0]['c']       # nil
- *  
+ *
  */
 
 /**************************************************************************
@@ -209,7 +209,7 @@ pgresult_res_status(VALUE self, VALUE status)
  * call-seq:
  *    res.error_message() -> String
  *
- * Returns the error message of the command as a string. 
+ * Returns the error message of the command as a string.
  */
 static VALUE
 pgresult_error_message(VALUE self)
@@ -240,7 +240,7 @@ pgresult_error_message(VALUE self)
  * * +PG_DIAG_SOURCE_FUNCTION+
  *
  * An example:
- * 
+ *
  *   begin
  *       conn.exec( "SELECT * FROM nonexistant_table" )
  *   rescue PG::Error => err
@@ -259,10 +259,10 @@ pgresult_error_message(VALUE self)
  *           result.error_field( PG::Result::PG_DIAG_SOURCE_FUNCTION ),
  *       ]
  *   end
- * 
+ *
  * Outputs:
- * 
- *   ["ERROR", "42P01", "relation \"nonexistant_table\" does not exist", nil, nil, 
+ *
+ *   ["ERROR", "42P01", "relation \"nonexistant_table\" does not exist", nil, nil,
  *    "15", nil, nil, nil, "path/to/parse_relation.c", "857", "parserOpenTable"]
  */
 static VALUE
@@ -381,7 +381,7 @@ pgresult_ftable(VALUE self, VALUE column_number)
 	int col_number = NUM2INT(column_number);
 	PGresult *pgresult = pgresult_get(self);
 
-	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
+	if( col_number < 0 || col_number >= PQnfields(pgresult))
 		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
 
 	n = PQftable(pgresult, col_number);
@@ -392,7 +392,7 @@ pgresult_ftable(VALUE self, VALUE column_number)
  * call-seq:
  *    res.ftablecol( column_number ) -> Fixnum
  *
- * Returns the column number (within its table) of the table from 
+ * Returns the column number (within its table) of the table from
  * which the column _column_number_ is made up.
  *
  * Raises ArgumentError if _column_number_ is out of range or if
@@ -406,7 +406,7 @@ pgresult_ftablecol(VALUE self, VALUE column_number)
 
 	int n;
 
-	if( col_number < 0 || col_number >= PQnfields(pgresult)) 
+	if( col_number < 0 || col_number >= PQnfields(pgresult))
 		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
 
 	n = PQftablecol(pgresult, col_number);
@@ -419,7 +419,7 @@ pgresult_ftablecol(VALUE self, VALUE column_number)
  *
  * Returns the format (0 for text, 1 for binary) of column
  * _column_number_.
- * 
+ *
  * Raises ArgumentError if _column_number_ is out of range.
  */
 static VALUE
@@ -428,7 +428,7 @@ pgresult_fformat(VALUE self, VALUE column_number)
 	PGresult *result = pgresult_get(self);
 	int fnumber = NUM2INT(column_number);
 	if (fnumber < 0 || fnumber >= PQnfields(result)) {
-		rb_raise(rb_eArgError, "Column number is out of range: %d", 
+		rb_raise(rb_eArgError, "Column number is out of range: %d",
 			fnumber);
 	}
 	return INT2FIX(PQfformat(result, fnumber));
@@ -442,14 +442,14 @@ pgresult_fformat(VALUE self, VALUE column_number)
  *
  * The integer returned is the internal +OID+ number (in PostgreSQL)
  * of the type. To get a human-readable value for the type, use the
- * returned OID and the field's #fmod value with the format_type() SQL 
+ * returned OID and the field's #fmod value with the format_type() SQL
  * function:
- * 
+ *
  *   # Get the type of the second column of the result 'res'
  *   typename = conn.
  *     exec( "SELECT format_type($1,$2)", [res.ftype(1), res.fmod(1)] ).
  *     getvalue( 0, 0 )
- * 
+ *
  * Raises an ArgumentError if _column_number_ is out of range.
  */
 static VALUE
@@ -467,9 +467,9 @@ pgresult_ftype(VALUE self, VALUE index)
  * call-seq:
  *    res.fmod( column_number )
  *
- * Returns the type modifier associated with column _column_number_. See 
+ * Returns the type modifier associated with column _column_number_. See
  * the #ftype method for an example of how to use this.
- * 
+ *
  * Raises an ArgumentError if _column_number_ is out of range.
  */
 static VALUE
@@ -479,7 +479,7 @@ pgresult_fmod(VALUE self, VALUE column_number)
 	int fnumber = NUM2INT(column_number);
 	int modifier;
 	if (fnumber < 0 || fnumber >= PQnfields(result)) {
-		rb_raise(rb_eArgError, "Column number is out of range: %d", 
+		rb_raise(rb_eArgError, "Column number is out of range: %d",
 			fnumber);
 	}
 	modifier = PQfmod(result,fnumber);
@@ -688,7 +688,7 @@ pgresult_oid_value(VALUE self)
  * call-seq:
  *    res[ n ] -> Hash
  *
- * Returns tuple _n_ as a hash. 
+ * Returns tuple _n_ as a hash.
  */
 static VALUE
 pgresult_aref(VALUE self, VALUE index)
@@ -752,7 +752,7 @@ pgresult_each_row(VALUE self)
 				rb_ary_store( new_row, field, Qnil );
 			}
 			else {
-				VALUE val = rb_tainted_str_new( PQgetvalue(result, row, field), 
+				VALUE val = rb_tainted_str_new( PQgetvalue(result, row, field),
 				                                PQgetlength(result, row, field) );
 
 #ifdef M17N_SUPPORTED
@@ -795,7 +795,7 @@ make_column_result_array( VALUE self, int col )
 
 #ifdef M17N_SUPPORTED
 		/* associate client encoding for text format only */
-		if ( 0 == PQfformat(result, col) ) { 
+		if ( 0 == PQfformat(result, col) ) {
 			ASSOCIATE_INDEX( val, self );
 		} else {
 			rb_enc_associate( val, rb_ascii8bit_encoding() );
@@ -813,7 +813,7 @@ make_column_result_array( VALUE self, int col )
  *  call-seq:
  *     res.column_values( n )   -> array
  *
- *  Returns an Array of the values from the nth column of each 
+ *  Returns an Array of the values from the nth column of each
  *  tuple in the result.
  *
  */
