@@ -761,7 +761,7 @@ pgconn_socket_io(VALUE self)
 {
 	int sd;
 	int ruby_sd;
-	int id_autoclose = rb_intern("autoclose=");
+	ID id_autoclose = rb_intern("autoclose=");
 	VALUE socket_io = rb_iv_get( self, "@socket_io" );
 
 	if ( !RTEST(socket_io) ) {
