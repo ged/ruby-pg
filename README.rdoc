@@ -9,7 +9,7 @@ docs :: http://deveiate.org/code/pg
 
 Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].
 
-It works with {PostgreSQL 8.3 and later}[http://bit.ly/6AfPhm].
+It works with {PostgreSQL 8.4 and later}[http://www.postgresql.org/support/versioning/].
 
 A small example usage:
 
@@ -34,10 +34,11 @@ A small example usage:
 
 == Requirements
 
-* Ruby 1.8.7-p371, 1.9.3-p392, or 2.0.0-p0.
-* PostgreSQL 8.3.x (with headers, -dev packages, etc).
+* Ruby 1.9.3-p392, or 2.0.0-p0.
+* PostgreSQL 8.4.x or later (with headers, -dev packages, etc).
 
-It may work with earlier versions of Ruby as well, but those are not regularly tested.
+It may work with earlier versions of Ruby/PostgreSQL as well, but those are
+not regularly tested.
 
 
 == How To Install
@@ -76,16 +77,18 @@ After checking out the source, run:
 This task will install any missing dependencies, run the tests/specs, and
 generate the API documentation.
 
-The current maintainer is Michael Granger <ged@FaerieMUD.org>.
+The current maintainers are Michael Granger <ged@FaerieMUD.org> and
+Lars Kanis <lars@greiz-reinsdorf.de>.
 
 
 == Copying
 
-Copyright (c) 1997-2012 by the authors.
+Copyright (c) 1997-2013 by the authors.
 
 * Jeff Davis <ruby-pg@j-davis.com>
 * Guy Decoux (ts) <decoux@moulon.inra.fr>
 * Michael Granger <ged@FaerieMUD.org>
+* Lars Kanis <lars@greiz-reinsdorf.de>
 * Dave Lee
 * Eiji Matsumoto <usagi@ruby.club.or.jp>
 * Yukihiro Matsumoto <matz@ruby-lang.org>
