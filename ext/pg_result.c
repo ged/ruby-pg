@@ -514,6 +514,31 @@ pgresult_fsize(VALUE self, VALUE index)
 	return INT2NUM(PQfsize(result, i));
 }
 
+
+static VALUE
+pgresult_value(VALUE self, PGresult *result, int tuple_num, int field_num)
+{
+    VALUE val;
+    if ( PQgetisnull(result, tuple_num, field_num) ) {
+        return Qnil;
+    }
+    else {
+        val = rb_tainted_str_new( PQgetvalue(result, tuple_num, field_num ),
+                                  PQgetlength(result, tuple_num, field_num) );
+
+#ifdef M17N_SUPPORTED
+        /* associate client encoding for text format only */
+        if ( 0 == PQfformat(result, field_num) ) {
+            ASSOCIATE_INDEX( val, self );
+        } else {
+            rb_enc_associate( val, rb_ascii8bit_encoding() );
+        }
+#endif
+
+        return val;
+    }
+}
+
 /*
  * call-seq:
  *    res.getvalue( tup_num, field_num )
@@ -524,7 +549,6 @@ pgresult_fsize(VALUE self, VALUE index)
 static VALUE
 pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 {
-	VALUE val;
 	PGresult *result;
 	int i = NUM2INT(tup_num);
 	int j = NUM2INT(field_num);
@@ -536,21 +560,7 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	if(j < 0 || j >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
 	}
-	if(PQgetisnull(result, i, j))
-		return Qnil;
-	val = rb_tainted_str_new(PQgetvalue(result, i, j),
-				PQgetlength(result, i, j));
-
-#ifdef M17N_SUPPORTED
-	/* associate client encoding for text format only */
-	if ( 0 == PQfformat(result, j) ) {
-		ASSOCIATE_INDEX( val, self );
-	} else {
-		rb_enc_associate( val, rb_ascii8bit_encoding() );
-	}
-#endif
-
-	return val;
+	return pgresult_value(self, result, i, j);
 }
 
 /*
@@ -700,7 +710,7 @@ pgresult_aref(VALUE self, VALUE index)
 	PGresult *result = pgresult_get(self);
 	int tuple_num = NUM2INT(index);
 	int field_num;
-	VALUE fname,val;
+	VALUE fname;
 	VALUE tuple;
 
 	if ( tuple_num < 0 || tuple_num >= PQntuples(result) )
@@ -710,24 +720,7 @@ pgresult_aref(VALUE self, VALUE index)
 	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
 		fname = rb_tainted_str_new2( PQfname(result,field_num) );
 		ASSOCIATE_INDEX(fname, self);
-		if ( PQgetisnull(result, tuple_num, field_num) ) {
-			rb_hash_aset( tuple, fname, Qnil );
-		}
-		else {
-			val = rb_tainted_str_new( PQgetvalue(result, tuple_num, field_num ),
-			                          PQgetlength(result, tuple_num, field_num) );
-
-#ifdef M17N_SUPPORTED
-			/* associate client encoding for text format only */
-			if ( 0 == PQfformat(result, field_num) ) {
-				ASSOCIATE_INDEX( val, self );
-			} else {
-				rb_enc_associate( val, rb_ascii8bit_encoding() );
-			}
-#endif
-
-			rb_hash_aset( tuple, fname, val );
-		}
+		rb_hash_aset( tuple, fname, pgresult_value(self, result, tuple_num, field_num) );
 	}
 	return tuple;
 }
@@ -752,23 +745,7 @@ pgresult_each_row(VALUE self)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			if ( PQgetisnull(result, row, field) ) {
-				rb_ary_store( new_row, field, Qnil );
-			}
-			else {
-				VALUE val = rb_tainted_str_new( PQgetvalue(result, row, field),
-				                                PQgetlength(result, row, field) );
-
-#ifdef M17N_SUPPORTED
-				/* associate client encoding for text format only */
-				if ( 0 == PQfformat(result, field) ) {
-					ASSOCIATE_INDEX( val, self );
-				} else {
-					rb_enc_associate( val, rb_ascii8bit_encoding() );
-				}
-#endif
-				rb_ary_store( new_row, field, val );
-			}
+		    rb_ary_store( new_row, field, pgresult_value(self, result, row, field) );
 		}
 		rb_yield( new_row );
 	}
