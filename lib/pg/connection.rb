@@ -27,7 +27,8 @@ class PG::Connection
 		# Parameter 'fallback_application_name' was introduced in PostgreSQL 9.0
 		# together with PQescapeLiteral().
 		if PG::Connection.instance_methods.find{|m| m.to_sym == :escape_literal }
-			appname = PG::Connection.quote_connstr( $0 )
+			appname = $0.sub(/^(.{30}).{4,}(.{30})$/){ $1+"..."+$2 }
+			appname = PG::Connection.quote_connstr( appname )
 			connopts = ["fallback_application_name=#{appname}"]
 		else
 			connopts = []

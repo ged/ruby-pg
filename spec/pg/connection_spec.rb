@@ -574,6 +574,16 @@ describe PG::Connection do
 			PG::Connection.parse_connect_args( 'dbname=test' ).should include( $0 )
 		end
 
+		it "sets a shortened fallback_application_name on new connections" do
+			old_0 = $0
+			begin
+				$0 = "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby"
+				PG::Connection.parse_connect_args( 'dbname=test' ).should match(/\/this\/is\/a.*\.\.\..*\/beloved\/ruby/)
+			ensure
+				$0 = old_0
+			end
+		end
+
 		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
 		    "any number of arguments" do
 
