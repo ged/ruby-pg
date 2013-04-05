@@ -1,3 +1,10 @@
+== v0.15.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+
+- Shorten application_name to avoid warnings about truncated identifier.
+
+
 == v0.15.0 [2013-03-03] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
