@@ -19,7 +19,7 @@ end
 module PG
 
 	# Library version
-	VERSION = '0.15.0'
+	VERSION = '0.15.1'
 
 	# VCS revision
 	REVISION = %q$Revision$
