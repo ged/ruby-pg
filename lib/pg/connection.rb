@@ -2,7 +2,21 @@
 
 require 'pg' unless defined?( PG )
 
-# The PG connection class.
+# The PostgreSQL connection class. The interface for this class is based on
+# {libpq}[http://www.postgresql.org/docs/9.2/interactive/libpq.html], the C
+# application programmer's interface to PostgreSQL. Some familiarity with libpq
+# is recommended, but not necessary.
+#
+# For example, to send query to the database on the localhost:
+#
+#    require 'pg'
+#    conn = PG::Connection.open(:dbname => 'test')
+#    res = conn.exec_params('SELECT $1 AS a, $2 AS b, $3 AS c', [1, 2, nil])
+#    # Equivalent to:
+#    #  res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+#
+# See the PG::Result class for information on working with the results of a query.
+#
 class PG::Connection
 
 	# The order the options are passed to the ::connect method.

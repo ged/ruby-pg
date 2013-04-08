@@ -7,23 +7,6 @@
 #include "pg.h"
 
 
-/********************************************************************
- *
- * Document-class: PG::Connection
- *
- * The class to access PostgreSQL RDBMS, based on the libpq interface,
- * provides convenient OO methods to interact with PostgreSQL.
- *
- * For example, to send query to the database on the localhost:
- *    require 'pg'
- *    conn = PG::Connection.open(:dbname => 'test')
- *    res = conn.exec('SELECT $1 AS a, $2 AS b, $3 AS c',[1, 2, nil])
- *    # Equivalent to:
- *    #  res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
- *
- * See the PG::Result class for information on working with the results of a query.
- *
- */
 VALUE rb_cPGconn;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
