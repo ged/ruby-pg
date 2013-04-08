@@ -1,4 +1,4 @@
-== v0.15.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v0.15.1 [2013-04-08] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
 
