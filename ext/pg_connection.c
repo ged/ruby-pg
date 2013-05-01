@@ -113,7 +113,11 @@ pgconn_gc_free( PGconn *conn )
 static VALUE
 pgconn_s_allocate( VALUE klass )
 {
-	return Data_Wrap_Struct( klass, NULL, pgconn_gc_free, NULL );
+	VALUE self = Data_Wrap_Struct( klass, NULL, pgconn_gc_free, NULL );
+	rb_iv_set( self, "@socket_io", Qnil );
+	rb_iv_set( self, "@notice_receiver", Qnil);
+	rb_iv_set( self, "@notice_processor", Qnil);
+	return self;
 }
 
 
