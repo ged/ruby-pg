@@ -2765,7 +2765,7 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 
 /*
  * call-seq:
- *    conn.transaction { |conn| ... } -> nil
+ *    conn.transaction { |conn| ... } -> result of the block
  *
  * Executes a +BEGIN+ at the start of the block,
  * and a +COMMIT+ at the end of the block, or
@@ -2777,13 +2777,14 @@ pgconn_transaction(VALUE self)
 	PGconn *conn = pg_get_pgconn(self);
 	PGresult *result;
 	VALUE rb_pgresult;
+	VALUE block_result = Qnil;
 	int status;
 
 	if (rb_block_given_p()) {
 		result = gvl_PQexec(conn, "BEGIN");
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
-		rb_protect(rb_yield, self, &status);
+		block_result = rb_protect(rb_yield, self, &status);
 		if(status == 0) {
 			result = gvl_PQexec(conn, "COMMIT");
 			rb_pgresult = pg_new_result(result, self);
@@ -2802,7 +2803,7 @@ pgconn_transaction(VALUE self)
 		/* no block supplied? */
 		rb_raise(rb_eArgError, "Must supply block for PG::Connection#transaction");
 	}
-	return Qnil;
+	return block_result;
 }
 
 

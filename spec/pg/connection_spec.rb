@@ -276,6 +276,16 @@ describe PG::Connection do
 		res.ntuples.should == 0
 	end
 
+	it "returns the block result from Connection#transaction" do
+		# abort the per-example transaction so we can test our own
+		@conn.exec( 'ROLLBACK' )
+
+		res = @conn.transaction do
+			"transaction result"
+		end
+		res.should == "transaction result"
+	end
+
 	it "not read past the end of a large object" do
 		@conn.transaction do
 			oid = @conn.lo_create( 0 )
