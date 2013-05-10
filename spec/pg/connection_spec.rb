@@ -410,6 +410,11 @@ describe PG::Connection do
 		@conn.exec( 'UNLISTEN woo' )
 	end
 
+	it "can receive notices while waiting for NOTIFY" do
+		@conn.send_query "do $$ BEGIN RAISE NOTICE 'woohoo'; END; $$ LANGUAGE plpgsql;"
+		@conn.wait_for_notify( 0.5 ).should be_nil
+	end
+
 	it "yields the result if block is given to exec" do
 		rval = @conn.exec( "select 1234::int as a union select 5678::int as a" ) do |result|
 			values = []

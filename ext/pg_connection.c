@@ -2126,7 +2126,7 @@ pgconn_notifies(VALUE self)
 	sym_be_pid = ID2SYM(rb_intern("be_pid"));
 	sym_extra = ID2SYM(rb_intern("extra"));
 
-	notification = PQnotifies(conn);
+	notification = gvl_PQnotifies(conn);
 	if (notification == NULL) {
 		return Qnil;
 	}
@@ -2329,7 +2329,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 static void *
 notify_readable(PGconn *conn)
 {
-	return (void*)PQnotifies(conn);
+	return (void*)gvl_PQnotifies(conn);
 }
 
 /*
