@@ -73,8 +73,7 @@ describe PG::Result do
 			should == 'relation "nonexistant_table" does not exist'
 		result.error_field( PG::PG_DIAG_MESSAGE_DETAIL ).should be_nil()
 		result.error_field( PG::PG_DIAG_MESSAGE_HINT ).should be_nil()
-		statement_pos = RSpec.configuration.exclusion_filter[:postgresql_90] ? nil : '15'
-		result.error_field( PG::PG_DIAG_STATEMENT_POSITION ).should == statement_pos
+		result.error_field( PG::PG_DIAG_STATEMENT_POSITION ).should == '15'
 		result.error_field( PG::PG_DIAG_INTERNAL_POSITION ).should be_nil()
 		result.error_field( PG::PG_DIAG_INTERNAL_QUERY ).should be_nil()
 		result.error_field( PG::PG_DIAG_CONTEXT ).should be_nil()
