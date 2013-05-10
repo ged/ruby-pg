@@ -129,17 +129,21 @@ end
 
 # Make the ChangeLog update if the repo has changed since it was last built
 file '.hg/branch' do
-	abort "You need the Mercurial repo to make packages"
+	warn "WARNING: You need the Mercurial repo to update the ChangeLog"
 end
-file 'ChangeLog' => '.hg/branch' do |task|
-	$stderr.puts "Updating the changelog..."
-	begin
-		content = make_changelog()
-	rescue NameError
-		abort "Packaging tasks require the hoe-mercurial plugin (gem install hoe-mercurial)"
-	end
-	File.open( task.name, 'w', 0644 ) do |fh|
-		fh.print( content )
+file 'ChangeLog' do |task|
+	if File.exist?('.hg/branch')
+		$stderr.puts "Updating the changelog..."
+		begin
+			content = make_changelog()
+		rescue NameError
+			abort "Packaging tasks require the hoe-mercurial plugin (gem install hoe-mercurial)"
+		end
+		File.open( task.name, 'w', 0644 ) do |fh|
+			fh.print( content )
+		end
+	else
+		touch 'ChangeLog'
 	end
 end
 
