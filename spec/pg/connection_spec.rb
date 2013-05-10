@@ -581,14 +581,16 @@ describe PG::Connection do
 		end
 
 		it "sets the fallback_application_name on new connections" do
-			PG::Connection.parse_connect_args( 'dbname=test' ).should include( $0 )
+			conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
+			connection_string_should_contain_application_name(conn_string, $0)
 		end
 
 		it "sets a shortened fallback_application_name on new connections" do
 			old_0 = $0
 			begin
 				$0 = "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby"
-				PG::Connection.parse_connect_args( 'dbname=test' ).should match(/\/this\/is\/a.*\.\.\..*\/beloved\/ruby/)
+				conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
+				connection_string_should_contain_application_name(conn_string, $0)
 			ensure
 				$0 = old_0
 			end
