@@ -260,7 +260,7 @@ describe PG::Connection do
 	it "can stop a thread that runs a blocking query" do
 		start = Time.now
 		t = Thread.new do
-			@conn.exec( 'select pg_sleep(10)' )
+			@conn.async_exec( 'select pg_sleep(10)' )
 		end
 		sleep 0.1
 
