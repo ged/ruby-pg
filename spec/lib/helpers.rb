@@ -247,6 +247,13 @@ module PG::TestingHelpers
 			end
 		end
 	end
+
+	def connection_string_should_contain_application_name(conn_args, app_name)
+		conn_name = conn_args.match(/application_name='(.*)'/)[1]
+		conn_name.should include(app_name[0..10])
+		conn_name.should include(app_name[-10..-1])
+		conn_name.length.should <= 64
+	end
 end
 
 
