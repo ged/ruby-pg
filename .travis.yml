@@ -9,8 +9,8 @@ rvm:
   - rbx-18mode
   - rbx-19mode
 env:
-  - "PGVERSION=9.2.4-1-linux-x64 PATH=\"/opt/PostgreSQL/9.2/bin:$PATH\" LD_LIBRARY_PATH=/opt/PostgreSQL/9.2/lib"
-  - "PGVERSION=8.4.17-1-linux-x64 PATH=\"/opt/PostgreSQL/8.4/bin:$PATH\" LD_LIBRARY_PATH=/opt/PostgreSQL/8.4/lib"
+  - "PGVERSION=9.2.4-1-linux-x64 PATH=\"/opt/PostgreSQL/9.2/bin:$PATH\""
+  - "PGVERSION=8.4.17-1-linux-x64 PATH=\"/opt/PostgreSQL/8.4/bin:$PATH\""
   - "PGCROSS=true"
 matrix:
   # Test cross compilation only with 1.8.7
