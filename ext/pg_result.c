@@ -249,18 +249,18 @@ pgresult_error_message(VALUE self)
  *       conn.exec( "SELECT * FROM nonexistant_table" )
  *   rescue PG::Error => err
  *       p [
- *           result.error_field( PG::Result::PG_DIAG_SEVERITY ),
- *           result.error_field( PG::Result::PG_DIAG_SQLSTATE ),
- *           result.error_field( PG::Result::PG_DIAG_MESSAGE_PRIMARY ),
- *           result.error_field( PG::Result::PG_DIAG_MESSAGE_DETAIL ),
- *           result.error_field( PG::Result::PG_DIAG_MESSAGE_HINT ),
- *           result.error_field( PG::Result::PG_DIAG_STATEMENT_POSITION ),
- *           result.error_field( PG::Result::PG_DIAG_INTERNAL_POSITION ),
- *           result.error_field( PG::Result::PG_DIAG_INTERNAL_QUERY ),
- *           result.error_field( PG::Result::PG_DIAG_CONTEXT ),
- *           result.error_field( PG::Result::PG_DIAG_SOURCE_FILE ),
- *           result.error_field( PG::Result::PG_DIAG_SOURCE_LINE ),
- *           result.error_field( PG::Result::PG_DIAG_SOURCE_FUNCTION ),
+ *           err.result.error_field( PG::Result::PG_DIAG_SEVERITY ),
+ *           err.result.error_field( PG::Result::PG_DIAG_SQLSTATE ),
+ *           err.result.error_field( PG::Result::PG_DIAG_MESSAGE_PRIMARY ),
+ *           err.result.error_field( PG::Result::PG_DIAG_MESSAGE_DETAIL ),
+ *           err.result.error_field( PG::Result::PG_DIAG_MESSAGE_HINT ),
+ *           err.result.error_field( PG::Result::PG_DIAG_STATEMENT_POSITION ),
+ *           err.result.error_field( PG::Result::PG_DIAG_INTERNAL_POSITION ),
+ *           err.result.error_field( PG::Result::PG_DIAG_INTERNAL_QUERY ),
+ *           err.result.error_field( PG::Result::PG_DIAG_CONTEXT ),
+ *           err.result.error_field( PG::Result::PG_DIAG_SOURCE_FILE ),
+ *           err.result.error_field( PG::Result::PG_DIAG_SOURCE_LINE ),
+ *           err.result.error_field( PG::Result::PG_DIAG_SOURCE_FUNCTION ),
  *       ]
  *   end
  *
