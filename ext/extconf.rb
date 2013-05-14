@@ -27,16 +27,22 @@ if ENV['CROSS_COMPILING']
 	have_library( 'ssl', 'SSL_new' ) && append_library( $libs, 'ssl' )
 end
 
-dir_config 'pg'
-
 if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_executable('pg_config') )
 	$stderr.puts "Using config values from %s" % [ pgconfig ]
 	incdir = `"#{pgconfig}" --includedir`.chomp
 	libdir = `"#{pgconfig}" --libdir`.chomp
 	dir_config 'pg', incdir, libdir
+
+	# Try to use runtime path linker option, even if RbConfig doesn't know about it.
+	# The rpath option is usually set implicit by dir_config(), but so far not
+	# on MacOS-X.
+	if RbConfig::CONFIG["RPATHFLAG"].to_s.empty? && try_link('int main() {return 0;}', " -Wl,-rpath,#{libdir}")
+		$LDFLAGS << " -Wl,-rpath,#{libdir}"
+	end
 else
 	$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
 		" --with-pg-config=/path/to/pg_config"
+	dir_config 'pg'
 end
 
 find_header( 'libpq-fe.h' ) or abort "Can't find the 'libpq-fe.h header"
