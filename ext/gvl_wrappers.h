@@ -151,6 +151,8 @@ void ubf_cancel_running_command(void *c);
 	param(PGconn *, conn) \
 	param(char **, buffer)
 
+#define FOR_EACH_PARAM_OF_PQnotifies(param)
+
 /* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_BLOCKING_FUNCTION(function) \
 	function(PQexec, GVL_TYPE_NONVOID, PGresult *, const char *, command) \
@@ -163,6 +165,7 @@ void ubf_cancel_running_command(void *c);
 	function(PQputCopyData, GVL_TYPE_NONVOID, int, int, nbytes) \
 	function(PQputCopyEnd, GVL_TYPE_NONVOID, int, const char *, errormsg) \
 	function(PQgetCopyData, GVL_TYPE_NONVOID, int, int, async) \
+	function(PQnotifies, GVL_TYPE_NONVOID, PGnotify *, PGconn *, conn);
 
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 
