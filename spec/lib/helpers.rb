@@ -277,9 +277,11 @@ RSpec.configure do |config|
 		PG::Connection.instance_methods.map( &:to_sym ).include?( :escape_literal )
 
 	if !PG.respond_to?( :library_version )
-		config.filter_run_excluding( :postgresql_91, :postgresql_92 )
+		config.filter_run_excluding( :postgresql_91, :postgresql_92, :postgresql_93 )
 	elsif PG.library_version < 90200
-		config.filter_run_excluding( :postgresql_92 )
+		config.filter_run_excluding( :postgresql_92, :postgresql_93 )
+	elsif PG.library_version < 90300
+		config.filter_run_excluding( :postgresql_93 )
 	end
 end
 
