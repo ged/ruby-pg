@@ -257,6 +257,18 @@ describe PG::Connection do
 		error.should == true
 	end
 
+	it "can stop a thread that runs a blocking query" do
+		start = Time.now
+		t = Thread.new do
+			@conn.async_exec( 'select pg_sleep(10)' )
+		end
+		sleep 0.1
+
+		t.kill
+		t.join
+		(Time.now - start).should < 10
+	end
+
 	it "automatically rolls back a transaction started with Connection#transaction if an exception " +
 	   "is raised" do
 		# abort the per-example transaction so we can test our own

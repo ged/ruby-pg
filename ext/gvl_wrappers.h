@@ -24,6 +24,8 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 				 rb_unblock_function_t *ubf, void *data2);
 #endif
 
+void ubf_cancel_running_command(void *c);
+
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
 
@@ -59,7 +61,7 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 			struct gvl_wrapper_##name##_params params = { \
 				{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
 			}; \
-			rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, RUBY_UBF_IO, 0); \
+			rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, ubf_cancel_running_command, conn); \
 			when_non_void( return params.retval; ) \
 		}
 #else
