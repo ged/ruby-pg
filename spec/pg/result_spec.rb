@@ -80,7 +80,23 @@ describe PG::Result do
 		result.error_field( PG::PG_DIAG_SOURCE_FILE ).should =~ /parse_relation\.c$|namespace\.c$/
 		result.error_field( PG::PG_DIAG_SOURCE_LINE ).should =~ /^\d+$/
 		result.error_field( PG::PG_DIAG_SOURCE_FUNCTION ).should =~ /^parserOpenTable$|^RangeVarGetRelid$/
+	end
 
+	it "encapsulates database object names for integrity constraint violations", :postgresql_93 do
+		@conn.exec( "CREATE TABLE integrity (id SERIAL PRIMARY KEY)" )
+		exception = nil
+		begin
+			@conn.exec( "INSERT INTO integrity VALUES (NULL)" )
+		rescue PGError => err
+			exception = err
+		end
+		result = exception.result
+
+		result.error_field( PG::PG_DIAG_SCHEMA_NAME ).should == 'public'
+		result.error_field( PG::PG_DIAG_TABLE_NAME ).should == 'integrity'
+		result.error_field( PG::PG_DIAG_COLUMN_NAME ).should == 'id'
+		result.error_field( PG::PG_DIAG_DATATYPE_NAME ).should be_nil
+		result.error_field( PG::PG_DIAG_CONSTRAINT_NAME ).should be_nil
 	end
 
 	it "should detect division by zero as SQLSTATE 22012" do

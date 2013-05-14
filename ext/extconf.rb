@@ -77,6 +77,7 @@ have_func 'rb_w32_wrap_io_handle'
 
 have_const 'PGRES_COPY_BOTH', 'libpq-fe.h'
 have_const 'PGRES_SINGLE_TUPLE', 'libpq-fe.h'
+have_const 'PG_DIAG_TABLE_NAME', 'libpq-fe.h'
 
 $defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
 	have_struct_member 'struct pgNotify', 'extra', 'libpq-fe.h'

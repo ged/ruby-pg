@@ -506,6 +506,34 @@ Init_pg_ext()
 	 * function reporting the error. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
+#ifdef HAVE_CONST_PG_DIAG_TABLE_NAME
+	/* #result_error_field argument constant: If the error was associated with a
+	 * specific database object, the name of the schema containing that object, if any. */
+	rb_define_const(rb_mPGconstants, "PG_DIAG_SCHEMA_NAME", INT2FIX(PG_DIAG_SCHEMA_NAME));
+
+	/* #result_error_field argument constant: If the error was associated with a
+	 *specific table, the name of the table. (When this field is present, the schema name
+	 * field provides the name of the table's schema.) */
+	rb_define_const(rb_mPGconstants, "PG_DIAG_TABLE_NAME", INT2FIX(PG_DIAG_TABLE_NAME));
+
+	/* #result_error_field argument constant: If the error was associated with a
+	 * specific table column, the name of the column. (When this field is present, the
+	 * schema and table name fields identify the table.) */
+	rb_define_const(rb_mPGconstants, "PG_DIAG_COLUMN_NAME", INT2FIX(PG_DIAG_COLUMN_NAME));
+
+	/* #result_error_field argument constant: If the error was associated with a
+	 * specific datatype, the name of the datatype. (When this field is present, the
+	 * schema name field provides the name of the datatype's schema.) */
+	rb_define_const(rb_mPGconstants, "PG_DIAG_DATATYPE_NAME", INT2FIX(PG_DIAG_DATATYPE_NAME));
+
+	/* #result_error_field argument constant: If the error was associated with a
+	 * specific constraint, the name of the constraint. The table or domain that the
+	 * constraint belongs to is reported using the fields listed above. (For this
+	 * purpose, indexes are treated as constraints, even if they weren't created with
+	 * constraint syntax.) */
+	rb_define_const(rb_mPGconstants, "PG_DIAG_CONSTRAINT_NAME", INT2FIX(PG_DIAG_CONSTRAINT_NAME));
+#endif
+
 	/* Invalid OID constant */
 	rb_define_const(rb_mPGconstants, "INVALID_OID", INT2FIX(InvalidOid));
 	rb_define_const(rb_mPGconstants, "InvalidOid", INT2FIX(InvalidOid));
