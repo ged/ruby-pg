@@ -27,5 +27,18 @@ describe PG do
 		PG.should be_threadsafe()
 	end
 
+	it "does have hierarchical error classes" do
+		PG::UndefinedTable.ancestors[0,4].should == [
+				PG::UndefinedTable,
+				PG::SyntaxErrorOrAccessRuleViolation,
+				PG::ServerError,
+				PG::Error]
+
+		PG::InvalidSchemaName.ancestors[0,3].should == [
+				PG::InvalidSchemaName,
+				PG::ServerError,
+				PG::Error]
+	end
+
 end
 

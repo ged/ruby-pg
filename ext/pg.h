@@ -88,6 +88,7 @@ extern VALUE rb_ePGerror;
 extern VALUE rb_mPGconstants;
 extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
+extern VALUE rb_hErrors;
 
 
 /***************************************************************************
@@ -105,6 +106,8 @@ void Init_pg_ext                                       _(( void ));
 
 void init_pg_connection                                _(( void ));
 void init_pg_result                                    _(( void ));
+void init_pg_errors                                    _(( void ));
+VALUE lookup_error_class                               _(( const char *sqlstate ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 

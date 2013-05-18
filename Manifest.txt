@@ -12,12 +12,16 @@ README.ja.rdoc
 README.rdoc
 Rakefile
 Rakefile.cross
+ext/errorcodes.def
+ext/errorcodes.rb
+ext/errorcodes.txt
 ext/extconf.rb
 ext/gvl_wrappers.c
 ext/gvl_wrappers.h
 ext/pg.c
 ext/pg.h
 ext/pg_connection.c
+ext/pg_errors.c
 ext/pg_result.c
 ext/vc/pg.sln
 ext/vc/pg_18/pg.vcproj

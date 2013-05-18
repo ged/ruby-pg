@@ -48,7 +48,6 @@
 #include "pg.h"
 
 VALUE rb_mPG;
-VALUE rb_ePGerror;
 VALUE rb_mPGconstants;
 
 
@@ -300,7 +299,6 @@ void
 Init_pg_ext()
 {
 	rb_mPG = rb_define_module( "PG" );
-	rb_ePGerror = rb_define_class_under( rb_mPG, "Error", rb_eStandardError );
 	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );
 
 	/*************************
@@ -312,13 +310,6 @@ Init_pg_ext()
 	rb_define_singleton_method( rb_mPG, "isthreadsafe", pg_s_threadsafe_p, 0 );
 	SINGLETON_ALIAS( rb_mPG, "is_threadsafe?", "isthreadsafe" );
 	SINGLETON_ALIAS( rb_mPG, "threadsafe?", "isthreadsafe" );
-
-	/*************************
-	 *  PG::Error
-	 *************************/
-	rb_define_alias( rb_ePGerror, "error", "message" );
-	rb_define_attr( rb_ePGerror, "connection", 1, 0 );
-	rb_define_attr( rb_ePGerror, "result", 1, 0 );
 
 	/******     PG::Connection CLASS CONSTANTS: Connection Status     ******/
 
@@ -549,5 +540,6 @@ Init_pg_ext()
 	/* Initialize the main extension classes */
 	init_pg_connection();
 	init_pg_result();
+	init_pg_errors();
 }
 

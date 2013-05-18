@@ -290,4 +290,46 @@ describe PG::Result do
 		expect{ res.field_values( '' ) }.to raise_error(IndexError)
 		expect{ res.field_values( :x ) }.to raise_error(TypeError)
 	end
+
+	it "should raise a proper exception for a nonexistant table" do
+		expect {
+			@conn.exec( "SELECT * FROM nonexistant_table" )
+		}.to raise_error( PG::UndefinedTable, /relation "nonexistant_table" does not exist/ )
+	end
+
+	it "should raise a more generic exception for an unknown SQLSTATE" do
+		old_error = PG::Errors.delete('42P01')
+		begin
+			expect {
+				@conn.exec( "SELECT * FROM nonexistant_table" )
+			}.to raise_error{|error|
+				error.should be_an_instance_of(PG::SyntaxErrorOrAccessRuleViolation)
+				error.to_s.should match(/relation "nonexistant_table" does not exist/)
+			}
+		ensure
+			PG::Errors['42P01'] = old_error
+		end
+	end
+
+	it "should raise a ServerError for an unknown SQLSTATE class" do
+		old_error1 = PG::Errors.delete('42P01')
+		old_error2 = PG::Errors.delete('42')
+		begin
+			expect {
+				@conn.exec( "SELECT * FROM nonexistant_table" )
+			}.to raise_error{|error|
+				error.should be_an_instance_of(PG::ServerError)
+				error.to_s.should match(/relation "nonexistant_table" does not exist/)
+			}
+		ensure
+			PG::Errors['42P01'] = old_error1
+			PG::Errors['42'] = old_error2
+		end
+	end
+
+	it "should raise a proper exception for a nonexistant schema" do
+		expect {
+			@conn.exec( "DROP SCHEMA nonexistant_schema" )
+		}.to raise_error( PG::InvalidSchemaName, /schema "nonexistant_schema" does not exist/ )
+	end
 end

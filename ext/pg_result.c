@@ -44,13 +44,14 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 VALUE
 pg_result_check( VALUE self )
 {
-	VALUE error, exception;
+	VALUE error, exception, klass;
 	VALUE rb_pgconn = rb_iv_get( self, "@connection" );
 	PGconn *conn = pg_get_pgconn(rb_pgconn);
 	PGresult *result;
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
 #endif
+	char * sqlstate;
 
 	Data_Get_Struct(self, PGresult, result);
 
@@ -87,7 +88,10 @@ pg_result_check( VALUE self )
 #ifdef M17N_SUPPORTED
 	rb_enc_set_index( error, rb_enc_to_index(enc) );
 #endif
-	exception = rb_exc_new3( rb_ePGerror, error );
+
+	sqlstate = PQresultErrorField( result, PG_DIAG_SQLSTATE );
+	klass = lookup_error_class( sqlstate );
+	exception = rb_exc_new3( klass, error );
 	rb_iv_set( exception, "@connection", rb_pgconn );
 	rb_iv_set( exception, "@result", self );
 	rb_exc_raise( exception );
