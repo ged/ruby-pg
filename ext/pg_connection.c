@@ -1452,6 +1452,10 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	PQfreemem(escaped);
 	OBJ_INFECT(result, string);
 
+#ifdef M17N_SUPPORTED
+	rb_enc_associate(result, pg_conn_enc_get( pg_get_pgconn(self) ));
+#endif
+
 	return result;
 }
 #endif
@@ -1462,6 +1466,9 @@ pgconn_escape_literal(VALUE self, VALUE string)
  *    conn.escape_identifier( str ) -> String
  *
  * Escape an arbitrary String +str+ as an identifier.
+ *
+ * This method does the same as #quote_ident, but uses libpq to
+ * process the string.
  */
 static VALUE
 pgconn_escape_identifier(VALUE self, VALUE string)
@@ -1484,6 +1491,10 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	OBJ_INFECT(result, string);
+
+#ifdef M17N_SUPPORTED
+	rb_enc_associate(result, pg_conn_enc_get( pg_get_pgconn(self) ));
+#endif
 
 	return result;
 }
@@ -2837,6 +2848,9 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	 * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
 	unsigned int i=0,j=0;
+#ifdef M17N_SUPPORTED
+	rb_encoding* enc;
+#endif
 
 	UNUSED( self );
 
@@ -2854,6 +2868,16 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	buffer[j++] = '"';
 	ret = rb_str_new(buffer,j);
 	OBJ_INFECT(ret, in_str);
+
+#ifdef M17N_SUPPORTED
+	if ( rb_obj_class(self) == rb_cPGconn ) {
+		enc = pg_conn_enc_get( pg_get_pgconn(self) );
+	} else {
+		enc = rb_enc_get(in_str);
+	}
+	rb_enc_associate(ret, enc);
+#endif
+
 	return ret;
 }
 

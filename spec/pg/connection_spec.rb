@@ -903,17 +903,53 @@ describe PG::Connection do
 			end
 
 			it "uses the client encoding for escaped string" do
-				original = "string to escape".force_encoding( "euc-jp" )
+				original = "string to\0 escape".force_encoding( "iso8859-1" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape( original )
 				escaped.encoding.should == Encoding::EUC_JP
+				escaped.should == "string to"
 			end
 
-			it "escapes string as literal", :postgresql_90 do
-				original = "string to\0 escape"
+			it "uses the client encoding for escaped literal", :postgresql_90 do
+				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_literal( original )
+				escaped.encoding.should == Encoding::EUC_JP
 				escaped.should == "'string to'"
 			end
+
+			it "uses the client encoding for escaped identifier", :postgresql_90 do
+				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				@conn.set_client_encoding( "euc_jp" )
+				escaped  = @conn.escape_identifier( original )
+				escaped.encoding.should == Encoding::EUC_JP
+				escaped.should == "\"string to\""
+			end
+
+			it "uses the client encoding for quote_ident" do
+				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				@conn.set_client_encoding( "euc_jp" )
+				escaped  = @conn.quote_ident( original )
+				escaped.encoding.should == Encoding::EUC_JP
+				escaped.should == "\"string to\""
+			end
+
+			it "uses the previous string encoding for escaped string" do
+				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				@conn.set_client_encoding( "euc_jp" )
+				escaped  = described_class.escape( original )
+				escaped.encoding.should == Encoding::ISO8859_1
+				escaped.should == "string to"
+			end
+
+			it "uses the previous string encoding for quote_ident" do
+				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				@conn.set_client_encoding( "euc_jp" )
+				escaped  = described_class.quote_ident( original )
+				escaped.encoding.should == Encoding::ISO8859_1
+				escaped.should == "\"string to\""
+			end
+
 		end
 
 
