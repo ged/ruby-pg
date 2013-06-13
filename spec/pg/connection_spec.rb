@@ -177,6 +177,11 @@ describe PG::Connection do
 		conn.should be_finished()
 	end
 
+	it "raises proper error when sending fails" do
+		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		expect{ conn.exec 'SELECT 1' }.to raise_error(PG::UnableToSend, /no connection/)
+	end
+
 	it "doesn't leave stale server connections after finish" do
 		described_class.connect(@conninfo).finish
 		sleep 0.5

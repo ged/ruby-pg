@@ -8,6 +8,7 @@
 VALUE rb_hErrors;
 VALUE rb_ePGerror;
 VALUE rb_eServerError;
+VALUE rb_eUnableToSend;
 
 static VALUE
 define_error_class(const char *name, const char *baseclass_code)
@@ -58,7 +59,7 @@ lookup_error_class(const char *sqlstate)
 		/* Unable to retrieve the PG_DIAG_SQLSTATE.
 		 * Use the generic error instead.
 		 */
-		klass = rb_ePGerror;
+		klass = rb_eUnableToSend;
 	}
 
 	return klass;
@@ -80,6 +81,7 @@ init_pg_errors()
 	rb_define_attr( rb_ePGerror, "result", 1, 0 );
 
 	rb_eServerError = rb_define_class_under( rb_mPG, "ServerError", rb_ePGerror );
+	rb_eUnableToSend = rb_define_class_under( rb_mPG, "UnableToSend", rb_ePGerror );
 
 	#include "errorcodes.def"
 }
