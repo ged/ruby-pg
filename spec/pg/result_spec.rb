@@ -298,7 +298,7 @@ describe PG::Result do
 	end
 
 	it "should raise a more generic exception for an unknown SQLSTATE" do
-		old_error = PG::Errors.delete('42P01')
+		old_error = PG::ERROR_CLASSES.delete('42P01')
 		begin
 			expect {
 				@conn.exec( "SELECT * FROM nonexistant_table" )
@@ -307,13 +307,13 @@ describe PG::Result do
 				error.to_s.should match(/relation "nonexistant_table" does not exist/)
 			}
 		ensure
-			PG::Errors['42P01'] = old_error
+			PG::ERROR_CLASSES['42P01'] = old_error
 		end
 	end
 
 	it "should raise a ServerError for an unknown SQLSTATE class" do
-		old_error1 = PG::Errors.delete('42P01')
-		old_error2 = PG::Errors.delete('42')
+		old_error1 = PG::ERROR_CLASSES.delete('42P01')
+		old_error2 = PG::ERROR_CLASSES.delete('42')
 		begin
 			expect {
 				@conn.exec( "SELECT * FROM nonexistant_table" )
@@ -322,8 +322,8 @@ describe PG::Result do
 				error.to_s.should match(/relation "nonexistant_table" does not exist/)
 			}
 		ensure
-			PG::Errors['42P01'] = old_error1
-			PG::Errors['42'] = old_error2
+			PG::ERROR_CLASSES['42P01'] = old_error1
+			PG::ERROR_CLASSES['42'] = old_error2
 		end
 	end
 
