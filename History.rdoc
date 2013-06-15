@@ -1,3 +1,27 @@
+== v0.16.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+
+- Avoid warnings about uninitialized instance variables.
+- Use a more standard method of adding library and include directories.
+  This fixes build on AIX (Github #7) and Solaris (#164).
+- Cancel the running query, if a thread is about to be killed (e.g. by CTRL-C).
+- Fix GVL issue with wait_for_notify/notifies and notice callbacks.
+- Set proper encoding on the string returned by quote_ident, escape_literal
+  and escape_identifier (#163).
+
+Documentation fixes:
+
+- Fix non working example for PGresult#error_field.
+
+Enhancements:
+
+- Add unique exception classes for each PostgreSQL error type (#5).
+- Return result of the block in conn#transaction instead of nil (#158).
+- Allow 'rake compile' and 'rake gem' on non mercurial repos.
+- Add support for PG_DIAG_*_NAME error fields of PostgreSQL-9.3 (#161).
+
+
 == v0.15.1 [2013-04-08] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
@@ -156,11 +180,11 @@ Bugfixes:
   * accept a nil argument for no timeout (Sequel support)
   * Fixed API docs
   * Taint and encode event name and payload
-- Handle errors while rb_thread_select()ing in PGconn#block. 
+- Handle errors while rb_thread_select()ing in PGconn#block.
   (Brian Weaver).
 - Fixes for Win32 async queries (Rafał Bigaj)
 - Memory leak fixed: Closing opened WSA event. (rafal)
-- Fixes for #66 Win32 asynchronous queries hang on connection 
+- Fixes for #66 Win32 asynchronous queries hang on connection
   error. (rafal)
 - Fixed a typo in PGconn#error_message's documentation
 - fixing unused variable warnings for ruby 1.9.3 (Aaron Patterson)
@@ -173,7 +197,7 @@ Bugfixes:
 
 Enhancements:
 
-* Added a PGresult#values method to fetch all result rows as an Array of 
+* Added a PGresult#values method to fetch all result rows as an Array of
   Arrays. Thanks to Jason Yanowitz (JYanowitz at enovafinancial dot com) for
   the patch.
 
