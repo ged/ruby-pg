@@ -575,7 +575,7 @@ describe PG::Connection do
 		conn = PG.connect( @conninfo )
 
 		conn.finish
-		expect { conn.finish }.to raise_error( PG::Error, /connection is closed/i )
+		expect { conn.finish }.to raise_error( PG::ConnectionBad, /connection is closed/i )
 	end
 
 	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction, :socket_io do
@@ -583,7 +583,7 @@ describe PG::Connection do
 		io = conn.socket_io
 		conn.finish
 		io.should be_closed()
-		expect { conn.socket_io }.to raise_error( PG::Error, /connection is closed/i )
+		expect { conn.socket_io }.to raise_error( PG::ConnectionBad, /connection is closed/i )
 	end
 
 	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction, :socket_io do
@@ -1096,7 +1096,7 @@ describe PG::Connection do
 				serv = TCPServer.new( '127.0.0.1', 54320 )
 				expect {
 					described_class.new( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-				}.to raise_error(PG::Error, /server closed the connection unexpectedly/)
+				}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
 			end
 
 			sleep 0.5

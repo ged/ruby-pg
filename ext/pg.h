@@ -85,6 +85,9 @@ typedef long suseconds_t;
 
 extern VALUE rb_mPG;
 extern VALUE rb_ePGerror;
+extern VALUE rb_eServerError;
+extern VALUE rb_eUnableToSend;
+extern VALUE rb_eConnectionBad;
 extern VALUE rb_mPGconstants;
 extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;

@@ -40,7 +40,7 @@ pg_get_pgconn( VALUE self )
 	PGconn *conn = pgconn_check( self );
 
 	if ( !conn )
-		rb_raise( rb_ePGerror, "connection is closed" );
+		rb_raise( rb_eConnectionBad, "connection is closed" );
 
 	return conn;
 }
@@ -195,7 +195,7 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	DATA_PTR(self) = conn;
 
 	if (PQstatus(conn) == CONNECTION_BAD) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -249,7 +249,7 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	DATA_PTR(rb_conn) = conn;
 
 	if ( PQstatus(conn) == CONNECTION_BAD ) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", rb_conn);
 		rb_exc_raise(error);
 	}
@@ -1611,7 +1611,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	/* If called with no parameters, use PQsendQuery */
 	if(NIL_P(params)) {
 		if(PQsendQuery(conn,StringValuePtr(command)) == 0) {
-			error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
 		}
@@ -1694,7 +1694,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	xfree(paramFormats);
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1756,7 +1756,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	xfree(paramTypes);
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1879,7 +1879,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	xfree(paramFormats);
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1900,7 +1900,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
 	if(PQsendDescribePrepared(conn,StringValuePtr(stmt_name)) == 0) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1922,7 +1922,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
 	if(PQsendDescribePortal(conn,StringValuePtr(portal)) == 0) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
