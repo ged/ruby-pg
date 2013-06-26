@@ -1080,13 +1080,28 @@ describe PG::Connection do
 	end
 
 	context "OS thread support", :ruby_19 do
-		it "described_class#exec shouldn't block a second thread" do
+		it "Connection#exec shouldn't block a second thread" do
 			t = Thread.new do
 				@conn.exec( "select pg_sleep(1)" )
 			end
 
 			sleep 0.5
 			t.should be_alive()
+			t.join
+		end
+
+		it "Connection.new shouldn't block a second thread" do
+			serv = nil
+			t = Thread.new do
+				serv = TCPServer.new( '127.0.0.1', 54320 )
+				expect {
+					described_class.new( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+				}.to raise_error(PG::Error, /server closed the connection unexpectedly/)
+			end
+
+			sleep 0.5
+			t.should be_alive()
+			serv.close
 			t.join
 		end
 	end

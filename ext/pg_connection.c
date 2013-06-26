@@ -186,10 +186,10 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	VALUE error;
 
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
-	conn = PQconnectdb(StringValuePtr(conninfo));
+	conn = gvl_PQconnectdb(StringValuePtr(conninfo));
 
 	if(conn == NULL)
-		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
+		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
 
 	Check_Type(self, T_DATA);
 	DATA_PTR(self) = conn;
@@ -240,7 +240,7 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	 */
 	rb_conn  = pgconn_s_allocate( klass );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	conn     = PQconnectStart( StringValuePtr(conninfo) );
+	conn     = gvl_PQconnectStart( StringValuePtr(conninfo) );
 
 	if( conn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
@@ -419,7 +419,7 @@ static VALUE
 pgconn_connect_poll(VALUE self)
 {
 	PostgresPollingStatusType status;
-	status = PQconnectPoll(pg_get_pgconn(self));
+	status = gvl_PQconnectPoll(pg_get_pgconn(self));
 	return INT2FIX((int)status);
 }
 
@@ -464,7 +464,7 @@ static VALUE
 pgconn_reset( VALUE self )
 {
 	pgconn_close_socket_io( self );
-	PQreset( pg_get_pgconn(self) );
+	gvl_PQreset( pg_get_pgconn(self) );
 	return self;
 }
 
@@ -482,7 +482,7 @@ static VALUE
 pgconn_reset_start(VALUE self)
 {
 	pgconn_close_socket_io( self );
-	if(PQresetStart(pg_get_pgconn(self)) == 0)
+	if(gvl_PQresetStart(pg_get_pgconn(self)) == 0)
 		rb_raise(rb_ePGerror, "reset has failed");
 	return Qnil;
 }
@@ -499,7 +499,7 @@ static VALUE
 pgconn_reset_poll(VALUE self)
 {
 	PostgresPollingStatusType status;
-	status = PQresetPoll(pg_get_pgconn(self));
+	status = gvl_PQresetPoll(pg_get_pgconn(self));
 	return INT2FIX((int)status);
 }
 

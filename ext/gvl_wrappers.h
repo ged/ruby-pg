@@ -38,7 +38,7 @@ void ubf_cancel_running_command(void *c);
 #define DEFINE_PARAM_DECL(type, name) \
 	type name;
 
-#define DEFINE_GVL_WRAPPER_STRUCT(name, when_non_void, rettype, lastparamtype, lastparamname) \
+#define DEFINE_GVL_WRAPPER_STRUCT(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 	struct gvl_wrapper_##name##_params { \
 		struct { \
 			FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_DECL) \
@@ -47,7 +47,7 @@ void ubf_cancel_running_command(void *c);
 		when_non_void( rettype retval; ) \
 	};
 
-#define DEFINE_GVL_SKELETON(name, when_non_void, rettype, lastparamtype, lastparamname) \
+#define DEFINE_GVL_SKELETON(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 	static void * gvl_##name##_skeleton( void *data ){ \
 		struct gvl_wrapper_##name##_params *p = (struct gvl_wrapper_##name##_params*)data; \
 		when_non_void( p->retval = ) \
@@ -56,25 +56,25 @@ void ubf_cancel_running_command(void *c);
 	}
 
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-	#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	#define DEFINE_GVL_STUB(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 			struct gvl_wrapper_##name##_params params = { \
 				{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
 			}; \
-			rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, ubf_cancel_running_command, conn); \
+			rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, cancel_params); \
 			when_non_void( return params.retval; ) \
 		}
 #else
-	#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	#define DEFINE_GVL_STUB(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 			return name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
 		}
 #endif
 
-#define DEFINE_GVL_STUB_DECL(name, when_non_void, rettype, lastparamtype, lastparamname) \
+#define DEFINE_GVL_STUB_DECL(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname);
 
-#define DEFINE_GVLCB_SKELETON(name, when_non_void, rettype, lastparamtype, lastparamname) \
+#define DEFINE_GVLCB_SKELETON(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 	static void * gvl_##name##_skeleton( void *data ){ \
 		struct gvl_wrapper_##name##_params *p = (struct gvl_wrapper_##name##_params*)data; \
 		when_non_void( p->retval = ) \
@@ -83,7 +83,7 @@ void ubf_cancel_running_command(void *c);
 	}
 
 #if defined(HAVE_RB_THREAD_CALL_WITH_GVL)
-	#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	#define DEFINE_GVLCB_STUB(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 			struct gvl_wrapper_##name##_params params = { \
 				{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
@@ -92,7 +92,7 @@ void ubf_cancel_running_command(void *c);
 			when_non_void( return params.retval; ) \
 		}
 #else
-	#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	#define DEFINE_GVLCB_STUB(name, cancel_params, when_non_void, rettype, lastparamtype, lastparamname) \
 		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 			return name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
 		}
@@ -101,10 +101,25 @@ void ubf_cancel_running_command(void *c);
 #define GVL_TYPE_VOID(string)
 #define GVL_TYPE_NONVOID(string) string
 
+#define GVL_CANCELABLE ubf_cancel_running_command, conn
+#define GVL_NONCANCELABLE RUBY_UBF_IO, 0
+
 
 /*
  * Definitions of blocking functions and their parameters
  */
+
+#define FOR_EACH_PARAM_OF_PQconnectdb(param)
+
+#define FOR_EACH_PARAM_OF_PQconnectStart(param)
+
+#define FOR_EACH_PARAM_OF_PQconnectPoll(param)
+
+#define FOR_EACH_PARAM_OF_PQreset(param)
+
+#define FOR_EACH_PARAM_OF_PQresetStart(param)
+
+#define FOR_EACH_PARAM_OF_PQresetPoll(param)
 
 #define FOR_EACH_PARAM_OF_PQexec(param) \
 	param(PGconn *, conn)
@@ -155,17 +170,23 @@ void ubf_cancel_running_command(void *c);
 
 /* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_BLOCKING_FUNCTION(function) \
-	function(PQexec, GVL_TYPE_NONVOID, PGresult *, const char *, command) \
-	function(PQexecParams, GVL_TYPE_NONVOID, PGresult *, int, resultFormat) \
-	function(PQexecPrepared, GVL_TYPE_NONVOID, PGresult *, int, resultFormat) \
-	function(PQprepare, GVL_TYPE_NONVOID, PGresult *, const Oid *, paramTypes) \
-	function(PQdescribePrepared, GVL_TYPE_NONVOID, PGresult *, const char *, stmtName) \
-	function(PQdescribePortal, GVL_TYPE_NONVOID, PGresult *, const char *, portalName) \
-	function(PQgetResult, GVL_TYPE_NONVOID, PGresult *, PGconn *, conn) \
-	function(PQputCopyData, GVL_TYPE_NONVOID, int, int, nbytes) \
-	function(PQputCopyEnd, GVL_TYPE_NONVOID, int, const char *, errormsg) \
-	function(PQgetCopyData, GVL_TYPE_NONVOID, int, int, async) \
-	function(PQnotifies, GVL_TYPE_NONVOID, PGnotify *, PGconn *, conn);
+	function(PQconnectdb, GVL_NONCANCELABLE, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
+	function(PQconnectStart, GVL_NONCANCELABLE, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
+	function(PQconnectPoll, GVL_CANCELABLE, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGconn *, conn) \
+	function(PQreset, GVL_CANCELABLE, GVL_TYPE_VOID, void, PGconn *, conn) \
+	function(PQresetStart, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, PGconn *, conn) \
+	function(PQresetPoll, GVL_CANCELABLE, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGconn *, conn) \
+	function(PQexec, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, const char *, command) \
+	function(PQexecParams, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, int, resultFormat) \
+	function(PQexecPrepared, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, int, resultFormat) \
+	function(PQprepare, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, const Oid *, paramTypes) \
+	function(PQdescribePrepared, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, const char *, stmtName) \
+	function(PQdescribePortal, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, const char *, portalName) \
+	function(PQgetResult, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGresult *, PGconn *, conn) \
+	function(PQputCopyData, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, nbytes) \
+	function(PQputCopyEnd, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, errormsg) \
+	function(PQgetCopyData, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, async) \
+	function(PQnotifies, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGnotify *, PGconn *, conn);
 
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 
@@ -182,8 +203,8 @@ FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 
 /* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_CALLBACK_FUNCTION(function) \
-	function(notice_processor_proxy, GVL_TYPE_VOID, void, const char *, message) \
-	function(notice_receiver_proxy, GVL_TYPE_VOID, void, const PGresult *, result) \
+	function(notice_processor_proxy,, GVL_TYPE_VOID, void, const char *, message) \
+	function(notice_receiver_proxy,, GVL_TYPE_VOID, void, const PGresult *, result) \
 
 FOR_EACH_CALLBACK_FUNCTION( DEFINE_GVL_STUB_DECL );
 
