@@ -342,4 +342,65 @@ describe PG::Result do
 			error.result.should == nil
 		}
 	end
+
+	context 'result value conversions with ColumnMapping' do
+
+		it "should do mixed type conversions if a ColumnMapping is assigned" do
+			res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '\\x00ff'::BYTEA, '2013-06-30'::DATE, 3" )
+			res.column_mapping = PG::ColumnMapping.new( :text_integer, :text_string, :text_float, :text_bytea, proc{|*a| a}, nil )
+			res.values.should == [[1, 'a', 2.0, ["00ff"].pack("H*"), [res, 0, 4, '2013-06-30'], '3' ]]
+		end
+
+		it "should do binary type conversions if a ColumnMapping is assigned" do
+			res = @conn.exec( "SELECT '\\x00ff'::BYTEA", [], 1 )
+			res.column_mapping = PG::ColumnMapping.new( :binary_bytea )
+			res.values.should == [[["00ff"].pack("H*")]]
+		end
+
+		OID_MAP = {
+			16 => :text_boolean, # BOOLEAN
+			23 => :text_integer, # INTEGER
+			701 => :text_float, # FLOAT
+			705 => :text_string, # TEXT
+			1082 => proc{|res, tuple, field, string| Time.new(string) }, # DATE
+			1114 => proc{|res, tuple, field, string| Time.new(string) }, # TIMESTAMP WITHOUT TIME ZONE
+			1184 => proc{|res, tuple, field, string| Time.new(string) }, # TIMESTAMP WITH TIME ZONE
+		}
+
+		it "should do OID based type conversions" do
+			res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE, generate_series(4,5)" )
+			types = res.nfields.times.map{|i| OID_MAP[res.ftype(i)]}
+			res.column_mapping = PG::ColumnMapping.new( *types )
+			res.values.should == [[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 4 ],
+														[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 5 ]]
+		end
+
+		it "should raise an error from proc type conversion" do
+			res = @conn.exec( "SELECT now()" )
+			res.column_mapping = PG::ColumnMapping.new( proc{ raise "foobar" } )
+			expect{ res.values }.to raise_error(RuntimeError, /foobar/)
+		end
+
+		it "shouldn't allow invalid column mappings" do
+			res = @conn.exec( "SELECT 1" )
+			expect{ res.column_mapping = 1 }.to raise_error(TypeError, /type Fixnum/)
+		end
+
+		it "shouldn't allow column mappings with different number of fields" do
+			res = @conn.exec( "SELECT 1" )
+			expect{ res.column_mapping = PG::ColumnMapping.new }.to raise_error(ArgumentError, /mapped columns/)
+		end
+
+		it "should allow reading, assigning and diabling type conversions" do
+			res = @conn.exec( "SELECT 123" )
+			res.column_mapping.should be_nil
+			res.column_mapping = PG::ColumnMapping.new :text_integer
+			res.column_mapping.should be_an_instance_of(PG::ColumnMapping)
+			res.column_mapping.conversions.should == [:text_integer]
+			res.column_mapping = PG::ColumnMapping.new :text_float
+			res.column_mapping.conversions.should == [:text_float]
+			res.column_mapping = nil
+			res.column_mapping.should be_nil
+		end
+	end
 end

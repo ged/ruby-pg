@@ -101,6 +101,17 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
+typedef VALUE (* t_column_converter_func)(VALUE, PGresult *, int, int);
+
+typedef struct {
+	int nfields;
+	struct column_converter {
+		t_column_converter_func func;
+		VALUE proc;
+	} convs[0];
+} t_colmap;
+
+
 #include "gvl_wrappers.h"
 
 /***************************************************************************
@@ -134,7 +145,10 @@ void Init_pg_ext                                       _(( void ));
 void init_pg_connection                                _(( void ));
 void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
-VALUE lookup_error_class                               _(( const char *sqlstate ));
+void init_pg_column_mapping                            _(( void ));
+VALUE lookup_error_class                               _(( const char * ));
+t_colmap *colmap_get_and_check                         _(( VALUE, int ));
+VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 

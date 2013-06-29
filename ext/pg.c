@@ -541,5 +541,6 @@ Init_pg_ext()
 	init_pg_connection();
 	init_pg_result();
 	init_pg_errors();
+	init_pg_column_mapping();
 }
 
