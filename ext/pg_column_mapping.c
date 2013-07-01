@@ -8,12 +8,7 @@
 
 
 VALUE rb_cColumnMap;
-static ID s_id_text_boolean;
-static ID s_id_text_string;
-static ID s_id_text_integer;
-static ID s_id_text_float;
-static ID s_id_text_bytea;
-static ID s_id_binary_bytea;
+static VALUE rb_cColumnMapCConverter;
 static ID s_id_call;
 
 
@@ -164,46 +159,30 @@ colmap_init(int argc, VALUE *argv, VALUE self)
 	for(i=0; i<argc; i++)
 	{
 		VALUE obj = argv[i];
-		ID id;
 		t_column_converter_func func;
 		VALUE proc;
 
-		switch( TYPE(obj) ){
-		case T_NIL:
+		if( obj == Qnil ){
 			func = colmap_conv_text_or_binary_string;
 			proc = Qnil;
-			break;
-		case T_SYMBOL:
-		case T_STRING:
-			id = rb_to_id(obj);
-
-			/* TODO: Use a static hash table based on st_table if the
-			 * number of conversion functions grow. */
-			if( id == s_id_text_boolean ){
-				func = colmap_conv_text_boolean;
-			} else if( id == s_id_text_string ){
-				func = colmap_conv_text_string;
-			} else if( id == s_id_text_integer ){
-				func = colmap_conv_text_integer;
-			} else if( id == s_id_text_float ){
-				func = colmap_conv_text_float;
-			} else if( id == s_id_text_bytea ){
-				func = colmap_conv_text_bytea;
-			} else if( id == s_id_binary_bytea ){
-				func = colmap_conv_binary_bytea;
-			} else {
-				rb_raise(rb_eArgError, "invalid argument %d", i+1);
+		} else if( TYPE(obj) == T_SYMBOL ){
+			VALUE conv_obj = rb_const_get(rb_cColumnMap, rb_to_id(obj));
+			if( CLASS_OF(conv_obj) != rb_cColumnMapCConverter ){
+				rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::ColumnMapping::CConverter)",
+						rb_obj_classname( conv_obj ) );
 			}
+			func = DATA_PTR(conv_obj);
 			proc = Qnil;
-			break;
-		default:
-			if( rb_respond_to(obj, s_id_call) ){
-				func = colmap_conv_text_or_binary_string;
-				proc = obj;
-			} else {
-				rb_raise(rb_eArgError, "invalid argument %d", i+1);
-			}
+		} else if( CLASS_OF(obj) == rb_cColumnMapCConverter ){
+			func = DATA_PTR(obj);
+			proc = Qnil;
+		} else if( rb_respond_to(obj, s_id_call) ){
+			func = colmap_conv_text_or_binary_string;
+			proc = obj;
+		} else {
+			rb_raise(rb_eArgError, "invalid argument %d", i+1);
 		}
+
 		this->convs[i].func = func;
 		this->convs[i].proc = proc;
 	}
@@ -216,20 +195,28 @@ colmap_init(int argc, VALUE *argv, VALUE self)
 }
 
 
+static void
+colmap_define_converter(const char *name, t_column_converter_func func)
+{
+	rb_define_const( rb_cColumnMap, name, Data_Wrap_Struct(rb_cColumnMapCConverter, NULL, NULL, func) );
+}
+
+
 void
 init_pg_column_mapping()
 {
-	s_id_text_boolean = rb_intern("text_boolean");
-	s_id_text_string = rb_intern("text_string");
-	s_id_text_integer = rb_intern("text_integer");
-	s_id_text_float = rb_intern("text_float");
-	s_id_text_bytea = rb_intern("text_bytea");
-	s_id_binary_bytea = rb_intern("binary_bytea");
 	s_id_call = rb_intern("call");
 
 	rb_cColumnMap = rb_define_class_under( rb_mPG, "ColumnMapping", rb_cObject );
+	rb_cColumnMapCConverter = rb_define_class_under( rb_cColumnMap, "CConverter", rb_cObject );
+	colmap_define_converter( "TextBoolean", colmap_conv_text_boolean );
+	colmap_define_converter( "TextString", colmap_conv_text_string );
+	colmap_define_converter( "TextInteger", colmap_conv_text_integer );
+	colmap_define_converter( "TextFloat", colmap_conv_text_float );
+	colmap_define_converter( "TextBytea", colmap_conv_text_bytea );
+	colmap_define_converter( "BinaryBytea", colmap_conv_binary_bytea );
 
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
-	rb_define_method(rb_cColumnMap, "initialize", colmap_init, -1);
-	rb_define_attr(rb_cColumnMap, "conversions", 1, 0);
+	rb_define_method( rb_cColumnMap, "initialize", colmap_init, -1 );
+	rb_define_attr( rb_cColumnMap, "conversions", 1, 0 );
 }
