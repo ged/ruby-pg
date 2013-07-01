@@ -38,34 +38,6 @@ describe PG::ColumnMapping do
 	# Examples
 	#
 
-	it "should allow mixed type conversions" do
-		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
-		res.column_mapping = PG::ColumnMapping.new( :TextInteger, :TextString, :TextFloat, proc{|*a| a}, nil )
-		res.values.should == [[1, 'a', 2.0, [res, 0, 3, '2013-06-30'], '3' ]]
-	end
-
-	it "should do bytea type conversions on text format" do
-		res = @conn.exec( "SELECT '\\x00ff'::BYTEA" )
-		res.column_mapping = PG::ColumnMapping.new( :TextBytea )
-		res.values.should == [[["00ff"].pack("H*")]]
-	end
-
-	it "should do binary type conversions on binary format" do
-		res = @conn.exec( "SELECT '\\x00ff'::BYTEA", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( :BinaryBytea )
-		res.values.should == [[["00ff"].pack("H*")]]
-	end
-
-	it "should do integer type conversions on text format" do
-		res = @conn.exec( "SELECT 8999999999999999999::INT8" )
-		res.column_mapping = PG::ColumnMapping.new( :TextInteger )
-		res.values.should == [[8999999999999999999]]
-
-		res = @conn.exec( "SELECT -8999999999999999999::INT8" )
-		res.column_mapping = PG::ColumnMapping.new( :TextInteger )
-		res.values.should == [[-8999999999999999999]]
-	end
-
 	OID_MAP_TEXT = {
 		16 => PG::ColumnMapping::TextBoolean, # BOOLEAN
 		23 => PG::ColumnMapping::TextInteger, # INTEGER
@@ -94,6 +66,66 @@ describe PG::ColumnMapping do
 		expect{ PG::ColumnMapping.new( :NonExistent ) }.to raise_error(NameError, /uninitialized constant/)
 		expect{ PG::ColumnMapping.new( 123 ) }.to raise_error(ArgumentError, /invalid/)
 		expect{ PG::ColumnMapping.new( :CConverter ) }.to raise_error(TypeError, /wrong argument type/)
+	end
+
+	#
+	# Examples text format
+	#
+
+	it "should allow mixed type conversions" do
+		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
+		res.column_mapping = PG::ColumnMapping.new( :TextInteger, :TextString, :TextFloat, proc{|*a| a}, nil )
+		res.values.should == [[1, 'a', 2.0, [res, 0, 3, '2013-06-30'], '3' ]]
+	end
+
+	it "should do bytea type conversions on text format" do
+		res = @conn.exec( "SELECT '\\x00ff'::BYTEA" )
+		res.column_mapping = PG::ColumnMapping.new( :TextBytea )
+		res.values.should == [[["00ff"].pack("H*")]]
+		res.values[0][0].encoding.should == Encoding::ASCII_8BIT
+	end
+
+	it "should do integer type conversions on text format" do
+		res = @conn.exec( "SELECT 8999999999999999999::INT8" )
+		res.column_mapping = PG::ColumnMapping.new( :TextInteger )
+		res.values.should == [[8999999999999999999]]
+
+		res = @conn.exec( "SELECT -8999999999999999999::INT8" )
+		res.column_mapping = PG::ColumnMapping.new( :TextInteger )
+		res.values.should == [[-8999999999999999999]]
+	end
+
+	#
+	# Examples binary format
+	#
+
+	it "should do binary type conversions on binary format" do
+		res = @conn.exec( "SELECT '\\x00ff'::BYTEA", [], 1 )
+		res.column_mapping = PG::ColumnMapping.new( :BinaryBytea )
+		res.values.should == [[["00ff"].pack("H*")]]
+		res.values[0][0].encoding.should == Encoding::ASCII_8BIT
+	end
+
+	it "should do integer type conversions on binary format" do
+		res = @conn.exec( "SELECT -8999::INT2", [], 1 )
+		res.column_mapping = PG::ColumnMapping.new( :BinaryInteger )
+		res.values.should == [[-8999]]
+
+		res = @conn.exec( "SELECT -899999999::INT4", [], 1 )
+		res.column_mapping = PG::ColumnMapping.new( :BinaryInteger )
+		res.values.should == [[-899999999]]
+
+		res = @conn.exec( "SELECT -8999999999999999999::INT8", [], 1 )
+		res.column_mapping = PG::ColumnMapping.new( :BinaryInteger )
+		res.values.should == [[-8999999999999999999]]
+	end
+
+	it "should do string type conversions on binary format" do
+		@conn.internal_encoding = 'utf-8'
+		res = @conn.exec( "SELECT 'abcäöü'", [], 1 )
+		res.column_mapping = PG::ColumnMapping.new( :TextString )
+		res.values.should == [['abcäöü']]
+		res.values[0][0].encoding.should == Encoding::UTF_8
 	end
 
 end

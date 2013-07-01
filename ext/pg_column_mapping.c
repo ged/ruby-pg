@@ -6,7 +6,6 @@
 
 #include "pg.h"
 
-
 VALUE rb_cColumnMap;
 static VALUE rb_cColumnMapCConverter;
 static ID s_id_call;
@@ -73,6 +72,26 @@ colmap_conv_text_integer(VALUE self, PGresult *result, int tuple, int field)
 		return Qnil;
 	}
 	return rb_cstr2inum(PQgetvalue(result, tuple, field), 10);
+}
+
+static VALUE
+colmap_conv_binary_integer(VALUE self, PGresult *result, int tuple, int field)
+{
+	int len;
+	if (PQgetisnull(result, tuple, field)) {
+		return Qnil;
+	}
+	len = PQgetlength(result, tuple, field);
+	switch( len ){
+		case 2:
+			return INT2NUM((int16_t)be16toh(*(int16_t*)PQgetvalue(result, tuple, field)));
+		case 4:
+			return LONG2NUM((int32_t)be32toh(*(int32_t*)PQgetvalue(result, tuple, field)));
+		case 8:
+			return LL2NUM((int64_t)be64toh(*(int64_t*)PQgetvalue(result, tuple, field)));
+		default:
+			rb_raise( rb_eTypeError, "wrong data for BinaryInteger converter in tuple %d field %d length %d", tuple, field, len);
+	}
 }
 
 static VALUE
@@ -215,6 +234,7 @@ init_pg_column_mapping()
 	colmap_define_converter( "TextFloat", colmap_conv_text_float );
 	colmap_define_converter( "TextBytea", colmap_conv_text_bytea );
 	colmap_define_converter( "BinaryBytea", colmap_conv_binary_bytea );
+	colmap_define_converter( "BinaryInteger", colmap_conv_binary_integer );
 
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
 	rb_define_method( rb_cColumnMap, "initialize", colmap_init, -1 );
