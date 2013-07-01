@@ -196,16 +196,13 @@ colmap_init(int argc, VALUE *argv, VALUE self)
 			}
 			proc = Qnil;
 			break;
-		case T_DATA:
+		default:
 			if( rb_respond_to(obj, s_id_call) ){
 				func = colmap_conv_text_or_binary_string;
 				proc = obj;
 			} else {
 				rb_raise(rb_eArgError, "invalid argument %d", i+1);
 			}
-			break;
-		default:
-			rb_raise(rb_eArgError, "invalid argument %d", i+1);
 		}
 		this->convs[i].func = func;
 		this->convs[i].proc = proc;
