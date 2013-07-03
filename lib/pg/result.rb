@@ -12,7 +12,7 @@ class PG::Result
 
 	def map_types!(oid_mapping, default_mapping=nil)
 		types = nfields.times.map{|i| oid_mapping[ftype(i)] || default_mapping }
-		self.column_mapping = PG::ColumnMapping.new( *types )
+		self.column_mapping = PG::ColumnMapping.new( types )
 		self
 	end
 

@@ -347,10 +347,10 @@ describe PG::Result do
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping.should be_nil
-			res.column_mapping = PG::ColumnMapping.new PG::ColumnMapping::TextInteger
+			res.column_mapping = PG::ColumnMapping.new [PG::ColumnMapping::TextInteger]
 			res.column_mapping.should be_an_instance_of(PG::ColumnMapping)
 			res.column_mapping.conversions.should == [PG::ColumnMapping::TextInteger]
-			res.column_mapping = PG::ColumnMapping.new :TextFloat
+			res.column_mapping = PG::ColumnMapping.new [:TextFloat]
 			res.column_mapping.conversions.should == [:TextFloat]
 			res.column_mapping = nil
 			res.column_mapping.should be_nil
@@ -358,7 +358,7 @@ describe PG::Result do
 
 		it "should be applied to all value retrieving methods" do
 			res = @conn.exec( "SELECT 123 as f" )
-			res.column_mapping = PG::ColumnMapping.new :TextInteger
+			res.column_mapping = PG::ColumnMapping.new [:TextInteger]
 			res.values.should == [[123]]
 			res.getvalue(0,0).should == 123
 			res[0].should == {'f' => 123 }
@@ -367,7 +367,7 @@ describe PG::Result do
 		end
 
 		it "should be usable for several querys" do
-			colmap = PG::ColumnMapping.new :TextInteger
+			colmap = PG::ColumnMapping.new [:TextInteger]
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping = colmap
 			res.values.should == [[123]]
@@ -383,7 +383,7 @@ describe PG::Result do
 
 		it "shouldn't allow column mappings with different number of fields" do
 			res = @conn.exec( "SELECT 1" )
-			expect{ res.column_mapping = PG::ColumnMapping.new }.to raise_error(ArgumentError, /mapped columns/)
+			expect{ res.column_mapping = PG::ColumnMapping.new([]) }.to raise_error(ArgumentError, /mapped columns/)
 		end
 	end
 end

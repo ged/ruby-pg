@@ -58,7 +58,7 @@ colmap_conv_text_string(VALUE self, PGresult *result, int tuple, int field)
 		return Qnil;
 	}
 	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
-														PQgetlength(result, tuple, field) );
+	                          PQgetlength(result, tuple, field) );
 #ifdef M17N_SUPPORTED
 	ASSOCIATE_INDEX( val, self );
 #endif
@@ -130,7 +130,7 @@ colmap_conv_binary_bytea(VALUE self, PGresult *result, int tuple, int field)
 		return Qnil;
 	}
 	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
-														PQgetlength(result, tuple, field) );
+	                          PQgetlength(result, tuple, field) );
 #ifdef M17N_SUPPORTED
 	rb_enc_associate( val, rb_ascii8bit_encoding() );
 #endif
@@ -166,18 +166,21 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 
 
 static VALUE
-colmap_init(int argc, VALUE *argv, VALUE self)
+colmap_init(VALUE self, VALUE conv_ary)
 {
 	int i;
 	t_colmap *this;
+	int conv_ary_len;
 
 	Check_Type(self, T_DATA);
-	this = xmalloc(sizeof(t_colmap) + sizeof(struct column_converter) * argc);
+	Check_Type(conv_ary, T_ARRAY);
+	conv_ary_len = RARRAY_LEN(conv_ary);
+	this = xmalloc(sizeof(t_colmap) + sizeof(struct column_converter) * conv_ary_len);
 	DATA_PTR(self) = this;
 
-	for(i=0; i<argc; i++)
+	for(i=0; i<conv_ary_len; i++)
 	{
-		VALUE obj = argv[i];
+		VALUE obj = rb_ary_entry(conv_ary, i);
 		t_column_converter_func func;
 		VALUE proc;
 
@@ -206,9 +209,9 @@ colmap_init(int argc, VALUE *argv, VALUE self)
 		this->convs[i].proc = proc;
 	}
 
-	this->nfields = argc;
+	this->nfields = conv_ary_len;
 
-	rb_iv_set( self, "@conversions", rb_obj_freeze(rb_ary_new4(argc, argv)) );
+	rb_iv_set( self, "@conversions", rb_obj_freeze(conv_ary) );
 
 	return self;
 }
@@ -237,6 +240,6 @@ init_pg_column_mapping()
 	colmap_define_converter( "BinaryInteger", colmap_conv_binary_integer );
 
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
-	rb_define_method( rb_cColumnMap, "initialize", colmap_init, -1 );
+	rb_define_method( rb_cColumnMap, "initialize", colmap_init, 1 );
 	rb_define_attr( rb_cColumnMap, "conversions", 1, 0 );
 }
