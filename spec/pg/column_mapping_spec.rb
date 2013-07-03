@@ -86,13 +86,15 @@ describe PG::ColumnMapping do
 	end
 
 	it "should do integer type conversions on text format" do
-		res = @conn.exec( "SELECT 8999999999999999999::INT8" )
-		res.column_mapping = PG::ColumnMapping.new( :TextInteger )
-		res.values.should == [[8999999999999999999]]
+		res = @conn.exec( "SELECT 8999999999999999999::INT8, -8999999999999999999::INT8" )
+		res.column_mapping = PG::ColumnMapping.new( :TextInteger, :TextInteger )
+		res.values.should == [[8999999999999999999, -8999999999999999999]]
+	end
 
-		res = @conn.exec( "SELECT -8999999999999999999::INT8" )
-		res.column_mapping = PG::ColumnMapping.new( :TextInteger )
-		res.values.should == [[-8999999999999999999]]
+	it "should do boolean type conversions on text format" do
+		res = @conn.exec( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN" )
+		res.column_mapping = PG::ColumnMapping.new( *[:TextBoolean]*3 )
+		res.values.should == [[true, false, nil]]
 	end
 
 	#
@@ -107,17 +109,9 @@ describe PG::ColumnMapping do
 	end
 
 	it "should do integer type conversions on binary format" do
-		res = @conn.exec( "SELECT -8999::INT2", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( :BinaryInteger )
-		res.values.should == [[-8999]]
-
-		res = @conn.exec( "SELECT -899999999::INT4", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( :BinaryInteger )
-		res.values.should == [[-899999999]]
-
-		res = @conn.exec( "SELECT -8999999999999999999::INT8", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( :BinaryInteger )
-		res.values.should == [[-8999999999999999999]]
+		res = @conn.exec( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], 1 )
+		res.column_mapping = PG::ColumnMapping.new( *[:BinaryInteger]*3 )
+		res.values.should == [[-8999, -899999999, -8999999999999999999]]
 	end
 
 	it "should do string type conversions on binary format" do
