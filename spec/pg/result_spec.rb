@@ -356,6 +356,16 @@ describe PG::Result do
 			res.column_mapping.should be_nil
 		end
 
+		it "should be applied to all value retrieving methods" do
+			res = @conn.exec( "SELECT 123 as f" )
+			res.column_mapping = PG::ColumnMapping.new :TextInteger
+			res.values.should == [[123]]
+			res.getvalue(0,0).should == 123
+			res[0].should == {'f' => 123 }
+			res.enum_for(:each_row).to_a.should == [[123]]
+			res.enum_for(:each).to_a.should == [{'f' => 123}]
+		end
+
 		it "should be usable for several querys" do
 			colmap = PG::ColumnMapping.new :TextInteger
 			res = @conn.exec( "SELECT 123" )
