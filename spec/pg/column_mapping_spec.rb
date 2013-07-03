@@ -50,10 +50,10 @@ describe PG::ColumnMapping do
 
 	it "should do OID based type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE, generate_series(4,5)" )
-		types = res.nfields.times.map{|i| OID_MAP_TEXT[res.ftype(i)]}
-		res.column_mapping = PG::ColumnMapping.new( *types )
-		res.values.should == [[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 4 ],
-													[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 5 ]]
+		res.map_types!(OID_MAP_TEXT).values.should == [
+				[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 4 ],
+				[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 5 ],
+		]
 	end
 
 	it "should raise an error from proc type conversion" do
