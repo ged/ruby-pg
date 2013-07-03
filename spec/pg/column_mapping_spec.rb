@@ -56,6 +56,12 @@ describe PG::ColumnMapping do
 		]
 	end
 
+	it "should raise an error from default oid type conversion" do
+		res = @conn.exec( "SELECT 'a'::CHAR(1)" )
+		res.map_types!(OID_MAP_TEXT, proc{|res, _, field, _| raise "no converter defined for OID #{res.ftype(field)}" })
+		expect{ res.values }.to raise_error(/no converter defined for OID 1042/)
+	end
+
 	it "should raise an error from proc type conversion" do
 		res = @conn.exec( "SELECT now()" )
 		res.column_mapping = PG::ColumnMapping.new( proc{ raise "foobar" } )
