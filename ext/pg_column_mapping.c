@@ -51,6 +51,15 @@ colmap_conv_text_boolean(VALUE self, PGresult *result, int tuple, int field)
 }
 
 static VALUE
+colmap_conv_binary_boolean(VALUE self, PGresult *result, int tuple, int field)
+{
+	if (PQgetisnull(result, tuple, field) || PQgetlength(result, tuple, field) < 1) {
+		return Qnil;
+	}
+	return *PQgetvalue(result, tuple, field) == 0 ? Qfalse : Qtrue;
+}
+
+static VALUE
 colmap_conv_text_string(VALUE self, PGresult *result, int tuple, int field)
 {
 	VALUE val;
@@ -268,6 +277,8 @@ init_pg_column_mapping()
 	colmap_define_converter( "TextInteger", colmap_conv_text_integer );
 	colmap_define_converter( "TextFloat", colmap_conv_text_float );
 	colmap_define_converter( "TextBytea", colmap_conv_text_bytea );
+	colmap_define_converter( "BinaryBoolean", colmap_conv_binary_boolean );
+	colmap_define_converter( "BinaryString", colmap_conv_text_string );
 	colmap_define_converter( "BinaryBytea", colmap_conv_binary_bytea );
 	colmap_define_converter( "BinaryInteger", colmap_conv_binary_integer );
 	colmap_define_converter( "BinaryFloat", colmap_conv_binary_float );

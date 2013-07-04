@@ -40,12 +40,27 @@ describe PG::ColumnMapping do
 
 	OID_MAP_TEXT = {
 		16 => PG::ColumnMapping::TextBoolean, # BOOLEAN
-		23 => PG::ColumnMapping::TextInteger, # INTEGER
-		701 => PG::ColumnMapping::TextFloat, # FLOAT
+		17 => PG::ColumnMapping::TextBytea, # BYTEA
+		20 => PG::ColumnMapping::TextInteger, # INT8
+		21 => PG::ColumnMapping::TextInteger, # INT2
+		23 => PG::ColumnMapping::TextInteger, # INT4
+		700 => PG::ColumnMapping::TextFloat, # FLOAT4
+		701 => PG::ColumnMapping::TextFloat, # FLOAT8
 		705 => PG::ColumnMapping::TextString, # TEXT
 		1082 => proc{|res, tuple, field, string| Time.new(string) }, # DATE
 		1114 => proc{|res, tuple, field, string| Time.new(string) }, # TIMESTAMP WITHOUT TIME ZONE
 		1184 => proc{|res, tuple, field, string| Time.new(string) }, # TIMESTAMP WITH TIME ZONE
+	}
+
+	OID_MAP_BINARY = {
+		16 => PG::ColumnMapping::BinaryBoolean, # BOOLEAN
+		17 => PG::ColumnMapping::BinaryBytea, # BYTEA
+		20 => PG::ColumnMapping::BinaryInteger, # INT8
+		21 => PG::ColumnMapping::BinaryInteger, # INT2
+		23 => PG::ColumnMapping::BinaryInteger, # INT4
+		700 => PG::ColumnMapping::BinaryFloat, # FLOAT4
+		701 => PG::ColumnMapping::BinaryFloat, # FLOAT8
+		705 => PG::ColumnMapping::BinaryString, # TEXT
 	}
 
 	it "should do OID based type conversions" do
@@ -85,54 +100,49 @@ describe PG::ColumnMapping do
 		res.values.should == [[1, 'a', 2.0, [res, 0, 3, '2013-06-30'], '3' ]]
 	end
 
-	it "should do bytea type conversions on text format" do
-		res = @conn.exec( "SELECT '\\x00ff'::BYTEA" )
-		res.column_mapping = PG::ColumnMapping.new( [:TextBytea] )
-		res.values.should == [[["00ff"].pack("H*")]]
-		res.values[0][0].encoding.should == Encoding::ASCII_8BIT
-	end
-
-	it "should do integer type conversions on text format" do
-		res = @conn.exec( "SELECT 8999999999999999999::INT8, -8999999999999999999::INT8" )
-		res.column_mapping = PG::ColumnMapping.new( [:TextInteger]*2 )
-		res.values.should == [[8999999999999999999, -8999999999999999999]]
-	end
-
-	it "should do boolean type conversions on text format" do
-		res = @conn.exec( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN" )
-		res.column_mapping = PG::ColumnMapping.new( [:TextBoolean]*3 )
-		res.values.should == [[true, false, nil]]
-	end
-
 	#
-	# Examples binary format
+	# Examples text+binary format converters
 	#
 
-	it "should do binary type conversions on binary format" do
-		res = @conn.exec( "SELECT '\\x00ff'::BYTEA", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( [:BinaryBytea] )
-		res.values.should == [[["00ff"].pack("H*")]]
-		res.values[0][0].encoding.should == Encoding::ASCII_8BIT
+	it "should do boolean type conversions" do
+		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
+			res = @conn.exec( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN", [], format )
+			res.map_types!(map)
+			res.values.should == [[true, false, nil]]
+		end
 	end
 
-	it "should do integer type conversions on binary format" do
-		res = @conn.exec( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( [:BinaryInteger]*3 )
-		res.values.should == [[-8999, -899999999, -8999999999999999999]]
+	it "should do binary type conversions" do
+		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
+			res = @conn.exec( "SELECT '\\x00ff'::BYTEA", [], format )
+			res.map_types!(map)
+			res.values.should == [[["00ff"].pack("H*")]]
+			res.values[0][0].encoding.should == Encoding::ASCII_8BIT
+		end
 	end
 
-	it "should do string type conversions on binary format" do
+	it "should do integer type conversions" do
+		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
+			res = @conn.exec( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], format )
+			res.map_types!(map)
+			res.values.should == [[-8999, -899999999, -8999999999999999999]]
+		end
+	end
+
+	it "should do string type conversions" do
 		@conn.internal_encoding = 'utf-8'
-		res = @conn.exec( "SELECT 'abcäöü'", [], 1 )
-		res.column_mapping = PG::ColumnMapping.new( [:TextString] )
-		res.values.should == [['abcäöü']]
-		res.values[0][0].encoding.should == Encoding::UTF_8
+		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
+			res = @conn.exec( "SELECT 'abcäöü'", [], format )
+			res.map_types!(map)
+			res.values.should == [['abcäöü']]
+			res.values[0][0].encoding.should == Encoding::UTF_8
+		end
 	end
 
-	it "should do float type conversions on binary format" do
-		[[[:BinaryFloat]*4, 1], [[:TextFloat]*4, 0]].each do |convs, format|
+	it "should do float type conversions" do
+		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
 			res = @conn.exec( "SELECT -8.999e3::FLOAT4, 8.999e10::FLOAT4, -8999999999e-99::FLOAT8, NULL::FLOAT4", [], format )
-			res.column_mapping = PG::ColumnMapping.new( convs )
+			res.map_types!(map)
 			res.getvalue(0,0).should be_within(1e-2).of(-8.999e3)
 			res.getvalue(0,1).should be_within(1e5).of(8.999e10)
 			res.getvalue(0,2).should be_within(1e-109).of(-8999999999e-99)
