@@ -104,6 +104,38 @@ colmap_conv_text_float(VALUE self, PGresult *result, int tuple, int field)
 }
 
 static VALUE
+colmap_conv_binary_float(VALUE self, PGresult *result, int tuple, int field)
+{
+	int len;
+	union {
+		float f;
+		int32_t i;
+	} swap4;
+	union {
+		double f;
+		int64_t i;
+	} swap8;
+
+	if (PQgetisnull(result, tuple, field)) {
+		return Qnil;
+	}
+
+	len = PQgetlength(result, tuple, field);
+	switch( len ){
+		case 4:
+			swap4.f = *(float *)PQgetvalue(result, tuple, field);
+			swap4.i = be32toh(swap4.i);
+			return DBL2NUM(swap4.f);
+		case 8:
+			swap8.f = *(double *)PQgetvalue(result, tuple, field);
+			swap8.i = be64toh(swap8.i);
+			return DBL2NUM(swap8.f);
+		default:
+			rb_raise( rb_eTypeError, "wrong data for BinaryFloat converter in tuple %d field %d length %d", tuple, field, len);
+	}
+}
+
+static VALUE
 colmap_conv_text_bytea(VALUE self, PGresult *result, int tuple, int field)
 {
 	unsigned char *to;
@@ -238,6 +270,7 @@ init_pg_column_mapping()
 	colmap_define_converter( "TextBytea", colmap_conv_text_bytea );
 	colmap_define_converter( "BinaryBytea", colmap_conv_binary_bytea );
 	colmap_define_converter( "BinaryInteger", colmap_conv_binary_integer );
+	colmap_define_converter( "BinaryFloat", colmap_conv_binary_float );
 
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
 	rb_define_method( rb_cColumnMap, "initialize", colmap_init, 1 );

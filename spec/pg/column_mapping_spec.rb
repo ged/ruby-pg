@@ -129,4 +129,15 @@ describe PG::ColumnMapping do
 		res.values[0][0].encoding.should == Encoding::UTF_8
 	end
 
+	it "should do float type conversions on binary format" do
+		[[[:BinaryFloat]*4, 1], [[:TextFloat]*4, 0]].each do |convs, format|
+			res = @conn.exec( "SELECT -8.999e3::FLOAT4, 8.999e10::FLOAT4, -8999999999e-99::FLOAT8, NULL::FLOAT4", [], format )
+			res.column_mapping = PG::ColumnMapping.new( convs )
+			res.getvalue(0,0).should be_within(1e-2).of(-8.999e3)
+			res.getvalue(0,1).should be_within(1e5).of(8.999e10)
+			res.getvalue(0,2).should be_within(1e-109).of(-8999999999e-99)
+			res.getvalue(0,3).should be_nil
+		end
+	end
+
 end
