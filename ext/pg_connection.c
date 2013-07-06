@@ -58,7 +58,7 @@ pgconn_close_socket_io( VALUE self )
 #if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
 		int ruby_sd = NUM2INT(rb_funcall( socket_io, rb_intern("fileno"), 0 ));
 		if( rb_w32_unwrap_io_handle(ruby_sd) ){
-			rb_raise(rb_ePGerror, "Could not unwrap win32 socket handle");
+			rb_raise(rb_eConnectionBad, "Could not unwrap win32 socket handle");
 		}
 #endif
 		rb_funcall( socket_io, rb_intern("close"), 0 );
@@ -483,7 +483,7 @@ pgconn_reset_start(VALUE self)
 {
 	pgconn_close_socket_io( self );
 	if(gvl_PQresetStart(pg_get_pgconn(self)) == 0)
-		rb_raise(rb_ePGerror, "reset has failed");
+		rb_raise(rb_eUnableToSend, "reset has failed");
 	return Qnil;
 }
 
@@ -722,7 +722,7 @@ pgconn_socket(VALUE self)
 {
 	int sd;
 	if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
-		rb_raise(rb_ePGerror, "Can't get socket descriptor");
+		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 	return INT2NUM(sd);
 }
 
@@ -753,7 +753,7 @@ pgconn_socket_io(VALUE self)
 
 	if ( !RTEST(socket_io) ) {
 		if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
-			rb_raise(rb_ePGerror, "Can't get socket descriptor");
+			rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 		#ifdef _WIN32
 			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
@@ -1980,7 +1980,7 @@ pgconn_consume_input(self)
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on error */
 	if(PQconsumeInput(conn) == 0) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2219,7 +2219,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	WSAEVENT hEvent;
 
 	if ( sd < 0 )
-		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
+		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 	hEvent = WSACreateEvent();
 
@@ -2230,13 +2230,13 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if( PQconsumeInput(conn) == 0 ) {
 		WSACloseEvent( hEvent );
-		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 	}
 
 	while ( !(retval=is_readable(conn)) ) {
 		if ( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
 			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "WSAEventSelect socket error: %d", WSAGetLastError() );
+			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
 		}
 
 		wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
@@ -2252,16 +2252,16 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 			rb_thread_check_ints();
 		} else if ( wait_ret == WAIT_FAILED ) {
 			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
+			rb_raise( rb_eConnectionBad, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
 		} else {
 			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "Wait on socket abandoned (WaitForMultipleObjects)" );
+			rb_raise( rb_eConnectionBad, "Wait on socket abandoned (WaitForMultipleObjects)" );
 		}
 
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if ( PQconsumeInput(conn) == 0 ) {
 			WSACloseEvent( hEvent );
-			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 		}
 	}
 
@@ -2285,11 +2285,11 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 #endif
 
 	if ( sd < 0 )
-		rb_bug( "PQsocket(conn): couldn't fetch the connection's socket!" );
+		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if ( PQconsumeInput(conn) == 0 )
-		rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 
   rb_fd_init( &sd_rset );
 
@@ -2326,7 +2326,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if ( PQconsumeInput(conn) == 0 ){
 			rb_fd_term( &sd_rset );
-			rb_raise( rb_ePGerror, "%s", PQerrorMessage(conn) );
+			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 		}
 	}
 
