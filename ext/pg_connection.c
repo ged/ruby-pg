@@ -2214,6 +2214,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 {
 	int sd = PQsocket( conn );
 	void *retval;
+	struct timeval aborttime={0,0}, currtime, waittime;
 	DWORD timeout_milisec = INFINITE;
 	DWORD wait_ret;
 	WSAEVENT hEvent;
@@ -2223,14 +2224,15 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 
 	hEvent = WSACreateEvent();
 
-	if ( ptimeout ) {
-		timeout_milisec = (DWORD)( ptimeout->tv_sec * 1e3 + ptimeout->tv_usec / 1e3 );
-	}
-
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if( PQconsumeInput(conn) == 0 ) {
 		WSACloseEvent( hEvent );
 		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
+	}
+
+	if ( ptimeout ) {
+		gettimeofday(&currtime, NULL);
+		timeradd(&currtime, ptimeout, &aborttime);
 	}
 
 	while ( !(retval=is_readable(conn)) ) {
@@ -2239,7 +2241,19 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
 		}
 
-		wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
+		if ( ptimeout ) {
+			gettimeofday(&currtime, NULL);
+			timersub(&aborttime, &currtime, &waittime);
+			timeout_milisec = (DWORD)( waittime.tv_sec * 1e3 + waittime.tv_usec / 1e3 );
+		}
+
+		/* Is the given timeout valid? */
+		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
+			/* Wait for the socket to become readable before checking again */
+			wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
+		} else {
+			wait_ret = WAIT_TIMEOUT;
+		}
 
 		if ( wait_ret == WAIT_TIMEOUT ) {
 			WSACloseEvent( hEvent );
@@ -2280,6 +2294,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	int ret;
 	void *retval;
 	rb_fdset_t sd_rset;
+	struct timeval aborttime={0,0}, currtime, waittime;
 #ifdef _WIN32
 	rb_fdset_t crt_sd_rset;
 #endif
@@ -2291,7 +2306,12 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	if ( PQconsumeInput(conn) == 0 )
 		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 
-  rb_fd_init( &sd_rset );
+	rb_fd_init( &sd_rset );
+
+	if ( ptimeout ) {
+		gettimeofday(&currtime, NULL);
+		timeradd(&currtime, ptimeout, &aborttime);
+	}
 
 	while ( !(retval=is_readable(conn)) ) {
 		rb_fd_zero( &sd_rset );
@@ -2305,8 +2325,19 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		create_crt_fd(&sd_rset, &crt_sd_rset);
 #endif
 
-		/* Wait for the socket to become readable before checking again */
-		ret = rb_thread_fd_select( sd+1, &sd_rset, NULL, NULL, ptimeout );
+		if ( ptimeout ) {
+			gettimeofday(&currtime, NULL);
+			timersub(&aborttime, &currtime, &waittime);
+		}
+
+		/* Is the given timeout valid? */
+		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
+			/* Wait for the socket to become readable before checking again */
+			ret = rb_thread_fd_select( sd+1, &sd_rset, NULL, NULL, ptimeout ? &waittime : NULL );
+		} else {
+			ret = 0;
+		}
+
 
 #ifdef _WIN32
 		cleanup_crt_fd(&sd_rset, &crt_sd_rset);

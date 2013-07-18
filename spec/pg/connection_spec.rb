@@ -427,9 +427,19 @@ describe PG::Connection do
 		@conn.exec( 'UNLISTEN woo' )
 	end
 
-	it "can receive notices while waiting for NOTIFY" do
-		@conn.send_query "do $$ BEGIN RAISE NOTICE 'woohoo'; END; $$ LANGUAGE plpgsql;"
-		@conn.wait_for_notify( 0.5 ).should be_nil
+	it "can receive notices while waiting for NOTIFY without exceeding the timeout" do
+		notices = []
+		@conn.set_notice_processor do |msg|
+			notices << [msg, Time.now]
+		end
+		st = Time.now
+		@conn.send_query "SELECT pg_sleep(0.5); do $$ BEGIN RAISE NOTICE 'woohoo'; END; $$ LANGUAGE plpgsql;"
+		@conn.wait_for_notify( 1 ).should be_nil
+		notices.first.should_not be_nil
+		et = Time.now
+		(et - notices.first[1]).should >= 0.4
+		(et - st).should >= 0.9
+		(et - st).should < 1.4
 	end
 
 	it "yields the result if block is given to exec" do
