@@ -598,6 +598,9 @@ describe PG::Connection do
 	it "block should raise ConnectionBad for a closed connection" do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		while [PG::CONNECTION_STARTED, PG::CONNECTION_MADE].include?(conn.connect_poll)
+			sleep 0.1
+		end
 		serv.close
 		expect{ conn.block }.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
 		expect{ conn.block }.to raise_error(PG::ConnectionBad, /can't get socket descriptor/)
