@@ -5,6 +5,7 @@
  */
 
 #include "pg.h"
+#include "util.h"
 
 VALUE rb_cColumnMap;
 static VALUE rb_cColumnMapCConverter;

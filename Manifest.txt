@@ -23,6 +23,8 @@ ext/pg.h
 ext/pg_connection.c
 ext/pg_errors.c
 ext/pg_result.c
+ext/util.c
+ext/util.h
 ext/vc/pg.sln
 ext/vc/pg_18/pg.vcproj
 ext/vc/pg_19/pg_19.vcproj
