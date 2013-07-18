@@ -427,7 +427,7 @@ describe PG::Connection do
 		@conn.exec( 'UNLISTEN woo' )
 	end
 
-	it "can receive notices while waiting for NOTIFY without exceeding the timeout" do
+	it "can receive notices while waiting for NOTIFY without exceeding the timeout", :postgresql_90 do
 		notices = []
 		@conn.set_notice_processor do |msg|
 			notices << [msg, Time.now]
