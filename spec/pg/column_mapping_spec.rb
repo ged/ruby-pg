@@ -114,7 +114,7 @@ describe PG::ColumnMapping do
 
 	it "should do binary type conversions" do
 		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
-			res = @conn.exec( "SELECT '\\x00ff'::BYTEA", [], format )
+			res = @conn.exec( "SELECT '\\000\\377'::BYTEA", [], format )
 			res.map_types!(map)
 			res.values.should == [[["00ff"].pack("H*")]]
 			res.values[0][0].encoding.should == Encoding::ASCII_8BIT
