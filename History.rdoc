@@ -9,6 +9,9 @@ Bugfixes:
 - Fix GVL issue with wait_for_notify/notifies and notice callbacks.
 - Set proper encoding on the string returned by quote_ident, escape_literal
   and escape_identifier (#163).
+- Use nil as PG::Error#result in case of a NULL-result from libpq (#166).
+- Recalculate the timeout of conn#wait_for_notify and conn#block in case
+  of socket events that require re-runs of select().
 
 Documentation fixes:
 
