@@ -332,4 +332,14 @@ describe PG::Result do
 			@conn.exec( "DROP SCHEMA nonexistant_schema" )
 		}.to raise_error( PG::InvalidSchemaName, /schema "nonexistant_schema" does not exist/ )
 	end
+
+	it "the raised result should be nil in case of a connection error" do
+		c = PGconn.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		expect {
+			c.exec "select 1"
+		}.to raise_error{|error|
+			error.should be_an_instance_of(PG::UnableToSend)
+			error.result.should == nil
+		}
+	end
 end

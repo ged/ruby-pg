@@ -93,7 +93,7 @@ pg_result_check( VALUE self )
 	klass = lookup_error_class( sqlstate );
 	exception = rb_exc_new3( klass, error );
 	rb_iv_set( exception, "@connection", rb_pgconn );
-	rb_iv_set( exception, "@result", self );
+	rb_iv_set( exception, "@result", result ? self : Qnil );
 	rb_exc_raise( exception );
 
 	/* Not reached */
