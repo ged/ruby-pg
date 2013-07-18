@@ -134,11 +134,11 @@ colmap_conv_binary_float(VALUE self, PGresult *result, int tuple, int field)
 		case 4:
 			swap4.f = *(float *)PQgetvalue(result, tuple, field);
 			swap4.i = be32toh(swap4.i);
-			return DBL2NUM(swap4.f);
+			return rb_float_new(swap4.f);
 		case 8:
 			swap8.f = *(double *)PQgetvalue(result, tuple, field);
 			swap8.i = be64toh(swap8.i);
-			return DBL2NUM(swap8.f);
+			return rb_float_new(swap8.f);
 		default:
 			rb_raise( rb_eTypeError, "wrong data for BinaryFloat converter in tuple %d field %d length %d", tuple, field, len);
 	}

@@ -63,7 +63,7 @@ describe PG::ColumnMapping do
 		705 => PG::ColumnMapping::BinaryString, # TEXT
 	}
 
-	it "should do OID based type conversions" do
+	it "should do OID based type conversions", :ruby_19 do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE, generate_series(4,5)" )
 		res.map_types!(OID_MAP_TEXT).values.should == [
 				[ 1, 'a', 2.0, true, Time.new('2013-06-30'), 4 ],
@@ -117,7 +117,7 @@ describe PG::ColumnMapping do
 			res = @conn.exec( "SELECT '\\000\\377'::BYTEA", [], format )
 			res.map_types!(map)
 			res.values.should == [[["00ff"].pack("H*")]]
-			res.values[0][0].encoding.should == Encoding::ASCII_8BIT
+			res.values[0][0].encoding.should == Encoding::ASCII_8BIT if Object.const_defined? :Encoding
 		end
 	end
 
@@ -130,12 +130,12 @@ describe PG::ColumnMapping do
 	end
 
 	it "should do string type conversions" do
-		@conn.internal_encoding = 'utf-8'
+		@conn.internal_encoding = 'utf-8' if Object.const_defined? :Encoding
 		[[OID_MAP_BINARY, 1], [OID_MAP_TEXT, 0]].each do |map, format|
 			res = @conn.exec( "SELECT 'abcäöü'", [], format )
 			res.map_types!(map)
 			res.values.should == [['abcäöü']]
-			res.values[0][0].encoding.should == Encoding::UTF_8
+			res.values[0][0].encoding.should == Encoding::UTF_8 if Object.const_defined? :Encoding
 		end
 	end
 
