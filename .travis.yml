@@ -29,6 +29,9 @@ matrix:
       env: "PGCROSS=true"
     - rvm: rbx-19mode
       env: "PGCROSS=true"
+  allow_failures:
+    - rvm: rbx-18mode # one test fails because GVL unblocking function is not called by Rubinius core
+    - rvm: rbx-19mode # one test fails because GVL unblocking function is not called by Rubinius core
 before_install:
   - gem install hoe rspec;
   - gem install rake-compiler --pre;
