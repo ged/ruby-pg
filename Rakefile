@@ -54,6 +54,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.extra_rdoc_files.include( 'ext/*.c' )
 
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
+	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
 
 	self.dependency 'rake-compiler', '~> 0.8', :developer
 	self.dependency	'hoe-deveiate', '~> 0.2', :developer
