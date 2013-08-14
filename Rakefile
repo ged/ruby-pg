@@ -38,6 +38,7 @@ CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 Hoe.plugin :mercurial
 Hoe.plugin :signing
 Hoe.plugin :deveiate
+Hoe.plugin :bundler
 
 Hoe.plugins.delete :rubyforge
 Hoe.plugins.delete :compiler
@@ -56,8 +57,10 @@ $hoespec = Hoe.spec 'pg' do
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
 
-	self.dependency 'rake-compiler', '~> 0.8', :developer
-	self.dependency	'hoe-deveiate', '~> 0.2', :developer
+	self.dependency 'rake-compiler', '~> 0.9', :developer
+	self.dependency 'hoe', '~> 3.5.1', :developer
+	self.dependency 'hoe-deveiate', '~> 0.2', :developer
+	self.dependency 'hoe-bundler', '~> 1.0', :developer
 
 	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
