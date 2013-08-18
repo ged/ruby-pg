@@ -74,7 +74,7 @@ pg_result_check( VALUE self )
 #endif
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
-			return Qnil;
+			return self;
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
 		case PGRES_NONFATAL_ERROR:
@@ -97,7 +97,7 @@ pg_result_check( VALUE self )
 	rb_exc_raise( exception );
 
 	/* Not reached */
-	return Qnil;
+	return self;
 }
 
 
