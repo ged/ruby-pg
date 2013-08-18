@@ -74,6 +74,79 @@ class PG::Connection
 		return connopts.join(' ')
 	end
 
+	#  call-seq:
+	#     conn.copy_data( sql ) {|sql_result| ... } -> PG::Result
+	#
+	# Execute a copy process for transfering data to/from the server.
+	#
+	# This issues the SQL COPY command via #exec. The response to this
+	# (if there is no error in the command) is a PG::Result object that
+	# is passed to the block, bearing a status code of PGRES_COPY_OUT or
+	# PGRES_COPY_IN (depending on the specified copy direction).
+	# The application should then use #put_copy_data or #get_copy_data
+	# to receive or transmit data rows and should return from the block
+	# when finished.
+	#
+	# When the data transfer is complete, another PG::Result object is
+	# returned when the transfer was successful. An exception is raised
+	# if some problem was encountered. At this point further SQL commands
+	# can be issued via #exec.
+	# (It is not possible to execute other SQL commands using the same
+	# connection while the COPY operation is in progress.)
+	#
+	# This method ensures, that the copy process is properly terminated
+	# in case of client side or server side failures. Use of this method
+	# is therefore preferred to raw calls to #put_copy_data, #get_copy_data
+	# and #put_copy_end.
+	#
+	# Example with CSV output format and blocking mode:
+	#   conn.copy_data( "COPY my_table TO STDOUT" )
+	#     while row=conn.get_copy_data
+	#       p row
+	#     end
+	#   end
+	# This prints all rows of +my_table+ to stdout.
+	#
+	# Example with CSV input format and blocking mode:
+	#   conn.copy_data( "COPY my_table FROM STDOUT" )
+	#     conn.put_copy_data "some,csv,data,to,copy\n"
+	#     conn.put_copy_data "more,csv,data,to,copy\n"
+	#   end
+	# This inserts two rows to +my_table+.
+	def copy_data( sql )
+		res = exec( sql )
+
+		case res.result_status
+		when PGRES_COPY_IN
+			begin
+				yield res
+			rescue Exception => err
+				errmsg = "%s while copy data: %s" % [ err.class.name, err.message ]
+				put_copy_end( errmsg )
+				get_result
+				raise
+			else
+				put_copy_end
+				get_result.check
+			end
+
+		when PGRES_COPY_OUT
+			begin
+				yield res
+			rescue Exception => err
+				cancel
+				while get_copy_data
+				end
+				get_result
+				raise
+			else
+				get_result.check
+			end
+
+		else
+			raise PG::Error, "SQL command is no COPY statement: #{sql}"
+		end
+	end
 
 	# Backward-compatibility aliases for stuff that's moved into PG.
 	class << self
