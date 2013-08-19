@@ -2450,21 +2450,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
  *
  * Raises an exception if an error occurs.
  *
- * Example with CSV format and blocking mode:
- *   conn.exec( "COPY my_table FROM STDIN CSV" )
- *   begin
- *     conn.put_copy_data "some,csv,data,to,copy\n"
- *     conn.put_copy_data "more,csv,data,to,copy\n"
- *   rescue => err
- *     errmsg = "%s while copy data: %s" % [ err.class.name, err.message ]
- *     conn.put_copy_end( errmsg )
- *     conn.get_result
- *     raise
- *   else
- *     conn.put_copy_end
- *     res = conn.get_result
- *     raise res.result_error_message if res.result_status!=PG::PGRES_COMMAND_OK
- *   end
+ * See also #copy_data.
  *
  */
 static VALUE
@@ -2530,22 +2516,7 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
  * if the copy is done, or +false+ if the call would
  * block (only possible if _async_ is true).
  *
- * Example with CSV format and blocking mode:
- *   conn.exec( "COPY my_table TO STDIN CSV" )
- *   begin
- *     while row=conn.get_copy_data
- *       # do something with the CSV row
- *     end
- *   rescue => err
- *     conn.cancel
- *     while conn.get_copy_data
- *     end
- *     conn.get_result
- *     raise
- *   else
- *     res = conn.get_result
- *     raise res.result_error_message if res.result_status!=PG::PGRES_COMMAND_OK
- *   end
+ * See also #copy_data.
  *
  */
 static VALUE
