@@ -533,6 +533,12 @@ describe PG::Connection do
 		@conn.exec( "VALUES (1)" ).values.should == [["1"]]
 	end
 
+	it "should raise an error for non copy statements in #copy_data" do
+		expect {
+			@conn.copy_data( "SELECT 1" ){}
+		}.to raise_error(PG::Error, /no COPY/)
+	end
+
 	it "correctly finishes COPY queries passed to #async_exec" do
 		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
 
