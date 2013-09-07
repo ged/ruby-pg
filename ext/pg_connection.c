@@ -1610,7 +1610,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 
 	/* If called with no parameters, use PQsendQuery */
 	if(NIL_P(params)) {
-		if(PQsendQuery(conn,StringValuePtr(command)) == 0) {
+		if(gvl_PQsendQuery(conn,StringValuePtr(command)) == 0) {
 			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
@@ -1683,7 +1683,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes,
+	result = gvl_PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -1750,7 +1750,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2INT(param);
 		}
 	}
-	result = PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1868,7 +1868,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = PQsendQueryPrepared(conn, StringValuePtr(name), nParams,
+	result = gvl_PQsendQueryPrepared(conn, StringValuePtr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
@@ -1899,7 +1899,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
-	if(PQsendDescribePrepared(conn,StringValuePtr(stmt_name)) == 0) {
+	if(gvl_PQsendDescribePrepared(conn,StringValuePtr(stmt_name)) == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
@@ -1921,7 +1921,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
-	if(PQsendDescribePortal(conn,StringValuePtr(portal)) == 0) {
+	if(gvl_PQsendDescribePortal(conn,StringValuePtr(portal)) == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);

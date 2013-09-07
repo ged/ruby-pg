@@ -168,7 +168,39 @@ void ubf_cancel_running_command(void *c);
 
 #define FOR_EACH_PARAM_OF_PQnotifies(param)
 
-/* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
+#define FOR_EACH_PARAM_OF_PQsendQuery(param) \
+	param(PGconn *, conn)
+
+#define FOR_EACH_PARAM_OF_PQsendQueryParams(param) \
+	param(PGconn *, conn) \
+	param(const char *, command) \
+	param(int, nParams) \
+	param(const Oid *, paramTypes) \
+	param(const char *const *, paramValues) \
+	param(const int *, paramLengths) \
+	param(const int *, paramFormats)
+
+#define FOR_EACH_PARAM_OF_PQsendPrepare(param) \
+	param(PGconn *, conn) \
+	param(const char *, stmtName) \
+	param(const char *, query) \
+	param(int, nParams)
+
+#define FOR_EACH_PARAM_OF_PQsendQueryPrepared(param) \
+	param(PGconn *, conn) \
+	param(const char *, stmtName) \
+	param(int, nParams) \
+	param(const char *const *, paramValues) \
+	param(const int *, paramLengths) \
+	param(const int *, paramFormats)
+
+#define FOR_EACH_PARAM_OF_PQsendDescribePrepared(param) \
+	param(PGconn *, conn)
+
+#define FOR_EACH_PARAM_OF_PQsendDescribePortal(param) \
+	param(PGconn *, conn)
+
+/* function( name, cancel, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_BLOCKING_FUNCTION(function) \
 	function(PQconnectdb, GVL_NONCANCELABLE, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
 	function(PQconnectStart, GVL_NONCANCELABLE, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
@@ -186,7 +218,13 @@ void ubf_cancel_running_command(void *c);
 	function(PQputCopyData, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, nbytes) \
 	function(PQputCopyEnd, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, errormsg) \
 	function(PQgetCopyData, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, async) \
-	function(PQnotifies, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGnotify *, PGconn *, conn);
+	function(PQnotifies, GVL_CANCELABLE, GVL_TYPE_NONVOID, PGnotify *, PGconn *, conn) \
+	function(PQsendQuery, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, query) \
+	function(PQsendQueryParams, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, resultFormat) \
+	function(PQsendPrepare, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const Oid *, paramTypes) \
+	function(PQsendQueryPrepared, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, resultFormat) \
+	function(PQsendDescribePrepared, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, stmt) \
+	function(PQsendDescribePortal, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, portal);
 
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 
@@ -201,7 +239,7 @@ FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 #define FOR_EACH_PARAM_OF_notice_receiver_proxy(param) \
 	param(void *, arg)
 
-/* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
+/* function( name, cancel, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_CALLBACK_FUNCTION(function) \
 	function(notice_processor_proxy,, GVL_TYPE_VOID, void, const char *, message) \
 	function(notice_receiver_proxy,, GVL_TYPE_VOID, void, const PGresult *, result) \
