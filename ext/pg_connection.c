@@ -1998,7 +1998,7 @@ static VALUE
 pgconn_is_busy(self)
 	VALUE self;
 {
-	return PQisBusy(pg_get_pgconn(self)) ? Qtrue : Qfalse;
+	return gvl_PQisBusy(pg_get_pgconn(self)) ? Qtrue : Qfalse;
 }
 
 /*
@@ -2921,7 +2921,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 static void *
 get_result_readable(PGconn *conn)
 {
-	return PQisBusy(conn) ? NULL : (void*)1;
+	return gvl_PQisBusy(conn) ? NULL : (void*)1;
 }
 
 
