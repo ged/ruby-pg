@@ -77,7 +77,7 @@ class PG::Connection
 	#  call-seq:
 	#     conn.copy_data( sql ) {|sql_result| ... } -> PG::Result
 	#
-	# Execute a copy process for transfering data to/from the server.
+	# Execute a copy process for transfering data to or from the server.
 	#
 	# This issues the SQL COPY command via #exec. The response to this
 	# (if there is no error in the command) is a PG::Result object that
@@ -87,32 +87,35 @@ class PG::Connection
 	# to receive or transmit data rows and should return from the block
 	# when finished.
 	#
-	# When the data transfer is complete, another PG::Result object is
-	# returned when the transfer was successful. An exception is raised
-	# if some problem was encountered. At this point further SQL commands
-	# can be issued via #exec.
+	# #copy_data returns another PG::Result object when the data transfer
+	# is complete. An exception is raised if some problem was encountered,
+	# so it isn't required to make use of any of them.
+	# At this point further SQL commands can be issued via #exec.
 	# (It is not possible to execute other SQL commands using the same
 	# connection while the COPY operation is in progress.)
 	#
 	# This method ensures, that the copy process is properly terminated
-	# in case of client side or server side failures. Use of this method
-	# is therefore preferred to raw calls to #put_copy_data, #get_copy_data
-	# and #put_copy_end.
+	# in case of client side or server side failures. Therefore, in case
+	# of blocking mode of operation, #copy_data is preferred to raw calls
+	# of #put_copy_data, #get_copy_data and #put_copy_end.
 	#
-	# Example with CSV output format and blocking mode:
-	#   conn.copy_data( "COPY my_table TO STDOUT" )
+	# Example with CSV input format:
+	#   conn.exec "create table my_table (a text,b text,c text,d text,e text)"
+	#   conn.copy_data "COPY my_table FROM STDOUT CSV" do
+	#     conn.put_copy_data "some,csv,data,to,copy\n"
+	#     conn.put_copy_data "more,csv,data,to,copy\n"
+	#   end
+	# This creates +my_table+ and inserts two rows.
+	#
+	# Example with CSV output format:
+	#   conn.copy_data "COPY my_table TO STDOUT CSV" do
 	#     while row=conn.get_copy_data
 	#       p row
 	#     end
 	#   end
-	# This prints all rows of +my_table+ to stdout.
-	#
-	# Example with CSV input format and blocking mode:
-	#   conn.copy_data( "COPY my_table FROM STDOUT" )
-	#     conn.put_copy_data "some,csv,data,to,copy\n"
-	#     conn.put_copy_data "more,csv,data,to,copy\n"
-	#   end
-	# This inserts two rows to +my_table+.
+	# This prints all rows of +my_table+ to stdout:
+	#   "some,csv,data,to,copy\n"
+	#   "more,csv,data,to,copy\n"
 	def copy_data( sql )
 		res = exec( sql )
 
