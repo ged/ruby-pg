@@ -24,6 +24,8 @@ module PG
 	# VCS revision
 	REVISION = %q$Revision$
 
+	class NotAllCopyDataRetrieved < PG::Error
+	end
 
 	### Get the PG library version. If +include_buildnum+ is +true+, include the build ID.
 	def self::version_string( include_buildnum=false )

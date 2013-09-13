@@ -457,7 +457,7 @@ describe PG::Connection do
 		rval.should include( '5678', '1234' )
 	end
 
-	it "can process #copy_data input queries" do
+	it "can process #copy_data output queries" do
 		rows = []
 		res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
 			res.result_status.should == PG::PGRES_COPY_OUT
@@ -468,19 +468,28 @@ describe PG::Connection do
 		end
 		rows.should == ["1\n", "2\n"]
 		res2.result_status.should == PG::PGRES_COMMAND_OK
-		@conn.exec( "VALUES (1)" ).values.should == [["1"]]
+		verify_clean_exec_status
 	end
 
-	it "can handle client errors in #copy_data for input" do
+	it "can handle incomplete #copy_data output queries" do
+		expect {
+			@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+				@conn.get_copy_data
+			end
+		}.to raise_error(PG::NotAllCopyDataRetrieved, /Not all/)
+		verify_clean_exec_status
+	end
+
+	it "can handle client errors in #copy_data for output" do
 		expect {
 			@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do
 				raise "boom"
 			end
 		}.to raise_error(RuntimeError, "boom")
-		@conn.exec( "VALUES (1)" ).values.should == [["1"]]
+		verify_clean_exec_status
 	end
 
-	it "can handle server errors in #copy_data for input" do
+	it "can handle server errors in #copy_data for output" do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
 			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
@@ -491,10 +500,10 @@ describe PG::Connection do
 				end
 			}.to raise_error(PG::Error, /test-error/)
 		end
-		@conn.exec( "VALUES (1)" ).values.should == [["1"]]
+		verify_clean_exec_status
 	end
 
-	it "can process #copy_data output queries" do
+	it "can process #copy_data input queries" do
 		@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
 		res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 			res.result_status.should == PG::PGRES_COPY_IN
@@ -503,11 +512,14 @@ describe PG::Connection do
 			@conn.put_copy_data "2\n"
 		end
 		res2.result_status.should == PG::PGRES_COMMAND_OK
+
+		verify_clean_exec_status
+
 		res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
 		res.values.should == [["1"], ["2"]]
 	end
 
-	it "can handle client errors in #copy_data for output" do
+	it "can handle client errors in #copy_data for input" do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
 			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
@@ -517,10 +529,10 @@ describe PG::Connection do
 				end
 			}.to raise_error(RuntimeError, "boom")
 		end
-		@conn.exec( "VALUES (1)" ).values.should == [["1"]]
+		verify_clean_exec_status
 	end
 
-	it "can handle server errors in #copy_data for output" do
+	it "can handle server errors in #copy_data for input" do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
 			@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
@@ -530,13 +542,15 @@ describe PG::Connection do
 				end
 			}.to raise_error(PG::Error, /invalid input syntax for integer/)
 		end
-		@conn.exec( "VALUES (1)" ).values.should == [["1"]]
+		verify_clean_exec_status
 	end
 
 	it "should raise an error for non copy statements in #copy_data" do
 		expect {
 			@conn.copy_data( "SELECT 1" ){}
-		}.to raise_error(PG::Error, /no COPY/)
+		}.to raise_error(ArgumentError, /no COPY/)
+
+		verify_clean_exec_status
 	end
 
 	it "correctly finishes COPY queries passed to #async_exec" do

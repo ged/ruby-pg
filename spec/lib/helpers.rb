@@ -254,6 +254,12 @@ module PG::TestingHelpers
 		conn_name.should include(app_name[-10..-1])
 		conn_name.length.should <= 64
 	end
+
+	# Ensure the connection is in a clean execution status.
+	def verify_clean_exec_status
+		@conn.send_query( "VALUES (1)" )
+		@conn.get_result.values.should == [["1"]]
+	end
 end
 
 

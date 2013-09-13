@@ -130,7 +130,7 @@ class PG::Connection
 				raise
 			else
 				put_copy_end
-				get_result.check
+				get_last_result
 			end
 
 		when PGRES_COPY_OUT
@@ -140,14 +140,23 @@ class PG::Connection
 				cancel
 				while get_copy_data
 				end
-				get_result
+				while get_result
+				end
 				raise
 			else
-				get_result.check
+				res = get_last_result
+				if res.result_status != PGRES_COMMAND_OK
+					while get_copy_data
+					end
+					while get_result
+					end
+					raise PG::NotAllCopyDataRetrieved, "Not all COPY data retrieved"
+				end
+				res
 			end
 
 		else
-			raise PG::Error, "SQL command is no COPY statement: #{sql}"
+			raise ArgumentError, "SQL command is no COPY statement: #{sql}"
 		end
 	end
 
