@@ -1,3 +1,16 @@
+== v0.16.1 [YYYY-mm-dd] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+
+- Fix crash by calling PQsend* and PQisBusy without GVL (#171).
+
+Enhancements:
+
+- Add method PG::Connection#copy_data.
+- Add a Gemfile to allow installation of dependencies with bundler.
+- Add compatibility with rake-compiler-dev-box.
+
+
 == v0.16.0 [2013-07-22] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
