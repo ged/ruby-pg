@@ -258,7 +258,7 @@ module PG::TestingHelpers
 	# Ensure the connection is in a clean execution status.
 	def verify_clean_exec_status
 		@conn.send_query( "VALUES (1)" )
-		@conn.get_result.values.should == [["1"]]
+		@conn.get_last_result.values.should == [["1"]]
 	end
 end
 
