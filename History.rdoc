@@ -9,6 +9,8 @@ Enhancements:
 - Add method PG::Connection#copy_data.
 - Add a Gemfile to allow installation of dependencies with bundler.
 - Add compatibility with rake-compiler-dev-box.
+- Return self from PG::Result#check instead of nil. This allows
+  to stack method calls.
 
 
 == v0.16.0 [2013-07-22] Michael Granger <ged@FaerieMUD.org>
