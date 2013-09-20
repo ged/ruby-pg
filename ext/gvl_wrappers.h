@@ -202,6 +202,10 @@ void ubf_cancel_running_command(void *c);
 
 #define FOR_EACH_PARAM_OF_PQisBusy(param)
 
+#define FOR_EACH_PARAM_OF_PQcancel(param) \
+	param(PGcancel *, cancel) \
+	param(char *, errbuf)
+
 /* function( name, cancel, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_BLOCKING_FUNCTION(function) \
 	function(PQconnectdb, GVL_NONCANCELABLE, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
@@ -227,7 +231,8 @@ void ubf_cancel_running_command(void *c);
 	function(PQsendQueryPrepared, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, int, resultFormat) \
 	function(PQsendDescribePrepared, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, stmt) \
 	function(PQsendDescribePortal, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, const char *, portal) \
-	function(PQisBusy, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, PGconn *, conn);
+	function(PQisBusy, GVL_CANCELABLE, GVL_TYPE_NONVOID, int, PGconn *, conn) \
+	function(PQcancel, GVL_NONCANCELABLE, GVL_TYPE_NONVOID, int, int, errbufsize);
 
 
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );

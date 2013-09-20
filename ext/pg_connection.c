@@ -2103,7 +2103,7 @@ pgconn_cancel(VALUE self)
 	if(cancel == NULL)
 		rb_raise(rb_ePGerror,"Invalid connection!");
 
-	ret = PQcancel(cancel, errbuf, 256);
+	ret = gvl_PQcancel(cancel, errbuf, 256);
 	if(ret == 1)
 		retval = Qnil;
 	else
