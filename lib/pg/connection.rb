@@ -164,6 +164,14 @@ class PG::Connection
 	class << self
 		define_method( :isthreadsafe, &PG.method(:isthreadsafe) )
 	end
+
+
+	### Returns an array of Hashes with connection defaults. See ::conndefaults
+	### for details.
+	def conndefaults
+		return self.class.conndefaults
+	end
+
 end # class PG::Connection
 
 # Backward-compatible alias

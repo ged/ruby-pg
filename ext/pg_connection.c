@@ -292,7 +292,10 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 }
 #endif
 
+
 /*
+ * Document-method: conndefaults
+ *
  * call-seq:
  *    PG::Connection.conndefaults() -> Array
  *
@@ -502,6 +505,7 @@ pgconn_reset_poll(VALUE self)
 	status = gvl_PQresetPoll(pg_get_pgconn(self));
 	return INT2FIX((int)status);
 }
+
 
 /*
  * call-seq:
@@ -3508,7 +3512,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "reset", pgconn_reset, 0);
 	rb_define_method(rb_cPGconn, "reset_start", pgconn_reset_start, 0);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
-	rb_define_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
 
 	/******     PG::Connection INSTANCE METHODS: Connection Status     ******/
