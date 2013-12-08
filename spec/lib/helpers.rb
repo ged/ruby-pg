@@ -111,7 +111,7 @@ module PG::TestingHelpers
 
 	### Run the specified command +cmd+ after redirecting stdout and stderr to the specified
 	### +logpath+, failing if the execution fails.
-	def log_and_run( logpath, *cmd )
+	def old_log_and_run( logpath, *cmd )
 		cmd.flatten!
 
 		if cmd.length > 1
@@ -162,6 +162,31 @@ module PG::TestingHelpers
     end
 	end
 
+  def certs_directory
+    File.expand_path "#{__FILE__}/../../../certs"
+  end
+
+	def log_and_run( logpath, *cmd )
+    return old_log_and_run logpath, cmd unless cmd.first =~ /initdb/
+
+    $stderr.puts "Setting up pg_hba.conf with some dummy usernames and passwords"
+    tmp = old_log_and_run logpath, cmd
+    File.open("#{@test_pgdata}/pg_hba.conf", "w") do |f|
+      f.puts "# TYPE    DATABASE        USER            ADDRESS         METHOD"
+      f.puts "  hostssl all             ssl             127.0.0.1/32    password"
+      f.puts "  host    all             ssl             127.0.0.1/32    reject"
+      f.puts "  host    all             password        127.0.0.1/32    password"
+      f.puts "  host    all             encrypt         127.0.0.1/32    md5"
+      f.puts "  host    all             all             127.0.0.1/32    trust"
+    end
+    File.open("#{@test_pgdata}/postgresql.conf", "a") do |f|
+      f.puts "ssl = yes"
+    end
+    FileUtils.cp "#{certs_directory}/server.key", @test_pgdata
+    File.chmod 0400, "#{@test_pgdata}/server.key"
+    FileUtils.cp "#{certs_directory}/server.crt", @test_pgdata
+    tmp
+  end
 
 	### Check the current directory for directories that look like they're
 	### testing directories from previous tests, and tell any postgres instances
@@ -223,7 +248,7 @@ module PG::TestingHelpers
 				log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
 			end
 
-			trace "Starting postgres"
+			$stderr.puts "Starting postgres"
 			log_and_run @logfile, pg_bin_path('pg_ctl'), 'start', '-l', @logfile.to_s, '-w', '-o', "-k #{TEST_DIRECTORY.to_s.dump}",
 				'-D', @test_pgdata.to_s
 			sleep 2

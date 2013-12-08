@@ -6,6 +6,7 @@ lib/pg_ext.so
 .classpath
 .project
 ext/errorcodes.def
+ext/java/org/jruby/pg/Errors.java
 Gemfile.lock
 ChangeLog
 pg_ext.jar

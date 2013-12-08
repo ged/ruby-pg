@@ -973,8 +973,8 @@ describe PG::Connection do
 					res = conn.exec("VALUES ('世界線航跡蔵')", [], 0)
 					out_string = res[0]['column1']
 				end
-				out_string.should == '世界線航跡蔵'
 				out_string.encoding.should == Encoding::UTF_8
+				out_string.should == '世界線航跡蔵'
 			end
 
 			it "should return results in the same encoding as the client (EUC-JP)" do

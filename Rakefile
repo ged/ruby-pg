@@ -43,8 +43,9 @@ Hoe.plugin :bundler
 Hoe.plugins.delete :rubyforge
 Hoe.plugins.delete :compiler
 
-load 'Rakefile.cross'
-
+def jruby?
+  RUBY_PLATFORM =~ /java/
+end
 
 # Hoe specification
 $hoespec = Hoe.spec 'pg' do
@@ -63,7 +64,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.dependency 'hoe-bundler', '~> 1.0', :developer
 
 	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
-	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
+	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ] unless jruby?
 
 	self.require_ruby_version( '>= 1.8.7' )
 
@@ -76,6 +77,57 @@ $hoespec = Hoe.spec 'pg' do
 	]
 
 	self.rdoc_locations << "deveiate:/usr/local/www/public/code/#{remote_rdoc_dir}"
+  if jruby?
+    self.spec_extras[:platform] = 'java'
+  end
+end
+
+if jruby?
+  require "rake/javaextensiontask"
+  Rake::Task[:spec].prerequisites << :java_debug
+  Rake::Task[:spec].prerequisites << :import_certs
+  task :java_debug do
+    ENV['JAVA_OPTS'] = '-Xdebug -Xrunjdwp:transport=dt_socket,address=8080,server=y,suspend=n' if ENV['JAVA_DEBUG'] == '1'
+  end
+
+  desc "import server certificates"
+  task :import_certs do
+    puts "Importing server certificates now, this will need sudo access."
+    puts "For more info on what this script is doing take a look at certs/import_key.sh"
+    system 'certs/import_key.sh'
+  end
+
+  Rake::JavaExtensionTask.new("pg_ext", $hoespec.spec) do |ext|
+    jruby_home = RbConfig::CONFIG['prefix']
+    ext.ext_dir = 'ext/java'
+    ext.lib_dir = 'lib'
+    jars = ["#{jruby_home}/lib/jruby.jar"] + FileList['lib/*.jar']
+    ext.classpath = jars.map { |x| File.expand_path x }.join ':'
+  end
+else
+  load 'Rakefile.cross'
+
+  # Rake-compiler task
+  Rake::ExtensionTask.new do |ext|
+  	ext.name           = 'pg_ext'
+  	ext.gem_spec       = $hoespec.spec
+  	ext.ext_dir        = 'ext'
+  	ext.lib_dir        = 'lib'
+  	ext.source_pattern = "*.{c,h}"
+  	ext.cross_compile  = true
+  	ext.cross_platform = CrossLibraries.map &:for_platform
+
+    ext.cross_config_options += CrossLibraries.map do |lib|
+      {
+        lib.for_platform => [
+          "--with-pg-include=#{lib.static_postgresql_libdir}",
+          "--with-opt-include=#{lib.static_postgresql_incdir}",
+          "--with-pg-lib=#{lib.static_postgresql_libdir}",
+          "--with-opt-lib=#{lib.static_openssl_builddir}",
+        ]
+      }
+    end
+  end
 end
 
 ENV['VERSION'] ||= $hoespec.spec.version.to_s
@@ -107,29 +159,6 @@ task :maint do
 end
 
 ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.2:2.0.0'
-
-# Rake-compiler task
-Rake::ExtensionTask.new do |ext|
-	ext.name           = 'pg_ext'
-	ext.gem_spec       = $hoespec.spec
-	ext.ext_dir        = 'ext'
-	ext.lib_dir        = 'lib'
-	ext.source_pattern = "*.{c,h}"
-	ext.cross_compile  = true
-	ext.cross_platform = CrossLibraries.map &:for_platform
-
-  ext.cross_config_options += CrossLibraries.map do |lib|
-    {
-      lib.for_platform => [
-        "--with-pg-include=#{lib.static_postgresql_libdir}",
-        "--with-opt-include=#{lib.static_postgresql_incdir}",
-        "--with-pg-lib=#{lib.static_postgresql_libdir}",
-        "--with-opt-lib=#{lib.static_openssl_builddir}",
-      ]
-    }
-  end
-end
-
 
 # Make the ChangeLog update if the repo has changed since it was last built
 file '.hg/branch' do
@@ -170,8 +199,15 @@ task :update_error_codes do
 	sh "wget #{URL_ERRORCODES_TXT.inspect} -O #{ERRORCODES_TXT.inspect} || curl #{URL_ERRORCODES_TXT.inspect} -o #{ERRORCODES_TXT.inspect}"
 end
 
-file 'ext/errorcodes.def' => ['ext/errorcodes.rb', 'ext/errorcodes.txt'] do
-	ruby 'ext/errorcodes.rb', 'ext/errorcodes.txt', 'ext/errorcodes.def'
+def error_codes_file
+  if jruby?
+    return 'ext/java/org/jruby/pg/Errors.java'
+  end
+  'ext/errorcodes.def'
+end
+
+file error_codes_file => ['ext/errorcodes.rb', 'ext/errorcodes.txt'] do
+	ruby 'ext/errorcodes.rb', 'ext/errorcodes.txt', error_codes_file
 end
 
 file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
