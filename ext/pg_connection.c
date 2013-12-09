@@ -842,6 +842,13 @@ static VALUE pgconn_exec_params( int, VALUE *, VALUE );
  * If the optional code block is given, it will be passed <i>result</i> as an argument,
  * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec</code> returns the value of the block.
+ *
+ * #exec is implemented on the synchronous command processing API of libpq, whereas
+ * #async_exec is implemented on the asynchronous API.
+ * #exec is somewhat faster that #async_exec, but blocks any signals to be processed until
+ * the query is finished. This is most notably visible by a delayed reaction to Control+C.
+ * Both methods ensure that other threads can process while waiting for the server to
+ * complete the request.
  */
 static VALUE
 pgconn_exec(int argc, VALUE *argv, VALUE self)
@@ -3014,22 +3021,14 @@ pgconn_get_last_result(VALUE self)
 	return rb_pgresult;
 }
 
-#if !defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-
 /*
  * call-seq:
  *    conn.async_exec(sql [, params, result_format ] ) -> PG::Result
  *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
  *
  * This function has the same behavior as #exec,
- * but ensures that other threads can process while
- * waiting for the server to complete the request.
- *
- * On Ruby platforms with native threads (MRI-1.9+ and all others)
- * this method is an alias to #exec.
- *
- * On MRI-1.8 it's implemented using asynchronous command
- * processing and ruby's +rb_thread_select+ .
+ * but is implemented using the asynchronous command
+ * processing API of libpq.
  */
 static VALUE
 pgconn_async_exec(int argc, VALUE *argv, VALUE self)
@@ -3049,8 +3048,6 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	}
 	return rb_pgresult;
 }
-
-#endif
 
 /**************************************************************************
  * LARGE OBJECT SUPPORT
@@ -3603,11 +3600,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-	rb_define_alias(rb_cPGconn, "async_exec", "exec");
-#else
 	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
-#endif
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
 

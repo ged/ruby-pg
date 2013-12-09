@@ -262,7 +262,7 @@ describe PG::Connection do
 		error.should == true
 	end
 
-	it "can stop a thread that runs a blocking query" do
+	it "can stop a thread that runs a blocking query with async_exec" do
 		start = Time.now
 		t = Thread.new do
 			@conn.async_exec( 'select pg_sleep(10)' )
