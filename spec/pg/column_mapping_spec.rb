@@ -48,30 +48,42 @@ describe PG::ColumnMapping do
 
 	it "should raise an error from default oid type conversion" do
 		res = @conn.exec( "SELECT 'a'::CHAR(1)" )
-		res.map_types!(PG::Result::DEFAULT_OID_MAP, proc{|res, _, field, _| raise "no converter defined for OID #{res.ftype(field)}" })
-		expect{ res.values }.to raise_error(/no converter defined for OID 1042/)
+		res.map_types!({}, PG::Type::NotDefined)
+		expect{ res.values }.to raise_error(/no type decoder defined for OID 1042/)
 	end
 
-	it "should raise an error from proc type conversion" do
+	it "should raise an error from decode method of type converter" do
 		res = @conn.exec( "SELECT now()" )
-		res.column_mapping = PG::ColumnMapping.new( [proc{ raise "foobar" }] )
-		expect{ res.values }.to raise_error(RuntimeError, /foobar/)
+		res.column_mapping = PG::ColumnMapping.new( [PG::Type::NotDefined] )
+		expect{ res.values }.to raise_error(/no type decoder defined for OID 1184/)
+	end
+
+	class PG::Type::TestInvalidObj
 	end
 
 	it "should raise an error for invalid params" do
 		expect{ PG::ColumnMapping.new( :WrongType ) }.to raise_error(TypeError, /wrong argument type/)
 		expect{ PG::ColumnMapping.new( [:NonExistent] ) }.to raise_error(NameError, /uninitialized constant/)
 		expect{ PG::ColumnMapping.new( [123] ) }.to raise_error(ArgumentError, /invalid/)
-		expect{ PG::ColumnMapping.new( [:CConverter] ) }.to raise_error(TypeError, /wrong argument type/)
+		expect{ PG::ColumnMapping.new( [:TestInvalidObj] ) }.to raise_error(TypeError, /wrong argument type/)
 	end
 
 	#
 	# Examples text format
 	#
 
+	class TypePassThroughParameter
+		def self.encode(value)
+			value
+		end
+		def self.decode(*a)
+			a
+		end
+	end
+
 	it "should allow mixed type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
-		res.column_mapping = PG::ColumnMapping.new( [:TextInteger, :TextString, :TextFloat, proc{|*a| a}, nil] )
+		res.column_mapping = PG::ColumnMapping.new( [:TextInteger, :TextString, :TextFloat, TypePassThroughParameter, nil] )
 		res.values.should == [[1, 'a', 2.0, [res, 0, 3, '2013-06-30'], '3' ]]
 	end
 

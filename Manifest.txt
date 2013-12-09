@@ -24,6 +24,7 @@ ext/pg_column_mapping.c
 ext/pg_connection.c
 ext/pg_errors.c
 ext/pg_result.c
+ext/pg_type.c
 ext/util.c
 ext/util.h
 ext/vc/pg.sln

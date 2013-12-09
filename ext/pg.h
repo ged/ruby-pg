@@ -101,15 +101,22 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
-typedef VALUE (* t_column_converter_func)(VALUE, PGresult *, int, int);
+typedef VALUE (* t_type_converter_enc_func)(VALUE);
+typedef VALUE (* t_type_converter_dec_func)(VALUE, PGresult *, int, int);
 
 typedef struct {
 	int nfields;
-	struct column_converter {
-		t_column_converter_func func;
-		VALUE proc;
+	struct type_converter {
+		t_type_converter_enc_func enc_func;
+		t_type_converter_dec_func dec_func;
+		VALUE type;
 	} convs[0];
 } t_colmap;
+
+struct pg_type_data {
+	t_type_converter_enc_func enc_func;
+	t_type_converter_dec_func dec_func;
+};
 
 
 #include "gvl_wrappers.h"
@@ -127,6 +134,7 @@ extern VALUE rb_mPGconstants;
 extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
+extern VALUE rb_cPG_Type;
 
 
 /***************************************************************************
@@ -146,13 +154,17 @@ void init_pg_connection                                _(( void ));
 void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_column_mapping                            _(( void ));
+void init_pg_type                                      _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 t_colmap *colmap_get_and_check                         _(( VALUE, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
+VALUE pg_type_dec_text_or_binary_string                   _(( VALUE, PGresult *, int, int ));
+VALUE pg_type_enc_to_str                               _(( VALUE ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
+PGresult* pgresult_get                                 _(( VALUE ));
 VALUE pg_result_check                                  _(( VALUE ));
 VALUE pg_result_clear                                  _(( VALUE ));
 

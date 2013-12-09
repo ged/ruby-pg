@@ -5,11 +5,10 @@
  */
 
 #include "pg.h"
-#include "util.h"
 
-VALUE rb_cColumnMap;
-static VALUE rb_cColumnMapCConverter;
-static ID s_id_call;
+static VALUE rb_cColumnMap;
+static ID s_id_encode;
+static ID s_id_decode;
 
 
 static VALUE
@@ -42,167 +41,24 @@ colmap_get_and_check( VALUE self, int nfields )
 }
 
 
-static VALUE
-colmap_conv_text_boolean(VALUE self, PGresult *result, int tuple, int field)
-{
-	if (PQgetisnull(result, tuple, field) || PQgetlength(result, tuple, field) < 1) {
-		return Qnil;
-	}
-	return *PQgetvalue(result, tuple, field) == 't' ? Qtrue : Qfalse;
-}
-
-static VALUE
-colmap_conv_binary_boolean(VALUE self, PGresult *result, int tuple, int field)
-{
-	if (PQgetisnull(result, tuple, field) || PQgetlength(result, tuple, field) < 1) {
-		return Qnil;
-	}
-	return *PQgetvalue(result, tuple, field) == 0 ? Qfalse : Qtrue;
-}
-
-static VALUE
-colmap_conv_text_string(VALUE self, PGresult *result, int tuple, int field)
-{
-	VALUE val;
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
-	                          PQgetlength(result, tuple, field) );
-#ifdef M17N_SUPPORTED
-	ASSOCIATE_INDEX( val, self );
-#endif
-	return val;
-}
-
-static VALUE
-colmap_conv_text_integer(VALUE self, PGresult *result, int tuple, int field)
-{
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-	return rb_cstr2inum(PQgetvalue(result, tuple, field), 10);
-}
-
-static VALUE
-colmap_conv_binary_integer(VALUE self, PGresult *result, int tuple, int field)
-{
-	int len;
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-	len = PQgetlength(result, tuple, field);
-	switch( len ){
-		case 2:
-			return INT2NUM((int16_t)be16toh(*(int16_t*)PQgetvalue(result, tuple, field)));
-		case 4:
-			return LONG2NUM((int32_t)be32toh(*(int32_t*)PQgetvalue(result, tuple, field)));
-		case 8:
-			return LL2NUM((int64_t)be64toh(*(int64_t*)PQgetvalue(result, tuple, field)));
-		default:
-			rb_raise( rb_eTypeError, "wrong data for BinaryInteger converter in tuple %d field %d length %d", tuple, field, len);
-	}
-}
-
-static VALUE
-colmap_conv_text_float(VALUE self, PGresult *result, int tuple, int field)
-{
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-	return rb_float_new(strtod(PQgetvalue(result, tuple, field), NULL));
-}
-
-static VALUE
-colmap_conv_binary_float(VALUE self, PGresult *result, int tuple, int field)
-{
-	int len;
-	union {
-		float f;
-		int32_t i;
-	} swap4;
-	union {
-		double f;
-		int64_t i;
-	} swap8;
-
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-
-	len = PQgetlength(result, tuple, field);
-	switch( len ){
-		case 4:
-			swap4.f = *(float *)PQgetvalue(result, tuple, field);
-			swap4.i = be32toh(swap4.i);
-			return rb_float_new(swap4.f);
-		case 8:
-			swap8.f = *(double *)PQgetvalue(result, tuple, field);
-			swap8.i = be64toh(swap8.i);
-			return rb_float_new(swap8.f);
-		default:
-			rb_raise( rb_eTypeError, "wrong data for BinaryFloat converter in tuple %d field %d length %d", tuple, field, len);
-	}
-}
-
-static VALUE
-colmap_conv_text_bytea(VALUE self, PGresult *result, int tuple, int field)
-{
-	unsigned char *to;
-	size_t to_len;
-	VALUE ret;
-
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-
-	to = PQunescapeBytea( (unsigned char *)PQgetvalue(result, tuple, field ), &to_len);
-
-	ret = rb_str_new((char*)to, to_len);
-	PQfreemem(to);
-
-	return ret;
-}
-
-static VALUE
-colmap_conv_binary_bytea(VALUE self, PGresult *result, int tuple, int field)
-{
-	VALUE val;
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
-	                          PQgetlength(result, tuple, field) );
-#ifdef M17N_SUPPORTED
-	rb_enc_associate( val, rb_ascii8bit_encoding() );
-#endif
-	return val;
-}
-
-static VALUE
-colmap_conv_text_or_binary_string(VALUE self, PGresult *result, int tuple, int field)
-{
-	if ( 0 == PQfformat(result, field) ) {
-		return colmap_conv_text_string(self, result, tuple, field);
-	} else {
-		return colmap_conv_binary_bytea(self, result, tuple, field);
-	}
-}
-
-
 VALUE
 colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap *p_colmap)
 {
 	if( p_colmap ){
-		struct column_converter *conv = &p_colmap->convs[field];
-		VALUE val = conv->func(self, result, tuple, field);
+		struct type_converter *conv = &p_colmap->convs[field];
+		VALUE val;
 
-		if( conv->proc != Qnil ){
-			return rb_funcall( conv->proc, s_id_call, 4, self, INT2NUM(tuple), INT2NUM(field), val );
+		if( !conv->dec_func ){
+			rb_raise( rb_eArgError, "no decoder defined for field %d", field );
+		}
+		val = conv->dec_func(self, result, tuple, field);
+
+		if( conv->type != Qnil ){
+			return rb_funcall( conv->type, s_id_decode, 4, self, INT2NUM(tuple), INT2NUM(field), val );
 		}
 		return val;
 	} else {
-		return colmap_conv_text_or_binary_string(self, result, tuple, field);
+		return pg_type_dec_text_or_binary_string(self, result, tuple, field);
 	}
 }
 
@@ -217,38 +73,45 @@ colmap_init(VALUE self, VALUE conv_ary)
 	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
 	conv_ary_len = RARRAY_LEN(conv_ary);
-	this = xmalloc(sizeof(t_colmap) + sizeof(struct column_converter) * conv_ary_len);
+	this = xmalloc(sizeof(t_colmap) + sizeof(struct type_converter) * conv_ary_len);
 	DATA_PTR(self) = this;
 
 	for(i=0; i<conv_ary_len; i++)
 	{
 		VALUE obj = rb_ary_entry(conv_ary, i);
-		t_column_converter_func func;
-		VALUE proc;
+		t_type_converter_enc_func enc_func;
+		t_type_converter_dec_func dec_func;
+		VALUE type;
+		struct pg_type_data *type_data;
 
 		if( obj == Qnil ){
-			func = colmap_conv_text_or_binary_string;
-			proc = Qnil;
+			dec_func = pg_type_dec_text_or_binary_string;
+			type = Qnil;
 		} else if( TYPE(obj) == T_SYMBOL ){
-			VALUE conv_obj = rb_const_get(rb_cColumnMap, rb_to_id(obj));
-			if( CLASS_OF(conv_obj) != rb_cColumnMapCConverter ){
-				rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::ColumnMapping::CConverter)",
+			VALUE conv_obj = rb_const_get(rb_cPG_Type, rb_to_id(obj));
+			if( CLASS_OF(conv_obj) != rb_cPG_Type ){
+				rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
 						rb_obj_classname( conv_obj ) );
 			}
-			func = DATA_PTR(conv_obj);
-			proc = Qnil;
-		} else if( CLASS_OF(obj) == rb_cColumnMapCConverter ){
-			func = DATA_PTR(obj);
-			proc = Qnil;
-		} else if( rb_respond_to(obj, s_id_call) ){
-			func = colmap_conv_text_or_binary_string;
-			proc = obj;
+			type_data = DATA_PTR(conv_obj);
+			enc_func = type_data->enc_func;
+			dec_func = type_data->dec_func;
+			type = Qnil;
+		} else if( CLASS_OF(obj) == rb_cPG_Type ){
+			type_data = DATA_PTR(obj);
+			enc_func = type_data->enc_func;
+			dec_func = type_data->dec_func;
+			type = Qnil;
+		} else if( rb_respond_to(obj, s_id_encode) || rb_respond_to(obj, s_id_decode)){
+			dec_func = pg_type_dec_text_or_binary_string;
+			type = obj;
 		} else {
 			rb_raise(rb_eArgError, "invalid argument %d", i+1);
 		}
 
-		this->convs[i].func = func;
-		this->convs[i].proc = proc;
+		this->convs[i].enc_func = enc_func;
+		this->convs[i].dec_func = dec_func;
+		this->convs[i].type = type;
 	}
 
 	this->nfields = conv_ary_len;
@@ -259,31 +122,13 @@ colmap_init(VALUE self, VALUE conv_ary)
 }
 
 
-static void
-colmap_define_converter(const char *name, t_column_converter_func func)
-{
-	rb_define_const( rb_cColumnMap, name, Data_Wrap_Struct(rb_cColumnMapCConverter, NULL, NULL, func) );
-}
-
-
 void
 init_pg_column_mapping()
 {
-	s_id_call = rb_intern("call");
+	s_id_encode = rb_intern("encode");
+	s_id_decode = rb_intern("decode");
 
 	rb_cColumnMap = rb_define_class_under( rb_mPG, "ColumnMapping", rb_cObject );
-	rb_cColumnMapCConverter = rb_define_class_under( rb_cColumnMap, "CConverter", rb_cObject );
-	colmap_define_converter( "TextBoolean", colmap_conv_text_boolean );
-	colmap_define_converter( "TextString", colmap_conv_text_string );
-	colmap_define_converter( "TextInteger", colmap_conv_text_integer );
-	colmap_define_converter( "TextFloat", colmap_conv_text_float );
-	colmap_define_converter( "TextBytea", colmap_conv_text_bytea );
-	colmap_define_converter( "BinaryBoolean", colmap_conv_binary_boolean );
-	colmap_define_converter( "BinaryString", colmap_conv_text_string );
-	colmap_define_converter( "BinaryBytea", colmap_conv_binary_bytea );
-	colmap_define_converter( "BinaryInteger", colmap_conv_binary_integer );
-	colmap_define_converter( "BinaryFloat", colmap_conv_binary_float );
-
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
 	rb_define_method( rb_cColumnMap, "initialize", colmap_init, 1 );
 	rb_define_attr( rb_cColumnMap, "conversions", 1, 0 );

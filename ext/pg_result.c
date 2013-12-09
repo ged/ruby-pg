@@ -10,7 +10,6 @@
 VALUE rb_cPGresult;
 
 static void pgresult_gc_free( PGresult * );
-static PGresult *pgresult_get( VALUE );
 static t_colmap *pgresult_get_colmap( VALUE );
 
 
@@ -142,7 +141,7 @@ pgresult_gc_free( PGresult *result )
 /*
  * Fetch the data pointer for the result object
  */
-static PGresult*
+PGresult*
 pgresult_get(VALUE self)
 {
 	PGresult *result;

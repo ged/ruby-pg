@@ -347,9 +347,9 @@ describe PG::Result do
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping.should be_nil
-			res.column_mapping = PG::ColumnMapping.new [PG::ColumnMapping::TextInteger]
+			res.column_mapping = PG::ColumnMapping.new [PG::Type::TextInteger]
 			res.column_mapping.should be_an_instance_of(PG::ColumnMapping)
-			res.column_mapping.conversions.should == [PG::ColumnMapping::TextInteger]
+			res.column_mapping.conversions.should == [PG::Type::TextInteger]
 			res.column_mapping = PG::ColumnMapping.new [:TextFloat]
 			res.column_mapping.conversions.should == [:TextFloat]
 			res.column_mapping = nil
