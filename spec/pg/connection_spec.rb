@@ -274,6 +274,29 @@ describe PG::Connection do
 		(Time.now - start).should < 10
 	end
 
+	it "should work together with signal handlers" do
+		signal_received = false
+		trap 'USR1' do
+			signal_received = true
+		end
+
+		Thread.new do
+			sleep 0.1
+			Process.kill("USR1", Process.pid)
+		end
+		@conn.exec("select pg_sleep(0.3)")
+		signal_received.should be_true
+
+		signal_received = false
+		Thread.new do
+			sleep 0.1
+			Process.kill("USR1", Process.pid)
+		end
+		@conn.async_exec("select pg_sleep(0.3)")
+		signal_received.should be_true
+	end
+
+
 	it "automatically rolls back a transaction started with Connection#transaction if an exception " +
 	   "is raised" do
 		# abort the per-example transaction so we can test our own
