@@ -18,16 +18,16 @@ require 'pg'
 describe PG::Type do
 
 	it "should offer encode method" do
-		res = PG::Type::TextInteger.encode(123)
+		res = PG::Type::Text::INT8.encode(123)
 		res.should == "123"
 	end
 
 	it "should offer decode method" do
-		res = PG::Type::TextInteger.decode(PG::Result.new, 1, 1, "123")
+		res = PG::Type::Text::INT8.decode(PG::Result.new, 1, 1, "123")
 		res.should == 123
 	end
 
 	it "should offer encode method" do
-		PG::Type::BinaryInteger.encode(123)
+		PG::Type::Binary::INT8.encode(123)
 	end
 end

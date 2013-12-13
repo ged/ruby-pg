@@ -45,13 +45,13 @@ VALUE
 colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap *p_colmap)
 {
 	if( p_colmap ){
-		struct type_converter *conv = &p_colmap->convs[field];
+		struct pg_type_converter *conv = &p_colmap->convs[field];
 		VALUE val;
 
-		if( !conv->dec_func ){
+		if( !conv->cconv.dec_func ){
 			rb_raise( rb_eArgError, "no decoder defined for field %d", field );
 		}
-		val = conv->dec_func(self, result, tuple, field);
+		val = conv->cconv.dec_func(self, result, tuple, field);
 
 		if( conv->type != Qnil ){
 			return rb_funcall( conv->type, s_id_decode, 4, self, INT2NUM(tuple), INT2NUM(field), val );
@@ -73,45 +73,39 @@ colmap_init(VALUE self, VALUE conv_ary)
 	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
 	conv_ary_len = RARRAY_LEN(conv_ary);
-	this = xmalloc(sizeof(t_colmap) + sizeof(struct type_converter) * conv_ary_len);
+	this = xmalloc(sizeof(t_colmap) + sizeof(struct pg_type_converter) * conv_ary_len);
 	DATA_PTR(self) = this;
 
 	for(i=0; i<conv_ary_len; i++)
 	{
 		VALUE obj = rb_ary_entry(conv_ary, i);
-		t_type_converter_enc_func enc_func;
-		t_type_converter_dec_func dec_func;
-		VALUE type;
-		struct pg_type_data *type_data;
+		struct pg_type_converter tc;
+		struct pg_type_cconverter *type_data;
 
 		if( obj == Qnil ){
-			dec_func = pg_type_dec_text_or_binary_string;
-			type = Qnil;
+			tc.cconv.dec_func = pg_type_dec_text_or_binary_string;
+			tc.type = Qnil;
 		} else if( TYPE(obj) == T_SYMBOL ){
-			VALUE conv_obj = rb_const_get(rb_cPG_Type, rb_to_id(obj));
-			if( CLASS_OF(conv_obj) != rb_cPG_Type ){
-				rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
+			VALUE conv_obj = rb_const_get(rb_mPG_Type_Text, rb_to_id(obj));
+			if( CLASS_OF(conv_obj) != rb_cPG_Type_CConverter ){
+				rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type::CConverter)",
 						rb_obj_classname( conv_obj ) );
 			}
 			type_data = DATA_PTR(conv_obj);
-			enc_func = type_data->enc_func;
-			dec_func = type_data->dec_func;
-			type = Qnil;
-		} else if( CLASS_OF(obj) == rb_cPG_Type ){
+			tc.cconv = *type_data;
+			tc.type = Qnil;
+		} else if( CLASS_OF(obj) == rb_cPG_Type_CConverter ){
 			type_data = DATA_PTR(obj);
-			enc_func = type_data->enc_func;
-			dec_func = type_data->dec_func;
-			type = Qnil;
+			tc.cconv = *type_data;
+			tc.type = Qnil;
 		} else if( rb_respond_to(obj, s_id_encode) || rb_respond_to(obj, s_id_decode)){
-			dec_func = pg_type_dec_text_or_binary_string;
-			type = obj;
+			tc.cconv.dec_func = pg_type_dec_text_or_binary_string;
+			tc.type = obj;
 		} else {
 			rb_raise(rb_eArgError, "invalid argument %d", i+1);
 		}
 
-		this->convs[i].enc_func = enc_func;
-		this->convs[i].dec_func = dec_func;
-		this->convs[i].type = type;
+		this->convs[i] = tc;
 	}
 
 	this->nfields = conv_ary_len;

@@ -104,19 +104,20 @@ typedef long suseconds_t;
 typedef VALUE (* t_type_converter_enc_func)(VALUE);
 typedef VALUE (* t_type_converter_dec_func)(VALUE, PGresult *, int, int);
 
+struct pg_type_cconverter {
+	t_type_converter_enc_func enc_func;
+	t_type_converter_dec_func dec_func;
+	Oid oid;
+	int format;
+};
+
 typedef struct {
 	int nfields;
-	struct type_converter {
-		t_type_converter_enc_func enc_func;
-		t_type_converter_dec_func dec_func;
+	struct pg_type_converter {
+		struct pg_type_cconverter cconv;
 		VALUE type;
 	} convs[0];
 } t_colmap;
-
-struct pg_type_data {
-	t_type_converter_enc_func enc_func;
-	t_type_converter_dec_func dec_func;
-};
 
 
 #include "gvl_wrappers.h"
@@ -134,7 +135,10 @@ extern VALUE rb_mPGconstants;
 extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
-extern VALUE rb_cPG_Type;
+extern VALUE rb_mPG_Type;
+extern VALUE rb_cPG_Type_CConverter;
+extern VALUE rb_mPG_Type_Text;
+extern VALUE rb_mPG_Type_Binary;
 
 
 /***************************************************************************

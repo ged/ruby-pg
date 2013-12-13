@@ -5,14 +5,31 @@ require 'pg' unless defined?( PG )
 
 module PG
 
-	class Type
-		class TextTime
-			def self.encode(value)
-				value.to_s
-			end
+	module Type
+		module Text
+			class TimeBase
+				def self.encode(value)
+					value.to_s
+				end
 
-			def self.decode(res, tuple, field, string)
-				Time.new(string)
+				def self.decode(res, tuple, field, string)
+					Time.new(string)
+				end
+			end
+			class DATE < TimeBase
+				def self.oid
+					1082
+				end
+			end
+			class TIMESTAMP_WITHOUT_TIME_ZONE < TimeBase
+				def self.oid
+					1114
+				end
+			end
+			class TIMESTAMP_WITH_TIME_ZONE < TimeBase
+				def self.oid
+					1184
+				end
 			end
 		end
 

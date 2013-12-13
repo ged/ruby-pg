@@ -58,7 +58,7 @@ describe PG::ColumnMapping do
 		expect{ res.values }.to raise_error(/no type decoder defined for OID 1184/)
 	end
 
-	class PG::Type::TestInvalidObj
+	class PG::Type::Text::TestInvalidObj
 	end
 
 	it "should raise an error for invalid params" do
@@ -83,7 +83,7 @@ describe PG::ColumnMapping do
 
 	it "should allow mixed type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
-		res.column_mapping = PG::ColumnMapping.new( [:TextInteger, :TextString, :TextFloat, TypePassThroughParameter, nil] )
+		res.column_mapping = PG::ColumnMapping.new( [:INT4, :TEXT, :FLOAT4, TypePassThroughParameter, nil] )
 		res.values.should == [[1, 'a', 2.0, [res, 0, 3, '2013-06-30'], '3' ]]
 	end
 
