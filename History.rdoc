@@ -1,3 +1,19 @@
+== v0.17.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+
+- Fix compatibility with signal handlers defined in Ruby. This reverts
+  cancelation of queries running on top of the blocking libpq API (like
+  Connection#exec) in case of signals. As an alternative the #async_exec
+  can be used, which is reverted to use the non-blocking API, again.
+- Wrap PQcancel to be called without GVL. It internally waits for
+  the canceling connection.
+
+Documentation fixes:
+
+- Fix documentation for PG::Connection::conndefaults.
+
+
 == v0.17.0 [2013-09-15] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
