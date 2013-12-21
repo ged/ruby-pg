@@ -16,8 +16,8 @@ VALUE rb_mPG_Type_Binary;
 static VALUE
 pg_type_dec_text_boolean(VALUE self, PGresult *result, int tuple, int field)
 {
-	if (PQgetisnull(result, tuple, field) || PQgetlength(result, tuple, field) < 1) {
-		return Qnil;
+	if (PQgetlength(result, tuple, field) < 1) {
+		rb_raise( rb_eTypeError, "wrong data for text boolean converter in tuple %d field %d", tuple, field);
 	}
 	return *PQgetvalue(result, tuple, field) == 't' ? Qtrue : Qfalse;
 }
@@ -25,8 +25,8 @@ pg_type_dec_text_boolean(VALUE self, PGresult *result, int tuple, int field)
 static VALUE
 pg_type_dec_binary_boolean(VALUE self, PGresult *result, int tuple, int field)
 {
-	if (PQgetisnull(result, tuple, field) || PQgetlength(result, tuple, field) < 1) {
-		return Qnil;
+	if (PQgetlength(result, tuple, field) < 1) {
+		rb_raise( rb_eTypeError, "wrong data for binary boolean converter in tuple %d field %d", tuple, field);
 	}
 	return *PQgetvalue(result, tuple, field) == 0 ? Qfalse : Qtrue;
 }
@@ -35,9 +35,6 @@ static VALUE
 pg_type_dec_text_string(VALUE self, PGresult *result, int tuple, int field)
 {
 	VALUE val;
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
 	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
 	                          PQgetlength(result, tuple, field) );
 #ifdef M17N_SUPPORTED
@@ -49,9 +46,6 @@ pg_type_dec_text_string(VALUE self, PGresult *result, int tuple, int field)
 static VALUE
 pg_type_dec_text_integer(VALUE self, PGresult *result, int tuple, int field)
 {
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
 	return rb_cstr2inum(PQgetvalue(result, tuple, field), 10);
 }
 
@@ -59,9 +53,6 @@ static VALUE
 pg_type_dec_binary_integer(VALUE self, PGresult *result, int tuple, int field)
 {
 	int len;
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
 	len = PQgetlength(result, tuple, field);
 	switch( len ){
 		case 2:
@@ -71,16 +62,13 @@ pg_type_dec_binary_integer(VALUE self, PGresult *result, int tuple, int field)
 		case 8:
 			return LL2NUM((int64_t)be64toh(*(int64_t*)PQgetvalue(result, tuple, field)));
 		default:
-			rb_raise( rb_eTypeError, "wrong data for BinaryInteger converter in tuple %d field %d length %d", tuple, field, len);
+			rb_raise( rb_eTypeError, "wrong data for binary integer converter in tuple %d field %d length %d", tuple, field, len);
 	}
 }
 
 static VALUE
 pg_type_dec_text_float(VALUE self, PGresult *result, int tuple, int field)
 {
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
 	return rb_float_new(strtod(PQgetvalue(result, tuple, field), NULL));
 }
 
@@ -96,10 +84,6 @@ pg_type_dec_binary_float(VALUE self, PGresult *result, int tuple, int field)
 		double f;
 		int64_t i;
 	} swap8;
-
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
 
 	len = PQgetlength(result, tuple, field);
 	switch( len ){
@@ -123,10 +107,6 @@ pg_type_dec_text_bytea(VALUE self, PGresult *result, int tuple, int field)
 	size_t to_len;
 	VALUE ret;
 
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-
 	to = PQunescapeBytea( (unsigned char *)PQgetvalue(result, tuple, field ), &to_len);
 
 	ret = rb_tainted_str_new((char*)to, to_len);
@@ -139,9 +119,6 @@ static VALUE
 pg_type_dec_binary_bytea(VALUE self, PGresult *result, int tuple, int field)
 {
 	VALUE val;
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
 	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
 	                          PQgetlength(result, tuple, field) );
 #ifdef M17N_SUPPORTED

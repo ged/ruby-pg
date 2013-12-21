@@ -44,6 +44,10 @@ colmap_get_and_check( VALUE self, int nfields )
 VALUE
 colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap *p_colmap)
 {
+	if (PQgetisnull(result, tuple, field)) {
+		return Qnil;
+	}
+
 	if( p_colmap ){
 		struct pg_type_converter *conv = &p_colmap->convs[field];
 		VALUE val;
