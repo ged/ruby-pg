@@ -12,7 +12,7 @@ module PG
 					value.to_s
 				end
 
-				def self.decode(res, tuple, field, string)
+				def self.decode(string, tuple, field)
 					Time.new(string)
 				end
 			end
@@ -38,8 +38,8 @@ module PG
 				raise "no encoder defined for type #{value.class}"
 			end
 
-			def self.decode(res, _tuple, field, _string)
-				raise "no type decoder defined for OID #{res.ftype(field)}"
+			def self.decode(res, tuple, field)
+				raise "no type decoder defined for tuple #{tuple} field #{field}"
 			end
 		end
 	end

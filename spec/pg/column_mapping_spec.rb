@@ -49,13 +49,13 @@ describe PG::ColumnMapping do
 	it "should raise an error from default oid type conversion" do
 		res = @conn.exec( "SELECT 'a'::CHAR(1)" )
 		res.map_types!({}, PG::Type::NotDefined)
-		expect{ res.values }.to raise_error(/no type decoder defined for OID 1042/)
+		expect{ res.values }.to raise_error(/no type decoder defined/)
 	end
 
 	it "should raise an error from decode method of type converter" do
 		res = @conn.exec( "SELECT now()" )
 		res.column_mapping = PG::ColumnMapping.new( [PG::Type::NotDefined] )
-		expect{ res.values }.to raise_error(/no type decoder defined for OID 1184/)
+		expect{ res.values }.to raise_error(/no type decoder defined/)
 	end
 
 	class PG::Type::Text::TestInvalidObj
@@ -84,7 +84,7 @@ describe PG::ColumnMapping do
 	it "should allow mixed type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
 		res.column_mapping = PG::ColumnMapping.new( [:INT4, :TEXT, :FLOAT4, TypePassThroughParameter, nil] )
-		res.values.should == [[1, 'a', 2.0, [res, 0, 3, '2013-06-30'], '3' ]]
+		res.values.should == [[1, 'a', 2.0, ['2013-06-30', 0, 3], '3' ]]
 	end
 
 	#

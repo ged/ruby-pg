@@ -44,26 +44,42 @@ colmap_get_and_check( VALUE self, int nfields )
 VALUE
 colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap *p_colmap)
 {
+	int enc_idx = 0;
+	VALUE ret;
+	char * val;
+	int len;
+	struct pg_type_converter *conv = NULL;
+
 	if (PQgetisnull(result, tuple, field)) {
 		return Qnil;
 	}
 
+#ifdef M17N_SUPPORTED
+	enc_idx = ENCODING_GET(self);
+#endif
+
+	val = PQgetvalue( result, tuple, field );
+	len = PQgetlength( result, tuple, field );
+
 	if( p_colmap ){
-		struct pg_type_converter *conv = &p_colmap->convs[field];
-		VALUE val;
+		conv = &p_colmap->convs[field];
 
-		if( !conv->cconv.dec_func ){
-			rb_raise( rb_eArgError, "no decoder defined for field %d", field );
+		if( conv->cconv.dec_func ){
+			return conv->cconv.dec_func(val, len, tuple, field, enc_idx);
 		}
-		val = conv->cconv.dec_func(self, result, tuple, field);
-
-		if( conv->type != Qnil ){
-			return rb_funcall( conv->type, s_id_decode, 4, self, INT2NUM(tuple), INT2NUM(field), val );
-		}
-		return val;
-	} else {
-		return pg_type_dec_text_or_binary_string(self, result, tuple, field);
 	}
+
+	if ( 0 == PQfformat(result, field) ) {
+		ret = pg_type_dec_text_string(val, len, tuple, field, enc_idx);
+	} else {
+		ret = pg_type_dec_binary_bytea(val, len, tuple, field, enc_idx);
+	}
+
+	if( conv && !NIL_P(conv->type) ){
+		ret = rb_funcall( conv->type, s_id_decode, 3, ret, INT2NUM(tuple), INT2NUM(field) );
+	}
+
+	return ret;
 }
 
 
@@ -87,7 +103,7 @@ colmap_init(VALUE self, VALUE conv_ary)
 		struct pg_type_cconverter *type_data;
 
 		if( obj == Qnil ){
-			tc.cconv.dec_func = pg_type_dec_text_or_binary_string;
+			tc.cconv.dec_func = NULL;
 			tc.type = Qnil;
 		} else if( TYPE(obj) == T_SYMBOL ){
 			VALUE conv_obj = rb_const_get(rb_mPG_Type_Text, rb_to_id(obj));
@@ -103,7 +119,7 @@ colmap_init(VALUE self, VALUE conv_ary)
 			tc.cconv = *type_data;
 			tc.type = Qnil;
 		} else if( rb_respond_to(obj, s_id_encode) || rb_respond_to(obj, s_id_decode)){
-			tc.cconv.dec_func = pg_type_dec_text_or_binary_string;
+			tc.cconv.dec_func = NULL;
 			tc.type = obj;
 		} else {
 			rb_raise(rb_eArgError, "invalid argument %d", i+1);

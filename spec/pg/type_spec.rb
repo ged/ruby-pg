@@ -23,11 +23,12 @@ describe PG::Type do
 	end
 
 	it "should offer decode method" do
-		res = PG::Type::Text::INT8.decode(PG::Result.new, 1, 1, "123")
+		res = PG::Type::Text::INT8.decode("123", 1, 1)
 		res.should == 123
 	end
 
 	it "should offer encode method" do
-		PG::Type::Binary::INT8.encode(123)
+		res = PG::Type::Binary::INT4.encode(123)
+		res.should == [123].pack("N")
 	end
 end

@@ -14,68 +14,63 @@ VALUE rb_mPG_Type_Binary;
 
 
 static VALUE
-pg_type_dec_text_boolean(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_text_boolean(char *val, int len, int tuple, int field, int enc_idx)
 {
-	if (PQgetlength(result, tuple, field) < 1) {
+	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for text boolean converter in tuple %d field %d", tuple, field);
 	}
-	return *PQgetvalue(result, tuple, field) == 't' ? Qtrue : Qfalse;
+	return *val == 't' ? Qtrue : Qfalse;
 }
 
 static VALUE
-pg_type_dec_binary_boolean(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_binary_boolean(char *val, int len, int tuple, int field, int enc_idx)
 {
-	if (PQgetlength(result, tuple, field) < 1) {
+	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for binary boolean converter in tuple %d field %d", tuple, field);
 	}
-	return *PQgetvalue(result, tuple, field) == 0 ? Qfalse : Qtrue;
+	return *val == 0 ? Qfalse : Qtrue;
 }
 
-static VALUE
-pg_type_dec_text_string(VALUE self, PGresult *result, int tuple, int field)
+VALUE
+pg_type_dec_text_string(char *val, int len, int tuple, int field, int enc_idx)
 {
-	VALUE val;
-	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
-	                          PQgetlength(result, tuple, field) );
+	VALUE ret = rb_tainted_str_new( val, len );
 #ifdef M17N_SUPPORTED
-	ASSOCIATE_INDEX( val, self );
+	ENCODING_SET_INLINED( ret, enc_idx );
 #endif
-	return val;
+	return ret;
 }
 
 static VALUE
-pg_type_dec_text_integer(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_text_integer(char *val, int len, int tuple, int field, int enc_idx)
 {
-	return rb_cstr2inum(PQgetvalue(result, tuple, field), 10);
+	return rb_cstr2inum(val, 10);
 }
 
 static VALUE
-pg_type_dec_binary_integer(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_binary_integer(char *val, int len, int tuple, int field, int enc_idx)
 {
-	int len;
-	len = PQgetlength(result, tuple, field);
 	switch( len ){
 		case 2:
-			return INT2NUM((int16_t)be16toh(*(int16_t*)PQgetvalue(result, tuple, field)));
+			return INT2NUM((int16_t)be16toh(*(int16_t*)val));
 		case 4:
-			return LONG2NUM((int32_t)be32toh(*(int32_t*)PQgetvalue(result, tuple, field)));
+			return LONG2NUM((int32_t)be32toh(*(int32_t*)val));
 		case 8:
-			return LL2NUM((int64_t)be64toh(*(int64_t*)PQgetvalue(result, tuple, field)));
+			return LL2NUM((int64_t)be64toh(*(int64_t*)val));
 		default:
 			rb_raise( rb_eTypeError, "wrong data for binary integer converter in tuple %d field %d length %d", tuple, field, len);
 	}
 }
 
 static VALUE
-pg_type_dec_text_float(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_text_float(char *val, int len, int tuple, int field, int enc_idx)
 {
-	return rb_float_new(strtod(PQgetvalue(result, tuple, field), NULL));
+	return rb_float_new(strtod(val, NULL));
 }
 
 static VALUE
-pg_type_dec_binary_float(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_binary_float(char *val, int len, int tuple, int field, int enc_idx)
 {
-	int len;
 	union {
 		float f;
 		int32_t i;
@@ -85,14 +80,13 @@ pg_type_dec_binary_float(VALUE self, PGresult *result, int tuple, int field)
 		int64_t i;
 	} swap8;
 
-	len = PQgetlength(result, tuple, field);
 	switch( len ){
 		case 4:
-			swap4.f = *(float *)PQgetvalue(result, tuple, field);
+			swap4.f = *(float *)val;
 			swap4.i = be32toh(swap4.i);
 			return rb_float_new(swap4.f);
 		case 8:
-			swap8.f = *(double *)PQgetvalue(result, tuple, field);
+			swap8.f = *(double *)val;
 			swap8.i = be64toh(swap8.i);
 			return rb_float_new(swap8.f);
 		default:
@@ -101,13 +95,13 @@ pg_type_dec_binary_float(VALUE self, PGresult *result, int tuple, int field)
 }
 
 static VALUE
-pg_type_dec_text_bytea(VALUE self, PGresult *result, int tuple, int field)
+pg_type_dec_text_bytea(char *val, int len, int tuple, int field, int enc_idx)
 {
 	unsigned char *to;
 	size_t to_len;
 	VALUE ret;
 
-	to = PQunescapeBytea( (unsigned char *)PQgetvalue(result, tuple, field ), &to_len);
+	to = PQunescapeBytea( (unsigned char *)val, &to_len);
 
 	ret = rb_tainted_str_new((char*)to, to_len);
 	PQfreemem(to);
@@ -115,57 +109,84 @@ pg_type_dec_text_bytea(VALUE self, PGresult *result, int tuple, int field)
 	return ret;
 }
 
-static VALUE
-pg_type_dec_binary_bytea(VALUE self, PGresult *result, int tuple, int field)
+VALUE
+pg_type_dec_binary_bytea(char *val, int len, int tuple, int field, int enc_idx)
 {
-	VALUE val;
-	val = rb_tainted_str_new( PQgetvalue(result, tuple, field ),
-	                          PQgetlength(result, tuple, field) );
+	VALUE ret;
+	ret = rb_tainted_str_new( val, len );
 #ifdef M17N_SUPPORTED
-	rb_enc_associate( val, rb_ascii8bit_encoding() );
+	rb_enc_associate( ret, rb_ascii8bit_encoding() );
 #endif
-	return val;
+	return ret;
 }
 
-VALUE
-pg_type_dec_text_or_binary_string(VALUE self, PGresult *result, int tuple, int field)
+
+static int
+pg_type_enc_to_str(VALUE value, char *out, VALUE *intermediate)
 {
-	if ( 0 == PQfformat(result, field) ) {
-		return pg_type_dec_text_string(self, result, tuple, field);
+	if(out){
+		memcpy( out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
 	} else {
-		return pg_type_dec_binary_bytea(self, result, tuple, field);
+		*intermediate = rb_obj_as_string(value);
 	}
+
+	return RSTRING_LEN(*intermediate);
 }
 
 
-VALUE
-pg_type_enc_to_str(VALUE value)
+static int
+pg_type_enc_int2(VALUE value, char *out, VALUE *intermediate)
 {
-	return rb_obj_as_string(value);
+	if(out) *(int16_t*)out = htobe16(NUM2INT(value));
+	return 2;
+}
+
+static int
+pg_type_enc_int4(VALUE value, char *out, VALUE *intermediate)
+{
+	if(out) *(int32_t*)out = htobe32(NUM2LONG(value));
+	return 4;
+}
+
+static int
+pg_type_enc_int8(VALUE value, char *out, VALUE *intermediate)
+{
+	if(out) *(int64_t*)out = htobe64(NUM2LL(value));
+	return 8;
 }
 
 
 static VALUE
 pg_type_encode(VALUE self, VALUE value)
 {
+	VALUE res = rb_str_new_cstr("");
+	VALUE intermediate;
+	int len;
 	struct pg_type_cconverter *type_data = DATA_PTR(self);
+
 	if( !type_data->enc_func ){
 		rb_raise( rb_eArgError, "no encoder defined for type %s",
 				rb_obj_classname( self ) );
 	}
-	return type_data->enc_func(value);
+
+	len = type_data->enc_func( value, NULL, &intermediate );
+	res = rb_str_resize( res, len );
+	len = type_data->enc_func( value, RSTRING_PTR(res), &intermediate);
+	rb_str_set_len( res, len );
+	return res;
 }
 
 static VALUE
-pg_type_decode(VALUE self, VALUE result, VALUE tuple, VALUE field, VALUE string)
+pg_type_decode(VALUE self, VALUE string, VALUE tuple, VALUE field)
 {
+	char *val;
 	struct pg_type_cconverter *type_data = DATA_PTR(self);
-	PGresult *p_result = pgresult_get(result);
 	if( !type_data->dec_func ){
 		rb_raise( rb_eArgError, "no decoder defined for type %s",
 				rb_obj_classname( self ) );
 	}
-	return type_data->dec_func(result, p_result, NUM2INT(tuple), NUM2INT(field));
+	val = StringValuePtr(string);
+	return type_data->dec_func(val, RSTRING_LEN(string), NUM2INT(tuple), NUM2INT(field), ENCODING_GET(string));
 }
 
 static VALUE
@@ -217,7 +238,7 @@ init_pg_type()
 	rb_mPG_Type = rb_define_module_under( rb_mPG, "Type" );
 	rb_cPG_Type_CConverter = rb_define_class_under( rb_mPG_Type, "CConverter", rb_cObject );
 	rb_define_method( rb_cPG_Type_CConverter, "encode", pg_type_encode, 1 );
-	rb_define_method( rb_cPG_Type_CConverter, "decode", pg_type_decode, 4 );
+	rb_define_method( rb_cPG_Type_CConverter, "decode", pg_type_decode, 3 );
 	rb_define_method( rb_cPG_Type_CConverter, "oid", pg_type_oid, 0 );
 	rb_define_method( rb_cPG_Type_CConverter, "format", pg_type_format, 0 );
 	rb_mPG_Type_Text = rb_define_module_under( rb_mPG_Type, "Text" );
@@ -234,9 +255,9 @@ init_pg_type()
 
 	pg_type_define_type( 1, "BOOLEAN", NULL, pg_type_dec_binary_boolean, 16 );
 	pg_type_define_type( 1, "BYTEA", NULL, pg_type_dec_binary_bytea, 17 );
-	pg_type_define_type( 1, "INT8", NULL, pg_type_dec_binary_integer, 20 );
-	pg_type_define_type( 1, "INT2", NULL, pg_type_dec_binary_integer, 21 );
-	pg_type_define_type( 1, "INT4", NULL, pg_type_dec_binary_integer, 23 );
+	pg_type_define_type( 1, "INT8", pg_type_enc_int8, pg_type_dec_binary_integer, 20 );
+	pg_type_define_type( 1, "INT2", pg_type_enc_int2, pg_type_dec_binary_integer, 21 );
+	pg_type_define_type( 1, "INT4", pg_type_enc_int4, pg_type_dec_binary_integer, 23 );
 	pg_type_define_type( 1, "FLOAT4", NULL, pg_type_dec_binary_float, 700 );
 	pg_type_define_type( 1, "FLOAT8", NULL, pg_type_dec_binary_float, 701 );
 	pg_type_define_type( 1, "TEXT", NULL, pg_type_dec_text_string, 705 );

@@ -101,8 +101,8 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
-typedef VALUE (* t_type_converter_enc_func)(VALUE);
-typedef VALUE (* t_type_converter_dec_func)(VALUE, PGresult *, int, int);
+typedef int (* t_type_converter_enc_func)(VALUE, char *, VALUE *);
+typedef VALUE (* t_type_converter_dec_func)(char *, int, int, int, int);
 
 struct pg_type_cconverter {
 	t_type_converter_enc_func enc_func;
@@ -113,6 +113,7 @@ struct pg_type_cconverter {
 
 typedef struct {
 	int nfields;
+	int encoding_index;
 	struct pg_type_converter {
 		struct pg_type_cconverter cconv;
 		VALUE type;
@@ -162,8 +163,8 @@ void init_pg_type                                      _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 t_colmap *colmap_get_and_check                         _(( VALUE, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
-VALUE pg_type_dec_text_or_binary_string                   _(( VALUE, PGresult *, int, int ));
-VALUE pg_type_enc_to_str                               _(( VALUE ));
+VALUE pg_type_dec_binary_bytea                         _(( char *, int, int, int, int ));
+VALUE pg_type_dec_text_string                          _(( char *, int, int, int, int ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 
