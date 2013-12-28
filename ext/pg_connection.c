@@ -878,6 +878,90 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 }
 
 
+static int
+alloc_query_params(VALUE params, Oid **paramTypes, char ***paramValues, int **paramLengths, int **paramFormats, VALUE *gc_array)
+{
+	VALUE sym_type, sym_value, sym_format;
+	VALUE param, param_type, param_value, param_format;
+	VALUE param_value_tmp;
+	int nParams;
+	int i=0;
+
+	Check_Type(params, T_ARRAY);
+
+	*gc_array = rb_ary_new();
+	rb_gc_register_address(gc_array);
+
+	sym_type = ID2SYM(rb_intern("type"));
+	sym_value = ID2SYM(rb_intern("value"));
+	sym_format = ID2SYM(rb_intern("format"));
+	nParams = (int)RARRAY_LEN(params);
+	if( paramTypes )
+		*paramTypes = ALLOC_N(Oid, nParams);
+	*paramValues = ALLOC_N(char *, nParams);
+	*paramLengths = ALLOC_N(int, nParams);
+	*paramFormats = ALLOC_N(int, nParams);
+
+	for ( i = 0; i < nParams; i++ ) {
+		param = rb_ary_entry(params, i);
+		if (TYPE(param) == T_HASH) {
+			if( paramTypes )
+				param_type = rb_hash_aref(param, sym_type);
+			param_value_tmp = rb_hash_aref(param, sym_value);
+			if(param_value_tmp == Qnil)
+				param_value = param_value_tmp;
+			else
+				param_value = rb_obj_as_string(param_value_tmp);
+			param_format = rb_hash_aref(param, sym_format);
+		}
+		else {
+			param_type = Qnil;
+			if(param == Qnil)
+				param_value = param;
+			else
+				param_value = rb_obj_as_string(param);
+			param_format = Qnil;
+		}
+
+		if( paramTypes ){
+			if(param_type == Qnil)
+				(*paramTypes)[i] = 0;
+			else
+				(*paramTypes)[i] = NUM2INT(param_type);
+		}
+
+		if(param_value == Qnil) {
+			(*paramValues)[i] = NULL;
+			(*paramLengths)[i] = 0;
+		}
+		else {
+			Check_Type(param_value, T_STRING);
+			/* make sure param_value doesn't get freed by the GC */
+			rb_ary_push(*gc_array, param_value);
+			(*paramValues)[i] = RSTRING_PTR(param_value);
+			(*paramLengths)[i] = (int)RSTRING_LEN(param_value);
+		}
+
+		if(param_format == Qnil)
+			(*paramFormats)[i] = 0;
+		else
+			(*paramFormats)[i] = NUM2INT(param_format);
+	}
+	return nParams;
+}
+
+static void
+free_query_params(Oid *paramTypes, char **paramValues, int *paramLengths, int *paramFormats, VALUE *gc_array)
+{
+	rb_gc_unregister_address(gc_array);
+	if( paramTypes )
+		xfree(paramTypes);
+	xfree(paramValues);
+	xfree(paramLengths);
+	xfree(paramFormats);
+}
+
+
 /*
  * call-seq:
  *    conn.exec_params(sql, params[, result_format ] ) -> PG::Result
@@ -922,11 +1006,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE command, params, in_res_fmt;
-	VALUE param, param_type, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_type, sym_value, sym_format;
 	VALUE gc_array;
-	int i=0;
 	int nParams;
 	Oid *paramTypes;
 	char ** paramValues;
@@ -942,81 +1022,15 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	 */
 	if ( NIL_P(params) ) {
 		return pgconn_exec( 1, argv, self );
-		}
-
-	Check_Type(params, T_ARRAY);
-
-	if ( NIL_P(in_res_fmt) ) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
 	}
 
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramTypes = ALLOC_N(Oid, nParams);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-
-	for ( i = 0; i < nParams; i++ ) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_type = rb_hash_aref(param, sym_type);
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			param_type = Qnil;
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = Qnil;
-		}
-
-		if(param_type == Qnil)
-			paramTypes[i] = 0;
-		else
-			paramTypes[i] = NUM2INT(param_type);
-
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( params, &paramTypes, &paramValues, &paramLengths, &paramFormats, &gc_array);
 
 	result = gvl_PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramTypes);
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( paramTypes, paramValues, paramLengths, paramFormats, &gc_array);
 
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
@@ -1123,11 +1137,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE name, params, in_res_fmt;
-	VALUE param, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_value, sym_format;
 	VALUE gc_array;
-	int i = 0;
 	int nParams;
 	char ** paramValues;
 	int *paramLengths;
@@ -1140,71 +1150,16 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 	if(NIL_P(params)) {
 		params = rb_ary_new2(0);
-		resultFormat = 0;
-	}
-	else {
-		Check_Type(params, T_ARRAY);
 	}
 
-	if(NIL_P(in_res_fmt)) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
-
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
-		}
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( params, NULL, &paramValues, &paramLengths, &paramFormats, &gc_array);
 
 	result = gvl_PQexecPrepared(conn, StringValuePtr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( NULL, paramValues, paramLengths, paramFormats, &gc_array);
 
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
@@ -1603,12 +1558,8 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	PGconn *conn = pg_get_pgconn(self);
 	int result;
 	VALUE command, params, in_res_fmt;
-	VALUE param, param_type, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_type, sym_value, sym_format;
 	VALUE gc_array;
 	VALUE error;
-	int i=0;
 	int nParams;
 	Oid *paramTypes;
 	char ** paramValues;
@@ -1632,77 +1583,14 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	/* If called with parameters, and optionally result_format,
 	 * use PQsendQueryParams
 	 */
-	Check_Type(params, T_ARRAY);
 
-	if(NIL_P(in_res_fmt)) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
-
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramTypes = ALLOC_N(Oid, nParams);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_type = rb_hash_aref(param, sym_type);
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			param_type = INT2NUM(0);
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
-		}
-
-		if(param_type == Qnil)
-			paramTypes[i] = 0;
-		else
-			paramTypes[i] = NUM2INT(param_type);
-
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( params, &paramTypes, &paramValues, &paramLengths, &paramFormats, &gc_array);
 
 	result = gvl_PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramTypes);
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( paramTypes, paramValues, paramLengths, paramFormats, &gc_array);
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
@@ -1805,12 +1693,8 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	PGconn *conn = pg_get_pgconn(self);
 	int result;
 	VALUE name, params, in_res_fmt;
-	VALUE param, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_value, sym_format;
 	VALUE gc_array;
 	VALUE error;
-	int i = 0;
 	int nParams;
 	char ** paramValues;
 	int *paramLengths;
@@ -1824,70 +1708,15 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		params = rb_ary_new2(0);
 		resultFormat = 0;
 	}
-	else {
-		Check_Type(params, T_ARRAY);
-	}
 
-	if(NIL_P(in_res_fmt)) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
-
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
-		}
-
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( params, NULL, &paramValues, &paramLengths, &paramFormats, &gc_array);
 
 	result = gvl_PQsendQueryPrepared(conn, StringValuePtr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( NULL, paramValues, paramLengths, paramFormats, &gc_array);
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
