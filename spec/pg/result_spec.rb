@@ -349,9 +349,9 @@ describe PG::Result do
 			res.column_mapping.should be_nil
 			res.column_mapping = PG::ColumnMapping.new [PG::Type::Text::INT4]
 			res.column_mapping.should be_an_instance_of(PG::ColumnMapping)
-			res.column_mapping.conversions.should == [PG::Type::Text::INT4]
-			res.column_mapping = PG::ColumnMapping.new [:FLOAT4]
-			res.column_mapping.conversions.should == [:FLOAT4]
+			res.column_mapping.types.should == [PG::Type::Text::INT4]
+			res.column_mapping = PG::ColumnMapping.new [PG::Type::Text::FLOAT4]
+			res.column_mapping.types.should == [PG::Type::Text::FLOAT4]
 			res.column_mapping = nil
 			res.column_mapping.should be_nil
 		end

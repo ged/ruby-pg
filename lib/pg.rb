@@ -43,8 +43,9 @@ module PG
 
 	require 'pg/exceptions'
 	require 'pg/constants'
-	require 'pg/connection'
 	require 'pg/type'
+	require 'pg/column_mapping'
+	require 'pg/connection'
 	require 'pg/result'
 
 end # module PG

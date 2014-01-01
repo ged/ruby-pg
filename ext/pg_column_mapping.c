@@ -6,9 +6,11 @@
 
 #include "pg.h"
 
-static VALUE rb_cColumnMap;
+VALUE rb_cColumnMap;
 static ID s_id_encode;
 static ID s_id_decode;
+static ID s_id_oid;
+static ID s_id_format;
 
 
 static VALUE
@@ -89,6 +91,7 @@ colmap_init(VALUE self, VALUE conv_ary)
 	int i;
 	t_colmap *this;
 	int conv_ary_len;
+	VALUE ary_types = rb_ary_new();
 
 	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
@@ -102,35 +105,38 @@ colmap_init(VALUE self, VALUE conv_ary)
 		struct pg_type_converter tc;
 		struct pg_type_cconverter *type_data;
 
+		if( TYPE(obj) == T_SYMBOL ){
+			obj = rb_const_get(rb_mPG_Type_Text, rb_to_id(obj));
+		}
+
 		if( obj == Qnil ){
 			tc.cconv.dec_func = NULL;
-			tc.type = Qnil;
-		} else if( TYPE(obj) == T_SYMBOL ){
-			VALUE conv_obj = rb_const_get(rb_mPG_Type_Text, rb_to_id(obj));
-			if( CLASS_OF(conv_obj) != rb_cPG_Type_CConverter ){
-				rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type::CConverter)",
-						rb_obj_classname( conv_obj ) );
-			}
-			type_data = DATA_PTR(conv_obj);
-			tc.cconv = *type_data;
+			tc.cconv.enc_func = NULL;
+			tc.cconv.oid = 0;
+			tc.cconv.format = 0;
 			tc.type = Qnil;
 		} else if( CLASS_OF(obj) == rb_cPG_Type_CConverter ){
 			type_data = DATA_PTR(obj);
 			tc.cconv = *type_data;
-			tc.type = Qnil;
-		} else if( rb_respond_to(obj, s_id_encode) || rb_respond_to(obj, s_id_decode)){
+			tc.type = obj;
+		} else if( rb_respond_to(obj, s_id_oid) && rb_respond_to(obj, s_id_format)){
+			VALUE oid = rb_funcall(obj, s_id_oid, 0);
+			VALUE format = rb_funcall(obj, s_id_format, 0);
 			tc.cconv.dec_func = NULL;
+			tc.cconv.enc_func = NULL;
+			tc.cconv.oid = NUM2INT(oid);
+			tc.cconv.format = NUM2INT(format);
 			tc.type = obj;
 		} else {
-			rb_raise(rb_eArgError, "invalid argument %d", i+1);
+			rb_raise(rb_eArgError, "invalid type argument %d", i+1);
 		}
 
 		this->convs[i] = tc;
+		rb_ary_push( ary_types, obj );
 	}
 
 	this->nfields = conv_ary_len;
-
-	rb_iv_set( self, "@conversions", rb_obj_freeze(conv_ary) );
+	rb_iv_set( self, "@types", rb_obj_freeze(ary_types) );
 
 	return self;
 }
@@ -141,9 +147,11 @@ init_pg_column_mapping()
 {
 	s_id_encode = rb_intern("encode");
 	s_id_decode = rb_intern("decode");
+	s_id_oid = rb_intern("oid");
+	s_id_format = rb_intern("format");
 
 	rb_cColumnMap = rb_define_class_under( rb_mPG, "ColumnMapping", rb_cObject );
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
 	rb_define_method( rb_cColumnMap, "initialize", colmap_init, 1 );
-	rb_define_attr( rb_cColumnMap, "conversions", 1, 0 );
+	rb_define_attr( rb_cColumnMap, "types", 1, 0 );
 }

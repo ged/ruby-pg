@@ -136,6 +136,7 @@ extern VALUE rb_mPGconstants;
 extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
+extern VALUE rb_cColumnMap;
 extern VALUE rb_mPG_Type;
 extern VALUE rb_cPG_Type_CConverter;
 extern VALUE rb_mPG_Type_Text;
