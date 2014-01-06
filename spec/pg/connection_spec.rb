@@ -358,6 +358,11 @@ describe PG::Connection do
 		res.values.should == [ ['Wally'], ['Sally'] ]
 	end
 
+	it "should raise an error on invalid param mapping" do
+		expect{
+			@conn.exec_params( "SELECT 1", [], nil, :invalid )
+		}.to raise_error(TypeError)
+	end
 
 	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
