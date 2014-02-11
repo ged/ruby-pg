@@ -64,6 +64,48 @@ There's also {a Google+ group}[http://goo.gl/TFy1U] and a
 want to chat about something.
 
 
+== Type Casts
+
+Pg can optional type cast result and input values in Ruby and native C code.
+This can speed up data transfers to and from the database by avoiding
+String allocations for each value.
+
+Pg's type casting is divided into 4 layers:
+
+=== Encoders / Decoders (ext/pg_type.c)
+
+This is the lowest layer containing encoding functions that convert Ruby
+objects for transmission through libpq and decoding functions to convert
+received data to Ruby objects. The functions are implemented in C and not
+directly usable from Ruby space.
+
+=== PG::Type
+
+Type objects in this namespace bind an encoding and a decoding function to
+a particular type OID and format code (text or binary). They are accessible
+from Ruby and are implemented in C or Ruby. Type objects can be used to
+build ColumnMappings and to convert single values to/from transfered bytes.
+
+=== PG::ColumnMapping
+
+A ColumnMapping combines multiple types together, suitable to convert the
+input or result values of a given query. ColumnMappings are in particular
+useful in conjunction with prepared statements, since they can be cached
+alongside with the statement handle.
+
+=== PG::TypeMapping
+
+A TypeMapping defines the logic to select which Ruby type is converted to
+which OID and to which text/binary representation and vice versa.
+It builds a ColumnMapping out of a given set of input parameters or a given
+PG::Result object. Pg defines a basic TypeMapping, that could be extended
+or replaced to define different conversion rules.
+
+A PG::TypeMapping can be used as alternative for parameters accepting
+PG::ColumnMapping. In this case the a ColumnMapping is built on the fly,
+which is obviously slower than using a cached PG::ColumnMapping.
+
+
 == Contributing
 
 To report bugs, suggest features, or check out the source with Mercurial,
