@@ -378,7 +378,7 @@ describe PG::Result do
 
 		it "shouldn't allow invalid column mappings" do
 			res = @conn.exec( "SELECT 1" )
-			expect{ res.column_mapping = 1 }.to raise_error(TypeError, /type Fixnum/)
+			expect{ res.column_mapping = 1 }.to raise_error(NoMethodError)
 		end
 
 		it "shouldn't allow column mappings with different number of fields" do

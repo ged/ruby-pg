@@ -923,13 +923,13 @@ alloc_query_params1(VALUE _paramsData)
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_format = ID2SYM(rb_intern("format"));
 
-	if( TYPE(param_mapping) == T_HASH ){
-		param_mapping = rb_funcall( rb_cColumnMap, rb_intern("for_query_params"), 2, paramsData->params, param_mapping );
-	}
-
 	if( NIL_P(param_mapping) ){
 		p_colmap = NULL;
 	} else {
+		if ( !rb_obj_is_kind_of(param_mapping, rb_cColumnMap) ) {
+			param_mapping = rb_funcall( param_mapping, rb_intern("column_mapping_for_query_params"), 1, paramsData->params );
+		}
+
 		p_colmap = colmap_get_and_check( param_mapping, nParams);
 		paramsData->intermediates = ALLOC_N(VALUE, nParams);
 		paramsData->param_values = ALLOC_N(VALUE, nParams);

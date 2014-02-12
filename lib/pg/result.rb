@@ -10,20 +10,15 @@ class PG::Result
 		return enum_for(:each_row).to_a
 	end
 
-	# Build and set a ColumnMapping based on the given OID-to-Type Mapping.
+	# Build and apply a ColumnMapping based on the given OID-to-Type Mapping.
 	#
-	# +oid_mapping+: a Hash with OIDs (Integer) as keys and with the corresponding
-	#   type convertion as value part. The type convertion must be suitable
-	#   as a parameter to PG::ColumnMapping.new().
+	# +oid_mapping+: an optional Object that responds to column_mapping_for_result(result) .
+	#   This method should build and return a PG::ColumnMapping object suitable
+	#   for the given result.
 	#
-	# +default_mapping+: the type conversion that is used, when the given OID is not
-	#   in +oid_mapping+.
-	#
-	# Both +oid_mapping+ and +default_mapping+ can also be wrapped in an Array
-	# with element 0 for mappings of text format and element 1 for binary
-	# format.
-	def map_types!(oid_mapping = PG::ColumnMapping::DEFAULT_OID_MAP, &default_mapping)
-		self.column_mapping = PG::ColumnMapping.for_result(self, oid_mapping, &default_mapping)
+	# See PG::BasicTypeMapping
+	def map_types!(oid_mapping = PG:: BasicTypeMapping)
+		self.column_mapping = oid_mapping
 		self
 	end
 

@@ -361,7 +361,7 @@ describe PG::Connection do
 	it "should raise an error on invalid param mapping" do
 		expect{
 			@conn.exec_params( "SELECT 1", [], nil, :invalid )
-		}.to raise_error(TypeError)
+		}.to raise_error(NoMethodError)
 	end
 
 	it "can wait for NOTIFY events" do

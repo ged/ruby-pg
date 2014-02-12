@@ -863,6 +863,9 @@ pgresult_column_mapping_set(VALUE self, VALUE column_mapping)
 	PGresult *result = pgresult_get(self);
 
 	if( column_mapping != Qnil ){
+		if ( !rb_obj_is_kind_of(column_mapping, rb_cColumnMap) ) {
+			column_mapping = rb_funcall( column_mapping, rb_intern("column_mapping_for_result"), 1, self );
+		}
 		colmap_get_and_check( column_mapping, PQnfields( result ));
 	}
 	rb_iv_set( self, "@column_mapping", column_mapping );

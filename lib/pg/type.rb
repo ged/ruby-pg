@@ -13,7 +13,7 @@ module PG
 				ISO_DATETIME_WITH_TIMEZONE = /\A(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(\.\d+)?([-\+]\d\d)\z/
 				STRFTIME_ISO_DATE = "%Y-%m-%d".freeze
 				STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N".freeze
-				STRFTIME_ISO_DATETIME_WITH_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N %z".freeze
+				STRFTIME_ISO_DATETIME_WITH_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N %:z".freeze
 
 				def self.format
 					0
@@ -72,24 +72,6 @@ module PG
 				def self.oid
 					1184
 				end
-			end
-		end
-
-		class NotDefined
-			def self.encode(value)
-				raise "no encoder defined for type #{value.class}"
-			end
-
-			def self.decode(res, tuple, field)
-				raise "no type decoder defined for tuple #{tuple} field #{field}"
-			end
-
-			def self.format
-				0
-			end
-
-			def self.oid
-				0
 			end
 		end
 	end

@@ -71,8 +71,8 @@ describe PG::ColumnMapping do
 	# Encoding Examples
 	#
 
-	it "should do class based param encoding", :ruby_19 do
-		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5", [1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"+02:00")], nil, PG::ColumnMapping::DEFAULT_TYPE_MAP_TEXT )
+	it "should do basic param encoding", :ruby_19 do
+		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5", [1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"+02:00")], nil, PG::BasicTypeMapping )
 		res.values.should == [
 				[ "1", "a", "2.1", "t", "2013-06-30 14:58:59.3+02" ],
 		]
@@ -90,15 +90,51 @@ describe PG::ColumnMapping do
 		]
 	end
 
+	class Exception_in_column_mapping_for_result
+		def self.column_mapping_for_result(result)
+			raise "no mapping defined for result #{result.inspect}"
+		end
+	end
+
 	it "should raise an error from default oid type conversion" do
-		res = @conn.exec( "SELECT 'a'::CHAR(1)" )
-		res.map_types!({}){ PG::Type::NotDefined }
-		expect{ res.values }.to raise_error(/no type decoder defined/)
+		res = @conn.exec( "SELECT 1" )
+		expect{
+			res.map_types!(Exception_in_column_mapping_for_result)
+		}.to raise_error(/no mapping defined/)
+	end
+
+	class WrongColumnMappingBuilder
+		def self.column_mapping_for_result(result)
+			:invalid_value
+		end
+	end
+
+	it "should raise an error for non ColumnMapping results" do
+		res = @conn.exec( "SELECT 1" )
+		expect{
+			res.column_mapping = WrongColumnMappingBuilder
+		}.to raise_error(TypeError, /wrong argument type Symbol/)
+	end
+
+	class Exception_in_decode
+		def self.column_mapping_for_result(result)
+			types = result.nfields.times.map{ self }
+			PG::ColumnMapping.new( types )
+		end
+		def self.decode(res, tuple, field)
+			raise "no type decoder defined for tuple #{tuple} field #{field}"
+		end
+		def self.format
+			0
+		end
+		def self.oid
+			0
+		end
 	end
 
 	it "should raise an error from decode method of type converter" do
 		res = @conn.exec( "SELECT now()" )
-		res.column_mapping = PG::ColumnMapping.new( [PG::Type::NotDefined] )
+		res.column_mapping = Exception_in_decode
 		expect{ res.values }.to raise_error(/no type decoder defined/)
 	end
 

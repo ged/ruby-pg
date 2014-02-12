@@ -93,17 +93,17 @@ input or result values of a given query. ColumnMappings are in particular
 useful in conjunction with prepared statements, since they can be cached
 alongside with the statement handle.
 
-=== PG::TypeMapping
+=== PG::BasicTypeMapping
 
 A TypeMapping defines the logic to select which Ruby type is converted to
 which OID and to which text/binary representation and vice versa.
 It builds a ColumnMapping out of a given set of input parameters or a given
-PG::Result object. Pg defines a basic TypeMapping, that could be extended
+PG::Result object. Pg defines BasicTypeMapping, that could be extended
 or replaced to define different conversion rules.
 
-A PG::TypeMapping can be used as alternative for parameters accepting
+Any TypeMapping can be used as alternative for parameters accepting
 PG::ColumnMapping. In this case the a ColumnMapping is built on the fly,
-which is obviously slower than using a cached PG::ColumnMapping.
+which is obviously slower than using a prepared or cached PG::ColumnMapping.
 
 
 == Contributing
