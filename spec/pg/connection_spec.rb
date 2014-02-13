@@ -517,7 +517,7 @@ describe PG::Connection do
 		verify_clean_exec_status
 	end
 
-	it "can handle server errors in #copy_data for output" do
+	it "can handle server errors in #copy_data for output", :postgresql_90 do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
 			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
