@@ -72,9 +72,10 @@ describe PG::ColumnMapping do
 	#
 
 	it "should do basic param encoding", :ruby_19 do
-		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5", [1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"+02:00")], nil, PG::BasicTypeMapping )
+		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5 at time zone 'utc'",
+			[1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"-02:00")], nil, PG::BasicTypeMapping )
 		res.values.should == [
-				[ "1", "a", "2.1", "t", "2013-06-30 14:58:59.3+02" ],
+				[ "1", "a", "2.1", "t", "2013-06-30 16:58:59.3" ],
 		]
 	end
 
