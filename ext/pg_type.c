@@ -198,16 +198,26 @@ pg_type_encode(VALUE self, VALUE value)
 }
 
 static VALUE
-pg_type_decode(VALUE self, VALUE string, VALUE tuple, VALUE field)
+pg_type_decode(int argc, VALUE *argv, VALUE self)
 {
 	char *val;
+	VALUE tuple = -1;
+	VALUE field = -1;
 	struct pg_type_cconverter *type_data = DATA_PTR(self);
+
+	if(argc < 1 || argc > 3){
+		rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..3)", argc);
+	}else if(argc >= 3){
+		tuple = NUM2INT(argv[1]);
+		field = NUM2INT(argv[2]);
+	}
+
 	if( !type_data->dec_func ){
 		rb_raise( rb_eArgError, "no decoder defined for type %s",
 				rb_obj_classname( self ) );
 	}
-	val = StringValuePtr(string);
-	return type_data->dec_func(val, RSTRING_LEN(string), NUM2INT(tuple), NUM2INT(field), ENCODING_GET(string));
+	val = StringValuePtr(argv[0]);
+	return type_data->dec_func(val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
 }
 
 static VALUE
@@ -260,7 +270,7 @@ init_pg_type()
 	rb_mPG_Type = rb_define_module_under( rb_mPG, "Type" );
 	rb_cPG_Type_CConverter = rb_define_class_under( rb_mPG_Type, "CConverter", rb_cObject );
 	rb_define_method( rb_cPG_Type_CConverter, "encode", pg_type_encode, 1 );
-	rb_define_method( rb_cPG_Type_CConverter, "decode", pg_type_decode, 3 );
+	rb_define_method( rb_cPG_Type_CConverter, "decode", pg_type_decode, -1 );
 	rb_define_method( rb_cPG_Type_CConverter, "oid", pg_type_oid, 0 );
 	rb_define_method( rb_cPG_Type_CConverter, "format", pg_type_format, 0 );
 	rb_define_attr( rb_cPG_Type_CConverter, "name", 1, 0 );
