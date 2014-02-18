@@ -239,4 +239,26 @@ describe PG::ColumnMapping do
 		end
 	end
 
+	it "should do array type conversions" do
+		[0].each do |format|
+			res = @conn.exec( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
+			                     CAST('{1,2,3}' AS INT4[]),
+			                     CAST('{1,2,3}' AS INT8[]),
+			                     CAST('{1,2,3}' AS TEXT[]),
+			                     CAST('{1,2,3}' AS VARCHAR[]),
+			                     CAST('{1,2,3}' AS FLOAT4[]),
+			                     CAST('{1,2,3}' AS FLOAT8[])
+			                  ", [], format )
+			res.map_types!
+			res.getvalue(0,0).should == [1,2,3]
+			res.getvalue(0,1).should == [[1,2],[3,4]]
+			res.getvalue(0,2).should == [1,2,3]
+			res.getvalue(0,3).should == [1,2,3]
+			res.getvalue(0,4).should == ['1','2','3']
+			res.getvalue(0,5).should == ['1','2','3']
+			res.getvalue(0,6).should == [1.0,2.0,3.0]
+			res.getvalue(0,7).should == [1.0,2.0,3.0]
+		end
+	end
+
 end

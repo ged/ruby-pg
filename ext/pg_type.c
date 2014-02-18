@@ -120,6 +120,135 @@ pg_type_dec_binary_bytea(char *val, int len, int tuple, int field, int enc_idx)
 	return ret;
 }
 
+/*
+ * Array parser functions are thankfully borrowed from here:
+ * https://github.com/dockyard/pg_array_parser
+ */
+VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_type_converter_dec_func dec_func)
+{
+	/* Return value: array */
+	VALUE array;
+	int word_index = 0;
+
+	/* The current character in the input string. */
+	char c;
+
+	/*  0: Currently outside a quoted string, current word never quoted
+	*  1: Currently inside a quoted string
+	* -1: Currently outside a quoted string, current word previously quoted */
+	int openQuote = 0;
+
+	/* Inside quoted input means the next character should be treated literally,
+	* instead of being treated as a metacharacter.
+	* Outside of quoted input, means that the word shouldn't be pushed to the array,
+	* used when the last entry was a subarray (which adds to the array itself). */
+	int escapeNext = 0;
+
+	array = rb_ary_new();
+
+	/* Special case the empty array, so it doesn't need to be handled manually inside
+	* the loop. */
+	if(((*index) < array_string_length) && c_pg_array_string[(*index)] == '}')
+	{
+		return array;
+	}
+
+	for(;(*index) < array_string_length; ++(*index))
+	{
+		c = c_pg_array_string[*index];
+		if(openQuote < 1)
+		{
+			if(c == ',' || c == '}')
+			{
+				if(!escapeNext)
+				{
+					if(openQuote == 0 && word_index == 4 && !strncmp(word, "NULL", word_index))
+					{
+						rb_ary_push(array, Qnil);
+					}
+					else
+					{
+						VALUE val = dec_func(word, word_index, tuple, field, enc_idx);
+						rb_ary_push(array, val);
+					}
+				}
+				if(c == '}')
+				{
+					return array;
+				}
+				escapeNext = 0;
+				openQuote = 0;
+				word_index = 0;
+			}
+			else if(c == '"')
+			{
+				openQuote = 1;
+			}
+			else if(c == '{')
+			{
+				(*index)++;
+				rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func));
+				escapeNext = 1;
+			}
+			else
+			{
+				word[word_index] = c;
+				word_index++;
+			}
+		}
+		else if (escapeNext) {
+			word[word_index] = c;
+			word_index++;
+			escapeNext = 0;
+		}
+		else if (c == '\\')
+		{
+			escapeNext = 1;
+		}
+		else if (c == '"')
+		{
+			openQuote = -1;
+		}
+		else
+		{
+			word[word_index] = c;
+			word_index++;
+		}
+	}
+
+	return array;
+}
+
+static VALUE
+pg_type_dec_text_array_helper(char *val, int len, int tuple, int field, int enc_idx, t_type_converter_dec_func dec_func)
+{
+	/* create a buffer of the same length, as that will be the worst case */
+	char *word = xmalloc(len + 1);
+	int index = 1;
+
+	VALUE return_value = read_array(&index, val, len, word, enc_idx, tuple, field, dec_func);
+	free(word);
+	return return_value;
+}
+
+static VALUE
+pg_type_dec_text_int_array(char *val, int len, int tuple, int field, int enc_idx)
+{
+	return pg_type_dec_text_array_helper(val, len, tuple, field, enc_idx, pg_type_dec_text_integer);
+}
+
+static VALUE
+pg_type_dec_text_text_array(char *val, int len, int tuple, int field, int enc_idx)
+{
+	return pg_type_dec_text_array_helper(val, len, tuple, field, enc_idx, pg_type_dec_text_string);
+}
+
+static VALUE
+pg_type_dec_text_float_array(char *val, int len, int tuple, int field, int enc_idx)
+{
+	return pg_type_dec_text_array_helper(val, len, tuple, field, enc_idx, pg_type_dec_text_float);
+}
+
 
 static int
 pg_type_enc_not_implemented(VALUE value, char *out, VALUE *intermediate)
@@ -282,6 +411,13 @@ init_pg_type()
 	pg_type_define_type( 0, "INT8", pg_type_enc_to_str, pg_type_dec_text_integer, 20 );
 	pg_type_define_type( 0, "INT2", pg_type_enc_to_str, pg_type_dec_text_integer, 21 );
 	pg_type_define_type( 0, "INT4", pg_type_enc_to_str, pg_type_dec_text_integer, 23 );
+	pg_type_define_type( 0, "INT2ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_int_array, 1005 );
+	pg_type_define_type( 0, "INT4ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_int_array, 1007 );
+	pg_type_define_type( 0, "TEXTARRAY", pg_type_enc_not_implemented, pg_type_dec_text_text_array, 1009 );
+	pg_type_define_type( 0, "VARCHARARRAY", pg_type_enc_not_implemented, pg_type_dec_text_text_array, 1015 );
+	pg_type_define_type( 0, "INT8ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_int_array, 1016 );
+	pg_type_define_type( 0, "FLOAT4ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_float_array, 1021 );
+	pg_type_define_type( 0, "FLOAT8ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_float_array, 1022 );
 	pg_type_define_type( 0, "FLOAT4", pg_type_enc_to_str, pg_type_dec_text_float, 700 );
 	pg_type_define_type( 0, "FLOAT8", pg_type_enc_to_str, pg_type_dec_text_float, 701 );
 	pg_type_define_type( 0, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
