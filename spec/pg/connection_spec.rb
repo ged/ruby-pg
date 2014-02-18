@@ -358,12 +358,6 @@ describe PG::Connection do
 		res.values.should == [ ['Wally'], ['Sally'] ]
 	end
 
-	it "should raise an error on invalid param mapping" do
-		expect{
-			@conn.exec_params( "SELECT 1", [], nil, :invalid )
-		}.to raise_error(NoMethodError)
-	end
-
 	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
@@ -1246,6 +1240,43 @@ describe PG::Connection do
 			t.should be_alive()
 			serv.close
 			t.join
+		end
+	end
+
+	describe "type casting" do
+		it "should raise an error on invalid param mapping" do
+			expect{
+				@conn.exec_params( "SELECT 1", [], nil, :invalid )
+			}.to raise_error(NoMethodError)
+		end
+
+		it "should return nil if no type mapping is set" do
+			@conn.type_mapping.should == nil
+		end
+
+		it "shouldn't type map params unless requested" do
+			expect{
+				@conn.exec_params( "SELECT $1", [5] )
+			}.to raise_error(PG::IndeterminateDatatype)
+		end
+
+		context "with default type map" do
+			before :each do
+				@conn2 = described_class.new(@conninfo)
+				@conn2.type_mapping = PG::BasicTypeMapping
+			end
+			after :each do
+				@conn2.close
+			end
+
+			it "should respect a type mapping for params and result" do
+				res = @conn2.exec_params( "SELECT $1", [5] )
+				res.values.should == [[5]]
+			end
+
+			it "should return the current type mapping" do
+				@conn2.type_mapping.should == PG::BasicTypeMapping
+			end
 		end
 	end
 end

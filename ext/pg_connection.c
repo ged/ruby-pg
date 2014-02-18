@@ -119,6 +119,7 @@ pgconn_s_allocate( VALUE klass )
 	rb_iv_set( self, "@socket_io", Qnil );
 	rb_iv_set( self, "@notice_receiver", Qnil);
 	rb_iv_set( self, "@notice_processor", Qnil);
+	rb_iv_set( self, "@type_mapping", Qnil);
 	return self;
 }
 
@@ -1116,6 +1117,9 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	if ( NIL_P(paramsData.params) ) {
 		return pgconn_exec( 1, argv, self );
 	}
+	if(NIL_P(paramsData.param_mapping)){
+		paramsData.param_mapping = rb_iv_get(self, "@type_mapping");
+	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
@@ -1240,6 +1244,9 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 	if(NIL_P(paramsData.params)) {
 		paramsData.params = rb_ary_new2(0);
+	}
+	if(NIL_P(paramsData.param_mapping)){
+		paramsData.param_mapping = rb_iv_get(self, "@type_mapping");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1671,6 +1678,9 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	 * use PQsendQueryParams
 	 */
 
+	if(NIL_P(paramsData.param_mapping)){
+		paramsData.param_mapping = rb_iv_get(self, "@type_mapping");
+	}
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
@@ -1792,6 +1802,9 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	if(NIL_P(paramsData.params)) {
 		paramsData.params = rb_ary_new2(0);
 		resultFormat = 0;
+	}
+	if(NIL_P(paramsData.param_mapping)){
+		paramsData.param_mapping = rb_iv_get(self, "@type_mapping");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -3555,5 +3568,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_default_encoding", pgconn_set_default_encoding, 0);
 #endif /* M17N_SUPPORTED */
 
+	rb_define_attr(rb_cPGconn, "type_mapping", 1, 1);
 }
 

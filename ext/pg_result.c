@@ -11,6 +11,7 @@ VALUE rb_cPGresult;
 
 static void pgresult_gc_free( PGresult * );
 static t_colmap *pgresult_get_colmap( VALUE );
+static VALUE pgresult_column_mapping_set(VALUE, VALUE );
 
 
 /*
@@ -31,7 +32,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 #endif
 
 	rb_iv_set( val, "@connection", rb_pgconn );
-	rb_iv_set( val, "@column_mapping", Qnil );
+	pgresult_column_mapping_set( val, rb_iv_get(rb_pgconn, "@type_mapping") );
 
 	return val;
 }

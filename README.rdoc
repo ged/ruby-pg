@@ -103,8 +103,9 @@ It builds a ColumnMapping out of a given set of query parameters or a given
 PG::Result object. Pg defines BasicTypeMapping, that could be extended
 or replaced in order to define customized conversion rules.
 
-Any type mapping can be used as alternative for parameters accepting
-PG::ColumnMapping. In this case the a ColumnMapping is built on the fly,
+Connection#type_mapping= can be used to set a connection wide default type
+mapping. It can also be used as alternative for parameters accepting
+PG::ColumnMapping. In both cases the a ColumnMapping is built on the fly,
 which is obviously slower than using a prepared or cached PG::ColumnMapping.
 
 
