@@ -168,7 +168,9 @@ VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, c
 					}
 					else
 					{
-						VALUE val = dec_func(word, word_index, tuple, field, enc_idx);
+						VALUE val;
+						word[word_index] = 0;
+						val = dec_func(word, word_index, tuple, field, enc_idx);
 						rb_ary_push(array, val);
 					}
 				}
