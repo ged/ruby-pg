@@ -255,7 +255,7 @@ pg_type_dec_text_float_array(char *val, int len, int tuple, int field, int enc_i
 static int
 pg_type_enc_not_implemented(VALUE value, char *out, VALUE *intermediate)
 {
-	rb_raise( rb_eArgError, "no encoder defined for %+i", value );
+	rb_raise( rb_eArgError, "no encoder defined for %s", RSTRING_PTR(rb_inspect(value)) );
 	return 0;
 }
 
