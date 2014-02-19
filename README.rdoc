@@ -74,12 +74,12 @@ Pg's type casting is divided into 4 layers:
 
 === Encoders / Decoders (ext/pg_type.c)
 
-This is the lowest layer containing encoding functions that convert Ruby
+This is the lowest layer, containing encoding functions that convert Ruby
 objects for transmission to the DBMS and decoding functions to convert
-received data to Ruby objects. The functions are implemented in C and not
-directly usable from Ruby space.
+received data back to Ruby objects. The functions are implemented in C and
+not directly usable from Ruby space.
 
-=== PG::Type
+=== PG::Type (ext/pg_type.c)
 
 Type objects in this namespace bind an encoding and a decoding function to
 a particular type OID and format code (text or binary). They are accessible
@@ -87,14 +87,14 @@ from Ruby and are implemented in C or Ruby. Type objects can be used to
 build ColumnMappings and to convert single values to/from their string
 representation.
 
-=== PG::ColumnMapping
+=== PG::ColumnMapping (ext/pg_column_mapping.c)
 
 A ColumnMapping combines multiple types together, suitable to convert the
 input or result values of a given query. ColumnMappings are in particular
 useful in conjunction with prepared statements, since they can be cached
 alongside with the statement handle.
 
-=== PG::BasicTypeMapping
+=== PG::BasicTypeMapping (lib/pg/basic_type_mapping.rb)
 
 A type mapping defines the logic to select which Ruby type is converted to
 which text/binary representation and OID for query params and vice versa
@@ -103,8 +103,8 @@ It builds a ColumnMapping out of a given set of query parameters or a given
 PG::Result object. Pg defines BasicTypeMapping, that could be extended
 or replaced in order to define customized conversion rules.
 
-Connection#type_mapping= can be used to set a connection wide default type
-mapping. It can also be used as alternative for parameters accepting
+With Connection#type_mapping= a connection wide default type mapping can be
+set. A type mapping can also be used as alternative for parameters accepting
 PG::ColumnMapping. In both cases the a ColumnMapping is built on the fly,
 which is obviously slower than using a prepared or cached PG::ColumnMapping.
 
