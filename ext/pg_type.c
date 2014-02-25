@@ -253,13 +253,6 @@ pg_type_dec_text_float_array(char *val, int len, int tuple, int field, int enc_i
 
 
 static int
-pg_type_enc_not_implemented(VALUE value, char *out, VALUE *intermediate)
-{
-	rb_raise( rb_eArgError, "no encoder defined for %s", RSTRING_PTR(rb_inspect(value)) );
-	return 0;
-}
-
-static int
 pg_type_enc_binary_boolean(VALUE value, char *out, VALUE *intermediate)
 {
 	char bool;
@@ -372,6 +365,7 @@ pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_
 	struct pg_type_cconverter *sval;
 	VALUE type_obj;
 	VALUE cFormatModule;
+	VALUE klass;
 
 	switch( format ){
 		case 0:
@@ -384,14 +378,21 @@ pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_
 			rb_bug( "invalid format %i", format );
 	}
 
-	type_obj = Data_Make_Struct( rb_cPG_Type_CConverter, struct pg_type_cconverter, NULL, -1, sval );
+	klass = rb_class_new(rb_cPG_Type_CConverter);
+	rb_name_class(klass, rb_intern(name));
+	type_obj = Data_Make_Struct( klass, struct pg_type_cconverter, NULL, -1, sval );
 	sval->enc_func = enc_func;
 	sval->dec_func = dec_func;
 	sval->oid = oid;
 	sval->format = format;
 	rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
+	if( enc_func ) rb_define_method( klass, "encode", pg_type_encode, 1 );
+	if( dec_func ) rb_define_method( klass, "decode", pg_type_decode, -1 );
 
 	rb_define_const( cFormatModule, name, type_obj );
+
+	RB_GC_GUARD(klass);
+	RB_GC_GUARD(type_obj);
 }
 
 
@@ -400,8 +401,6 @@ init_pg_type()
 {
 	rb_mPG_Type = rb_define_module_under( rb_mPG, "Type" );
 	rb_cPG_Type_CConverter = rb_define_class_under( rb_mPG_Type, "CConverter", rb_cObject );
-	rb_define_method( rb_cPG_Type_CConverter, "encode", pg_type_encode, 1 );
-	rb_define_method( rb_cPG_Type_CConverter, "decode", pg_type_decode, -1 );
 	rb_define_method( rb_cPG_Type_CConverter, "oid", pg_type_oid, 0 );
 	rb_define_method( rb_cPG_Type_CConverter, "format", pg_type_format, 0 );
 	rb_define_attr( rb_cPG_Type_CConverter, "name", 1, 0 );
@@ -413,13 +412,13 @@ init_pg_type()
 	pg_type_define_type( 0, "INT8", pg_type_enc_to_str, pg_type_dec_text_integer, 20 );
 	pg_type_define_type( 0, "INT2", pg_type_enc_to_str, pg_type_dec_text_integer, 21 );
 	pg_type_define_type( 0, "INT4", pg_type_enc_to_str, pg_type_dec_text_integer, 23 );
-	pg_type_define_type( 0, "INT2ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_int_array, 1005 );
-	pg_type_define_type( 0, "INT4ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_int_array, 1007 );
-	pg_type_define_type( 0, "TEXTARRAY", pg_type_enc_not_implemented, pg_type_dec_text_text_array, 1009 );
-	pg_type_define_type( 0, "VARCHARARRAY", pg_type_enc_not_implemented, pg_type_dec_text_text_array, 1015 );
-	pg_type_define_type( 0, "INT8ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_int_array, 1016 );
-	pg_type_define_type( 0, "FLOAT4ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_float_array, 1021 );
-	pg_type_define_type( 0, "FLOAT8ARRAY", pg_type_enc_not_implemented, pg_type_dec_text_float_array, 1022 );
+	pg_type_define_type( 0, "INT2ARRAY", NULL, pg_type_dec_text_int_array, 1005 );
+	pg_type_define_type( 0, "INT4ARRAY", NULL, pg_type_dec_text_int_array, 1007 );
+	pg_type_define_type( 0, "TEXTARRAY", NULL, pg_type_dec_text_text_array, 1009 );
+	pg_type_define_type( 0, "VARCHARARRAY", NULL, pg_type_dec_text_text_array, 1015 );
+	pg_type_define_type( 0, "INT8ARRAY", NULL, pg_type_dec_text_int_array, 1016 );
+	pg_type_define_type( 0, "FLOAT4ARRAY", NULL, pg_type_dec_text_float_array, 1021 );
+	pg_type_define_type( 0, "FLOAT8ARRAY", NULL, pg_type_dec_text_float_array, 1022 );
 	pg_type_define_type( 0, "FLOAT4", pg_type_enc_to_str, pg_type_dec_text_float, 700 );
 	pg_type_define_type( 0, "FLOAT8", pg_type_enc_to_str, pg_type_dec_text_float, 701 );
 	pg_type_define_type( 0, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
@@ -429,7 +428,7 @@ init_pg_type()
 	pg_type_define_type( 1, "INT8", pg_type_enc_binary_int8, pg_type_dec_binary_integer, 20 );
 	pg_type_define_type( 1, "INT2", pg_type_enc_binary_int2, pg_type_dec_binary_integer, 21 );
 	pg_type_define_type( 1, "INT4", pg_type_enc_binary_int4, pg_type_dec_binary_integer, 23 );
-	pg_type_define_type( 1, "FLOAT4", pg_type_enc_not_implemented, pg_type_dec_binary_float, 700 );
-	pg_type_define_type( 1, "FLOAT8", pg_type_enc_not_implemented, pg_type_dec_binary_float, 701 );
+	pg_type_define_type( 1, "FLOAT4", NULL, pg_type_dec_binary_float, 700 );
+	pg_type_define_type( 1, "FLOAT8", NULL, pg_type_dec_binary_float, 701 );
 	pg_type_define_type( 1, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
 }
