@@ -215,7 +215,7 @@ describe PG::ColumnMapping do
 			                          CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
 			res.map_types!
 			res.getvalue(0,0).should == Time.new(2013, 12, 31, 23, 58, 59)
-			res.getvalue(0,1).should == be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
+			res.getvalue(0,1).should be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
 		end
 	end
 
@@ -225,7 +225,7 @@ describe PG::ColumnMapping do
 			                          CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE)", [], format )
 			res.map_types!
 			res.getvalue(0,0).should == Time.new(2013, 12, 31, 23, 58, 59, "+02:00")
-			res.getvalue(0,1).should == be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
+			res.getvalue(0,1).should be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
 		end
 	end
 
