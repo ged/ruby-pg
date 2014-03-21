@@ -300,6 +300,92 @@ pg_type_enc_binary_int8(VALUE value, char *out, VALUE *intermediate)
 	return 8;
 }
 
+static int
+write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_func enc_func, int quote)
+{
+	int i;
+	if(out){
+		char *current_out = out;
+		*current_out++ = '{';
+		for( i=0; i<RARRAY_LEN(value); i++){
+			char *buffer;
+			int j;
+			int strlen;
+			VALUE entry = rb_ary_entry(value, i);
+			VALUE subint = rb_ary_entry(*intermediate, i);
+			if( i > 0 ) *current_out++ = ',';
+			switch(TYPE(entry)){
+				case T_ARRAY:
+					current_out += write_array(entry, current_out, &subint, enc_func, quote);
+				break;
+				case T_NIL:
+					*current_out++ = 'N';
+					*current_out++ = 'U';
+					*current_out++ = 'L';
+					*current_out++ = 'L';
+					break;
+				default:
+					/* place the unquoted string at the most right side of the precalculated
+					 * worst case size. Then store the quoted string on the desired position.
+					 */
+					buffer = current_out + enc_func(subint, NULL, &subint) + 2;
+					strlen = enc_func(entry, buffer, &subint);
+
+					if( quote ) *current_out++ = '"';
+					for(j = 0; j < strlen; j++) {
+						if(buffer[j] == '"' || buffer[j] == '\\'){
+							*current_out++ = '\\';
+						}
+						*current_out++ = buffer[j];
+					}
+					if( quote ) *current_out++ = '"';
+			}
+		}
+		*current_out++ = '}';
+		return current_out - out;
+
+	} else {
+		int sumlen = 0;
+		Check_Type(value, T_ARRAY);
+		*intermediate = rb_ary_new();
+		for( i=0; i<RARRAY_LEN(value); i++){
+			VALUE subint;
+			VALUE entry = rb_ary_entry(value, i);
+			switch(TYPE(entry)){
+				case T_ARRAY:
+					/* size of array content */
+					sumlen += write_array(entry, NULL, &subint, enc_func, quote);
+				break;
+				case T_NIL:
+					/* size of "NULL" */
+					sumlen += 4;
+					break;
+				default:
+					/* size of string assuming the worst case, that every character must be escaped
+					 * plus two bytes for quotation.
+					 */
+					sumlen += 2 * enc_func(entry, NULL, &subint) + 2;
+			}
+
+			rb_ary_push(*intermediate, subint);
+		}
+
+		/* size of "{" plus content plus n-1 times "," plus "}" */
+		return 1 + sumlen + RARRAY_LEN(value) - 1 + 1;
+	}
+}
+
+static int
+pg_type_enc_text_array_to_str(VALUE value, char *out, VALUE *intermediate)
+{
+	return write_array(value, out, intermediate, pg_type_enc_to_str, 1);
+}
+
+static int
+pg_type_enc_number_array(VALUE value, char *out, VALUE *intermediate)
+{
+	return write_array(value, out, intermediate, pg_type_enc_to_str, 0);
+}
 
 static VALUE
 pg_type_encode(VALUE self, VALUE value)
@@ -412,13 +498,13 @@ init_pg_type()
 	pg_type_define_type( 0, "INT8", pg_type_enc_to_str, pg_type_dec_text_integer, 20 );
 	pg_type_define_type( 0, "INT2", pg_type_enc_to_str, pg_type_dec_text_integer, 21 );
 	pg_type_define_type( 0, "INT4", pg_type_enc_to_str, pg_type_dec_text_integer, 23 );
-	pg_type_define_type( 0, "INT2ARRAY", NULL, pg_type_dec_text_int_array, 1005 );
-	pg_type_define_type( 0, "INT4ARRAY", NULL, pg_type_dec_text_int_array, 1007 );
-	pg_type_define_type( 0, "TEXTARRAY", NULL, pg_type_dec_text_text_array, 1009 );
-	pg_type_define_type( 0, "VARCHARARRAY", NULL, pg_type_dec_text_text_array, 1015 );
-	pg_type_define_type( 0, "INT8ARRAY", NULL, pg_type_dec_text_int_array, 1016 );
-	pg_type_define_type( 0, "FLOAT4ARRAY", NULL, pg_type_dec_text_float_array, 1021 );
-	pg_type_define_type( 0, "FLOAT8ARRAY", NULL, pg_type_dec_text_float_array, 1022 );
+	pg_type_define_type( 0, "INT2ARRAY", pg_type_enc_number_array, pg_type_dec_text_int_array, 1005 );
+	pg_type_define_type( 0, "INT4ARRAY", pg_type_enc_number_array, pg_type_dec_text_int_array, 1007 );
+	pg_type_define_type( 0, "TEXTARRAY", pg_type_enc_text_array_to_str, pg_type_dec_text_text_array, 1009 );
+	pg_type_define_type( 0, "VARCHARARRAY", pg_type_enc_text_array_to_str, pg_type_dec_text_text_array, 1015 );
+	pg_type_define_type( 0, "INT8ARRAY", pg_type_enc_number_array, pg_type_dec_text_int_array, 1016 );
+	pg_type_define_type( 0, "FLOAT4ARRAY", pg_type_enc_number_array, pg_type_dec_text_float_array, 1021 );
+	pg_type_define_type( 0, "FLOAT8ARRAY", pg_type_enc_number_array, pg_type_dec_text_float_array, 1022 );
 	pg_type_define_type( 0, "FLOAT4", pg_type_enc_to_str, pg_type_dec_text_float, 700 );
 	pg_type_define_type( 0, "FLOAT8", pg_type_enc_to_str, pg_type_dec_text_float, 701 );
 	pg_type_define_type( 0, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
