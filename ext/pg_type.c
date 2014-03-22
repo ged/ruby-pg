@@ -348,6 +348,17 @@ pg_type_enc_text_integer(VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
+pg_type_enc_text_float(VALUE value, char *out, VALUE *intermediate)
+{
+	if(out){
+		return sprintf( out, "%.16E", NUM2DBL(value));
+	}else{
+		*intermediate = value;
+		return 23;
+	}
+}
+
+static int
 write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_func enc_func, int quote, int *interm_pos)
 {
 	int i;
@@ -455,10 +466,10 @@ pg_type_enc_text_integer_array(VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-pg_type_enc_text_number_array(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_text_float_array(VALUE value, char *out, VALUE *intermediate)
 {
 	int pos = -1;
-	return write_array(value, out, intermediate, pg_type_enc_to_str, 0, &pos);
+	return write_array(value, out, intermediate, pg_type_enc_text_float, 0, &pos);
 }
 
 static VALUE
@@ -577,10 +588,10 @@ init_pg_type()
 	pg_type_define_type( 0, "TEXTARRAY", pg_type_enc_text_array_to_str, pg_type_dec_text_text_array, 1009 );
 	pg_type_define_type( 0, "VARCHARARRAY", pg_type_enc_text_array_to_str, pg_type_dec_text_text_array, 1015 );
 	pg_type_define_type( 0, "INT8ARRAY", pg_type_enc_text_integer_array, pg_type_dec_text_int_array, 1016 );
-	pg_type_define_type( 0, "FLOAT4ARRAY", pg_type_enc_text_number_array, pg_type_dec_text_float_array, 1021 );
-	pg_type_define_type( 0, "FLOAT8ARRAY", pg_type_enc_text_number_array, pg_type_dec_text_float_array, 1022 );
-	pg_type_define_type( 0, "FLOAT4", pg_type_enc_to_str, pg_type_dec_text_float, 700 );
-	pg_type_define_type( 0, "FLOAT8", pg_type_enc_to_str, pg_type_dec_text_float, 701 );
+	pg_type_define_type( 0, "FLOAT4ARRAY", pg_type_enc_text_float_array, pg_type_dec_text_float_array, 1021 );
+	pg_type_define_type( 0, "FLOAT8ARRAY", pg_type_enc_text_float_array, pg_type_dec_text_float_array, 1022 );
+	pg_type_define_type( 0, "FLOAT4", pg_type_enc_text_float, pg_type_dec_text_float, 700 );
+	pg_type_define_type( 0, "FLOAT8", pg_type_enc_text_float, pg_type_dec_text_float, 701 );
 	pg_type_define_type( 0, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
 
 	pg_type_define_type( 1, "BOOLEAN", pg_type_enc_binary_boolean, pg_type_dec_binary_boolean, 16 );
