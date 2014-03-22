@@ -42,4 +42,11 @@ describe PG::Type do
 		res = PG::Type::Binary::INT4.encode(123)
 		res.should == [123].pack("N")
 	end
+
+	it "should encode integers of different length to text format" do
+		30.times do |zeros|
+			PG::Type::Text::INT8.encode(10 ** zeros).should == "1" + "0"*zeros
+		end
+	end
+
 end

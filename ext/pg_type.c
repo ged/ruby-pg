@@ -305,44 +305,46 @@ static int
 pg_type_enc_text_integer(VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
-		long long ll = NUM2LL(*intermediate);
-		if( ll < 100000000000000 ){
-			return sprintf(out, "%lld", NUM2LL(*intermediate));
-		}else{
+		if(TYPE(*intermediate) == T_STRING){
 			return pg_type_enc_to_str(value, out, intermediate);
+		}else{
+			return sprintf(out, "%lld", NUM2LL(*intermediate));
 		}
 	}else{
-		long long ll;
 		*intermediate = rb_to_int(value);
-		ll = NUM2LL(*intermediate);
-		if( ll < 100000000 ){
-			if( ll < 10000 ){
-				if( ll < 100 ){
-					return ll < 10 ? 1 : 2;
+		if(TYPE(*intermediate) == T_FIXNUM){
+			long long ll = NUM2LL(*intermediate);
+			if( ll < 100000000 ){
+				if( ll < 10000 ){
+					if( ll < 100 ){
+						return ll < 10 ? 1 : 2;
+					}else{
+						return ll < 1000 ? 3 : 4;
+					}
 				}else{
-					return ll < 1000 ? 3 : 4;
+					if( ll < 1000000 ){
+						return ll < 100000 ? 5 : 6;
+					}else{
+						return ll < 10000000 ? 7 : 8;
+					}
 				}
 			}else{
-				if( ll < 1000000 ){
-					return ll < 100000 ? 5 : 6;
+				if( ll < 1000000000000 ){
+					if( ll < 10000000000 ){
+						return ll < 1000000000 ? 9 : 10;
+					}else{
+						return ll < 100000000000 ? 11 : 12;
+					}
 				}else{
-					return ll < 10000000 ? 7 : 8;
+					if( ll < 100000000000000 ){
+						return ll < 10000000000000 ? 13 : 14;
+					}else{
+						return pg_type_enc_to_str(*intermediate, NULL, intermediate);
+					}
 				}
 			}
 		}else{
-			if( ll < 1000000000000 ){
-				if( ll < 10000000000 ){
-					return ll < 1000000000 ? 9 : 10;
-				}else{
-					return ll < 100000000000 ? 11 : 12;
-				}
-			}else{
-				if( ll < 100000000000000 ){
-					return ll < 10000000000000 ? 13 : 14;
-				}else{
-					return pg_type_enc_to_str(*intermediate, NULL, intermediate);
-				}
-			}
+			return pg_type_enc_to_str(*intermediate, NULL, intermediate);
 		}
 	}
 }
