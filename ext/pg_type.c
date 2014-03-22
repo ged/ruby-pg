@@ -6,6 +6,7 @@
 
 #include "pg.h"
 #include "util.h"
+#include <inttypes.h>
 
 VALUE rb_mPG_Type;
 VALUE rb_cPG_Type_CConverter;
