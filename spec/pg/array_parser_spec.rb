@@ -8,6 +8,7 @@ require 'pg'
 describe 'PG::Type::Text::TEXTARRAY' do
 	let!(:text_array_type) { PG::Type::Text::TEXTARRAY }
 	let!(:int8_array_type) { PG::Type::Text::INT8ARRAY }
+	let!(:float8_array_type) { PG::Type::Text::FLOAT8ARRAY }
 
 	describe '#decode' do
 		context 'one dimensional arrays' do
@@ -109,6 +110,9 @@ describe 'PG::Type::Text::TEXTARRAY' do
 			end
 			it 'encodes an array of int8 with sub arrays' do
 				int8_array_type.encode([1,[2,[3,4]],[nil,6],7]).should eq %[{1,{2,{3,4}},{NULL,6},7}]
+			end
+			it 'encodes an array of float8 with sub arrays' do
+				float8_array_type.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]).should match Regexp.new(%[^{1.0001*E+03,{-2.2*E-03,{3.3*E+00,-4.4*E+02}},{NULL,6.6*E+00},-7.7*E+00}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*"))
 			end
 		end
 	end

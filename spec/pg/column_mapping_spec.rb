@@ -79,6 +79,19 @@ describe PG::ColumnMapping do
 		]
 	end
 
+	it "should do array param encoding" do
+		res = @conn.exec_params( "SELECT $1,$2,$3,$4", [
+				[1, 2, 3], [[1, 2], [3, nil]],
+				[1.11, 2.21],
+				['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
+			], nil, PG::BasicTypeMapping )
+		res.values.should == [[
+				'{1,2,3}', '{{1,2},{3,NULL}}',
+				'{1.11,2.21}',
+				'{"//,/"",NULL,abcäöü}'.gsub("/", "\\"),
+		]]
+	end
+
 	#
 	# Decoding Examples
 	#

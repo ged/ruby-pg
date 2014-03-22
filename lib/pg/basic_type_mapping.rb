@@ -5,7 +5,7 @@ require 'pg' unless defined?( PG )
 
 class PG::BasicTypeMapping
 
-	DEFAULT_TYPE_MAP_TEXT = {
+	DEFAULT_TYPE_MAP = {
 		TrueClass => PG::Type::Binary::BOOLEAN,
 		FalseClass => PG::Type::Binary::BOOLEAN,
 		Time => PG::Type::Text::TIMESTAMP_WITH_TIME_ZONE,
@@ -15,8 +15,22 @@ class PG::BasicTypeMapping
 		Float => PG::Type::Text::FLOAT8,
 	}
 
+	DEFAULT_ARRAY_TYPE_MAP = {
+		Fixnum => PG::Type::Text::INT8ARRAY,
+		Bignum => PG::Type::Text::INT8ARRAY,
+		String => PG::Type::Text::TEXTARRAY,
+		Float => PG::Type::Text::FLOAT8ARRAY,
+	}
+
 	def self.column_mapping_for_query_params( params )
-		types = params.map{|p| DEFAULT_TYPE_MAP_TEXT[p.class] }
+		types = params.map do |p|
+			map = DEFAULT_TYPE_MAP
+			while p.kind_of?(Array)
+				p = p.first
+				map = DEFAULT_ARRAY_TYPE_MAP
+			end
+			map[p.class]
+		end
 		PG::ColumnMapping.new types
 	end
 
