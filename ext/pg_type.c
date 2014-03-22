@@ -325,20 +325,24 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 					*current_out++ = 'L';
 					break;
 				default:
-					/* place the unquoted string at the most right side of the precalculated
-					 * worst case size. Then store the quoted string on the desired position.
-					 */
-					buffer = current_out + enc_func(subint, NULL, &subint) + 2;
-					strlen = enc_func(entry, buffer, &subint);
+					if(quote){
+						/* place the unquoted string at the most right side of the precalculated
+						* worst case size. Then store the quoted string on the desired position.
+						*/
+						buffer = current_out + enc_func(subint, NULL, &subint) + 2;
+						strlen = enc_func(entry, buffer, &subint);
 
-					if( quote ) *current_out++ = '"';
-					for(j = 0; j < strlen; j++) {
-						if(buffer[j] == '"' || buffer[j] == '\\'){
-							*current_out++ = '\\';
+						*current_out++ = '"';
+						for(j = 0; j < strlen; j++) {
+							if(buffer[j] == '"' || buffer[j] == '\\'){
+								*current_out++ = '\\';
+							}
+							*current_out++ = buffer[j];
 						}
-						*current_out++ = buffer[j];
+						*current_out++ = '"';
+					}else{
+						current_out += enc_func(entry, current_out, &subint);
 					}
-					if( quote ) *current_out++ = '"';
 			}
 		}
 		*current_out++ = '}';
@@ -361,10 +365,15 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 					sumlen += 4;
 					break;
 				default:
-					/* size of string assuming the worst case, that every character must be escaped
-					 * plus two bytes for quotation.
-					 */
-					sumlen += 2 * enc_func(entry, NULL, &subint) + 2;
+					if(quote){
+						/* size of string assuming the worst case, that every character must be escaped
+						* plus two bytes for quotation.
+						*/
+						sumlen += 2 * enc_func(entry, NULL, &subint) + 2;
+					}else{
+						/* size of the unquoted string */
+						sumlen += enc_func(entry, NULL, &subint);
+					}
 			}
 
 			rb_ary_push(*intermediate, subint);
