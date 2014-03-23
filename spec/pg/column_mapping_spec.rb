@@ -74,9 +74,12 @@ describe PG::ColumnMapping do
 	it "should do basic param encoding", :ruby_19 do
 		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5 at time zone 'utc'",
 			[1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"-02:00")], nil, PG::BasicTypeMapping )
+
 		res.values.should == [
 				[ "1", "a", "2.1", "t", "2013-06-30 16:58:59.3" ],
 		]
+
+		result_typenames(res).should == ['bigint', 'text', 'double precision', 'boolean', 'timestamp without time zone']
 	end
 
 	it "should do array param encoding" do
@@ -85,11 +88,14 @@ describe PG::ColumnMapping do
 				[1.11, 2.21],
 				['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
 			], nil, PG::BasicTypeMapping )
+
 		res.values.should == [[
 				'{1,2,3}', '{{1,2},{3,NULL}}',
 				'{1.11,2.21}',
 				'{"//,/"",NULL,abcäöü}'.gsub("/", "\\"),
 		]]
+
+		result_typenames(res).should == ['bigint[]', 'bigint[]', 'double precision[]', 'text[]']
 	end
 
 	#
