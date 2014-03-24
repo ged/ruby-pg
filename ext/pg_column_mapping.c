@@ -115,7 +115,7 @@ colmap_init(VALUE self, VALUE conv_ary)
 			tc.cconv.oid = 0;
 			tc.cconv.format = 0;
 			tc.type = Qnil;
-		} else if( CLASS_OF(obj) == rb_cPG_Type_CConverter ){
+		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type_CConverter) ){
 			type_data = DATA_PTR(obj);
 			tc.cconv = *type_data;
 			tc.type = obj;

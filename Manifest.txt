@@ -31,10 +31,13 @@ ext/vc/pg.sln
 ext/vc/pg_18/pg.vcproj
 ext/vc/pg_19/pg_19.vcproj
 lib/pg.rb
+lib/pg/basic_type_mapping.rb
+lib/pg/column_mapping.rb
 lib/pg/connection.rb
 lib/pg/constants.rb
 lib/pg/exceptions.rb
 lib/pg/result.rb
+lib/pg/type.rb
 sample/array_insert.rb
 sample/async_api.rb
 sample/async_copyto.rb
@@ -59,4 +62,5 @@ spec/lib/helpers.rb
 spec/pg/column_mapping_spec.rb
 spec/pg/connection_spec.rb
 spec/pg/result_spec.rb
+spec/pg/type_spec.rb
 spec/pg_spec.rb

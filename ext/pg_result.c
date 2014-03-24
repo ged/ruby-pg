@@ -11,6 +11,7 @@ VALUE rb_cPGresult;
 
 static void pgresult_gc_free( PGresult * );
 static t_colmap *pgresult_get_colmap( VALUE );
+static VALUE pgresult_column_mapping_set2(PGresult *, VALUE, VALUE );
 
 
 /*
@@ -31,7 +32,10 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 #endif
 
 	rb_iv_set( val, "@connection", rb_pgconn );
-	rb_iv_set( val, "@column_mapping", Qnil );
+	if( result ){
+		VALUE type_mapping = rb_iv_get(rb_pgconn, "@type_mapping");
+		pgresult_column_mapping_set2( result, val, type_mapping );
+	}
 
 	return val;
 }
@@ -848,6 +852,20 @@ pgresult_fields(VALUE self)
 	return fields;
 }
 
+static VALUE
+pgresult_column_mapping_set2(PGresult *result, VALUE self, VALUE column_mapping)
+{
+	if( column_mapping != Qnil ){
+		if ( !rb_obj_is_kind_of(column_mapping, rb_cColumnMap) ) {
+			column_mapping = rb_funcall( column_mapping, rb_intern("column_mapping_for_result"), 1, self );
+		}
+		colmap_get_and_check( column_mapping, PQnfields( result ));
+	}
+	rb_iv_set( self, "@column_mapping", column_mapping );
+
+	return column_mapping;
+}
+
 /*
  * call-seq:
  *    res.column_mapping = value
@@ -861,16 +879,7 @@ static VALUE
 pgresult_column_mapping_set(VALUE self, VALUE column_mapping)
 {
 	PGresult *result = pgresult_get(self);
-
-	if( column_mapping != Qnil ){
-		if ( !rb_obj_is_kind_of(column_mapping, rb_cColumnMap) ) {
-			column_mapping = rb_funcall( column_mapping, rb_intern("column_mapping_for_result"), 1, self );
-		}
-		colmap_get_and_check( column_mapping, PQnfields( result ));
-	}
-	rb_iv_set( self, "@column_mapping", column_mapping );
-
-	return column_mapping;
+	return pgresult_column_mapping_set2( result, self, column_mapping );
 }
 
 static t_colmap *

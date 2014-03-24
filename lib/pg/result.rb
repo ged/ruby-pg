@@ -12,13 +12,14 @@ class PG::Result
 
 	# Build and apply a ColumnMapping based on the given OID-to-Type Mapping.
 	#
-	# +oid_mapping+: an optional Object that responds to column_mapping_for_result(result) .
+	# +column_mapping+: a ColumnMapping instance or some Object that
+	#   responds to column_mapping_for_result(result) .
 	#   This method should build and return a PG::ColumnMapping object suitable
 	#   for the given result.
 	#
 	# See PG::BasicTypeMapping
-	def map_types!(oid_mapping = PG:: BasicTypeMapping)
-		self.column_mapping = oid_mapping
+	def map_types!(column_mapping = PG:: BasicTypeMapping)
+		self.column_mapping = column_mapping
 		self
 	end
 

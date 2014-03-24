@@ -72,10 +72,30 @@ describe PG::ColumnMapping do
 	#
 
 	it "should do basic param encoding", :ruby_19 do
-		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5", [1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"+02:00")], nil, PG::BasicTypeMapping )
+		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5 at time zone 'utc'",
+			[1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"-02:00")], nil, PG::BasicTypeMapping )
+
 		res.values.should == [
-				[ "1", "a", "2.1", "t", "2013-06-30 14:58:59.3+02" ],
+				[ "1", "a", "2.1", "t", "2013-06-30 16:58:59.3" ],
 		]
+
+		result_typenames(res).should == ['bigint', 'text', 'double precision', 'boolean', 'timestamp without time zone']
+	end
+
+	it "should do array param encoding" do
+		res = @conn.exec_params( "SELECT $1,$2,$3,$4", [
+				[1, 2, 3], [[1, 2], [3, nil]],
+				[1.11, 2.21],
+				['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
+			], nil, PG::BasicTypeMapping )
+
+		res.values.should == [[
+				'{1,2,3}', '{{1,2},{3,NULL}}',
+				'{1.11,2.21}',
+				'{"//,/"",NULL,abcäöü}'.gsub("/", "\\"),
+		]]
+
+		result_typenames(res).should == ['bigint[]', 'bigint[]', 'double precision[]', 'text[]']
 	end
 
 	#
@@ -214,7 +234,7 @@ describe PG::ColumnMapping do
 			                          CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
 			res.map_types!
 			res.getvalue(0,0).should == Time.new(2013, 12, 31, 23, 58, 59)
-			res.getvalue(0,1).should == be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
+			res.getvalue(0,1).should be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
 		end
 	end
 
@@ -224,7 +244,7 @@ describe PG::ColumnMapping do
 			                          CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE)", [], format )
 			res.map_types!
 			res.getvalue(0,0).should == Time.new(2013, 12, 31, 23, 58, 59, "+02:00")
-			res.getvalue(0,1).should == be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
+			res.getvalue(0,1).should be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
 		end
 	end
 
@@ -235,6 +255,28 @@ describe PG::ColumnMapping do
 			res.map_types!
 			res.getvalue(0,0).should == Time.new(2113, 12, 31)
 			res.getvalue(0,1).should == Time.new(1913, 12, 31)
+		end
+	end
+
+	it "should do array type conversions" do
+		[0].each do |format|
+			res = @conn.exec( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
+			                     CAST('{1,2,3}' AS INT4[]),
+			                     CAST('{1,2,3}' AS INT8[]),
+			                     CAST('{1,2,3}' AS TEXT[]),
+			                     CAST('{1,2,3}' AS VARCHAR[]),
+			                     CAST('{1,2,3}' AS FLOAT4[]),
+			                     CAST('{1,2,3}' AS FLOAT8[])
+			                  ", [], format )
+			res.map_types!
+			res.getvalue(0,0).should == [1,2,3]
+			res.getvalue(0,1).should == [[1,2],[3,4]]
+			res.getvalue(0,2).should == [1,2,3]
+			res.getvalue(0,3).should == [1,2,3]
+			res.getvalue(0,4).should == ['1','2','3']
+			res.getvalue(0,5).should == ['1','2','3']
+			res.getvalue(0,6).should == [1.0,2.0,3.0]
+			res.getvalue(0,7).should == [1.0,2.0,3.0]
 		end
 	end
 
