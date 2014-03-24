@@ -9,11 +9,11 @@ env:
   - "PGVERSION=8.4.19-1-linux-x64 PATH=\"/opt/PostgreSQL/8.4/bin:$PATH\""
   - "PGCROSS=true"
 matrix:
-  # Test cross compilation only with 2.1.0
+  # Test cross compilation only with 1.9.3
   exclude:
-    - rvm: 1.9.3
-      env: "PGCROSS=true"
     - rvm: 2.0.0
+      env: "PGCROSS=true"
+    - rvm: 2.1.0
       env: "PGCROSS=true"
     - rvm: rbx
       env: "PGCROSS=true"
