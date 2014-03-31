@@ -10,12 +10,15 @@
 
 VALUE rb_mPG_Type;
 VALUE rb_cPG_Type_CConverter;
+VALUE rb_cPG_Type_CompositeCConverter;
 VALUE rb_mPG_Type_Text;
 VALUE rb_mPG_Type_Binary;
+static ID s_id_encode;
+static ID s_id_decode;
 
 
 static VALUE
-pg_type_dec_text_boolean(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_boolean(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for text boolean converter in tuple %d field %d", tuple, field);
@@ -24,7 +27,7 @@ pg_type_dec_text_boolean(char *val, int len, int tuple, int field, int enc_idx)
 }
 
 static VALUE
-pg_type_dec_binary_boolean(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_binary_boolean(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for binary boolean converter in tuple %d field %d", tuple, field);
@@ -33,7 +36,7 @@ pg_type_dec_binary_boolean(char *val, int len, int tuple, int field, int enc_idx
 }
 
 VALUE
-pg_type_dec_text_string(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_string(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret = rb_tainted_str_new( val, len );
 #ifdef M17N_SUPPORTED
@@ -43,13 +46,13 @@ pg_type_dec_text_string(char *val, int len, int tuple, int field, int enc_idx)
 }
 
 static VALUE
-pg_type_dec_text_integer(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_integer(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_cstr2inum(val, 10);
 }
 
 static VALUE
-pg_type_dec_binary_integer(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_binary_integer(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	switch( len ){
 		case 2:
@@ -64,13 +67,13 @@ pg_type_dec_binary_integer(char *val, int len, int tuple, int field, int enc_idx
 }
 
 static VALUE
-pg_type_dec_text_float(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_float(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_float_new(strtod(val, NULL));
 }
 
 static VALUE
-pg_type_dec_binary_float(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_binary_float(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	union {
 		float f;
@@ -96,7 +99,7 @@ pg_type_dec_binary_float(char *val, int len, int tuple, int field, int enc_idx)
 }
 
 static VALUE
-pg_type_dec_text_bytea(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_bytea(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	unsigned char *to;
 	size_t to_len;
@@ -111,7 +114,7 @@ pg_type_dec_text_bytea(char *val, int len, int tuple, int field, int enc_idx)
 }
 
 VALUE
-pg_type_dec_binary_bytea(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_binary_bytea(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret;
 	ret = rb_tainted_str_new( val, len );
@@ -125,7 +128,7 @@ pg_type_dec_binary_bytea(char *val, int len, int tuple, int field, int enc_idx)
  * Array parser functions are thankfully borrowed from here:
  * https://github.com/dockyard/pg_array_parser
  */
-VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_type_converter_dec_func dec_func)
+VALUE read_array(t_type_converter *conv, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_type_converter_dec_func dec_func)
 {
 	/* Return value: array */
 	VALUE array;
@@ -171,7 +174,7 @@ VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, c
 					{
 						VALUE val;
 						word[word_index] = 0;
-						val = dec_func(word, word_index, tuple, field, enc_idx);
+						val = dec_func(conv, word, word_index, tuple, field, enc_idx);
 						rb_ary_push(array, val);
 					}
 				}
@@ -190,7 +193,7 @@ VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, c
 			else if(c == '{')
 			{
 				(*index)++;
-				rb_ary_push(array, read_array(index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func));
+				rb_ary_push(array, read_array(conv, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func));
 				escapeNext = 1;
 			}
 			else
@@ -223,38 +226,38 @@ VALUE read_array(int *index, char *c_pg_array_string, int array_string_length, c
 }
 
 static VALUE
-pg_type_dec_text_array_helper(char *val, int len, int tuple, int field, int enc_idx, t_type_converter_dec_func dec_func)
+pg_type_dec_text_array_helper(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx, t_type_converter_dec_func dec_func)
 {
 	/* create a buffer of the same length, as that will be the worst case */
 	char *word = xmalloc(len + 1);
 	int index = 1;
 
-	VALUE return_value = read_array(&index, val, len, word, enc_idx, tuple, field, dec_func);
+	VALUE return_value = read_array(conv, &index, val, len, word, enc_idx, tuple, field, dec_func);
 	free(word);
 	return return_value;
 }
 
 static VALUE
-pg_type_dec_text_int_array(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_in_ruby(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
-	return pg_type_dec_text_array_helper(val, len, tuple, field, enc_idx, pg_type_dec_text_integer);
+	VALUE string = pg_type_dec_text_string(conv, val, len, tuple, field, enc_idx);
+	return rb_funcall( conv->type, s_id_decode, 3, string, INT2NUM(tuple), INT2NUM(field) );
 }
 
 static VALUE
-pg_type_dec_text_text_array(char *val, int len, int tuple, int field, int enc_idx)
+pg_type_dec_text_array(t_type_converter *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
-	return pg_type_dec_text_array_helper(val, len, tuple, field, enc_idx, pg_type_dec_text_string);
-}
-
-static VALUE
-pg_type_dec_text_float_array(char *val, int len, int tuple, int field, int enc_idx)
-{
-	return pg_type_dec_text_array_helper(val, len, tuple, field, enc_idx, pg_type_dec_text_float);
+	struct pg_type_composite_cconverter *comp_conv = (struct pg_type_composite_cconverter *)conv;
+	if( comp_conv->elem.dec_func ){
+		return pg_type_dec_text_array_helper(&comp_conv->elem, val, len, tuple, field, enc_idx, comp_conv->elem.dec_func);
+	}else{
+		return pg_type_dec_text_array_helper(&comp_conv->elem, val, len, tuple, field, enc_idx, pg_type_dec_text_in_ruby);
+	}
 }
 
 
 static int
-pg_type_enc_binary_boolean(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_binary_boolean(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	char bool;
 	switch(value){
@@ -268,7 +271,7 @@ pg_type_enc_binary_boolean(VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-pg_type_enc_to_str(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_to_str(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		memcpy( out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
@@ -281,32 +284,32 @@ pg_type_enc_to_str(VALUE value, char *out, VALUE *intermediate)
 
 
 static int
-pg_type_enc_binary_int2(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_binary_int2(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out) *(int16_t*)out = htobe16(NUM2INT(value));
 	return 2;
 }
 
 static int
-pg_type_enc_binary_int4(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_binary_int4(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out) *(int32_t*)out = htobe32(NUM2LONG(value));
 	return 4;
 }
 
 static int
-pg_type_enc_binary_int8(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_binary_int8(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out) *(int64_t*)out = htobe64(NUM2LL(value));
 	return 8;
 }
 
 static int
-pg_type_enc_text_integer(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_text_integer(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		if(TYPE(*intermediate) == T_STRING){
-			return pg_type_enc_to_str(value, out, intermediate);
+			return pg_type_enc_to_str(conv, value, out, intermediate);
 		}else{
 			return sprintf(out, "%lld", NUM2LL(*intermediate));
 		}
@@ -339,18 +342,18 @@ pg_type_enc_text_integer(VALUE value, char *out, VALUE *intermediate)
 					if( ll < 100000000000000 ){
 						return ll < 10000000000000 ? 13 : 14;
 					}else{
-						return pg_type_enc_to_str(*intermediate, NULL, intermediate);
+						return pg_type_enc_to_str(conv, *intermediate, NULL, intermediate);
 					}
 				}
 			}
 		}else{
-			return pg_type_enc_to_str(*intermediate, NULL, intermediate);
+			return pg_type_enc_to_str(conv, *intermediate, NULL, intermediate);
 		}
 	}
 }
 
 static int
-pg_type_enc_text_float(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_text_float(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		return sprintf( out, "%.16E", NUM2DBL(value));
@@ -361,7 +364,7 @@ pg_type_enc_text_float(VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_func enc_func, int quote, int *interm_pos)
+write_array(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_func enc_func, int quote, int *interm_pos)
 {
 	int i;
 	if(out){
@@ -379,7 +382,7 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 			if( i > 0 ) *current_out++ = ',';
 			switch(TYPE(entry)){
 				case T_ARRAY:
-					current_out += write_array(entry, current_out, intermediate, enc_func, quote, interm_pos);
+					current_out += write_array(conv, entry, current_out, intermediate, enc_func, quote, interm_pos);
 				break;
 				case T_NIL:
 					*current_out++ = 'N';
@@ -394,8 +397,8 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 						/* place the unquoted string at the most right side of the precalculated
 						* worst case size. Then store the quoted string on the desired position.
 						*/
-						buffer = current_out + enc_func(subint, NULL, &subint) + 2;
-						strlen = enc_func(entry, buffer, &subint);
+						buffer = current_out + enc_func(conv, subint, NULL, &subint) + 2;
+						strlen = enc_func(conv, entry, buffer, &subint);
 
 						*current_out++ = '"';
 						for(j = 0; j < strlen; j++) {
@@ -406,7 +409,7 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 						}
 						*current_out++ = '"';
 					}else{
-						current_out += enc_func(entry, current_out, &subint);
+						current_out += enc_func(conv, entry, current_out, &subint);
 					}
 			}
 		}
@@ -428,7 +431,7 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 			switch(TYPE(entry)){
 				case T_ARRAY:
 					/* size of array content */
-					sumlen += write_array(entry, NULL, intermediate, enc_func, quote, interm_pos);
+					sumlen += write_array(conv, entry, NULL, intermediate, enc_func, quote, interm_pos);
 				break;
 				case T_NIL:
 					/* size of "NULL" */
@@ -439,10 +442,10 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 						/* size of string assuming the worst case, that every character must be escaped
 						* plus two bytes for quotation.
 						*/
-						sumlen += 2 * enc_func(entry, NULL, &subint) + 2;
+						sumlen += 2 * enc_func(conv, entry, NULL, &subint) + 2;
 					}else{
 						/* size of the unquoted string */
-						sumlen += enc_func(entry, NULL, &subint);
+						sumlen += enc_func(conv, entry, NULL, &subint);
 					}
 					rb_ary_push(*intermediate, subint);
 			}
@@ -454,24 +457,27 @@ write_array(VALUE value, char *out, VALUE *intermediate, t_type_converter_enc_fu
 }
 
 static int
-pg_type_enc_text_array_to_str(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_text_in_ruby(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	int pos = -1;
-	return write_array(value, out, intermediate, pg_type_enc_to_str, 1, &pos);
+	if( out ){
+		memcpy(out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
+		return RSTRING_LEN(*intermediate);
+	}else{
+		*intermediate = rb_funcall( conv->type, s_id_encode, 1, value );
+		return RSTRING_LEN(*intermediate);
+	}
 }
 
 static int
-pg_type_enc_text_integer_array(VALUE value, char *out, VALUE *intermediate)
+pg_type_enc_text_array(t_type_converter *conv, VALUE value, char *out, VALUE *intermediate)
 {
+	struct pg_type_composite_cconverter *comp_conv = (struct pg_type_composite_cconverter *)conv;
 	int pos = -1;
-	return write_array(value, out, intermediate, pg_type_enc_text_integer, 0, &pos);
-}
-
-static int
-pg_type_enc_text_float_array(VALUE value, char *out, VALUE *intermediate)
-{
-	int pos = -1;
-	return write_array(value, out, intermediate, pg_type_enc_text_float, 0, &pos);
+	if( comp_conv->elem.enc_func ){
+		return write_array(&comp_conv->elem, value, out, intermediate, comp_conv->elem.enc_func, comp_conv->needs_quotation, &pos);
+	}else{
+		return write_array(&comp_conv->elem, value, out, intermediate, pg_type_enc_text_in_ruby, comp_conv->needs_quotation, &pos);
+	}
 }
 
 static VALUE
@@ -480,16 +486,16 @@ pg_type_encode(VALUE self, VALUE value)
 	VALUE res = rb_str_new_cstr("");
 	VALUE intermediate;
 	int len;
-	struct pg_type_cconverter *type_data = DATA_PTR(self);
+	t_type_converter *type_data = DATA_PTR(self);
 
 	if( !type_data->enc_func ){
 		rb_raise( rb_eArgError, "no encoder defined for type %s",
 				rb_obj_classname( self ) );
 	}
 
-	len = type_data->enc_func( value, NULL, &intermediate );
+	len = type_data->enc_func( type_data, value, NULL, &intermediate );
 	res = rb_str_resize( res, len );
-	len = type_data->enc_func( value, RSTRING_PTR(res), &intermediate);
+	len = type_data->enc_func( type_data, value, RSTRING_PTR(res), &intermediate);
 	rb_str_set_len( res, len );
 	return res;
 }
@@ -500,7 +506,7 @@ pg_type_decode(int argc, VALUE *argv, VALUE self)
 	char *val;
 	VALUE tuple = -1;
 	VALUE field = -1;
-	struct pg_type_cconverter *type_data = DATA_PTR(self);
+	t_type_converter *type_data = DATA_PTR(self);
 
 	if(argc < 1 || argc > 3){
 		rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..3)", argc);
@@ -514,28 +520,28 @@ pg_type_decode(int argc, VALUE *argv, VALUE self)
 				rb_obj_classname( self ) );
 	}
 	val = StringValuePtr(argv[0]);
-	return type_data->dec_func(val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
+	return type_data->dec_func(type_data, val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
 }
 
 static VALUE
 pg_type_oid(VALUE self)
 {
-	struct pg_type_cconverter *type_data = DATA_PTR(self);
+	t_type_converter *type_data = DATA_PTR(self);
 	return INT2NUM(type_data->oid);
 }
 
 static VALUE
 pg_type_format(VALUE self)
 {
-	struct pg_type_cconverter *type_data = DATA_PTR(self);
+	t_type_converter *type_data = DATA_PTR(self);
 	return INT2NUM(type_data->format);
 }
 
 
-static void
+static VALUE
 pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func, Oid oid)
 {
-	struct pg_type_cconverter *sval;
+	t_type_converter *sval;
 	VALUE type_obj;
 	VALUE cFormatModule;
 	VALUE klass;
@@ -553,11 +559,12 @@ pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_
 
 	klass = rb_class_new(rb_cPG_Type_CConverter);
 	rb_name_class(klass, rb_intern(name));
-	type_obj = Data_Make_Struct( klass, struct pg_type_cconverter, NULL, -1, sval );
+	type_obj = Data_Make_Struct( klass, t_type_converter, NULL, -1, sval );
 	sval->enc_func = enc_func;
 	sval->dec_func = dec_func;
 	sval->oid = oid;
 	sval->format = format;
+	sval->type = type_obj;
 	rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
 	if( enc_func ) rb_define_method( klass, "encode", pg_type_encode, 1 );
 	if( dec_func ) rb_define_method( klass, "decode", pg_type_decode, -1 );
@@ -566,12 +573,72 @@ pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_
 
 	RB_GC_GUARD(klass);
 	RB_GC_GUARD(type_obj);
+
+	return type_obj;
+}
+
+static VALUE
+pg_type_define_composite_type(int format, const char *name, t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func, Oid oid,
+		const char *elem_name, int needs_quotation)
+{
+	struct pg_type_composite_cconverter *sval;
+	VALUE type_obj;
+	VALUE cFormatModule;
+	VALUE klass;
+	VALUE elem_type;
+	t_type_converter *elem_conv;
+
+	switch( format ){
+		case 0:
+			cFormatModule = rb_mPG_Type_Text;
+			break;
+		case 1:
+			cFormatModule = rb_mPG_Type_Binary;
+			break;
+		default:
+			rb_bug( "invalid format %i", format );
+	}
+
+	elem_type = rb_const_get(cFormatModule, rb_intern(elem_name));
+	Check_Type(elem_type, T_DATA);
+
+	if ( !rb_obj_is_kind_of(elem_type, rb_cPG_Type_CConverter) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
+				rb_obj_classname( elem_type ) );
+	}
+
+	elem_conv = DATA_PTR( elem_type );
+
+	klass = rb_class_new(rb_cPG_Type_CConverter);
+	rb_name_class(klass, rb_intern(name));
+	type_obj = Data_Make_Struct( klass, struct pg_type_composite_cconverter, NULL, -1, sval );
+	sval->comp.enc_func = enc_func;
+	sval->comp.dec_func = dec_func;
+	sval->comp.oid = oid;
+	sval->comp.format = format;
+	sval->comp.type = type_obj;
+	sval->needs_quotation = needs_quotation;
+
+	sval->elem = *elem_conv;
+	rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
+	if( enc_func ) rb_define_method( klass, "encode", pg_type_encode, 1 );
+	if( dec_func ) rb_define_method( klass, "decode", pg_type_decode, -1 );
+
+	rb_define_const( cFormatModule, name, type_obj );
+
+	RB_GC_GUARD(klass);
+	RB_GC_GUARD(type_obj);
+
+	return type_obj;
 }
 
 
 void
 init_pg_type()
 {
+	s_id_encode = rb_intern("encode");
+	s_id_decode = rb_intern("decode");
+
 	rb_mPG_Type = rb_define_module_under( rb_mPG, "Type" );
 	rb_cPG_Type_CConverter = rb_define_class_under( rb_mPG_Type, "CConverter", rb_cObject );
 	rb_define_method( rb_cPG_Type_CConverter, "oid", pg_type_oid, 0 );
@@ -585,16 +652,10 @@ init_pg_type()
 	pg_type_define_type( 0, "INT8", pg_type_enc_text_integer, pg_type_dec_text_integer, 20 );
 	pg_type_define_type( 0, "INT2", pg_type_enc_text_integer, pg_type_dec_text_integer, 21 );
 	pg_type_define_type( 0, "INT4", pg_type_enc_text_integer, pg_type_dec_text_integer, 23 );
-	pg_type_define_type( 0, "INT2ARRAY", pg_type_enc_text_integer_array, pg_type_dec_text_int_array, 1005 );
-	pg_type_define_type( 0, "INT4ARRAY", pg_type_enc_text_integer_array, pg_type_dec_text_int_array, 1007 );
-	pg_type_define_type( 0, "TEXTARRAY", pg_type_enc_text_array_to_str, pg_type_dec_text_text_array, 1009 );
-	pg_type_define_type( 0, "VARCHARARRAY", pg_type_enc_text_array_to_str, pg_type_dec_text_text_array, 1015 );
-	pg_type_define_type( 0, "INT8ARRAY", pg_type_enc_text_integer_array, pg_type_dec_text_int_array, 1016 );
-	pg_type_define_type( 0, "FLOAT4ARRAY", pg_type_enc_text_float_array, pg_type_dec_text_float_array, 1021 );
-	pg_type_define_type( 0, "FLOAT8ARRAY", pg_type_enc_text_float_array, pg_type_dec_text_float_array, 1022 );
 	pg_type_define_type( 0, "FLOAT4", pg_type_enc_text_float, pg_type_dec_text_float, 700 );
 	pg_type_define_type( 0, "FLOAT8", pg_type_enc_text_float, pg_type_dec_text_float, 701 );
 	pg_type_define_type( 0, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
+	pg_type_define_type( 0, "VARCHAR", pg_type_enc_to_str, pg_type_dec_text_string, 1043 );
 
 	pg_type_define_type( 1, "BOOLEAN", pg_type_enc_binary_boolean, pg_type_dec_binary_boolean, 16 );
 	pg_type_define_type( 1, "BYTEA", pg_type_enc_to_str, pg_type_dec_binary_bytea, 17 );
@@ -604,4 +665,14 @@ init_pg_type()
 	pg_type_define_type( 1, "FLOAT4", NULL, pg_type_dec_binary_float, 700 );
 	pg_type_define_type( 1, "FLOAT8", NULL, pg_type_dec_binary_float, 701 );
 	pg_type_define_type( 1, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
+	pg_type_define_type( 1, "VARCHAR", pg_type_enc_to_str, pg_type_dec_text_string, 1043 );
+
+	pg_type_define_composite_type( 0, "INT2ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1005, "INT2", 0 );
+	pg_type_define_composite_type( 0, "INT4ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1007, "INT4", 0 );
+	pg_type_define_composite_type( 0, "TEXTARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1009, "TEXT", 1 );
+	pg_type_define_composite_type( 0, "VARCHARARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1015 , "VARCHAR", 1);
+	pg_type_define_composite_type( 0, "INT8ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1016, "INT8", 0 );
+	pg_type_define_composite_type( 0, "FLOAT4ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1021, "FLOAT4", 0 );
+	pg_type_define_composite_type( 0, "FLOAT8ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1022, "FLOAT8", 0 );
+
 }

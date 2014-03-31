@@ -101,22 +101,30 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
-typedef int (* t_type_converter_enc_func)(VALUE, char *, VALUE *);
-typedef VALUE (* t_type_converter_dec_func)(char *, int, int, int, int);
+typedef struct pg_type_cconverter t_type_converter;
+typedef int (* t_type_converter_enc_func)(t_type_converter *, VALUE, char *, VALUE *);
+typedef VALUE (* t_type_converter_dec_func)(t_type_converter *, char *, int, int, int, int);
 
 struct pg_type_cconverter {
 	t_type_converter_enc_func enc_func;
 	t_type_converter_dec_func dec_func;
 	Oid oid;
 	int format;
+	void *param;
+	VALUE type;
+};
+
+struct pg_type_composite_cconverter {
+	t_type_converter comp;
+	t_type_converter elem;
+	int needs_quotation;
 };
 
 typedef struct {
 	int nfields;
 	int encoding_index;
-	struct pg_type_converter {
-		struct pg_type_cconverter cconv;
-		VALUE type;
+	struct pg_colmap_converter {
+		t_type_converter *cconv;
 	} convs[0];
 } t_colmap;
 
@@ -164,8 +172,8 @@ void init_pg_type                                      _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 t_colmap *colmap_get_and_check                         _(( VALUE, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
-VALUE pg_type_dec_binary_bytea                         _(( char *, int, int, int, int ));
-VALUE pg_type_dec_text_string                          _(( char *, int, int, int, int ));
+VALUE pg_type_dec_binary_bytea                         _(( t_type_converter*, char *, int, int, int, int ));
+VALUE pg_type_dec_text_string                          _(( t_type_converter*, char *, int, int, int, int ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 

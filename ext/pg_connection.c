@@ -908,7 +908,7 @@ alloc_query_params1(VALUE _paramsData)
 	int nParams;
 	int i=0;
 	t_colmap *p_colmap;
-	struct pg_type_converter *conv;
+	t_type_converter *conv;
 	int sum_lengths = 0;
 
 	param_mapping = paramsData->param_mapping;
@@ -952,13 +952,13 @@ alloc_query_params1(VALUE _paramsData)
 			if(param_value == Qnil) {
 				paramsData->values[i] = NULL;
 				paramsData->lengths[i] = 0;
-			} else if( p_colmap && (conv = &p_colmap->convs[i]) && !NIL_P(conv->type)) {
-				if( conv->cconv.enc_func ){
+			} else if( p_colmap && (conv=p_colmap->convs[i].cconv)) {
+				if( conv->enc_func ){
 					/* C-based converter */
 					/* 1st pass for retiving the required memory space */
-					int len = conv->cconv.enc_func(param_value, NULL, &intermediates[i]);
+					int len = conv->enc_func(conv, param_value, NULL, &intermediates[i]);
 					/* text format strings must be zero terminated */
-					sum_lengths += len + (conv->cconv.format == 0 ? 1 : 0);
+					sum_lengths += len + (conv->format == 0 ? 1 : 0);
 					paramsData->param_values[i] = param_value;
 				} else {
 					/* Ruby-based converter */
@@ -969,9 +969,9 @@ alloc_query_params1(VALUE _paramsData)
 				}
 
 				if( NIL_P(param_type) )
-					param_type = INT2FIX(conv->cconv.oid);
+					param_type = INT2FIX(conv->oid);
 				if( NIL_P(param_format) )
-					param_format = INT2FIX(conv->cconv.format);
+					param_format = INT2FIX(conv->format);
 			} else {
 				param_value = rb_obj_as_string(param_value);
 				/* make sure param_value doesn't get freed by the GC */
@@ -998,13 +998,13 @@ alloc_query_params1(VALUE _paramsData)
 			paramsData->mapping_buf = ALLOC_N(char, sum_lengths);
 
 			for ( i = 0; i < nParams; i++ ) {
-				conv = &p_colmap->convs[i];
-				if( conv->cconv.enc_func ){
+				conv = p_colmap->convs[i].cconv;
+				if( conv && conv->enc_func ){
 					/* 2nd pass for writing the data to prepared buffer */
-					int len = conv->cconv.enc_func(paramsData->param_values[i], &paramsData->mapping_buf[buffer_pos], &intermediates[i]);
+					int len = conv->enc_func(conv, paramsData->param_values[i], &paramsData->mapping_buf[buffer_pos], &intermediates[i]);
 					paramsData->values[i] = &paramsData->mapping_buf[buffer_pos];
 					paramsData->lengths[i] = len;
-					if( conv->cconv.format == 0 ){
+					if( conv->format == 0 ){
 						/* text format strings must be zero terminated */
 						paramsData->mapping_buf[buffer_pos+len] = 0;
 						buffer_pos += len + 1;

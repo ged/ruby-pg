@@ -50,7 +50,7 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 	VALUE ret;
 	char * val;
 	int len;
-	struct pg_type_converter *conv = NULL;
+	t_type_converter *conv = NULL;
 
 	if (PQgetisnull(result, tuple, field)) {
 		return Qnil;
@@ -64,20 +64,20 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 	len = PQgetlength( result, tuple, field );
 
 	if( p_colmap ){
-		conv = &p_colmap->convs[field];
+		conv = p_colmap->convs[field].cconv;
 
-		if( conv->cconv.dec_func ){
-			return conv->cconv.dec_func(val, len, tuple, field, enc_idx);
+		if( conv && conv->dec_func ){
+			return conv->dec_func(conv, val, len, tuple, field, enc_idx);
 		}
 	}
 
 	if ( 0 == PQfformat(result, field) ) {
-		ret = pg_type_dec_text_string(val, len, tuple, field, enc_idx);
+		ret = pg_type_dec_text_string(NULL, val, len, tuple, field, enc_idx);
 	} else {
-		ret = pg_type_dec_binary_bytea(val, len, tuple, field, enc_idx);
+		ret = pg_type_dec_binary_bytea(NULL, val, len, tuple, field, enc_idx);
 	}
 
-	if( conv && !NIL_P(conv->type) ){
+	if( conv ){
 		ret = rb_funcall( conv->type, s_id_decode, 3, ret, INT2NUM(tuple), INT2NUM(field) );
 	}
 
@@ -92,41 +92,40 @@ colmap_init(VALUE self, VALUE conv_ary)
 	t_colmap *this;
 	int conv_ary_len;
 	VALUE ary_types = rb_ary_new();
+	VALUE ary_type_wraps = rb_ary_new();
 
 	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
 	conv_ary_len = RARRAY_LEN(conv_ary);
-	this = xmalloc(sizeof(t_colmap) + sizeof(struct pg_type_converter) * conv_ary_len);
+	this = xmalloc(sizeof(t_colmap) + sizeof(struct pg_colmap_converter) * conv_ary_len);
 	DATA_PTR(self) = this;
 
 	for(i=0; i<conv_ary_len; i++)
 	{
 		VALUE obj = rb_ary_entry(conv_ary, i);
-		struct pg_type_converter tc;
-		struct pg_type_cconverter *type_data;
+		struct pg_colmap_converter tc;
 
 		if( TYPE(obj) == T_SYMBOL ){
 			obj = rb_const_get(rb_mPG_Type_Text, rb_to_id(obj));
 		}
 
 		if( obj == Qnil ){
-			tc.cconv.dec_func = NULL;
-			tc.cconv.enc_func = NULL;
-			tc.cconv.oid = 0;
-			tc.cconv.format = 0;
-			tc.type = Qnil;
+			/* no type cast */
+			tc.cconv = NULL;
 		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type_CConverter) ){
-			type_data = DATA_PTR(obj);
-			tc.cconv = *type_data;
-			tc.type = obj;
+			/* type cast with C implementation */
+			tc.cconv = DATA_PTR(obj);
 		} else if( rb_respond_to(obj, s_id_oid) && rb_respond_to(obj, s_id_format)){
+			/* type cast with Ruby implementation */
 			VALUE oid = rb_funcall(obj, s_id_oid, 0);
 			VALUE format = rb_funcall(obj, s_id_format, 0);
-			tc.cconv.dec_func = NULL;
-			tc.cconv.enc_func = NULL;
-			tc.cconv.oid = NUM2INT(oid);
-			tc.cconv.format = NUM2INT(format);
-			tc.type = obj;
+			VALUE wrap_obj = Data_Make_Struct( rb_cPG_Type_CConverter, struct pg_type_cconverter, NULL, -1, tc.cconv );
+			rb_ary_push( ary_type_wraps, wrap_obj );
+			tc.cconv->dec_func = NULL;
+			tc.cconv->enc_func = NULL;
+			tc.cconv->oid = NUM2INT(oid);
+			tc.cconv->format = NUM2INT(format);
+			tc.cconv->type = obj;
 		} else {
 			rb_raise(rb_eArgError, "invalid type argument %d", i+1);
 		}
@@ -136,6 +135,7 @@ colmap_init(VALUE self, VALUE conv_ary)
 	}
 
 	this->nfields = conv_ary_len;
+	rb_iv_set( self, "@type_wraps", rb_obj_freeze(ary_type_wraps) );
 	rb_iv_set( self, "@types", rb_obj_freeze(ary_types) );
 
 	return self;
