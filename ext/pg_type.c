@@ -15,6 +15,8 @@ VALUE rb_mPG_Type_Text;
 VALUE rb_mPG_Type_Binary;
 static ID s_id_encode;
 static ID s_id_decode;
+static ID s_id_oid;
+static ID s_id_format;
 
 
 static VALUE
@@ -480,6 +482,54 @@ pg_type_enc_text_array(t_type_converter *conv, VALUE value, char *out, VALUE *in
 	}
 }
 
+t_type_converter *
+pg_type_get_and_check( VALUE self )
+{
+	Check_Type(self, T_DATA);
+
+	if ( !rb_obj_is_kind_of(self, rb_cPG_Type_CConverter) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
+				rb_obj_classname( self ) );
+	}
+
+	return DATA_PTR( self );
+}
+
+VALUE
+pg_type_use_or_wrap( VALUE self, t_type_converter **cconv, int argument_nr )
+{
+	VALUE wrap_obj = Qnil;
+
+	if( TYPE(self) == T_SYMBOL ){
+		self = rb_const_get(rb_mPG_Type_Text, rb_to_id(self));
+	}
+
+	if( self == Qnil ){
+		/* no type cast */
+		*cconv = NULL;
+	} else if( rb_obj_is_kind_of(self, rb_cPG_Type_CConverter) ){
+		/* type cast with C implementation */
+		Check_Type(self, T_DATA);
+		*cconv = DATA_PTR(self);
+	} else if( rb_respond_to(self, s_id_oid) && rb_respond_to(self, s_id_format)){
+		/* type cast with Ruby implementation */
+		VALUE oid = rb_funcall(self, s_id_oid, 0);
+		VALUE format = rb_funcall(self, s_id_format, 0);
+		wrap_obj = Data_Make_Struct( rb_cPG_Type_CConverter, struct pg_type_cconverter, NULL, -1, *cconv );
+		(*cconv)->dec_func = NULL;
+		(*cconv)->enc_func = NULL;
+		(*cconv)->oid = NUM2INT(oid);
+		(*cconv)->format = NUM2INT(format);
+		(*cconv)->type = self;
+	} else {
+		rb_raise(rb_eArgError, "invalid type argument %d", argument_nr);
+	}
+
+	RB_GC_GUARD(wrap_obj);
+
+	return wrap_obj;
+}
+
 static VALUE
 pg_type_encode(VALUE self, VALUE value)
 {
@@ -537,25 +587,12 @@ pg_type_format(VALUE self)
 	return INT2NUM(type_data->format);
 }
 
-
 static VALUE
-pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func, Oid oid)
+pg_type_build_type(int format, const char *name, t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func, Oid oid)
 {
 	t_type_converter *sval;
 	VALUE type_obj;
-	VALUE cFormatModule;
 	VALUE klass;
-
-	switch( format ){
-		case 0:
-			cFormatModule = rb_mPG_Type_Text;
-			break;
-		case 1:
-			cFormatModule = rb_mPG_Type_Binary;
-			break;
-		default:
-			rb_bug( "invalid format %i", format );
-	}
 
 	klass = rb_class_new(rb_cPG_Type_CConverter);
 	rb_name_class(klass, rb_intern(name));
@@ -569,8 +606,6 @@ pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_
 	if( enc_func ) rb_define_method( klass, "encode", pg_type_encode, 1 );
 	if( dec_func ) rb_define_method( klass, "decode", pg_type_decode, -1 );
 
-	rb_define_const( cFormatModule, name, type_obj );
-
 	RB_GC_GUARD(klass);
 	RB_GC_GUARD(type_obj);
 
@@ -578,15 +613,19 @@ pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_
 }
 
 static VALUE
-pg_type_define_composite_type(int format, const char *name, t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func, Oid oid,
-		const char *elem_name, int needs_quotation)
+pg_type_build(VALUE self, VALUE oid)
 {
-	struct pg_type_composite_cconverter *sval;
+	t_type_converter *type_data = pg_type_get_and_check(self);
+	char * name = RSTRING_PTR( rb_iv_get( self, "@name" ) );
+
+	return pg_type_build_type( type_data->format, name, type_data->enc_func, type_data->dec_func, NUM2INT(oid));
+}
+
+static VALUE
+pg_type_define_type(int format, const char *name, t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func, Oid oid)
+{
 	VALUE type_obj;
 	VALUE cFormatModule;
-	VALUE klass;
-	VALUE elem_type;
-	t_type_converter *elem_conv;
 
 	switch( format ){
 		case 0:
@@ -599,34 +638,85 @@ pg_type_define_composite_type(int format, const char *name, t_type_converter_enc
 			rb_bug( "invalid format %i", format );
 	}
 
-	elem_type = rb_const_get(cFormatModule, rb_intern(elem_name));
-	Check_Type(elem_type, T_DATA);
+	type_obj = pg_type_build_type( format, name, enc_func, dec_func, oid );
+	rb_define_const( cFormatModule, name, type_obj );
 
-	if ( !rb_obj_is_kind_of(elem_type, rb_cPG_Type_CConverter) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
-				rb_obj_classname( elem_type ) );
-	}
+	RB_GC_GUARD(type_obj);
 
-	elem_conv = DATA_PTR( elem_type );
+	return type_obj;
+}
 
-	klass = rb_class_new(rb_cPG_Type_CConverter);
+
+static VALUE
+pg_type_build_composite_type(int format, const char *name,
+		t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func )
+{
+	struct pg_type_composite_cconverter *sval;
+	VALUE type_obj;
+	VALUE klass;
+
+	klass = rb_class_new(rb_cPG_Type_CompositeCConverter);
 	rb_name_class(klass, rb_intern(name));
 	type_obj = Data_Make_Struct( klass, struct pg_type_composite_cconverter, NULL, -1, sval );
 	sval->comp.enc_func = enc_func;
 	sval->comp.dec_func = dec_func;
-	sval->comp.oid = oid;
 	sval->comp.format = format;
 	sval->comp.type = type_obj;
-	sval->needs_quotation = needs_quotation;
 
-	sval->elem = *elem_conv;
 	rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
 	if( enc_func ) rb_define_method( klass, "encode", pg_type_encode, 1 );
 	if( dec_func ) rb_define_method( klass, "decode", pg_type_decode, -1 );
 
+	RB_GC_GUARD(klass);
+	RB_GC_GUARD(type_obj);
+
+	return type_obj;
+}
+
+static VALUE
+pg_type_build_composite(VALUE self, VALUE name, VALUE elem_type, VALUE needs_quotation, VALUE oid)
+{
+	struct pg_type_composite_cconverter *sval;
+	VALUE type_obj;
+	t_type_converter *type_data = pg_type_get_and_check(self);
+	t_type_converter *elem_conv;
+	VALUE wrap_obj = pg_type_use_or_wrap( elem_type, &elem_conv, 2 );
+
+	type_obj = pg_type_build_composite_type( type_data->format, StringValuePtr(name),
+			type_data->enc_func, type_data->dec_func );
+
+	sval = DATA_PTR(type_obj);
+	sval->comp.oid = NUM2INT(oid);
+	sval->needs_quotation = RTEST(needs_quotation);
+	sval->elem = *elem_conv;
+
+	RB_GC_GUARD(wrap_obj);
+	RB_GC_GUARD(type_obj);
+
+	return type_obj;
+}
+
+static VALUE
+pg_type_define_composite_type(int format, const char *name,
+		t_type_converter_enc_func enc_func, t_type_converter_dec_func dec_func)
+{
+	VALUE type_obj;
+	VALUE cFormatModule;
+
+	switch( format ){
+		case 0:
+			cFormatModule = rb_mPG_Type_Text;
+			break;
+		case 1:
+			cFormatModule = rb_mPG_Type_Binary;
+			break;
+		default:
+			rb_bug( "invalid format %i", format );
+	}
+
+	type_obj = pg_type_build_composite_type( format, name, enc_func, dec_func );
 	rb_define_const( cFormatModule, name, type_obj );
 
-	RB_GC_GUARD(klass);
 	RB_GC_GUARD(type_obj);
 
 	return type_obj;
@@ -638,12 +728,20 @@ init_pg_type()
 {
 	s_id_encode = rb_intern("encode");
 	s_id_decode = rb_intern("decode");
+	s_id_oid = rb_intern("oid");
+	s_id_format = rb_intern("format");
 
 	rb_mPG_Type = rb_define_module_under( rb_mPG, "Type" );
+
 	rb_cPG_Type_CConverter = rb_define_class_under( rb_mPG_Type, "CConverter", rb_cObject );
 	rb_define_method( rb_cPG_Type_CConverter, "oid", pg_type_oid, 0 );
 	rb_define_method( rb_cPG_Type_CConverter, "format", pg_type_format, 0 );
+	rb_define_method( rb_cPG_Type_CConverter, "build", pg_type_build, 1 );
 	rb_define_attr( rb_cPG_Type_CConverter, "name", 1, 0 );
+
+	rb_cPG_Type_CompositeCConverter = rb_define_class_under( rb_mPG_Type, "CompositeCConverter", rb_cPG_Type_CConverter );
+	rb_define_method( rb_cPG_Type_CompositeCConverter, "build", pg_type_build_composite, 4 );
+
 	rb_mPG_Type_Text = rb_define_module_under( rb_mPG_Type, "Text" );
 	rb_mPG_Type_Binary = rb_define_module_under( rb_mPG_Type, "Binary" );
 
@@ -657,6 +755,8 @@ init_pg_type()
 	pg_type_define_type( 0, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
 	pg_type_define_type( 0, "VARCHAR", pg_type_enc_to_str, pg_type_dec_text_string, 1043 );
 
+	pg_type_define_composite_type( 0, "ARRAY", pg_type_enc_text_array, pg_type_dec_text_array );
+
 	pg_type_define_type( 1, "BOOLEAN", pg_type_enc_binary_boolean, pg_type_dec_binary_boolean, 16 );
 	pg_type_define_type( 1, "BYTEA", pg_type_enc_to_str, pg_type_dec_binary_bytea, 17 );
 	pg_type_define_type( 1, "INT8", pg_type_enc_binary_int8, pg_type_dec_binary_integer, 20 );
@@ -666,13 +766,5 @@ init_pg_type()
 	pg_type_define_type( 1, "FLOAT8", NULL, pg_type_dec_binary_float, 701 );
 	pg_type_define_type( 1, "TEXT", pg_type_enc_to_str, pg_type_dec_text_string, 25 );
 	pg_type_define_type( 1, "VARCHAR", pg_type_enc_to_str, pg_type_dec_text_string, 1043 );
-
-	pg_type_define_composite_type( 0, "INT2ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1005, "INT2", 0 );
-	pg_type_define_composite_type( 0, "INT4ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1007, "INT4", 0 );
-	pg_type_define_composite_type( 0, "TEXTARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1009, "TEXT", 1 );
-	pg_type_define_composite_type( 0, "VARCHARARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1015 , "VARCHAR", 1);
-	pg_type_define_composite_type( 0, "INT8ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1016, "INT8", 0 );
-	pg_type_define_composite_type( 0, "FLOAT4ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1021, "FLOAT4", 0 );
-	pg_type_define_composite_type( 0, "FLOAT8ARRAY", pg_type_enc_text_array, pg_type_dec_text_array, 1022, "FLOAT8", 0 );
 
 }

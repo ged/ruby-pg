@@ -53,6 +53,7 @@ describe PG::Type do
 		let!(:text_array_type) { PG::Type::Text::TEXTARRAY }
 		let!(:int8_array_type) { PG::Type::Text::INT8ARRAY }
 		let!(:float8_array_type) { PG::Type::Text::FLOAT8ARRAY }
+		let!(:timestamp_array_type) { PG::Type::Text::TIMESTAMPARRAY }
 
 		#
 		# Array parser specs are thankfully borrowed from here:
@@ -137,6 +138,12 @@ describe PG::Type do
 						text_array_type.decode(%[{1,{""},4,{""}}]).should eq ['1',[''],'4',['']]
 					end
 				end
+				context 'timestamps' do
+					it 'decodes an array of timestamps with sub arrays' do
+						timestamp_array_type.decode('{2014-12-31 00:00:00,{NULL,2016-01-02 23:23:59.0000000}}').
+							should eq [Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59)]]
+					end
+				end
 			end
 			context 'three dimensional arrays' do
 				context 'empty' do
@@ -161,6 +168,12 @@ describe PG::Type do
 				end
 				it 'encodes an array of float8 with sub arrays' do
 					float8_array_type.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]).should match Regexp.new(%[^{1.0001*E+03,{-2.2*E-03,{3.3*E+00,-4.4*E+02}},{NULL,6.6*E+00},-7.7*E+00}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*"))
+				end
+			end
+			context 'two dimensional arrays' do
+				it 'encodes an array of timestamps with sub arrays' do
+					timestamp_array_type.encode([Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59.99)]]).
+							should eq %[{2014-12-31 00:00:00.000000000,{NULL,2016-01-02 23:23:59.990000000}}]
 				end
 			end
 		end

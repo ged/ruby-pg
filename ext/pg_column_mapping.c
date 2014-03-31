@@ -9,8 +9,6 @@
 VALUE rb_cColumnMap;
 static ID s_id_encode;
 static ID s_id_decode;
-static ID s_id_oid;
-static ID s_id_format;
 
 
 static VALUE
@@ -103,35 +101,10 @@ colmap_init(VALUE self, VALUE conv_ary)
 	for(i=0; i<conv_ary_len; i++)
 	{
 		VALUE obj = rb_ary_entry(conv_ary, i);
-		struct pg_colmap_converter tc;
+		VALUE wrap_obj = pg_type_use_or_wrap( obj, &this->convs[i].cconv, i+1 );
 
-		if( TYPE(obj) == T_SYMBOL ){
-			obj = rb_const_get(rb_mPG_Type_Text, rb_to_id(obj));
-		}
-
-		if( obj == Qnil ){
-			/* no type cast */
-			tc.cconv = NULL;
-		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type_CConverter) ){
-			/* type cast with C implementation */
-			tc.cconv = DATA_PTR(obj);
-		} else if( rb_respond_to(obj, s_id_oid) && rb_respond_to(obj, s_id_format)){
-			/* type cast with Ruby implementation */
-			VALUE oid = rb_funcall(obj, s_id_oid, 0);
-			VALUE format = rb_funcall(obj, s_id_format, 0);
-			VALUE wrap_obj = Data_Make_Struct( rb_cPG_Type_CConverter, struct pg_type_cconverter, NULL, -1, tc.cconv );
-			rb_ary_push( ary_type_wraps, wrap_obj );
-			tc.cconv->dec_func = NULL;
-			tc.cconv->enc_func = NULL;
-			tc.cconv->oid = NUM2INT(oid);
-			tc.cconv->format = NUM2INT(format);
-			tc.cconv->type = obj;
-		} else {
-			rb_raise(rb_eArgError, "invalid type argument %d", i+1);
-		}
-
-		this->convs[i] = tc;
-		rb_ary_push( ary_types, obj );
+		if(!NIL_P(wrap_obj)) rb_ary_push( ary_type_wraps, wrap_obj );
+		rb_ary_push( ary_types, this->convs[i].cconv ? this->convs[i].cconv->type : Qnil );
 	}
 
 	this->nfields = conv_ary_len;
@@ -147,8 +120,6 @@ init_pg_column_mapping()
 {
 	s_id_encode = rb_intern("encode");
 	s_id_decode = rb_intern("decode");
-	s_id_oid = rb_intern("oid");
-	s_id_format = rb_intern("format");
 
 	rb_cColumnMap = rb_define_class_under( rb_mPG, "ColumnMapping", rb_cObject );
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );

@@ -171,6 +171,7 @@ void init_pg_column_mapping                            _(( void ));
 void init_pg_type                                      _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 t_colmap *colmap_get_and_check                         _(( VALUE, int ));
+VALUE pg_type_use_or_wrap                              _(( VALUE, t_type_converter **, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
 VALUE pg_type_dec_binary_bytea                         _(( t_type_converter*, char *, int, int, int, int ));
 VALUE pg_type_dec_text_string                          _(( t_type_converter*, char *, int, int, int, int ));
