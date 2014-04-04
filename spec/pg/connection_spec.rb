@@ -305,15 +305,19 @@ describe PG::Connection do
 		res = nil
 		@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
 
-		expect {
-			res = @conn.transaction do
-				@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
-				raise "Oh noes! All pie is gone!"
-			end
-		}.to raise_exception( RuntimeError, /all pie is gone/i )
+		begin
+			expect {
+				res = @conn.transaction do
+					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
+					raise "Oh noes! All pie is gone!"
+				end
+			}.to raise_exception( RuntimeError, /all pie is gone/i )
 
-		res = @conn.exec( "SELECT * FROM pie" )
-		res.ntuples.should == 0
+			res = @conn.exec( "SELECT * FROM pie" )
+			res.ntuples.should == 0
+		ensure
+			@conn.exec( "DROP TABLE pie" )
+		end
 	end
 
 	it "returns the block result from Connection#transaction" do
@@ -1113,6 +1117,7 @@ describe PG::Connection do
 					res = conn.exec( "SELECT foo FROM defaultinternaltest" )
 					res[0]['foo'].encoding.should == Encoding::UTF_8
 				ensure
+					conn.exec( "DROP TABLE defaultinternaltest" )
 					conn.finish if conn
 					Encoding.default_internal = prev_encoding
 				end
