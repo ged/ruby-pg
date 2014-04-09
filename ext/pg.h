@@ -101,30 +101,30 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
-typedef struct pg_type_cconverter t_type_converter;
-typedef int (* t_type_converter_enc_func)(t_type_converter *, VALUE, char *, VALUE *);
-typedef VALUE (* t_type_converter_dec_func)(t_type_converter *, char *, int, int, int, int);
+typedef struct pg_type t_pg_type;
+typedef int (* t_pg_type_enc_func)(t_pg_type *, VALUE, char *, VALUE *);
+typedef VALUE (* t_pg_type_dec_func)(t_pg_type *, char *, int, int, int, int);
 
-struct pg_type_cconverter {
-	t_type_converter_enc_func enc_func;
-	t_type_converter_dec_func dec_func;
+struct pg_type {
+	t_pg_type_enc_func enc_func;
+	t_pg_type_dec_func dec_func;
+	VALUE enc_obj;
+	VALUE dec_obj;
 	Oid oid;
 	int format;
-	void *param;
-	VALUE type;
 };
 
-struct pg_type_composite_cconverter {
-	t_type_converter comp;
-	t_type_converter elem;
+typedef struct {
+	t_pg_type comp;
+	t_pg_type *elem;
 	int needs_quotation;
-};
+} t_pg_composite_type;
 
 typedef struct {
 	int nfields;
 	int encoding_index;
 	struct pg_colmap_converter {
-		t_type_converter *cconv;
+		t_pg_type *cconv;
 	} convs[0];
 } t_colmap;
 
@@ -146,9 +146,7 @@ extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
 extern VALUE rb_cColumnMap;
 extern VALUE rb_mPG_Type;
-extern VALUE rb_cPG_Type_CConverter;
-extern VALUE rb_mPG_Type_Text;
-extern VALUE rb_mPG_Type_Binary;
+extern VALUE rb_cPG_Type_SimpleType;
 
 
 /***************************************************************************
@@ -169,12 +167,15 @@ void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_column_mapping                            _(( void ));
 void init_pg_type                                      _(( void ));
+void init_pg_type_text_encoder                         _(( void ));
+void init_pg_type_text_decoder                         _(( void ));
+void init_pg_type_binary_encoder                       _(( void ));
+void init_pg_type_binary_decoder                       _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 t_colmap *colmap_get_and_check                         _(( VALUE, int ));
-VALUE pg_type_use_or_wrap                              _(( VALUE, t_type_converter **, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
-VALUE pg_type_dec_binary_bytea                         _(( t_type_converter*, char *, int, int, int, int ));
-VALUE pg_type_dec_text_string                          _(( t_type_converter*, char *, int, int, int, int ));
+VALUE pg_type_dec_binary_bytea                         _(( t_pg_type*, char *, int, int, int, int ));
+VALUE pg_type_dec_text_string                          _(( t_pg_type*, char *, int, int, int, int ));
 
 PGconn *pg_get_pgconn	                               _(( VALUE ));
 

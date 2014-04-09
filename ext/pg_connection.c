@@ -27,7 +27,7 @@ static VALUE pgconn_set_default_encoding( VALUE self );
 #define rb_thread_fd_select rb_thread_select
 #endif
 
-static ID s_id_encode;
+static ID s_id_call;
 
 /*
  * Global functions
@@ -908,7 +908,7 @@ alloc_query_params1(VALUE _paramsData)
 	int nParams;
 	int i=0;
 	t_colmap *p_colmap;
-	t_type_converter *conv;
+	t_pg_type *conv;
 	int sum_lengths = 0;
 
 	param_mapping = paramsData->param_mapping;
@@ -962,7 +962,7 @@ alloc_query_params1(VALUE _paramsData)
 					paramsData->param_values[i] = param_value;
 				} else {
 					/* Ruby-based converter */
-					param_value = rb_funcall( conv->type, s_id_encode, 1, param_value );
+					param_value = rb_funcall( conv->enc_obj, s_id_call, 1, param_value );
 					rb_ary_push(paramsData->gc_array, param_value);
 					paramsData->values[i] = RSTRING_PTR(param_value);
 					paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
@@ -3407,7 +3407,7 @@ pgconn_set_default_encoding( VALUE self )
 void
 init_pg_connection()
 {
-	s_id_encode = rb_intern("encode");
+	s_id_call = rb_intern("call");
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
