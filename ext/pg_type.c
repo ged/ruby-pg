@@ -89,6 +89,7 @@ pg_type_encode(VALUE self, VALUE value)
 		rb_str_set_len( res, len );
 	} else if( !NIL_P(type_data->enc_obj) ){
 		res = rb_funcall( type_data->enc_obj, s_id_call, 1, value );
+		StringValue(res);
 	} else {
 		rb_raise( rb_eArgError, "no encoder defined for type %s",
 				rb_obj_classname( self ) );
@@ -113,8 +114,8 @@ pg_type_decode(int argc, VALUE *argv, VALUE self)
 		field = NUM2INT(argv[2]);
 	}
 
+	val = StringValuePtr(argv[0]);
 	if( type_data->dec_func ){
-		val = StringValuePtr(argv[0]);
 		ret = type_data->dec_func(type_data, val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
 	} else if( !NIL_P(type_data->dec_obj) ){
 		ret = rb_funcall( type_data->dec_obj, s_id_call, 3, argv[0], INT2NUM(tuple), INT2NUM(field) );
