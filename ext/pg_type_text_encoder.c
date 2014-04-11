@@ -230,7 +230,7 @@ init_pg_type_text_encoder()
 	define_encoder( "Boolean", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
 	define_encoder( "Integer", pg_type_enc_text_integer, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
 	define_encoder( "Float", pg_type_enc_text_float, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
-	define_encoder( "Text", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
+	define_encoder( "String", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
 	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
 
 	rb_cPG_Type_TextEncoder_Composite = rb_define_class_under( rb_mPG_Type_TextEncoder, "Composite", rb_cObject );

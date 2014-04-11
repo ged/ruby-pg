@@ -72,6 +72,7 @@ init_pg_type_binary_encoder()
 	define_encoder( "Int2", pg_type_enc_binary_int2, rb_cPG_Type_BinaryEncoder_Simple, rb_mPG_Type_BinaryEncoder );
 	define_encoder( "Int4", pg_type_enc_binary_int4, rb_cPG_Type_BinaryEncoder_Simple, rb_mPG_Type_BinaryEncoder );
 	define_encoder( "Int8", pg_type_enc_binary_int8, rb_cPG_Type_BinaryEncoder_Simple, rb_mPG_Type_BinaryEncoder );
+	define_encoder( "String", pg_type_enc_to_str, rb_cPG_Type_BinaryEncoder_Simple, rb_mPG_Type_BinaryEncoder );
 	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_Type_BinaryEncoder_Simple, rb_mPG_Type_BinaryEncoder );
 
 	rb_cPG_Type_BinaryEncoder_Composite = rb_define_class_under( rb_mPG_Type_BinaryEncoder, "Composite", rb_cObject );

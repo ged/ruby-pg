@@ -94,6 +94,7 @@ init_pg_type_binary_decoder()
 	define_decoder( "Boolean", pg_type_dec_binary_boolean, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
 	define_decoder( "Integer", pg_type_dec_binary_integer, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
 	define_decoder( "Float", pg_type_dec_binary_float, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
+	define_decoder( "String", pg_type_dec_text_string, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
 	define_decoder( "Bytea", pg_type_dec_binary_bytea, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
 
 	rb_cPG_Type_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_Type_BinaryDecoder, "Composite", rb_cObject );

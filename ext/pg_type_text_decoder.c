@@ -220,7 +220,7 @@ init_pg_type_text_decoder()
 	define_decoder( "Boolean", pg_type_dec_text_boolean, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
 	define_decoder( "Integer", pg_type_dec_text_integer, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
 	define_decoder( "Float", pg_type_dec_text_float, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
-	define_decoder( "Text", pg_type_dec_text_string, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
+	define_decoder( "String", pg_type_dec_text_string, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
 	define_decoder( "Bytea", pg_type_dec_text_bytea, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
 
 	rb_cPG_Type_TextDecoder_Composite = rb_define_class_under( rb_mPG_Type_TextDecoder, "Composite", rb_cObject );
