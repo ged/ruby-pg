@@ -99,6 +99,7 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 			char *buffer;
 			int j;
 			int strlen;
+			int backslashs;
 			VALUE subint;
 			VALUE entry = rb_ary_entry(value, i);
 			if( i > 0 ) *current_out++ = ',';
@@ -116,20 +117,34 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 					subint = rb_ary_entry(*intermediate, *interm_pos);
 					*interm_pos = *interm_pos + 1;
 					if(quote){
-						/* place the unquoted string at the most right side of the precalculated
-						* worst case size. Then store the quoted string on the desired position.
-						*/
-						buffer = current_out + enc_func(conv, subint, NULL, &subint) + 2;
-						strlen = enc_func(conv, entry, buffer, &subint);
+						/* Place the unescaped string at current output position. */
+						strlen = enc_func(conv, entry, current_out, &subint);
+						buffer = current_out;
+						backslashs = 0;
 
-						*current_out++ = '"';
+						/* count required backlashs */
 						for(j = 0; j < strlen; j++) {
 							if(buffer[j] == '"' || buffer[j] == '\\'){
-								*current_out++ = '\\';
+								backslashs++;
 							}
-							*current_out++ = buffer[j];
 						}
-						*current_out++ = '"';
+
+						/* 2 bytes quotation plus size of escaped string */
+						current_out += 1 + strlen + backslashs + 1;
+						*--current_out = '"';
+
+						/* Then store the quoted string on the desired position, walking
+						 * right to left, to avoid overwriting. */
+						for(j = strlen-1; j >= 0; j--) {
+							*--current_out = buffer[j];
+							if(buffer[j] == '"' || buffer[j] == '\\'){
+								*--current_out = '\\';
+							}
+						}
+						*--current_out = '"';
+						if( buffer != current_out ) rb_bug("something went wrong while escaping string for array encoding");
+
+						current_out += 1 + strlen + backslashs + 1;
 					}else{
 						current_out += enc_func(conv, entry, current_out, &subint);
 					}
@@ -186,6 +201,7 @@ pg_type_enc_text_in_ruby(t_pg_type *conv, VALUE value, char *out, VALUE *interme
 		return RSTRING_LEN(*intermediate);
 	}else{
 		*intermediate = rb_funcall( conv->enc_obj, s_id_call, 1, value );
+		StringValue( *intermediate );
 		return RSTRING_LEN(*intermediate);
 	}
 }
