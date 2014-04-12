@@ -10,6 +10,6 @@ class PG::ColumnMapping
 
 	def inspect
 		type_strings = types.map{|c| c ? "#{c.name}:#{c.format}" : 'nil' }
-		"#<PG::Type::CConverter #{type_strings.join(' ')}>"
+		"#<#{self.class} #{type_strings.join(' ')}>"
 	end
 end

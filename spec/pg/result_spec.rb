@@ -344,21 +344,30 @@ describe PG::Result do
 	end
 
 	context 'result value conversions with ColumnMapping' do
+		let!(:text_int_type) do
+			PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Integer,
+					decoder: PG::Type::TextDecoder::Integer, name: 'INT4', oid: 23
+		end
+		let!(:text_float_type) do
+			PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Float,
+					decoder: PG::Type::TextDecoder::Float, name: 'FLOAT4', oid: 700
+		end
+
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping.should be_nil
-			res.column_mapping = PG::ColumnMapping.new [PG::Type::Text::INT4]
+			res.column_mapping = PG::ColumnMapping.new [text_int_type]
 			res.column_mapping.should be_an_instance_of(PG::ColumnMapping)
-			res.column_mapping.types.should == [PG::Type::Text::INT4]
-			res.column_mapping = PG::ColumnMapping.new [PG::Type::Text::FLOAT4]
-			res.column_mapping.types.should == [PG::Type::Text::FLOAT4]
+			res.column_mapping.types.should == [text_int_type]
+			res.column_mapping = PG::ColumnMapping.new [text_float_type]
+			res.column_mapping.types.should == [text_float_type]
 			res.column_mapping = nil
 			res.column_mapping.should be_nil
 		end
 
 		it "should be applied to all value retrieving methods" do
 			res = @conn.exec( "SELECT 123 as f" )
-			res.column_mapping = PG::ColumnMapping.new [:INT2]
+			res.column_mapping = PG::ColumnMapping.new [text_int_type]
 			res.values.should == [[123]]
 			res.getvalue(0,0).should == 123
 			res[0].should == {'f' => 123 }
@@ -367,7 +376,7 @@ describe PG::Result do
 		end
 
 		it "should be usable for several querys" do
-			colmap = PG::ColumnMapping.new [:INT2]
+			colmap = PG::ColumnMapping.new [text_int_type]
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping = colmap
 			res.values.should == [[123]]

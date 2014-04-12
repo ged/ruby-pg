@@ -1268,7 +1268,7 @@ describe PG::Connection do
 		context "with default type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				@conn2.type_mapping = PG::BasicTypeMapping
+				@conn2.type_mapping = PG::BasicTypeMapping.new @conn2
 			end
 			after :each do
 				@conn2.close
@@ -1280,7 +1280,7 @@ describe PG::Connection do
 			end
 
 			it "should return the current type mapping" do
-				@conn2.type_mapping.should == PG::BasicTypeMapping
+				@conn2.type_mapping.should be_kind_of(PG::BasicTypeMapping)
 			end
 		end
 	end
