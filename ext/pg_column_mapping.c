@@ -100,14 +100,15 @@ colmap_init(VALUE self, VALUE conv_ary)
 	{
 		VALUE obj = rb_ary_entry(conv_ary, i);
 
-		if( self == Qnil ){
+		if( obj == Qnil ){
 			/* no type cast */
 			this->convs[i].cconv = NULL;
-		} else if( rb_obj_is_kind_of(self, rb_cPG_Type_SimpleType) ){
-			Check_Type(self, T_DATA);
-			this->convs[i].cconv = DATA_PTR(self);
+		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type_SimpleType) ){
+			Check_Type(obj, T_DATA);
+			this->convs[i].cconv = DATA_PTR(obj);
 		} else {
-			rb_raise(rb_eArgError, "invalid type argument %d", i+1);
+			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Type::SimpleType)",
+							 i+1, rb_obj_classname( obj ));
 		}
 
 		rb_ary_push( ary_types, obj );
