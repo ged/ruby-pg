@@ -221,7 +221,7 @@ describe PG::Result do
 		@conn.exec( 'CREATE TABLE ftabletest ( foo text )' )
 		res = @conn.exec( 'SELECT * FROM ftabletest' )
 
-		res.ftable( 0 ).should == be_nonzero()
+		res.ftable( 0 ).should be_nonzero()
 	end
 
 	it "should raise an exception when an invalid index is passed to PG::Result#ftable" do
