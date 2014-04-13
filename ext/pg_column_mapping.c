@@ -69,9 +69,9 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 	}
 
 	if ( 0 == PQfformat(result, field) ) {
-		ret = pg_type_dec_text_string(NULL, val, len, tuple, field, enc_idx);
+		ret = pg_text_dec_string(NULL, val, len, tuple, field, enc_idx);
 	} else {
-		ret = pg_type_dec_binary_bytea(NULL, val, len, tuple, field, enc_idx);
+		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, enc_idx);
 	}
 
 	if( conv ){
@@ -103,11 +103,11 @@ colmap_init(VALUE self, VALUE conv_ary)
 		if( obj == Qnil ){
 			/* no type cast */
 			this->convs[i].cconv = NULL;
-		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type_SimpleType) ){
+		} else if( rb_obj_is_kind_of(obj, rb_cPG_SimpleType) ){
 			Check_Type(obj, T_DATA);
 			this->convs[i].cconv = DATA_PTR(obj);
 		} else {
-			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Type::SimpleType)",
+			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::SimpleType)",
 							 i+1, rb_obj_classname( obj ));
 		}
 

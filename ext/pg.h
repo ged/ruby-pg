@@ -145,8 +145,7 @@ extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
 extern VALUE rb_cColumnMap;
-extern VALUE rb_mPG_Type;
-extern VALUE rb_cPG_Type_SimpleType;
+extern VALUE rb_cPG_SimpleType;
 
 
 /***************************************************************************
@@ -167,17 +166,17 @@ void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_column_mapping                            _(( void ));
 void init_pg_type                                      _(( void ));
-void init_pg_type_text_encoder                         _(( void ));
-void init_pg_type_text_decoder                         _(( void ));
-void init_pg_type_binary_encoder                       _(( void ));
-void init_pg_type_binary_decoder                       _(( void ));
+void init_pg_text_encoder                              _(( void ));
+void init_pg_text_decoder                              _(( void ));
+void init_pg_binary_encoder                            _(( void ));
+void init_pg_binary_decoder                            _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 t_colmap *colmap_get_and_check                         _(( VALUE, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
-VALUE pg_type_dec_binary_bytea                         _(( t_pg_type*, char *, int, int, int, int ));
-VALUE pg_type_dec_text_string                          _(( t_pg_type*, char *, int, int, int, int ));
+VALUE pg_bin_dec_bytea                                 _(( t_pg_type*, char *, int, int, int, int ));
+VALUE pg_text_dec_string                               _(( t_pg_type*, char *, int, int, int, int ));
 
-PGconn *pg_get_pgconn	                               _(( VALUE ));
+PGconn *pg_get_pgconn	                                 _(( VALUE ));
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
 PGresult* pgresult_get                                 _(( VALUE ));

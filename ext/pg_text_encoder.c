@@ -8,9 +8,9 @@
 #include "util.h"
 #include <inttypes.h>
 
-VALUE rb_mPG_Type_TextEncoder;
-VALUE rb_cPG_Type_TextEncoder_Simple;
-VALUE rb_cPG_Type_TextEncoder_Composite;
+VALUE rb_mPG_TextEncoder;
+VALUE rb_cPG_TextEncoder_Simple;
+VALUE rb_cPG_TextEncoder_Composite;
 static ID s_id_call;
 
 
@@ -27,7 +27,7 @@ pg_type_enc_to_str(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-pg_type_enc_text_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		if(TYPE(*intermediate) == T_STRING){
@@ -75,7 +75,7 @@ pg_type_enc_text_integer(t_pg_type *conv, VALUE value, char *out, VALUE *interme
 }
 
 static int
-pg_type_enc_text_float(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_float(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		return sprintf( out, "%.16E", NUM2DBL(value));
@@ -194,7 +194,7 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 }
 
 static int
-pg_type_enc_text_in_ruby(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_in_ruby(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if( out ){
 		memcpy(out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
@@ -207,7 +207,7 @@ pg_type_enc_text_in_ruby(t_pg_type *conv, VALUE value, char *out, VALUE *interme
 }
 
 static int
-pg_type_enc_text_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
 	int pos = -1;
@@ -215,7 +215,7 @@ pg_type_enc_text_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermedi
 		if( comp_conv->elem->enc_func ){
 			return write_array(comp_conv->elem, value, out, intermediate, comp_conv->elem->enc_func, comp_conv->needs_quotation, &pos);
 		}else{
-			return write_array(comp_conv->elem, value, out, intermediate, pg_type_enc_text_in_ruby, comp_conv->needs_quotation, &pos);
+			return write_array(comp_conv->elem, value, out, intermediate, pg_text_enc_in_ruby, comp_conv->needs_quotation, &pos);
 		}
 	}else{
 		/* no element encoder defined -> use std to_str conversion */
@@ -235,21 +235,21 @@ define_encoder( const char *name, t_pg_type_enc_func enc_func, VALUE klass, VALU
 }
 
 void
-init_pg_type_text_encoder()
+init_pg_text_encoder()
 {
 	s_id_call = rb_intern("call");
 
-	rb_mPG_Type_TextEncoder = rb_define_module_under( rb_mPG_Type, "TextEncoder" );
+	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
-	rb_cPG_Type_TextEncoder_Simple = rb_define_class_under( rb_mPG_Type_TextEncoder, "Simple", rb_cObject );
-	rb_define_attr( rb_cPG_Type_TextEncoder_Simple, "name", 1, 0 );
-	define_encoder( "Boolean", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
-	define_encoder( "Integer", pg_type_enc_text_integer, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
-	define_encoder( "Float", pg_type_enc_text_float, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
-	define_encoder( "String", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
-	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_Type_TextEncoder_Simple, rb_mPG_Type_TextEncoder );
+	rb_cPG_TextEncoder_Simple = rb_define_class_under( rb_mPG_TextEncoder, "Simple", rb_cObject );
+	rb_define_attr( rb_cPG_TextEncoder_Simple, "name", 1, 0 );
+	define_encoder( "Boolean", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	define_encoder( "Integer", pg_text_enc_integer, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	define_encoder( "Float", pg_text_enc_float, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	define_encoder( "String", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 
-	rb_cPG_Type_TextEncoder_Composite = rb_define_class_under( rb_mPG_Type_TextEncoder, "Composite", rb_cObject );
-	rb_define_attr( rb_cPG_Type_TextEncoder_Composite, "name", 1, 0 );
-	define_encoder( "Array", pg_type_enc_text_array, rb_cPG_Type_TextEncoder_Composite, rb_mPG_Type_TextEncoder );
+	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cObject );
+	rb_define_attr( rb_cPG_TextEncoder_Composite, "name", 1, 0 );
+	define_encoder( "Array", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 }

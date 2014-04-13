@@ -8,18 +8,18 @@
 #include "util.h"
 #include <inttypes.h>
 
-extern VALUE rb_cPG_Type_TextEncoder_Simple;
-extern VALUE rb_cPG_Type_TextEncoder_Composite;
-extern VALUE rb_cPG_Type_BinaryEncoder_Simple;
-extern VALUE rb_cPG_Type_BinaryEncoder_Composite;
-extern VALUE rb_cPG_Type_TextDecoder_Simple;
-extern VALUE rb_cPG_Type_TextDecoder_Composite;
-extern VALUE rb_cPG_Type_BinaryDecoder_Simple;
-extern VALUE rb_cPG_Type_BinaryDecoder_Composite;
+extern VALUE rb_cPG_TextEncoder_Simple;
+extern VALUE rb_cPG_TextEncoder_Composite;
+extern VALUE rb_cPG_BinaryEncoder_Simple;
+extern VALUE rb_cPG_BinaryEncoder_Composite;
+extern VALUE rb_cPG_TextDecoder_Simple;
+extern VALUE rb_cPG_TextDecoder_Composite;
+extern VALUE rb_cPG_BinaryDecoder_Simple;
+extern VALUE rb_cPG_BinaryDecoder_Composite;
 
 VALUE rb_mPG_Type;
-VALUE rb_cPG_Type_SimpleType;
-VALUE rb_cPG_Type_CompositeType;
+VALUE rb_cPG_SimpleType;
+VALUE rb_cPG_CompositeType;
 static ID s_id_call;
 
 
@@ -66,7 +66,7 @@ pg_type_get_and_check( VALUE self )
 {
 	Check_Type(self, T_DATA);
 
-	if ( !rb_obj_is_kind_of(self, rb_cPG_Type_SimpleType) ) {
+	if ( !rb_obj_is_kind_of(self, rb_cPG_SimpleType) ) {
 		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
 				rb_obj_classname( self ) );
 	}
@@ -179,10 +179,10 @@ typedef enum {
 } e_coder_type;
 
 static const struct { VALUE *klass0; VALUE *klass1; } coderclasses[4] = {
-	{ &rb_cPG_Type_TextEncoder_Simple, &rb_cPG_Type_BinaryEncoder_Simple },
-	{ &rb_cPG_Type_TextDecoder_Simple, &rb_cPG_Type_BinaryDecoder_Simple },
-	{ &rb_cPG_Type_TextEncoder_Composite, &rb_cPG_Type_BinaryEncoder_Composite },
-	{ &rb_cPG_Type_TextDecoder_Composite, &rb_cPG_Type_BinaryDecoder_Composite }
+	{ &rb_cPG_TextEncoder_Simple, &rb_cPG_BinaryEncoder_Simple },
+	{ &rb_cPG_TextDecoder_Simple, &rb_cPG_BinaryDecoder_Simple },
+	{ &rb_cPG_TextEncoder_Composite, &rb_cPG_BinaryEncoder_Composite },
+	{ &rb_cPG_TextDecoder_Composite, &rb_cPG_BinaryDecoder_Composite }
 };
 
 static VALUE check_and_set_coder(VALUE self, e_coder_type codertype, VALUE coder){
@@ -247,8 +247,8 @@ pg_type_elements_type_set(VALUE self, VALUE elem_type)
 {
 	t_pg_composite_type *p_type = DATA_PTR( self );
 
-	if ( !rb_obj_is_kind_of(elem_type, rb_cPG_Type_SimpleType) ){
-		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::Type::SimpleType)",
+	if ( !rb_obj_is_kind_of(elem_type, rb_cPG_SimpleType) ){
+		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::SimpleType)",
 				rb_obj_classname( self ) );
 	}
 
@@ -262,28 +262,26 @@ init_pg_type()
 {
 	s_id_call = rb_intern("call");
 
-	rb_mPG_Type = rb_define_module_under( rb_mPG, "Type" );
+	rb_cPG_SimpleType = rb_define_class_under( rb_mPG, "SimpleType", rb_cObject );
+	rb_define_alloc_func( rb_cPG_SimpleType, pg_simple_type_allocate );
+	rb_define_method( rb_cPG_SimpleType, "encoder=", pg_type_encoder_set, 1 );
+	rb_define_attr(   rb_cPG_SimpleType, "encoder", 1, 0 );
+	rb_define_method( rb_cPG_SimpleType, "decoder=", pg_type_decoder_set, 1 );
+	rb_define_attr(   rb_cPG_SimpleType, "decoder", 1, 0 );
+	rb_define_method( rb_cPG_SimpleType, "oid=", pg_type_oid_set, 1 );
+	rb_define_method( rb_cPG_SimpleType, "oid", pg_type_oid_get, 0 );
+	rb_define_method( rb_cPG_SimpleType, "format=", pg_type_format_set, 1 );
+	rb_define_method( rb_cPG_SimpleType, "format", pg_type_format_get, 0 );
+	rb_define_attr(   rb_cPG_SimpleType, "name", 1, 1 );
+	rb_define_method( rb_cPG_SimpleType, "encode", pg_type_encode, 1 );
+	rb_define_method( rb_cPG_SimpleType, "decode", pg_type_decode, -1 );
 
-	rb_cPG_Type_SimpleType = rb_define_class_under( rb_mPG_Type, "SimpleType", rb_cObject );
-	rb_define_alloc_func( rb_cPG_Type_SimpleType, pg_simple_type_allocate );
-	rb_define_method( rb_cPG_Type_SimpleType, "encoder=", pg_type_encoder_set, 1 );
-	rb_define_attr(   rb_cPG_Type_SimpleType, "encoder", 1, 0 );
-	rb_define_method( rb_cPG_Type_SimpleType, "decoder=", pg_type_decoder_set, 1 );
-	rb_define_attr(   rb_cPG_Type_SimpleType, "decoder", 1, 0 );
-	rb_define_method( rb_cPG_Type_SimpleType, "oid=", pg_type_oid_set, 1 );
-	rb_define_method( rb_cPG_Type_SimpleType, "oid", pg_type_oid_get, 0 );
-	rb_define_method( rb_cPG_Type_SimpleType, "format=", pg_type_format_set, 1 );
-	rb_define_method( rb_cPG_Type_SimpleType, "format", pg_type_format_get, 0 );
-	rb_define_attr(   rb_cPG_Type_SimpleType, "name", 1, 1 );
-	rb_define_method( rb_cPG_Type_SimpleType, "encode", pg_type_encode, 1 );
-	rb_define_method( rb_cPG_Type_SimpleType, "decode", pg_type_decode, -1 );
-
-	rb_cPG_Type_CompositeType = rb_define_class_under( rb_mPG_Type, "CompositeType", rb_cPG_Type_SimpleType );
-	rb_define_alloc_func( rb_cPG_Type_CompositeType, pg_comp_type_allocate );
-	rb_define_method( rb_cPG_Type_CompositeType, "encoder=", pg_type_composite_encoder_set, 1 );
-	rb_define_method( rb_cPG_Type_CompositeType, "decoder=", pg_type_composite_decoder_set, 1 );
-	rb_define_method( rb_cPG_Type_CompositeType, "elements_type=", pg_type_elements_type_set, 1 );
-	rb_define_attr( rb_cPG_Type_CompositeType, "elements_type", 1, 0 );
-	rb_define_method( rb_cPG_Type_CompositeType, "needs_quotation=", pg_type_needs_quotation_set, 1 );
-	rb_define_method( rb_cPG_Type_CompositeType, "needs_quotation?", pg_type_needs_quotation_get, 0 );
+	rb_cPG_CompositeType = rb_define_class_under( rb_mPG, "CompositeType", rb_cPG_SimpleType );
+	rb_define_alloc_func( rb_cPG_CompositeType, pg_comp_type_allocate );
+	rb_define_method( rb_cPG_CompositeType, "encoder=", pg_type_composite_encoder_set, 1 );
+	rb_define_method( rb_cPG_CompositeType, "decoder=", pg_type_composite_decoder_set, 1 );
+	rb_define_method( rb_cPG_CompositeType, "elements_type=", pg_type_elements_type_set, 1 );
+	rb_define_attr( rb_cPG_CompositeType, "elements_type", 1, 0 );
+	rb_define_method( rb_cPG_CompositeType, "needs_quotation=", pg_type_needs_quotation_set, 1 );
+	rb_define_method( rb_cPG_CompositeType, "needs_quotation?", pg_type_needs_quotation_get, 0 );
 }

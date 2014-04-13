@@ -8,13 +8,13 @@
 #include "util.h"
 #include <inttypes.h>
 
-VALUE rb_mPG_Type_BinaryDecoder;
-VALUE rb_cPG_Type_BinaryDecoder_Simple;
-VALUE rb_cPG_Type_BinaryDecoder_Composite;
+VALUE rb_mPG_BinaryDecoder;
+VALUE rb_cPG_BinaryDecoder_Simple;
+VALUE rb_cPG_BinaryDecoder_Composite;
 
 
 static VALUE
-pg_type_dec_binary_boolean(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_boolean(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for binary boolean converter in tuple %d field %d", tuple, field);
@@ -23,7 +23,7 @@ pg_type_dec_binary_boolean(t_pg_type *conv, char *val, int len, int tuple, int f
 }
 
 static VALUE
-pg_type_dec_binary_integer(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_integer(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	switch( len ){
 		case 2:
@@ -38,7 +38,7 @@ pg_type_dec_binary_integer(t_pg_type *conv, char *val, int len, int tuple, int f
 }
 
 static VALUE
-pg_type_dec_binary_float(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_float(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	union {
 		float f;
@@ -64,7 +64,7 @@ pg_type_dec_binary_float(t_pg_type *conv, char *val, int len, int tuple, int fie
 }
 
 VALUE
-pg_type_dec_binary_bytea(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_bytea(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret;
 	ret = rb_tainted_str_new( val, len );
@@ -85,18 +85,18 @@ define_decoder( const char *name, t_pg_type_dec_func dec_func, VALUE klass, VALU
 }
 
 void
-init_pg_type_binary_decoder()
+init_pg_binary_decoder()
 {
-	rb_mPG_Type_BinaryDecoder = rb_define_module_under( rb_mPG_Type, "BinaryDecoder" );
+	rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" );
 
-	rb_cPG_Type_BinaryDecoder_Simple = rb_define_class_under( rb_mPG_Type_BinaryDecoder, "Simple", rb_cObject );
-	rb_define_attr( rb_cPG_Type_BinaryDecoder_Simple, "name", 1, 0 );
-	define_decoder( "Boolean", pg_type_dec_binary_boolean, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
-	define_decoder( "Integer", pg_type_dec_binary_integer, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
-	define_decoder( "Float", pg_type_dec_binary_float, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
-	define_decoder( "String", pg_type_dec_text_string, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
-	define_decoder( "Bytea", pg_type_dec_binary_bytea, rb_cPG_Type_BinaryDecoder_Simple, rb_mPG_Type_BinaryDecoder );
+	rb_cPG_BinaryDecoder_Simple = rb_define_class_under( rb_mPG_BinaryDecoder, "Simple", rb_cObject );
+	rb_define_attr( rb_cPG_BinaryDecoder_Simple, "name", 1, 0 );
+	define_decoder( "Boolean", pg_bin_dec_boolean, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	define_decoder( "Integer", pg_bin_dec_integer, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	define_decoder( "Float", pg_bin_dec_float, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	define_decoder( "String", pg_text_dec_string, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	define_decoder( "Bytea", pg_bin_dec_bytea, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 
-	rb_cPG_Type_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_Type_BinaryDecoder, "Composite", rb_cObject );
-	rb_define_attr( rb_cPG_Type_BinaryDecoder_Composite, "name", 1, 0 );
+	rb_cPG_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_BinaryDecoder, "Composite", rb_cObject );
+	rb_define_attr( rb_cPG_BinaryDecoder_Composite, "name", 1, 0 );
 }

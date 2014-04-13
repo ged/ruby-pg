@@ -345,12 +345,12 @@ describe PG::Result do
 
 	context 'result value conversions with ColumnMapping' do
 		let!(:text_int_type) do
-			PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Integer,
-					decoder: PG::Type::TextDecoder::Integer, name: 'INT4', oid: 23
+			PG::SimpleType.new encoder: PG::TextEncoder::Integer,
+					decoder: PG::TextDecoder::Integer, name: 'INT4', oid: 23
 		end
 		let!(:text_float_type) do
-			PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Float,
-					decoder: PG::Type::TextDecoder::Float, name: 'FLOAT4', oid: 700
+			PG::SimpleType.new encoder: PG::TextEncoder::Float,
+					decoder: PG::TextDecoder::Float, name: 'FLOAT4', oid: 700
 		end
 
 		it "should allow reading, assigning and diabling type conversions" do

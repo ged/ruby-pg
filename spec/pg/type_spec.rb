@@ -15,14 +15,14 @@ require 'rspec'
 require 'spec/lib/helpers'
 require 'pg'
 
-describe PG::Type do
-	let!(:text_int_type) { PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Integer, decoder: PG::Type::TextDecoder::Integer }
-	let!(:text_float_type) { PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Float, decoder: PG::Type::TextDecoder::Float }
-	let!(:text_string_type) { PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::String, decoder: PG::Type::TextDecoder::String }
-	let!(:text_timestamp_type) { PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::TimestampWithoutTimeZone, decoder: PG::Type::TextDecoder::TimestampWithoutTimeZone }
-	let!(:binary_int8_type) { PG::Type::SimpleType.new encoder: PG::Type::BinaryEncoder::Int8, decoder: PG::Type::BinaryDecoder::Integer }
+describe PG::SimpleType do
+	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer }
+	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::Float, decoder: PG::TextDecoder::Float }
+	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::String, decoder: PG::TextDecoder::String }
+	let!(:text_timestamp_type) { PG::SimpleType.new encoder: PG::TextEncoder::TimestampWithoutTimeZone, decoder: PG::TextDecoder::TimestampWithoutTimeZone }
+	let!(:binary_int8_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::Int8, decoder: PG::BinaryDecoder::Integer }
 
-	describe PG::Type::SimpleType do
+	describe PG::SimpleType do
 		describe '#decode' do
 			it "should offer decode method with tuple/field" do
 				res = text_int_type.decode("123", 1, 1)
@@ -35,7 +35,7 @@ describe PG::Type do
 			end
 
 			it "should decode with ruby decoder" do
-				ruby_type = PG::Type::SimpleType.new decoder: proc{|v| v.to_i+1 }
+				ruby_type = PG::SimpleType.new decoder: proc{|v| v.to_i+1 }
 				ruby_type.decode("3").should eq 4
 			end
 
@@ -43,7 +43,7 @@ describe PG::Type do
 				expect{ text_int_type.decode() }.to raise_error(ArgumentError)
 				expect{ text_int_type.decode("123", 2, 3, 4) }.to raise_error(ArgumentError)
 				expect{ text_int_type.decode(2, 3, 4) }.to raise_error(TypeError)
-				ruby_type = PG::Type::SimpleType.new decoder: proc{|v| v.to_i+1 }
+				ruby_type = PG::SimpleType.new decoder: proc{|v| v.to_i+1 }
 				expect{ ruby_type.decode(2, 3, 4) }.to raise_error(TypeError)
 			end
 		end
@@ -66,23 +66,23 @@ describe PG::Type do
 			end
 
 			it "should encode with ruby encoder" do
-				ruby_type = PG::Type::SimpleType.new encoder: proc{|v| (v+1).to_s }
+				ruby_type = PG::SimpleType.new encoder: proc{|v| (v+1).to_s }
 				ruby_type.encode(3).should eq "4"
 			end
 
 			it "should raise when ruby encoder returns non string values" do
-				ruby_type = PG::Type::SimpleType.new encoder: proc{|v| v+1 }
+				ruby_type = PG::SimpleType.new encoder: proc{|v| v+1 }
 				expect{ ruby_type.encode(3) }.to raise_error(TypeError)
 			end
 		end
 	end
 
-	describe PG::Type::CompositeType do
+	describe PG::CompositeType do
 		describe "Array types" do
-			let!(:text_string_array_type) { PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, decoder: PG::Type::TextDecoder::Array, elements_type: text_string_type }
-			let!(:text_int_array_type) { PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, decoder: PG::Type::TextDecoder::Array, elements_type: text_int_type, needs_quotation: false }
-			let!(:text_float_array_type) { PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, decoder: PG::Type::TextDecoder::Array, elements_type: text_float_type, needs_quotation: false }
-			let!(:text_timestamp_array_type) { PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, decoder: PG::Type::TextDecoder::Array, elements_type: text_timestamp_type, needs_quotation: false }
+			let!(:text_string_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_string_type }
+			let!(:text_int_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_int_type, needs_quotation: false }
+			let!(:text_float_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_float_type, needs_quotation: false }
+			let!(:text_timestamp_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_timestamp_type, needs_quotation: false }
 
 			#
 			# Array parser specs are thankfully borrowed from here:
@@ -187,8 +187,8 @@ describe PG::Type do
 				end
 
 				it 'should decode array of types with decoder in ruby space' do
-					ruby_type = PG::Type::SimpleType.new decoder: proc{|v| v.to_i+1 }
-					array_type = PG::Type::CompositeType.new decoder: PG::Type::TextDecoder::Array, elements_type: ruby_type
+					ruby_type = PG::SimpleType.new decoder: proc{|v| v.to_i+1 }
+					array_type = PG::CompositeType.new decoder: PG::TextDecoder::Array, elements_type: ruby_type
 					array_type.decode(%[{3,4}]).should eq [4,5]
 				end
 			end
@@ -215,20 +215,20 @@ describe PG::Type do
 
 				context 'array of types with encoder in ruby space' do
 					it 'encodes with quotation' do
-						ruby_type = PG::Type::SimpleType.new encoder: proc{|v| (v+1).to_s }
-						array_type = PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, elements_type: ruby_type, needs_quotation: true
+						ruby_type = PG::SimpleType.new encoder: proc{|v| (v+1).to_s }
+						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: true
 						array_type.encode([3,4]).should eq %[{"4","5"}]
 					end
 
 					it 'encodes without quotation' do
-						ruby_type = PG::Type::SimpleType.new encoder: proc{|v| (v+1).to_s }
-						array_type = PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
+						ruby_type = PG::SimpleType.new encoder: proc{|v| (v+1).to_s }
+						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
 						array_type.encode([3,4]).should eq %[{4,5}]
 					end
 
 					it "should raise when ruby encoder returns non string values" do
-						ruby_type = PG::Type::SimpleType.new encoder: proc{|v| v+1 }
-						array_type = PG::Type::CompositeType.new encoder: PG::Type::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
+						ruby_type = PG::SimpleType.new encoder: proc{|v| v+1 }
+						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
 						expect{ array_type.encode([3,4]) }.to raise_error(TypeError)
 					end
 				end

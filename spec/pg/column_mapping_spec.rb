@@ -34,19 +34,19 @@ describe PG::ColumnMapping do
 	end
 
 	let!(:text_int_type) do
-		PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Integer,
-				decoder: PG::Type::TextDecoder::Integer, name: 'INT4', oid: 23
+		PG::SimpleType.new encoder: PG::TextEncoder::Integer,
+				decoder: PG::TextDecoder::Integer, name: 'INT4', oid: 23
 	end
 	let!(:text_float_type) do
-		PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::Float,
-				decoder: PG::Type::TextDecoder::Float, name: 'FLOAT4', oid: 700
+		PG::SimpleType.new encoder: PG::TextEncoder::Float,
+				decoder: PG::TextDecoder::Float, name: 'FLOAT4', oid: 700
 	end
 	let!(:text_string_type) do
-		PG::Type::SimpleType.new encoder: PG::Type::TextEncoder::String,
-				decoder: PG::Type::TextDecoder::String, name: 'TEXT', oid: 25
+		PG::SimpleType.new encoder: PG::TextEncoder::String,
+				decoder: PG::TextDecoder::String, name: 'TEXT', oid: 25
 	end
 	let!(:pass_through_type) do
-		type = PG::Type::SimpleType.new encoder: proc{|v| v }, decoder: proc{|*v| v }
+		type = PG::SimpleType.new encoder: proc{|v| v }, decoder: proc{|*v| v }
 		type.oid = 123456
 		type.format = 1
 		type.name = 'pass_through'
@@ -145,7 +145,7 @@ describe PG::ColumnMapping do
 
 	class Exception_in_decode
 		def self.column_mapping_for_result(result)
-			types = result.nfields.times.map{ PG::Type::SimpleType.new decoder: self }
+			types = result.nfields.times.map{ PG::SimpleType.new decoder: self }
 			PG::ColumnMapping.new( types )
 		end
 		def self.call(res, tuple, field)

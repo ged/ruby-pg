@@ -8,14 +8,14 @@
 #include "util.h"
 #include <inttypes.h>
 
-VALUE rb_mPG_Type_TextDecoder;
-VALUE rb_cPG_Type_TextDecoder_Simple;
-VALUE rb_cPG_Type_TextDecoder_Composite;
+VALUE rb_mPG_TextDecoder;
+VALUE rb_cPG_TextDecoder_Simple;
+VALUE rb_cPG_TextDecoder_Composite;
 static ID s_id_call;
 
 
 static VALUE
-pg_type_dec_text_boolean(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_boolean(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for text boolean converter in tuple %d field %d", tuple, field);
@@ -24,7 +24,7 @@ pg_type_dec_text_boolean(t_pg_type *conv, char *val, int len, int tuple, int fie
 }
 
 VALUE
-pg_type_dec_text_string(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_string(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret = rb_tainted_str_new( val, len );
 #ifdef M17N_SUPPORTED
@@ -34,19 +34,19 @@ pg_type_dec_text_string(t_pg_type *conv, char *val, int len, int tuple, int fiel
 }
 
 static VALUE
-pg_type_dec_text_integer(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_integer(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_cstr2inum(val, 10);
 }
 
 static VALUE
-pg_type_dec_text_float(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_float(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_float_new(strtod(val, NULL));
 }
 
 static VALUE
-pg_type_dec_text_bytea(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_bytea(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	unsigned char *to;
 	size_t to_len;
@@ -163,7 +163,7 @@ read_array(t_pg_type *conv, int *index, char *c_pg_array_string, int array_strin
 }
 
 static VALUE
-pg_type_dec_text_array_helper(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx, t_pg_type_dec_func dec_func)
+pg_text_dec_array_helper(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx, t_pg_type_dec_func dec_func)
 {
 	/* create a buffer of the same length, as that will be the worst case */
 	char *word = xmalloc(len + 1);
@@ -175,25 +175,25 @@ pg_type_dec_text_array_helper(t_pg_type *conv, char *val, int len, int tuple, in
 }
 
 static VALUE
-pg_type_dec_text_in_ruby(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_in_ruby(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
-	VALUE string = pg_type_dec_text_string(conv, val, len, tuple, field, enc_idx);
+	VALUE string = pg_text_dec_string(conv, val, len, tuple, field, enc_idx);
 	return rb_funcall( conv->dec_obj, s_id_call, 3, string, INT2NUM(tuple), INT2NUM(field) );
 }
 
 static VALUE
-pg_type_dec_text_array(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_array(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
 	if( comp_conv->elem ){
 		if( comp_conv->elem->dec_func ){
-			return pg_type_dec_text_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, comp_conv->elem->dec_func);
+			return pg_text_dec_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, comp_conv->elem->dec_func);
 		}else{
-			return pg_type_dec_text_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, pg_type_dec_text_in_ruby);
+			return pg_text_dec_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, pg_text_dec_in_ruby);
 		}
 	}else{
 		/* no element decoder defined -> use std String conversion */
-		return pg_type_dec_text_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, pg_type_dec_text_string);
+		return pg_text_dec_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, pg_text_dec_string);
 	}
 }
 
@@ -209,21 +209,21 @@ define_decoder( const char *name, t_pg_type_dec_func dec_func, VALUE klass, VALU
 }
 
 void
-init_pg_type_text_decoder()
+init_pg_text_decoder()
 {
 	s_id_call = rb_intern("call");
 
-	rb_mPG_Type_TextDecoder = rb_define_module_under( rb_mPG_Type, "TextDecoder" );
+	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
 
-	rb_cPG_Type_TextDecoder_Simple = rb_define_class_under( rb_mPG_Type_TextDecoder, "Simple", rb_cObject );
-	rb_define_attr( rb_cPG_Type_TextDecoder_Simple, "name", 1, 0 );
-	define_decoder( "Boolean", pg_type_dec_text_boolean, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
-	define_decoder( "Integer", pg_type_dec_text_integer, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
-	define_decoder( "Float", pg_type_dec_text_float, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
-	define_decoder( "String", pg_type_dec_text_string, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
-	define_decoder( "Bytea", pg_type_dec_text_bytea, rb_cPG_Type_TextDecoder_Simple, rb_mPG_Type_TextDecoder );
+	rb_cPG_TextDecoder_Simple = rb_define_class_under( rb_mPG_TextDecoder, "Simple", rb_cObject );
+	rb_define_attr( rb_cPG_TextDecoder_Simple, "name", 1, 0 );
+	define_decoder( "Boolean", pg_text_dec_boolean, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	define_decoder( "Integer", pg_text_dec_integer, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	define_decoder( "Float", pg_text_dec_float, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	define_decoder( "String", pg_text_dec_string, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	define_decoder( "Bytea", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 
-	rb_cPG_Type_TextDecoder_Composite = rb_define_class_under( rb_mPG_Type_TextDecoder, "Composite", rb_cObject );
-	rb_define_attr( rb_cPG_Type_TextDecoder_Composite, "name", 1, 0 );
-	define_decoder( "Array", pg_type_dec_text_array, rb_cPG_Type_TextDecoder_Composite, rb_mPG_Type_TextDecoder );
+	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cObject );
+	rb_define_attr( rb_cPG_TextDecoder_Composite, "name", 1, 0 );
+	define_decoder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
 }
