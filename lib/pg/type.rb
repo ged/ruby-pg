@@ -2,7 +2,7 @@
 
 module PG
 
-	class SimpleType
+	class Type
 		def initialize(params={})
 			params.each do |key, val|
 				send("#{key}=", val)
@@ -24,7 +24,7 @@ module PG
 		end
 	end
 
-	class CompositeType < SimpleType
+	class CompositeType < Type
 		def to_h
 			super.merge!({
 				element_type: element_type,

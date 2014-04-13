@@ -103,11 +103,11 @@ colmap_init(VALUE self, VALUE conv_ary)
 		if( obj == Qnil ){
 			/* no type cast */
 			this->convs[i].cconv = NULL;
-		} else if( rb_obj_is_kind_of(obj, rb_cPG_SimpleType) ){
+		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type) ){
 			Check_Type(obj, T_DATA);
 			this->convs[i].cconv = DATA_PTR(obj);
 		} else {
-			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::SimpleType)",
+			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Type)",
 							 i+1, rb_obj_classname( obj ));
 		}
 

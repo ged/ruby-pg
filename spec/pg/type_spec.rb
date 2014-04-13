@@ -15,12 +15,16 @@ require 'rspec'
 require 'spec/lib/helpers'
 require 'pg'
 
-describe PG::SimpleType do
+describe PG::Type do
 	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer }
 	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::Float, decoder: PG::TextDecoder::Float }
 	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::String, decoder: PG::TextDecoder::String }
 	let!(:text_timestamp_type) { PG::SimpleType.new encoder: PG::TextEncoder::TimestampWithoutTimeZone, decoder: PG::TextDecoder::TimestampWithoutTimeZone }
 	let!(:binary_int8_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::Int8, decoder: PG::BinaryDecoder::Integer }
+
+	it "shouldn't be possible to build a PG::Type directly" do
+		expect{ PG::Type.new }.to raise_error(TypeError, /cannot/)
+	end
 
 	describe PG::SimpleType do
 		describe '#decode' do

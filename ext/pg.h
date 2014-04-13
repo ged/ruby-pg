@@ -145,7 +145,7 @@ extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
 extern VALUE rb_cColumnMap;
-extern VALUE rb_cPG_SimpleType;
+extern VALUE rb_cPG_Type;
 
 
 /***************************************************************************

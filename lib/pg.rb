@@ -43,7 +43,7 @@ module PG
 
 	require 'pg/exceptions'
 	require 'pg/constants'
-	require 'pg/simple_type'
+	require 'pg/type'
 	require 'pg/text_encoder'
 	require 'pg/text_decoder'
 	require 'pg/basic_type_mapping'
