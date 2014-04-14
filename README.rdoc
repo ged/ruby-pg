@@ -72,20 +72,22 @@ avoiding String allocations for each value.
 
 Pg's type casting is divided into 4 layers:
 
-=== Encoders / Decoders (ext/pg_type.c)
+=== Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
 
 This is the lowest layer, containing encoding functions that convert Ruby
 objects for transmission to the DBMS and decoding functions to convert
-received data back to Ruby objects. The functions are implemented in C and
-not directly usable from Ruby space.
+received data back to Ruby objects. The C-functions are reachable from Ruby
+in namespaces PG::TextEncoder, PG::TextDecoder, PG::BinaryEncoder and
+PG::BinaryDecoder. They can be assigned to a PG::Type object.
 
 === PG::Type (ext/pg_type.c)
 
-Type objects in this namespace bind an encoding and a decoding function to
-a particular type OID and format code (text or binary). They are accessible
-from Ruby and are implemented in C or Ruby. Type objects can be used to
-build ColumnMappings and to convert single values to/from their string
-representation.
+A PG::Type object binds an encoding and a decoding function, a type OID,
+format code (text or binary) and optionally a name together.
+A PG::CompositeType in addition defines the PG::Type that should be used
+for en-/decoding of it's elements. Type objects can be used to convert
+single values to/from their string representation and to build
+PG::ColumnMapping objects.
 
 === PG::ColumnMapping (ext/pg_column_mapping.c)
 
@@ -100,7 +102,7 @@ A type mapping defines the logic to select which Ruby type is converted to
 which text/binary representation and OID for query params and vice versa
 for result values.
 It builds a ColumnMapping out of a given set of query parameters or a given
-PG::Result object. Pg defines BasicTypeMapping, that could be extended
+PG::Result object. PG itself defines BasicTypeMapping, that could be extended
 or replaced in order to define customized conversion rules.
 
 With Connection#type_mapping= a connection wide default type mapping can be
