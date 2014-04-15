@@ -177,6 +177,7 @@ t_colmap *colmap_get_and_check                         _(( VALUE, int ));
 VALUE colmap_result_value                              _(( VALUE, PGresult *, int, int, t_colmap * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_type*, char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_type*, char *, int, int, int, int ));
+void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
 
 PGconn *pg_get_pgconn	                                 _(( VALUE ));
 

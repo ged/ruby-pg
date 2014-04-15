@@ -3,20 +3,13 @@
 module PG
 
 	class Coder
-		NAMESPACES = [
-			{ encoder: PG::TextEncoder,
-		    decoder: PG::TextDecoder },
-			{ encoder: PG::BinaryEncoder,
-		    decoder: PG::BinaryDecoder },
-		]
-
 		def _dump(level)
-			Marshal.dump([name, format, direction])
+			name
 		end
 
-		def self._load(obj)
-			name, format, direction = *Marshal.load(obj)
-			NAMESPACES[format][direction].const_get(name)
+		def self._load(qname)
+			_, nsp, name = *qname.split('::')
+			PG.const_get(nsp).const_get(name)
 		end
 	end
 

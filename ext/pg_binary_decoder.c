@@ -74,29 +74,17 @@ pg_bin_dec_bytea(t_pg_type *conv, char *val, int len, int tuple, int field, int 
 	return ret;
 }
 
-static void
-define_decoder( const char *name, t_pg_type_dec_func dec_func, VALUE klass, VALUE nsp )
-{
-  VALUE type_obj = Data_Wrap_Struct( klass, NULL, NULL, dec_func );
-  rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
-  rb_iv_set( type_obj, "@format", INT2NUM( 1 ));
-  rb_iv_set( type_obj, "@direction", ID2SYM(rb_intern( "decoder" )));
-  rb_define_const( nsp, name, type_obj );
-
-  RB_GC_GUARD(type_obj);
-}
-
 void
 init_pg_binary_decoder()
 {
 	rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" );
 
 	rb_cPG_BinaryDecoder_Simple = rb_define_class_under( rb_mPG_BinaryDecoder, "Simple", rb_cPG_Coder );
-	define_decoder( "Boolean", pg_bin_dec_boolean, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
-	define_decoder( "Integer", pg_bin_dec_integer, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
-	define_decoder( "Float", pg_bin_dec_float, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
-	define_decoder( "String", pg_text_dec_string, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
-	define_decoder( "Bytea", pg_bin_dec_bytea, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	pg_define_coder( "Boolean", pg_bin_dec_boolean, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	pg_define_coder( "Integer", pg_bin_dec_integer, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	pg_define_coder( "Float", pg_bin_dec_float, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	pg_define_coder( "String", pg_text_dec_string, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
+	pg_define_coder( "Bytea", pg_bin_dec_bytea, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 
 	rb_cPG_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_BinaryDecoder, "Composite", rb_cPG_Coder );
 }

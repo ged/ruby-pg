@@ -198,18 +198,6 @@ pg_text_dec_array(t_pg_type *conv, char *val, int len, int tuple, int field, int
 }
 
 
-static void
-define_decoder( const char *name, t_pg_type_dec_func dec_func, VALUE klass, VALUE nsp )
-{
-  VALUE type_obj = Data_Wrap_Struct( klass, NULL, NULL, dec_func );
-  rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
-  rb_iv_set( type_obj, "@format", INT2NUM( 0 ));
-  rb_iv_set( type_obj, "@direction", ID2SYM(rb_intern( "decoder" )));
-  rb_define_const( nsp, name, type_obj );
-
-  RB_GC_GUARD(type_obj);
-}
-
 void
 init_pg_text_decoder()
 {
@@ -218,12 +206,12 @@ init_pg_text_decoder()
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
 
 	rb_cPG_TextDecoder_Simple = rb_define_class_under( rb_mPG_TextDecoder, "Simple", rb_cPG_Coder );
-	define_decoder( "Boolean", pg_text_dec_boolean, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	define_decoder( "Integer", pg_text_dec_integer, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	define_decoder( "Float", pg_text_dec_float, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	define_decoder( "String", pg_text_dec_string, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	define_decoder( "Bytea", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "Boolean", pg_text_dec_boolean, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "Integer", pg_text_dec_integer, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "Float", pg_text_dec_float, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "String", pg_text_dec_string, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "Bytea", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 
 	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cPG_Coder );
-	define_decoder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
+	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
 }
