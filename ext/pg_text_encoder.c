@@ -251,6 +251,5 @@ init_pg_text_encoder()
 	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 
 	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
-	rb_define_attr( rb_cPG_TextEncoder_Composite, "name", 1, 0 );
 	define_encoder( "Array", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 }

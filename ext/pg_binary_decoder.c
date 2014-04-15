@@ -99,5 +99,4 @@ init_pg_binary_decoder()
 	define_decoder( "Bytea", pg_bin_dec_bytea, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 
 	rb_cPG_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_BinaryDecoder, "Composite", rb_cPG_Coder );
-	rb_define_attr( rb_cPG_BinaryDecoder_Composite, "name", 1, 0 );
 }

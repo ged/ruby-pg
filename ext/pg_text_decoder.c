@@ -225,6 +225,5 @@ init_pg_text_decoder()
 	define_decoder( "Bytea", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 
 	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cPG_Coder );
-	rb_define_attr( rb_cPG_TextDecoder_Composite, "name", 1, 0 );
 	define_decoder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
 }

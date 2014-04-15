@@ -77,5 +77,4 @@ init_pg_binary_encoder()
 	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
 
 	rb_cPG_BinaryEncoder_Composite = rb_define_class_under( rb_mPG_BinaryEncoder, "Composite", rb_cPG_Coder );
-	rb_define_attr( rb_cPG_BinaryEncoder_Composite, "name", 1, 0 );
 }
