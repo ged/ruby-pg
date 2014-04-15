@@ -203,6 +203,8 @@ define_decoder( const char *name, t_pg_type_dec_func dec_func, VALUE klass, VALU
 {
   VALUE type_obj = Data_Wrap_Struct( klass, NULL, NULL, dec_func );
   rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
+  rb_iv_set( type_obj, "@format", INT2NUM( 0 ));
+  rb_iv_set( type_obj, "@direction", ID2SYM(rb_intern( "decoder" )));
   rb_define_const( nsp, name, type_obj );
 
   RB_GC_GUARD(type_obj);
@@ -215,15 +217,14 @@ init_pg_text_decoder()
 
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
 
-	rb_cPG_TextDecoder_Simple = rb_define_class_under( rb_mPG_TextDecoder, "Simple", rb_cObject );
-	rb_define_attr( rb_cPG_TextDecoder_Simple, "name", 1, 0 );
+	rb_cPG_TextDecoder_Simple = rb_define_class_under( rb_mPG_TextDecoder, "Simple", rb_cPG_Coder );
 	define_decoder( "Boolean", pg_text_dec_boolean, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 	define_decoder( "Integer", pg_text_dec_integer, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 	define_decoder( "Float", pg_text_dec_float, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 	define_decoder( "String", pg_text_dec_string, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 	define_decoder( "Bytea", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 
-	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cObject );
+	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cPG_Coder );
 	rb_define_attr( rb_cPG_TextDecoder_Composite, "name", 1, 0 );
 	define_decoder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
 }

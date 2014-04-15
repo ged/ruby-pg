@@ -16,7 +16,7 @@ require 'spec/lib/helpers'
 require 'pg'
 
 describe PG::Type do
-	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer }
+	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer, name: 'Integer', oid: 23 }
 	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::Float, decoder: PG::TextDecoder::Float }
 	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::String, decoder: PG::TextDecoder::String }
 	let!(:text_timestamp_type) { PG::SimpleType.new encoder: PG::TextEncoder::TimestampWithoutTimeZone, decoder: PG::TextDecoder::TimestampWithoutTimeZone }
@@ -78,6 +78,12 @@ describe PG::Type do
 				ruby_type = PG::SimpleType.new encoder: proc{|v| v+1 }
 				expect{ ruby_type.encode(3) }.to raise_error(TypeError)
 			end
+		end
+
+		it "should be possible to marshal types" do
+			mt = Marshal.dump(text_int_type)
+			lt = Marshal.load(mt)
+			lt.to_h.should == text_int_type.to_h
 		end
 	end
 
@@ -236,6 +242,12 @@ describe PG::Type do
 						expect{ array_type.encode([3,4]) }.to raise_error(TypeError)
 					end
 				end
+			end
+
+			it "should be possible to marshal types" do
+				mt = Marshal.dump(text_int_array_type)
+				lt = Marshal.load(mt)
+				lt.to_h.should == text_int_array_type.to_h
 			end
 		end
 	end

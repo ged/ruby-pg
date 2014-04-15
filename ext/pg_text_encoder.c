@@ -229,6 +229,8 @@ define_encoder( const char *name, t_pg_type_enc_func enc_func, VALUE klass, VALU
 {
 	VALUE type_obj = Data_Wrap_Struct( klass, NULL, NULL, enc_func );
 	rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
+  rb_iv_set( type_obj, "@format", INT2NUM( 0 ));
+  rb_iv_set( type_obj, "@direction", ID2SYM(rb_intern( "encoder" )));
 	rb_define_const( nsp, name, type_obj );
 
 	RB_GC_GUARD(type_obj);
@@ -241,15 +243,14 @@ init_pg_text_encoder()
 
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
-	rb_cPG_TextEncoder_Simple = rb_define_class_under( rb_mPG_TextEncoder, "Simple", rb_cObject );
-	rb_define_attr( rb_cPG_TextEncoder_Simple, "name", 1, 0 );
+	rb_cPG_TextEncoder_Simple = rb_define_class_under( rb_mPG_TextEncoder, "Simple", rb_cPG_Coder );
 	define_encoder( "Boolean", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 	define_encoder( "Integer", pg_text_enc_integer, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 	define_encoder( "Float", pg_text_enc_float, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 	define_encoder( "String", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 	define_encoder( "Bytea", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 
-	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cObject );
+	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
 	rb_define_attr( rb_cPG_TextEncoder_Composite, "name", 1, 0 );
 	define_encoder( "Array", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 }

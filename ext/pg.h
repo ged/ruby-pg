@@ -146,6 +146,7 @@ extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
 extern VALUE rb_cColumnMap;
 extern VALUE rb_cPG_Type;
+extern VALUE rb_cPG_Coder;
 
 
 /***************************************************************************
@@ -166,6 +167,7 @@ void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_column_mapping                            _(( void ));
 void init_pg_type                                      _(( void ));
+void init_pg_coder                                     _(( void ));
 void init_pg_text_encoder                              _(( void ));
 void init_pg_text_decoder                              _(( void ));
 void init_pg_binary_encoder                            _(( void ));

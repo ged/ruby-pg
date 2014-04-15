@@ -79,6 +79,8 @@ define_decoder( const char *name, t_pg_type_dec_func dec_func, VALUE klass, VALU
 {
   VALUE type_obj = Data_Wrap_Struct( klass, NULL, NULL, dec_func );
   rb_iv_set( type_obj, "@name", rb_obj_freeze(rb_str_new_cstr(name)) );
+  rb_iv_set( type_obj, "@format", INT2NUM( 1 ));
+  rb_iv_set( type_obj, "@direction", ID2SYM(rb_intern( "decoder" )));
   rb_define_const( nsp, name, type_obj );
 
   RB_GC_GUARD(type_obj);
@@ -89,14 +91,13 @@ init_pg_binary_decoder()
 {
 	rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" );
 
-	rb_cPG_BinaryDecoder_Simple = rb_define_class_under( rb_mPG_BinaryDecoder, "Simple", rb_cObject );
-	rb_define_attr( rb_cPG_BinaryDecoder_Simple, "name", 1, 0 );
+	rb_cPG_BinaryDecoder_Simple = rb_define_class_under( rb_mPG_BinaryDecoder, "Simple", rb_cPG_Coder );
 	define_decoder( "Boolean", pg_bin_dec_boolean, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 	define_decoder( "Integer", pg_bin_dec_integer, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 	define_decoder( "Float", pg_bin_dec_float, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 	define_decoder( "String", pg_text_dec_string, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 	define_decoder( "Bytea", pg_bin_dec_bytea, rb_cPG_BinaryDecoder_Simple, rb_mPG_BinaryDecoder );
 
-	rb_cPG_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_BinaryDecoder, "Composite", rb_cObject );
+	rb_cPG_BinaryDecoder_Composite = rb_define_class_under( rb_mPG_BinaryDecoder, "Composite", rb_cPG_Coder );
 	rb_define_attr( rb_cPG_BinaryDecoder_Composite, "name", 1, 0 );
 }
