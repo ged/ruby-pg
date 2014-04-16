@@ -15,7 +15,7 @@ require 'rspec'
 require 'spec/lib/helpers'
 require 'pg'
 
-describe PG::Type do
+describe "PG::Type derivations" do
 	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer, name: 'Integer', oid: 23 }
 	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::Float, decoder: PG::TextDecoder::Float }
 	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::String, decoder: PG::TextDecoder::String }
@@ -90,6 +90,15 @@ describe PG::Type do
 			text_int_type.to_h.should == {
 				encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer, name: 'Integer', oid: 23, format: 0
 			}
+		end
+
+		it "should have reasonable default values" do
+			t = described_class.new
+			t.encoder.should be_nil
+			t.decoder.should be_nil
+			t.format.should == 0
+			t.oid.should == 0
+			t.name.should be_nil
 		end
 	end
 
@@ -261,6 +270,17 @@ describe PG::Type do
 					encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, name: nil, oid: 0, format: 0,
 					elements_type: text_int_type, needs_quotation: false
 				}
+			end
+
+			it "should have reasonable default values" do
+				t = described_class.new
+				t.encoder.should be_nil
+				t.decoder.should be_nil
+				t.format.should == 0
+				t.oid.should == 0
+				t.name.should be_nil
+				t.needs_quotation?.should be true
+				t.elements_type.should be_nil
 			end
 		end
 	end
