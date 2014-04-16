@@ -1,3 +1,9 @@
+== v0.18.0 [unreleased]
+
+Enhancements:
+
+- Add an extensible type cast system.
+
 == v0.17.1 [2013-12-18] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
