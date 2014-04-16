@@ -85,6 +85,12 @@ describe PG::Type do
 			lt = Marshal.load(mt)
 			lt.to_h.should == text_int_type.to_h
 		end
+
+		it "should respond to to_h" do
+			text_int_type.to_h.should == {
+				encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer, name: 'Integer', oid: 23, format: 0
+			}
+		end
 	end
 
 	describe PG::CompositeType do
@@ -248,6 +254,13 @@ describe PG::Type do
 				mt = Marshal.dump(text_int_array_type)
 				lt = Marshal.load(mt)
 				lt.to_h.should == text_int_array_type.to_h
+			end
+
+			it "should respond to to_h" do
+				text_int_array_type.to_h.should == {
+					encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, name: nil, oid: 0, format: 0,
+					elements_type: text_int_type, needs_quotation: false
+				}
 			end
 		end
 	end
