@@ -3,12 +3,6 @@
 module PG
 
 	class Type
-		NAMESPACES = [
-			{ encoder: PG::TextEncoder,
-				decoder: PG::TextDecoder },
-			{ encoder: PG::BinaryEncoder,
-				decoder: PG::BinaryDecoder },
-		]
 
 		def initialize(params={})
 			params.each do |key, val|
