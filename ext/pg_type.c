@@ -174,7 +174,7 @@ static VALUE
 pg_type_needs_quotation_get(VALUE self)
 {
 	t_pg_composite_type *type_data = DATA_PTR(self);
-	return type_data->needs_quotation ? Qtrue : Qnil;
+	return type_data->needs_quotation ? Qtrue : Qfalse;
 }
 
 typedef enum {
