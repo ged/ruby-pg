@@ -36,6 +36,57 @@ pg_text_dec_string(t_pg_type *conv, char *val, int len, int tuple, int field, in
 static VALUE
 pg_text_dec_integer(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
+	long i;
+	int max_len;
+
+	if( sizeof(i) >= 8 && FIXNUM_MAX >= 1000000000000000000LL ){
+		/* 64 bit system can safely handle all numbers up to 18 digits as Fixnum */
+		max_len = 18;
+	} else if( sizeof(i) >= 4 && FIXNUM_MAX >= 1000000000LL ){
+		/* 32 bit system can safely handle all numbers up to 9 digits as Fixnum */
+		max_len = 9;
+	} else {
+		/* unknown -> don't use fast path for int conversion */
+		max_len = 0;
+	}
+
+	if( len <= max_len ){
+		/* rb_cstr2inum() seems to be slow, so we do the int conversion by hand.
+		 * This proved to be 40% faster by the following benchmark:
+		 *
+		 *   conn.type_mapping = PG::BasicTypeMapping.new conn
+		 *   Benchmark.measure do
+		 *     conn.exec("select generate_series(1,1000000)").values }
+		 *   end
+		 */
+		char *val_pos = val;
+		char digit = *val_pos;
+		int neg;
+		int error = 0;
+
+		if( digit=='-' ){
+			neg = 1;
+			i = 0;
+		}else if( digit>='0' && digit<='9' ){
+			neg = 0;
+			i = digit - '0';
+		} else {
+			error = 1;
+		}
+
+		while (!error && (digit=*++val_pos)) {
+			if( digit>='0' && digit<='9' ){
+				i = i * 10 + (digit - '0');
+			} else {
+				error = 1;
+			}
+		}
+
+		if( !error ){
+			return LONG2FIX(neg ? -i : i);
+		}
+	}
+	/* Fallback to ruby method if number too big or unrecognized. */
 	return rb_cstr2inum(val, 10);
 }
 
