@@ -70,6 +70,14 @@ Pg can optional type cast result and query parameters in Ruby and native
 C code. This can speed up data transfers to and from the database by
 avoiding String allocations for each value.
 
+Standard type casting for result and param values can be enabled by:
+
+    conn.type_mapping = PG::BasicTypeMapping.new conn
+    conn.exec("select 1, now()").values
+        # => [[1, 2014-04-17 22:58:01 +0200]]
+    conn.exec_params("SELECT $1, $2", [1, Time.now]).values
+        # => [[1, 2014-04-17 22:58:47 +0200]]
+
 Pg's type casting is divided into 4 layers:
 
 === Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
