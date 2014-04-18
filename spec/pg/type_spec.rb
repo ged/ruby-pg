@@ -64,8 +64,10 @@ describe "PG::Type derivations" do
 			end
 
 			it "should encode integers of different length to text format" do
+				text_int_type.encode(0).should == "0"
 				30.times do |zeros|
 					text_int_type.encode(10 ** zeros).should == "1" + "0"*zeros
+					text_int_type.encode(-10 ** zeros).should == "-1" + "0"*zeros
 				end
 			end
 

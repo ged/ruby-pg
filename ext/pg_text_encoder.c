@@ -38,36 +38,39 @@ pg_text_enc_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate
 	}else{
 		*intermediate = rb_to_int(value);
 		if(TYPE(*intermediate) == T_FIXNUM){
-			long long ll = NUM2LL(*intermediate);
+			int len;
+			long long sll = NUM2LL(*intermediate);
+			long long ll = sll < 0 ? -sll : sll;
 			if( ll < 100000000 ){
 				if( ll < 10000 ){
 					if( ll < 100 ){
-						return ll < 10 ? 1 : 2;
+						len = ll < 10 ? 1 : 2;
 					}else{
-						return ll < 1000 ? 3 : 4;
+						len = ll < 1000 ? 3 : 4;
 					}
 				}else{
 					if( ll < 1000000 ){
-						return ll < 100000 ? 5 : 6;
+						len = ll < 100000 ? 5 : 6;
 					}else{
-						return ll < 10000000 ? 7 : 8;
+						len = ll < 10000000 ? 7 : 8;
 					}
 				}
 			}else{
 				if( ll < 1000000000000 ){
 					if( ll < 10000000000 ){
-						return ll < 1000000000 ? 9 : 10;
+						len = ll < 1000000000 ? 9 : 10;
 					}else{
-						return ll < 100000000000 ? 11 : 12;
+						len = ll < 100000000000 ? 11 : 12;
 					}
 				}else{
 					if( ll < 100000000000000 ){
-						return ll < 10000000000000 ? 13 : 14;
+						len = ll < 10000000000000 ? 13 : 14;
 					}else{
 						return pg_type_enc_to_str(conv, *intermediate, NULL, intermediate);
 					}
 				}
 			}
+			return sll < 0 ? len+1 : len;
 		}else{
 			return pg_type_enc_to_str(conv, *intermediate, NULL, intermediate);
 		}
