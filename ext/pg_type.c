@@ -85,14 +85,19 @@ pg_type_encode(VALUE self, VALUE value)
 {
 	VALUE res = rb_str_new_cstr("");
 	VALUE intermediate;
-	int len;
+	int len, len2;
 	t_pg_type *type_data = DATA_PTR(self);
 
 	if( type_data->enc_func ){
 		len = type_data->enc_func( type_data, value, NULL, &intermediate );
 		res = rb_str_resize( res, len );
-		len = type_data->enc_func( type_data, value, RSTRING_PTR(res), &intermediate);
-		rb_str_set_len( res, len );
+		len2 = type_data->enc_func( type_data, value, RSTRING_PTR(res), &intermediate);
+		if( len < len2 ){
+			VALUE name = rb_iv_get( type_data->enc_obj, "@name" );
+			rb_bug("%s: result length of first encoder run (%i) is less than second run (%i)",
+				StringValuePtr(name), len, len2 );
+		}
+		rb_str_set_len( res, len2 );
 	} else if( !NIL_P(type_data->enc_obj) ){
 		res = rb_funcall( type_data->enc_obj, s_id_call, 1, value );
 		StringValue(res);
