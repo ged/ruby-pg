@@ -66,19 +66,22 @@ want to chat about something.
 
 == Type Casts
 
-Pg can optional type cast result and query parameters in Ruby and native
+Pg can optionally type cast result and query parameters in Ruby or native
 C code. This can speed up data transfers to and from the database by
 avoiding String allocations for each value.
 
-Standard type casting for result and param values can be enabled by:
+Standard type casting can be enabled by:
 
     conn.type_mapping = PG::BasicTypeMapping.new conn
-    conn.exec("select 1, now()").values
-        # => [[1, 2014-04-17 22:58:01 +0200]]
-    conn.exec_params("SELECT $1, $2", [1, Time.now]).values
-        # => [[1, 2014-04-17 22:58:47 +0200]]
+    # this works for result value mapping:
+    conn.exec("select 1, now(), '{2,3}'::int[]").values
+        # => [[1, 2014-04-17 22:58:01 +0200, [2, 3]]]
+    # ... and for param value mapping:
+    conn.exec_params("SELECT $1::text, $2::text, $3::text", [1, Time.now, [2,3]]).values
+        # => [["1", "2014-04-17 22:58:47.101513+02", "{2,3}"]]
 
-Pg's type casting is divided into 4 layers:
+Pg's type casting is highly customizable. That's why it's divided into
+4 layers:
 
 === Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
 
@@ -116,7 +119,8 @@ or replaced in order to define customized conversion rules.
 With Connection#type_mapping= a connection wide default type mapping can be
 set. A type mapping can also be used as alternative for parameters accepting
 PG::ColumnMapping. In both cases the a ColumnMapping is built on the fly,
-which is obviously slower than using a prepared or cached PG::ColumnMapping.
+which is obviously somewhat slower than using a prepared or cached
+PG::ColumnMapping.
 
 
 == Contributing
