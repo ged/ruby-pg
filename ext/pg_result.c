@@ -856,10 +856,15 @@ static VALUE
 pgresult_column_mapping_set2(PGresult *result, VALUE self, VALUE column_mapping)
 {
 	if( column_mapping != Qnil ){
+		t_colmap *p_colmap;
 		if ( !rb_obj_is_kind_of(column_mapping, rb_cColumnMap) ) {
 			column_mapping = rb_funcall( column_mapping, rb_intern("column_mapping_for_result"), 1, self );
 		}
-		colmap_get_and_check( column_mapping, PQnfields( result ));
+		p_colmap = colmap_get_and_check( column_mapping, PQnfields( result ));
+
+#ifdef M17N_SUPPORTED
+		p_colmap->encoding_index = ENCODING_GET(self);
+#endif
 	}
 	rb_iv_set( self, "@column_mapping", column_mapping );
 

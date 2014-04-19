@@ -43,7 +43,6 @@ colmap_get_and_check( VALUE self, int nfields )
 VALUE
 colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap *p_colmap)
 {
-	int enc_idx = 0;
 	VALUE ret;
 	char * val;
 	int len;
@@ -53,10 +52,6 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 		return Qnil;
 	}
 
-#ifdef M17N_SUPPORTED
-	enc_idx = ENCODING_GET(self);
-#endif
-
 	val = PQgetvalue( result, tuple, field );
 	len = PQgetlength( result, tuple, field );
 
@@ -64,14 +59,14 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 		conv = p_colmap->convs[field].cconv;
 
 		if( conv && conv->dec_func ){
-			return conv->dec_func(conv, val, len, tuple, field, enc_idx);
+			return conv->dec_func(conv, val, len, tuple, field, p_colmap->encoding_index);
 		}
 	}
 
 	if ( 0 == PQfformat(result, field) ) {
-		ret = pg_text_dec_string(NULL, val, len, tuple, field, enc_idx);
+		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(self));
 	} else {
-		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, enc_idx);
+		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(self));
 	}
 
 	if( conv ){
@@ -114,6 +109,8 @@ colmap_init(VALUE self, VALUE conv_ary)
 		rb_ary_push( ary_types, obj );
 	}
 
+	/* encoding_index is set, when the ColumnMapping is assigned to a PG::Result. */
+	this->encoding_index = 0;
 	this->nfields = conv_ary_len;
 	rb_iv_set( self, "@types", rb_obj_freeze(ary_types) );
 
