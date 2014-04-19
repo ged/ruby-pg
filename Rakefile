@@ -178,3 +178,5 @@ file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
 end
+
+file 'ext/java/org/jruby/pg/Errors.java' if jruby?
