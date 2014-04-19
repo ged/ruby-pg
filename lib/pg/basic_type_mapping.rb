@@ -268,7 +268,7 @@ class PG::BasicTypeMapping
 	end
 
 	def column_mapping_for_result( result )
-		types = result.nfields.times.map do |i|
+		types = Array.new(result.nfields) do |i|
 			@types_by_oid[result.fformat(i)][result.ftype(i)]
 		end
 		PG::ColumnMapping.new( types )
