@@ -66,20 +66,6 @@ pg_comp_type_allocate( VALUE klass )
 	return self;
 }
 
-
-t_pg_type *
-pg_type_get_and_check( VALUE self )
-{
-	Check_Type(self, T_DATA);
-
-	if ( !rb_obj_is_kind_of(self, rb_cPG_SimpleType) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Type)",
-				rb_obj_classname( self ) );
-	}
-
-	return DATA_PTR( self );
-}
-
 static VALUE
 pg_type_encode(VALUE self, VALUE value)
 {
