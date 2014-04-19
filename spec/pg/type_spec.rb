@@ -94,6 +94,15 @@ describe "PG::Type derivations" do
 			}
 		end
 
+		it "shouldn't accept invalid coders" do
+			expect{ PG::SimpleType.new encoder: PG::TextDecoder::Integer }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new encoder: PG::TextEncoder::Array }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new decoder: PG::TextDecoder::Array }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new decoder: PG::TextEncoder::Integer }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new encoder: false }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new decoder: false }.to raise_error(TypeError)
+		end
+
 		it "should have reasonable default values" do
 			t = described_class.new
 			t.encoder.should be_nil
@@ -218,6 +227,11 @@ describe "PG::Type derivations" do
 					array_type = PG::CompositeType.new decoder: PG::TextDecoder::Array, elements_type: ruby_type
 					array_type.decode(%[{3,4}]).should eq [4,5]
 				end
+
+				it 'should decode array of nil types' do
+					array_type = PG::CompositeType.new decoder: PG::TextDecoder::Array, elements_type: nil
+					array_type.decode(%[{3,4}]).should eq ['3','4']
+				end
 			end
 
 			describe '#encode' do
@@ -272,6 +286,19 @@ describe "PG::Type derivations" do
 					encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, name: nil, oid: 0, format: 0,
 					elements_type: text_int_type, needs_quotation: false
 				}
+			end
+
+			it "shouldn't accept invalid coders" do
+				expect{ PG::CompositeType.new encoder: PG::TextDecoder::Array }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new encoder: PG::TextEncoder::Integer }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new decoder: PG::TextDecoder::Integer }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new decoder: PG::TextEncoder::Array }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new encoder: false }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new decoder: false }.to raise_error(TypeError)
+			end
+
+			it "shouldn't accept invalid elements_types" do
+				expect{ PG::CompositeType.new elements_type: false }.to raise_error(TypeError)
 			end
 
 			it "should have reasonable default values" do

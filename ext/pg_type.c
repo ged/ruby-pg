@@ -244,12 +244,15 @@ pg_type_elements_type_set(VALUE self, VALUE elem_type)
 {
 	t_pg_composite_type *p_type = DATA_PTR( self );
 
-	if ( !rb_obj_is_kind_of(elem_type, rb_cPG_Type) ){
+	if ( NIL_P(elem_type) ){
+		p_type->elem = NULL;
+	} else if ( rb_obj_is_kind_of(elem_type, rb_cPG_Type) ){
+		p_type->elem = DATA_PTR( elem_type );
+	} else {
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::Type)",
-				rb_obj_classname( self ) );
+				rb_obj_classname( elem_type ) );
 	}
 
-	p_type->elem = DATA_PTR( elem_type );
 	rb_iv_set( self, "@elements_type", elem_type );
 	return elem_type;
 }
