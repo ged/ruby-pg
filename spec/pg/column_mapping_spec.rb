@@ -220,11 +220,21 @@ describe PG::ColumnMapping do
 
 		it "should do float type conversions" do
 			[1, 0].each do |format|
-				res = @conn.exec( "SELECT -8.999e3::FLOAT4, 8.999e10::FLOAT4, -8999999999e-99::FLOAT8, NULL::FLOAT4", [], format )
+				res = @conn.exec( "SELECT -8.999e3::FLOAT4,
+				                  8.999e10::FLOAT4,
+				                  -8999999999e-99::FLOAT8,
+				                  NULL::FLOAT4,
+				                  'NaN'::FLOAT4,
+				                  'Infinity'::FLOAT4,
+				                  '-Infinity'::FLOAT4
+				                ", [], format )
 				res.getvalue(0,0).should be_within(1e-2).of(-8.999e3)
 				res.getvalue(0,1).should be_within(1e5).of(8.999e10)
 				res.getvalue(0,2).should be_within(1e-109).of(-8999999999e-99)
 				res.getvalue(0,3).should be_nil
+				res.getvalue(0,4).should be_nan
+				res.getvalue(0,5).should == Float::INFINITY
+				res.getvalue(0,6).should == -Float::INFINITY
 			end
 		end
 
