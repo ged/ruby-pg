@@ -99,10 +99,6 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 
 		*current_out++ = '{';
 		for( i=0; i<RARRAY_LEN(value); i++){
-			char *buffer;
-			int j;
-			int strlen;
-			int backslashs;
 			VALUE subint;
 			VALUE entry = rb_ary_entry(value, i);
 			if( i > 0 ) *current_out++ = ',';
@@ -120,34 +116,37 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 					subint = rb_ary_entry(*intermediate, *interm_pos);
 					*interm_pos = *interm_pos + 1;
 					if(quote){
+						char *ptr1;
+						char *ptr2;
+						int strlen;
+						int backslashs;
+						*current_out++ = '"';
+
 						/* Place the unescaped string at current output position. */
 						strlen = enc_func(conv, entry, current_out, &subint);
-						buffer = current_out;
-						backslashs = 0;
+						ptr1 = current_out;
+						ptr2 = current_out + strlen;
 
 						/* count required backlashs */
-						for(j = 0; j < strlen; j++) {
-							if(buffer[j] == '"' || buffer[j] == '\\'){
+						for(backslashs = 0; ptr1 != ptr2; ptr1++) {
+							if(*ptr1 == '"' || *ptr1 == '\\'){
 								backslashs++;
 							}
 						}
 
-						/* 2 bytes quotation plus size of escaped string */
-						current_out += 1 + strlen + backslashs + 1;
-						*--current_out = '"';
+						ptr1 = current_out + strlen;
+						ptr2 = current_out + strlen + backslashs;
+						current_out = ptr2;
+						*current_out++ = '"';
 
-						/* Then store the quoted string on the desired position, walking
-						 * right to left, to avoid overwriting. */
-						for(j = strlen-1; j >= 0; j--) {
-							*--current_out = buffer[j];
-							if(buffer[j] == '"' || buffer[j] == '\\'){
-								*--current_out = '\\';
+						/* Then store the escaped string on the final position, walking
+						 * right to left, until all backslashs are placed. */
+						while( ptr1 != ptr2 ) {
+							*--ptr2 = *--ptr1;
+							if(*ptr2 == '"' || *ptr2 == '\\'){
+								*--ptr2 = '\\';
 							}
 						}
-						*--current_out = '"';
-						if( buffer != current_out ) rb_bug("something went wrong while escaping string for array encoding");
-
-						current_out += 1 + strlen + backslashs + 1;
 					}else{
 						current_out += enc_func(conv, entry, current_out, &subint);
 					}
@@ -180,8 +179,8 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 				default:
 					if(quote){
 						/* size of string assuming the worst case, that every character must be escaped
-						* plus two bytes for quotation.
-						*/
+						 * plus two bytes for quotation.
+						 */
 						sumlen += 2 * enc_func(conv, entry, NULL, &subint) + 2;
 					}else{
 						/* size of the unquoted string */
@@ -209,23 +208,128 @@ pg_text_enc_in_ruby(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate
 	}
 }
 
+static t_pg_type_enc_func
+composite_elem_func(t_pg_composite_type *comp_conv)
+{
+	if( comp_conv->elem ){
+		if( comp_conv->elem->enc_func ){
+			return comp_conv->elem->enc_func;
+		}else{
+			return pg_text_enc_in_ruby;
+		}
+	}else{
+		/* no element encoder defined -> use std to_str conversion */
+		return pg_type_enc_to_str;
+	}
+}
+
 static int
 pg_text_enc_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
+	t_pg_type_enc_func enc_func = composite_elem_func(comp_conv);
 	int pos = -1;
-	if( comp_conv->elem ){
-		if( comp_conv->elem->enc_func ){
-			return write_array(comp_conv->elem, value, out, intermediate, comp_conv->elem->enc_func, comp_conv->needs_quotation, &pos);
-		}else{
-			return write_array(comp_conv->elem, value, out, intermediate, pg_text_enc_in_ruby, comp_conv->needs_quotation, &pos);
+
+	return write_array(comp_conv->elem, value, out, intermediate, enc_func, comp_conv->needs_quotation, &pos);
+}
+
+static int
+quote_string(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, char quote_char)
+{
+	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
+	t_pg_type_enc_func enc_func = composite_elem_func(comp_conv);
+
+	if( comp_conv->needs_quotation ){
+		if( out ){
+			char *ptr1;
+			char *ptr2;
+			int strlen;
+			int escapes;
+			*out++ = quote_char;
+
+			/* Place the unescaped string at current output position. */
+			strlen = enc_func(comp_conv->elem, value, out, intermediate);
+			ptr1 = out;
+			ptr2 = out + strlen;
+
+			/* count required escapes */
+			for(escapes = 0; ptr1 != ptr2; ptr1++) {
+				if(*ptr1 == quote_char){
+					escapes++;
+				}
+			}
+
+			ptr2 += escapes;
+			*ptr2 = quote_char;
+
+			/* Then store the escaped string on the final position, walking
+			 * right to left, until all escapes are placed. */
+			while( ptr1 != ptr2 ) {
+				*--ptr2 = *--ptr1;
+				if(*ptr2 == quote_char){
+					*--ptr2 = quote_char;
+				}
+			}
+
+			return 1 + strlen + escapes + 1;
+		} else {
+			/* size of string assuming the worst case, that every character must be escaped
+			 * plus two bytes for quotation.
+			 */
+			return enc_func(comp_conv->elem, value, NULL, intermediate) * 2 + 2;
 		}
-	}else{
-		/* no element encoder defined -> use std to_str conversion */
-		return write_array(comp_conv->elem, value, out, intermediate, pg_type_enc_to_str, comp_conv->needs_quotation, &pos);
+	} else {
+		/* no quotation required -> pass through to elem type */
+		return enc_func(comp_conv->elem, value, out, intermediate);
 	}
 }
 
+static int
+pg_text_enc_array_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	int sumlen = 0;
+	int i;
+	if( out ){
+		int nr_elems = RARRAY_LEN(value);
+		for( i=0; i<nr_elems; i++){
+			VALUE subint = rb_ary_entry(*intermediate, i);
+			VALUE entry = rb_ary_entry(value, i);
+
+			sumlen += quote_string(conv, entry, out, &subint, '"');
+			out += sumlen;
+			if( i < nr_elems-1 ){
+				*out++ = '.';
+			}
+		}
+		/* add one byte per "." seperator */
+		sumlen += RARRAY_LEN(value) - 1;
+		return sumlen;
+	} else {
+		Check_Type(value, T_ARRAY);
+		*intermediate = rb_ary_new();
+
+		for( i=0; i<RARRAY_LEN(value); i++){
+			VALUE subint;
+			VALUE entry = rb_ary_entry(value, i);
+
+			sumlen += quote_string(conv, entry, out, &subint, '"');
+			rb_ary_push(*intermediate, subint);
+		}
+		/* add one byte per "." seperator */
+		sumlen += RARRAY_LEN(value) - 1;
+		return sumlen;
+	}
+}
+
+static int
+pg_text_enc_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	if( TYPE(value) == T_ARRAY){
+		return pg_text_enc_array_identifier(conv, value, out, intermediate);
+	} else {
+		return quote_string(conv, value, out, intermediate, '"');
+	}
+}
 
 void
 init_pg_text_encoder()
@@ -243,4 +347,5 @@ init_pg_text_encoder()
 
 	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
+	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 }

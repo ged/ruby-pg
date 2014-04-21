@@ -214,38 +214,98 @@ read_array(t_pg_type *conv, int *index, char *c_pg_array_string, int array_strin
 }
 
 static VALUE
-pg_text_dec_array_helper(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx, t_pg_type_dec_func dec_func)
-{
-	/* create a buffer of the same length, as that will be the worst case */
-	char *word = xmalloc(len + 1);
-	int index = 1;
-
-	VALUE return_value = read_array(conv, &index, val, len, word, enc_idx, tuple, field, dec_func);
-	free(word);
-	return return_value;
-}
-
-static VALUE
 pg_text_dec_in_ruby(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE string = pg_text_dec_string(conv, val, len, tuple, field, enc_idx);
 	return rb_funcall( conv->dec_obj, s_id_call, 3, string, INT2NUM(tuple), INT2NUM(field) );
 }
 
+static t_pg_type_dec_func
+composite_elem_func(t_pg_composite_type *comp_conv)
+{
+	if( comp_conv->elem ){
+		if( comp_conv->elem->dec_func ){
+			return comp_conv->elem->dec_func;
+		}else{
+			return pg_text_dec_in_ruby;
+		}
+	}else{
+		/* no element decoder defined -> use std String conversion */
+		return pg_text_dec_string;
+	}
+}
+
 static VALUE
 pg_text_dec_array(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
-	if( comp_conv->elem ){
-		if( comp_conv->elem->dec_func ){
-			return pg_text_dec_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, comp_conv->elem->dec_func);
-		}else{
-			return pg_text_dec_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, pg_text_dec_in_ruby);
+	t_pg_type_dec_func dec_func = composite_elem_func(comp_conv);
+	/* create a buffer of the same length, as that will be the worst case */
+	char *word = xmalloc(len + 1);
+	int index = 1;
+
+	VALUE return_value = read_array(comp_conv->elem, &index, val, len, word, enc_idx, tuple, field, dec_func);
+	free(word);
+	return return_value;
+}
+
+static VALUE
+pg_text_dec_identifier(t_pg_type *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
+	t_pg_type_dec_func dec_func = composite_elem_func(comp_conv);
+
+	/* Return value: array */
+	VALUE array;
+	VALUE elem;
+	int word_index = 0;
+	int index;
+	/* create a buffer of the same length, as that will be the worst case */
+	char *word = xmalloc(len + 1);
+
+	/* The current character in the input string. */
+	char c;
+
+	/*  0: Currently outside a quoted string
+	*  1: Currently inside a quoted string, last char was a quote
+	*  2: Currently inside a quoted string, last char was no quote */
+	int openQuote = 0;
+
+	array = rb_ary_new();
+
+	for(index = 0; index < len; ++index) {
+		c = val[index];
+		if(c == '.' && openQuote < 2 ) {
+			word[word_index] = 0;
+
+			elem = dec_func(conv, word, word_index, tuple, field, enc_idx);
+			rb_ary_push(array, elem);
+
+			openQuote = 0;
+			word_index = 0;
+		} else if(c == '"') {
+			if (openQuote == 1) {
+				word[word_index] = c;
+				word_index++;
+				openQuote = 2;
+			} else if (openQuote == 2){
+				openQuote = 1;
+			} else {
+				openQuote = 2;
+			}
+		} else {
+			word[word_index] = c;
+			word_index++;
 		}
-	}else{
-		/* no element decoder defined -> use std String conversion */
-		return pg_text_dec_array_helper(comp_conv->elem, val, len, tuple, field, enc_idx, pg_text_dec_string);
 	}
+
+	word[word_index] = 0;
+	elem = dec_func(conv, word, word_index, tuple, field, enc_idx);
+	rb_ary_push(array, elem);
+
+	free(word);
+
+	return array;
 }
 
 
@@ -265,4 +325,5 @@ init_pg_text_decoder()
 
 	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cPG_Coder );
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
+	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
 }

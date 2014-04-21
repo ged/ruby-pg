@@ -232,6 +232,20 @@ describe "PG::Type derivations" do
 					array_type = PG::CompositeType.new decoder: PG::TextDecoder::Array, elements_type: nil
 					array_type.decode(%[{3,4}]).should eq ['3','4']
 				end
+
+				context 'identifier quotation' do
+					it 'should build an array out of an quoted identifier string' do
+						quoted_type = PG::CompositeType.new decoder: PG::TextDecoder::Identifier, elements_type: text_string_type
+						quoted_type.decode(%["A.".".B"]).should eq ["A.", ".B"]
+						quoted_type.decode(%["'A"".""B'"]).should eq ['\'A"."B\'']
+					end
+
+					it 'should split unquoted identifier string' do
+						quoted_type = PG::CompositeType.new decoder: PG::TextDecoder::Identifier, elements_type: text_string_type
+						quoted_type.decode(%[a.b]).should eq ['a','b']
+						quoted_type.decode(%[a]).should eq ['a']
+					end
+				end
 			end
 
 			describe '#encode' do
@@ -271,6 +285,21 @@ describe "PG::Type derivations" do
 						ruby_type = PG::SimpleType.new encoder: proc{|v| v+1 }
 						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
 						expect{ array_type.encode([3,4]) }.to raise_error(TypeError)
+					end
+				end
+
+				context 'identifier quotation' do
+					it 'should quote and escape identifier' do
+						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::Identifier, elements_type: text_string_type
+						quoted_type.encode(['A.','.B']).should eq %["A.".".B"]
+						quoted_type.encode(%['A"."B']).should eq %["'A"".""B'"]
+					end
+
+					it 'shouldn\'t quote or escape identifier if requested to not do' do
+						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::Identifier, elements_type: text_string_type,
+								needs_quotation: false
+						quoted_type.encode(['a','b']).should eq %[a.b]
+						quoted_type.encode(%[a.b]).should eq %[a.b]
 					end
 				end
 			end
