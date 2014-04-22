@@ -20,6 +20,8 @@ describe "PG::Type derivations" do
 	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::FLOAT, decoder: PG::TextDecoder::FLOAT }
 	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::STRING, decoder: PG::TextDecoder::STRING }
 	let!(:text_timestamp_type) { PG::SimpleType.new encoder: PG::TextEncoder::TIMESTAMP_WITHOUT_TIME_ZONE, decoder: PG::TextDecoder::TIMESTAMP_WITHOUT_TIME_ZONE }
+	let!(:binary_int2_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::INT2, decoder: PG::BinaryDecoder::INTEGER }
+	let!(:binary_int4_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::INT4, decoder: PG::BinaryDecoder::INTEGER }
 	let!(:binary_int8_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::INT8, decoder: PG::BinaryDecoder::INTEGER }
 
 	it "shouldn't be possible to build a PG::Type directly" do
@@ -63,12 +65,22 @@ describe "PG::Type derivations" do
 				res.should == [123].pack("q>")
 			end
 
+			it "should encode integers from string to binary format" do
+				binary_int2_type.encode("  -123  ").should == [-123].pack("s>")
+				binary_int4_type.encode("  -123  ").should == [-123].pack("l>")
+				binary_int8_type.encode("  -123  ").should == [-123].pack("q>")
+			end
+
 			it "should encode integers of different length to text format" do
 				text_int_type.encode(0).should == "0"
 				30.times do |zeros|
 					text_int_type.encode(10 ** zeros).should == "1" + "0"*zeros
 					text_int_type.encode(-10 ** zeros).should == "-1" + "0"*zeros
 				end
+			end
+
+			it "should encode integers from string to text format" do
+				text_int_type.encode("  -123  ").should == "-123"
 			end
 
 			it "should encode with ruby encoder" do
@@ -255,6 +267,9 @@ describe "PG::Type derivations" do
 					end
 					it 'encodes an array of int8 with sub arrays' do
 						text_int_array_type.encode([1,[2,[3,4]],[nil,6],7]).should eq %[{1,{2,{3,4}},{NULL,6},7}]
+					end
+					it 'encodes an array of int8 with strings' do
+						text_int_array_type.encode(['1',['2'],'3']).should eq %[{1,{2},3}]
 					end
 					it 'encodes an array of float8 with sub arrays' do
 						text_float_array_type.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]).should match Regexp.new(%[^{1.0001*E+03,{-2.2*E-03,{3.3*E+00,-4.4*E+02}},{NULL,6.6*E+00},-7.7*E+00}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*"))

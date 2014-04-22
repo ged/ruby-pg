@@ -36,7 +36,7 @@ pg_text_enc_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate
 			return sprintf(out, "%lld", NUM2LL(*intermediate));
 		}
 	}else{
-		*intermediate = rb_to_int(value);
+		*intermediate = rb_Integer(value);
 		if(TYPE(*intermediate) == T_FIXNUM){
 			int len;
 			long long sll = NUM2LL(*intermediate);
