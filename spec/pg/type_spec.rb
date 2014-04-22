@@ -16,11 +16,11 @@ require 'spec/lib/helpers'
 require 'pg'
 
 describe "PG::Type derivations" do
-	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer, name: 'Integer', oid: 23 }
-	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::Float, decoder: PG::TextDecoder::Float }
-	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::String, decoder: PG::TextDecoder::String }
-	let!(:text_timestamp_type) { PG::SimpleType.new encoder: PG::TextEncoder::TimestampWithoutTimeZone, decoder: PG::TextDecoder::TimestampWithoutTimeZone }
-	let!(:binary_int8_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::Int8, decoder: PG::BinaryDecoder::Integer }
+	let!(:text_int_type) { PG::SimpleType.new encoder: PG::TextEncoder::INTEGER, decoder: PG::TextDecoder::INTEGER, name: 'Integer', oid: 23 }
+	let!(:text_float_type) { PG::SimpleType.new encoder: PG::TextEncoder::FLOAT, decoder: PG::TextDecoder::FLOAT }
+	let!(:text_string_type) { PG::SimpleType.new encoder: PG::TextEncoder::STRING, decoder: PG::TextDecoder::STRING }
+	let!(:text_timestamp_type) { PG::SimpleType.new encoder: PG::TextEncoder::TIMESTAMP_WITHOUT_TIME_ZONE, decoder: PG::TextDecoder::TIMESTAMP_WITHOUT_TIME_ZONE }
+	let!(:binary_int8_type) { PG::SimpleType.new encoder: PG::BinaryEncoder::INT8, decoder: PG::BinaryDecoder::INTEGER }
 
 	it "shouldn't be possible to build a PG::Type directly" do
 		expect{ PG::Type.new }.to raise_error(TypeError, /cannot/)
@@ -90,15 +90,15 @@ describe "PG::Type derivations" do
 
 		it "should respond to to_h" do
 			text_int_type.to_h.should == {
-				encoder: PG::TextEncoder::Integer, decoder: PG::TextDecoder::Integer, name: 'Integer', oid: 23, format: 0
+				encoder: PG::TextEncoder::INTEGER, decoder: PG::TextDecoder::INTEGER, name: 'Integer', oid: 23, format: 0
 			}
 		end
 
 		it "shouldn't accept invalid coders" do
-			expect{ PG::SimpleType.new encoder: PG::TextDecoder::Integer }.to raise_error(TypeError)
-			expect{ PG::SimpleType.new encoder: PG::TextEncoder::Array }.to raise_error(TypeError)
-			expect{ PG::SimpleType.new decoder: PG::TextDecoder::Array }.to raise_error(TypeError)
-			expect{ PG::SimpleType.new decoder: PG::TextEncoder::Integer }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new encoder: PG::TextDecoder::INTEGER }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new encoder: PG::TextEncoder::ARRAY }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new decoder: PG::TextDecoder::ARRAY }.to raise_error(TypeError)
+			expect{ PG::SimpleType.new decoder: PG::TextEncoder::INTEGER }.to raise_error(TypeError)
 			expect{ PG::SimpleType.new encoder: false }.to raise_error(TypeError)
 			expect{ PG::SimpleType.new decoder: false }.to raise_error(TypeError)
 		end
@@ -115,10 +115,10 @@ describe "PG::Type derivations" do
 
 	describe PG::CompositeType do
 		describe "Array types" do
-			let!(:text_string_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_string_type }
-			let!(:text_int_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_int_type, needs_quotation: false }
-			let!(:text_float_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_float_type, needs_quotation: false }
-			let!(:text_timestamp_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, elements_type: text_timestamp_type, needs_quotation: false }
+			let!(:text_string_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, decoder: PG::TextDecoder::ARRAY, elements_type: text_string_type }
+			let!(:text_int_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, decoder: PG::TextDecoder::ARRAY, elements_type: text_int_type, needs_quotation: false }
+			let!(:text_float_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, decoder: PG::TextDecoder::ARRAY, elements_type: text_float_type, needs_quotation: false }
+			let!(:text_timestamp_array_type) { PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, decoder: PG::TextDecoder::ARRAY, elements_type: text_timestamp_type, needs_quotation: false }
 
 			#
 			# Array parser specs are thankfully borrowed from here:
@@ -224,24 +224,24 @@ describe "PG::Type derivations" do
 
 				it 'should decode array of types with decoder in ruby space' do
 					ruby_type = PG::SimpleType.new decoder: proc{|v| v.to_i+1 }
-					array_type = PG::CompositeType.new decoder: PG::TextDecoder::Array, elements_type: ruby_type
+					array_type = PG::CompositeType.new decoder: PG::TextDecoder::ARRAY, elements_type: ruby_type
 					array_type.decode(%[{3,4}]).should eq [4,5]
 				end
 
 				it 'should decode array of nil types' do
-					array_type = PG::CompositeType.new decoder: PG::TextDecoder::Array, elements_type: nil
+					array_type = PG::CompositeType.new decoder: PG::TextDecoder::ARRAY, elements_type: nil
 					array_type.decode(%[{3,4}]).should eq ['3','4']
 				end
 
 				context 'identifier quotation' do
 					it 'should build an array out of an quoted identifier string' do
-						quoted_type = PG::CompositeType.new decoder: PG::TextDecoder::Identifier, elements_type: text_string_type
+						quoted_type = PG::CompositeType.new decoder: PG::TextDecoder::IDENTIFIER, elements_type: text_string_type
 						quoted_type.decode(%["A.".".B"]).should eq ["A.", ".B"]
 						quoted_type.decode(%["'A"".""B'"]).should eq ['\'A"."B\'']
 					end
 
 					it 'should split unquoted identifier string' do
-						quoted_type = PG::CompositeType.new decoder: PG::TextDecoder::Identifier, elements_type: text_string_type
+						quoted_type = PG::CompositeType.new decoder: PG::TextDecoder::IDENTIFIER, elements_type: text_string_type
 						quoted_type.decode(%[a.b]).should eq ['a','b']
 						quoted_type.decode(%[a]).should eq ['a']
 					end
@@ -271,32 +271,32 @@ describe "PG::Type derivations" do
 				context 'array of types with encoder in ruby space' do
 					it 'encodes with quotation' do
 						ruby_type = PG::SimpleType.new encoder: proc{|v| (v+1).to_s }
-						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: true
+						array_type = PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, elements_type: ruby_type, needs_quotation: true
 						array_type.encode([3,4]).should eq %[{"4","5"}]
 					end
 
 					it 'encodes without quotation' do
 						ruby_type = PG::SimpleType.new encoder: proc{|v| (v+1).to_s }
-						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
+						array_type = PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, elements_type: ruby_type, needs_quotation: false
 						array_type.encode([3,4]).should eq %[{4,5}]
 					end
 
 					it "should raise when ruby encoder returns non string values" do
 						ruby_type = PG::SimpleType.new encoder: proc{|v| v+1 }
-						array_type = PG::CompositeType.new encoder: PG::TextEncoder::Array, elements_type: ruby_type, needs_quotation: false
+						array_type = PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, elements_type: ruby_type, needs_quotation: false
 						expect{ array_type.encode([3,4]) }.to raise_error(TypeError)
 					end
 				end
 
 				context 'identifier quotation' do
 					it 'should quote and escape identifier' do
-						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::Identifier, elements_type: text_string_type
+						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::IDENTIFIER, elements_type: text_string_type
 						quoted_type.encode(['A.','.B']).should eq %["A.".".B"]
 						quoted_type.encode(%['A"."B']).should eq %["'A"".""B'"]
 					end
 
 					it 'shouldn\'t quote or escape identifier if requested to not do' do
-						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::Identifier, elements_type: text_string_type,
+						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::IDENTIFIER, elements_type: text_string_type,
 								needs_quotation: false
 						quoted_type.encode(['a','b']).should eq %[a.b]
 						quoted_type.encode(%[a.b]).should eq %[a.b]
@@ -312,16 +312,16 @@ describe "PG::Type derivations" do
 
 			it "should respond to to_h" do
 				text_int_array_type.to_h.should == {
-					encoder: PG::TextEncoder::Array, decoder: PG::TextDecoder::Array, name: nil, oid: 0, format: 0,
+					encoder: PG::TextEncoder::ARRAY, decoder: PG::TextDecoder::ARRAY, name: nil, oid: 0, format: 0,
 					elements_type: text_int_type, needs_quotation: false
 				}
 			end
 
 			it "shouldn't accept invalid coders" do
-				expect{ PG::CompositeType.new encoder: PG::TextDecoder::Array }.to raise_error(TypeError)
-				expect{ PG::CompositeType.new encoder: PG::TextEncoder::Integer }.to raise_error(TypeError)
-				expect{ PG::CompositeType.new decoder: PG::TextDecoder::Integer }.to raise_error(TypeError)
-				expect{ PG::CompositeType.new decoder: PG::TextEncoder::Array }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new encoder: PG::TextDecoder::ARRAY }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new encoder: PG::TextEncoder::INTEGER }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new decoder: PG::TextDecoder::INTEGER }.to raise_error(TypeError)
+				expect{ PG::CompositeType.new decoder: PG::TextEncoder::ARRAY }.to raise_error(TypeError)
 				expect{ PG::CompositeType.new encoder: false }.to raise_error(TypeError)
 				expect{ PG::CompositeType.new decoder: false }.to raise_error(TypeError)
 			end

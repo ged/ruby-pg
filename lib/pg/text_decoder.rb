@@ -2,7 +2,7 @@
 
 module PG
 	module TextDecoder
-		class Date
+		class DATE
 			ISO_DATE = /\A(\d{4})-(\d\d)-(\d\d)\z/
 
 			def self.call(string, tuple, field)
@@ -14,7 +14,7 @@ module PG
 			end
 		end
 
-		class TimestampWithoutTimeZone
+		class TIMESTAMP_WITHOUT_TIME_ZONE
 			ISO_DATETIME_WITHOUT_TIMEZONE = /\A(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(\.\d+)?\z/
 
 			def self.call(string, tuple, field)
@@ -26,7 +26,7 @@ module PG
 			end
 		end
 
-		class TimestampWithTimeZone
+		class TIMESTAMP_WITH_TIME_ZONE
 			ISO_DATETIME_WITH_TIMEZONE = /\A(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)(\.\d+)?([-\+]\d\d)\z/
 
 			def self.call(string, tuple, field)

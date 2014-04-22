@@ -339,13 +339,13 @@ init_pg_text_encoder()
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
 	rb_cPG_TextEncoder_Simple = rb_define_class_under( rb_mPG_TextEncoder, "Simple", rb_cPG_Coder );
-	pg_define_coder( "Boolean", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "String", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "Bytea", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	pg_define_coder( "BOOLEAN", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	pg_define_coder( "INTEGER", pg_text_enc_integer, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	pg_define_coder( "FLOAT", pg_text_enc_float, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	pg_define_coder( "STRING", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	pg_define_coder( "BYTEA", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 
 	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
-	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
-	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
+	pg_define_coder( "ARRAY", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
+	pg_define_coder( "IDENTIFIER", pg_text_enc_identifier, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 }

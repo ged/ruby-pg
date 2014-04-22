@@ -34,16 +34,16 @@ describe PG::ColumnMapping do
 	end
 
 	let!(:text_int_type) do
-		PG::SimpleType.new encoder: PG::TextEncoder::Integer,
-				decoder: PG::TextDecoder::Integer, name: 'INT4', oid: 23
+		PG::SimpleType.new encoder: PG::TextEncoder::INTEGER,
+				decoder: PG::TextDecoder::INTEGER, name: 'INT4', oid: 23
 	end
 	let!(:text_float_type) do
-		PG::SimpleType.new encoder: PG::TextEncoder::Float,
-				decoder: PG::TextDecoder::Float, name: 'FLOAT4', oid: 700
+		PG::SimpleType.new encoder: PG::TextEncoder::FLOAT,
+				decoder: PG::TextDecoder::FLOAT, name: 'FLOAT4', oid: 700
 	end
 	let!(:text_string_type) do
-		PG::SimpleType.new encoder: PG::TextEncoder::String,
-				decoder: PG::TextDecoder::String, name: 'TEXT', oid: 25
+		PG::SimpleType.new encoder: PG::TextEncoder::STRING,
+				decoder: PG::TextDecoder::STRING, name: 'TEXT', oid: 25
 	end
 	let!(:pass_through_type) do
 		type = PG::SimpleType.new encoder: proc{|v| v }, decoder: proc{|*v| v }

@@ -317,13 +317,13 @@ init_pg_text_decoder()
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
 
 	rb_cPG_TextDecoder_Simple = rb_define_class_under( rb_mPG_TextDecoder, "Simple", rb_cPG_Coder );
-	pg_define_coder( "Boolean", pg_text_dec_boolean, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	pg_define_coder( "Integer", pg_text_dec_integer, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	pg_define_coder( "Float", pg_text_dec_float, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	pg_define_coder( "String", pg_text_dec_string, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
-	pg_define_coder( "Bytea", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "BOOLEAN", pg_text_dec_boolean, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "INTEGER", pg_text_dec_integer, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "FLOAT", pg_text_dec_float, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "STRING", pg_text_dec_string, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
+	pg_define_coder( "BYTEA", pg_text_dec_bytea, rb_cPG_TextDecoder_Simple, rb_mPG_TextDecoder );
 
 	rb_cPG_TextDecoder_Composite = rb_define_class_under( rb_mPG_TextDecoder, "Composite", rb_cPG_Coder );
-	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
-	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
+	pg_define_coder( "ARRAY", pg_text_dec_array, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
+	pg_define_coder( "IDENTIFIER", pg_text_dec_identifier, rb_cPG_TextDecoder_Composite, rb_mPG_TextDecoder );
 }

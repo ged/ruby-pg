@@ -57,12 +57,12 @@ init_pg_binary_encoder()
 	rb_mPG_BinaryEncoder = rb_define_module_under( rb_mPG, "BinaryEncoder" );
 
 	rb_cPG_BinaryEncoder_Simple = rb_define_class_under( rb_mPG_BinaryEncoder, "Simple", rb_cPG_Coder );
-	pg_define_coder( "Boolean", pg_bin_enc_boolean, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
-	pg_define_coder( "Int2", pg_bin_enc_int2, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
-	pg_define_coder( "Int4", pg_bin_enc_int4, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
-	pg_define_coder( "Int8", pg_bin_enc_int8, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
-	pg_define_coder( "String", pg_type_enc_to_str, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
-	pg_define_coder( "Bytea", pg_type_enc_to_str, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
+	pg_define_coder( "BOOLEAN", pg_bin_enc_boolean, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
+	pg_define_coder( "INT2", pg_bin_enc_int2, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
+	pg_define_coder( "INT4", pg_bin_enc_int4, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
+	pg_define_coder( "INT8", pg_bin_enc_int8, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
+	pg_define_coder( "STRING", pg_type_enc_to_str, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
+	pg_define_coder( "BYTEA", pg_type_enc_to_str, rb_cPG_BinaryEncoder_Simple, rb_mPG_BinaryEncoder );
 
 	rb_cPG_BinaryEncoder_Composite = rb_define_class_under( rb_mPG_BinaryEncoder, "Composite", rb_cPG_Coder );
 }
