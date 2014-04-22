@@ -266,7 +266,12 @@ describe "PG::Type derivations" do
 								should eq %[{2014-12-31 00:00:00.000000000,{NULL,2016-01-02 23:23:59.990000000}}]
 					end
 				end
-
+				context 'one dimensional array' do
+					it 'can encode empty arrays' do
+						text_int_array_type.encode([]).should eq '{}'
+						text_string_array_type.encode([]).should eq '{}'
+					end
+				end
 
 				context 'array of types with encoder in ruby space' do
 					it 'encodes with quotation' do

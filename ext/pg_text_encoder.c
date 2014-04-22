@@ -157,14 +157,16 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 
 	} else {
 		int sumlen = 0;
+		int nr_elems;
 		Check_Type(value, T_ARRAY);
+		nr_elems = RARRAY_LEN(value);
 
 		if( *interm_pos < 0 ){
 			*intermediate = rb_ary_new();
 			*interm_pos = 0;
 		}
 
-		for( i=0; i<RARRAY_LEN(value); i++){
+		for( i=0; i<nr_elems; i++){
 			VALUE subint;
 			VALUE entry = rb_ary_entry(value, i);
 			switch(TYPE(entry)){
@@ -191,7 +193,7 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 		}
 
 		/* size of "{" plus content plus n-1 times "," plus "}" */
-		return 1 + sumlen + RARRAY_LEN(value) - 1 + 1;
+		return 1 + sumlen + (nr_elems>0 ? nr_elems-1 : 0) + 1;
 	}
 }
 
