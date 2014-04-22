@@ -105,6 +105,14 @@ describe PG::ColumnMapping do
 		result_typenames(res).should == ['bigint[]', 'bigint[]', 'double precision[]', 'text[]']
 	end
 
+	it "should encode integer params" do
+		col_map = PG::ColumnMapping.new( [text_int_type]*3 )
+		res = @conn.exec_params( "SELECT $1, $2, $3", [ 0, nil, "-999" ], 0, col_map )
+		res.values.should == [
+				[ "0", nil, "-999" ],
+		]
+	end
+
 	#
 	# Decoding Examples
 	#

@@ -918,6 +918,7 @@ alloc_query_params1(VALUE _paramsData)
 	paramsData->values = ALLOC_N(char *, nParams);
 	paramsData->lengths = ALLOC_N(int, nParams);
 	paramsData->formats = ALLOC_N(int, nParams);
+	paramsData->param_values = ALLOC_N(VALUE, nParams);
 
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
@@ -929,9 +930,7 @@ alloc_query_params1(VALUE _paramsData)
 		if ( !rb_obj_is_kind_of(param_mapping, rb_cColumnMap) ) {
 			param_mapping = rb_funcall( param_mapping, rb_intern("column_mapping_for_query_params"), 1, paramsData->params );
 		}
-
 		p_colmap = colmap_get_and_check( param_mapping, nParams);
-		paramsData->param_values = ALLOC_N(VALUE, nParams);
 	}
 
 	{
@@ -949,10 +948,15 @@ alloc_query_params1(VALUE _paramsData)
 				param_format = Qnil;
 			}
 
-			if(param_value == Qnil) {
+			conv = p_colmap ? p_colmap->convs[i].cconv : NULL;
+
+			if( NIL_P(param_value) ){
 				paramsData->values[i] = NULL;
 				paramsData->lengths[i] = 0;
-			} else if( p_colmap && (conv=p_colmap->convs[i].cconv)) {
+				paramsData->param_values[i] = param_value;
+				if( conv && NIL_P(param_type) )
+					param_type = INT2FIX(conv->oid);
+			} else if( conv ) {
 				if( conv->enc_func ){
 					/* C-based converter */
 					/* 1st pass for retiving the required memory space */
@@ -998,10 +1002,13 @@ alloc_query_params1(VALUE _paramsData)
 			paramsData->mapping_buf = ALLOC_N(char, sum_lengths);
 
 			for ( i = 0; i < nParams; i++ ) {
+				param_value = paramsData->param_values[i];
 				conv = p_colmap->convs[i].cconv;
-				if( conv && conv->enc_func ){
+				if( NIL_P(param_value) ){
+					/* Qnil was mapped to NULL value above */
+				} else if( conv && conv->enc_func ){
 					/* 2nd pass for writing the data to prepared buffer */
-					int len = conv->enc_func(conv, paramsData->param_values[i], &paramsData->mapping_buf[buffer_pos], &intermediates[i]);
+					int len = conv->enc_func(conv, param_value, &paramsData->mapping_buf[buffer_pos], &intermediates[i]);
 					paramsData->values[i] = &paramsData->mapping_buf[buffer_pos];
 					paramsData->lengths[i] = len;
 					if( conv->format == 0 ){
