@@ -178,6 +178,7 @@ VALUE colmap_result_value                              _(( VALUE, PGresult *, in
 VALUE pg_bin_dec_bytea                                 _(( t_pg_type*, char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_type*, char *, int, int, int, int ));
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
+VALUE pg_obj_to_i                                      _(( VALUE ));
 
 PGconn *pg_get_pgconn	                                 _(( VALUE ));
 

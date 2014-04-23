@@ -69,6 +69,9 @@ describe "PG::Type derivations" do
 				binary_int2_type.encode("  -123  ").should == [-123].pack("s>")
 				binary_int4_type.encode("  -123  ").should == [-123].pack("l>")
 				binary_int8_type.encode("  -123  ").should == [-123].pack("q>")
+				binary_int2_type.encode("  123-xyz  ").should == [123].pack("s>")
+				binary_int4_type.encode("  123-xyz  ").should == [123].pack("l>")
+				binary_int8_type.encode("  123-xyz  ").should == [123].pack("q>")
 			end
 
 			it "should encode integers of different length to text format" do
@@ -81,6 +84,7 @@ describe "PG::Type derivations" do
 
 			it "should encode integers from string to text format" do
 				text_int_type.encode("  -123  ").should == "-123"
+				text_int_type.encode("  123-xyz  ").should == "123"
 			end
 
 			it "should encode with ruby encoder" do

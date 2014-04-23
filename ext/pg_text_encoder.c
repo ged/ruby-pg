@@ -12,7 +12,20 @@ VALUE rb_mPG_TextEncoder;
 VALUE rb_cPG_TextEncoder_Simple;
 VALUE rb_cPG_TextEncoder_Composite;
 static ID s_id_call;
+static ID s_id_to_i;
 
+VALUE
+pg_obj_to_i( VALUE value )
+{
+	switch (TYPE(value)) {
+		case T_FIXNUM:
+		case T_FLOAT:
+		case T_BIGNUM:
+			return value;
+		default:
+			return rb_funcall(value, s_id_to_i, 0);
+	}
+}
 
 int
 pg_type_enc_to_str(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
@@ -36,7 +49,7 @@ pg_text_enc_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate
 			return sprintf(out, "%lld", NUM2LL(*intermediate));
 		}
 	}else{
-		*intermediate = rb_Integer(value);
+		*intermediate = pg_obj_to_i(value);
 		if(TYPE(*intermediate) == T_FIXNUM){
 			int len;
 			long long sll = NUM2LL(*intermediate);
@@ -337,6 +350,7 @@ void
 init_pg_text_encoder()
 {
 	s_id_call = rb_intern("call");
+	s_id_to_i = rb_intern("to_i");
 
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
