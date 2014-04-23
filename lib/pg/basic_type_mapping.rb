@@ -216,7 +216,7 @@ class PG::BasicTypeMapping
 # 	alias_type 'uuid',     'text'
 #
 # 	register_type 'money', OID::Money.new
-	register_type 0, 'bytea', PG::TextEncoder::BYTEA, PG::TextDecoder::BYTEA
+	register_type 0, 'bytea', PG::BinaryEncoder::BYTEA, PG::TextDecoder::BYTEA
 	register_type 0, 'bool', PG::TextEncoder::BOOLEAN, PG::TextDecoder::BOOLEAN
 # 	register_type 'bit', OID::Bit.new
 # 	register_type 'varbit', OID::Bit.new

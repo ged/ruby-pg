@@ -45,6 +45,13 @@ describe PG::ColumnMapping do
 		PG::SimpleType.new encoder: PG::TextEncoder::STRING,
 				decoder: PG::TextDecoder::STRING, name: 'TEXT', oid: 25
 	end
+	let!(:text_bytea_type) do
+		PG::SimpleType.new decoder: PG::TextDecoder::BYTEA, name: 'BYTEA', oid: 17
+	end
+	let!(:binary_bytea_type) do
+		PG::SimpleType.new encoder: PG::BinaryEncoder::BYTEA,
+				decoder: PG::BinaryDecoder::BYTEA, name: 'BYTEA', oid: 17, format: 1
+	end
 	let!(:pass_through_type) do
 		type = PG::SimpleType.new encoder: proc{|v| v }, decoder: proc{|*v| v }
 		type.oid = 123456
@@ -110,6 +117,16 @@ describe PG::ColumnMapping do
 		res = @conn.exec_params( "SELECT $1, $2, $3", [ 0, nil, "-999" ], 0, col_map )
 		res.values.should == [
 				[ "0", nil, "-999" ],
+		]
+	end
+
+	it "should encode bytea params" do
+		data = "'\u001F\\"
+		col_map = PG::ColumnMapping.new( [binary_bytea_type]*2 )
+		res = @conn.exec_params( "SELECT $1, $2", [ data, nil ], 0, col_map )
+		res.column_mapping = PG::ColumnMapping.new( [text_bytea_type]*2 )
+		res.values.should == [
+				[ data, nil ],
 		]
 	end
 

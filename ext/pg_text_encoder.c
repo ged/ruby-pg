@@ -345,7 +345,6 @@ init_pg_text_encoder()
 	pg_define_coder( "INTEGER", pg_text_enc_integer, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 	pg_define_coder( "FLOAT", pg_text_enc_float, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 	pg_define_coder( "STRING", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "BYTEA", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
 
 	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
 	pg_define_coder( "ARRAY", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
