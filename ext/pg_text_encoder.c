@@ -346,6 +346,12 @@ pg_text_enc_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *intermedi
 	}
 }
 
+static int
+pg_text_enc_quoted_literal(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	return quote_string(conv, value, out, intermediate, '\'');
+}
+
 void
 init_pg_text_encoder()
 {
@@ -363,4 +369,5 @@ init_pg_text_encoder()
 	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
 	pg_define_coder( "ARRAY", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 	pg_define_coder( "IDENTIFIER", pg_text_enc_identifier, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
+	pg_define_coder( "QUOTED_LITERAL", pg_text_enc_quoted_literal, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
 }

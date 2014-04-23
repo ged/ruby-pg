@@ -326,6 +326,13 @@ describe "PG::Type derivations" do
 						quoted_type.encode(%[a.b]).should eq %[a.b]
 					end
 				end
+
+				context 'literal quotation' do
+					it 'should quote and escape literals' do
+						quoted_type = PG::CompositeType.new encoder: PG::TextEncoder::QUOTED_LITERAL, elements_type: text_string_array_type
+						quoted_type.encode(["'A\",","\\B'"]).should eq %['{"''A\\",","\\\\B''"}']
+					end
+				end
 			end
 
 			it "should be possible to marshal types" do
