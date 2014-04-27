@@ -11,6 +11,10 @@ module PG
 			_, nsp, name = *qname.split('::')
 			PG.const_get(nsp).const_get(name)
 		end
+
+		def inspect
+			@name
+		end
 	end
 
 end # module PG

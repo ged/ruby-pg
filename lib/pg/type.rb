@@ -35,6 +35,15 @@ module PG
 		def marshal_load(str)
 			initialize Marshal.load(str)
 		end
+
+		def inspect
+			str = self.to_s
+			oid_str = " oid=#{oid}" unless oid==0
+			format_str = " format=#{format}" unless format==0
+			name_str = " #{name.inspect}" if name
+			str[-1,0] = "#{name_str} encoder=#{encoder.inspect} decoder=#{decoder.inspect}#{oid_str}#{format_str}"
+			str
+		end
 	end
 
 	class CompositeType < Type
@@ -43,6 +52,12 @@ module PG
 				elements_type: elements_type,
 				needs_quotation: needs_quotation?,
 			})
+		end
+
+		def inspect
+			str = super
+			str[-1,0] = " elements_type=#{elements_type.inspect} #{needs_quotation? ? 'needs' : 'no'} quotation"
+			str
 		end
 	end
 
