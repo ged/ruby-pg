@@ -111,7 +111,7 @@ module PG::TestingHelpers
 
 	### Run the specified command +cmd+ after redirecting stdout and stderr to the specified
 	### +logpath+, failing if the execution fails.
-	def log_and_run( logpath, *cmd )
+	def old_log_and_run( logpath, *cmd )
 		cmd.flatten!
 
 		if cmd.length > 1
@@ -124,12 +124,24 @@ module PG::TestingHelpers
 		# redirecting STDERR/STDOUT to a logfile if the Ruby interpreter
 		# supports fork()
 		logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
-		begin
-			pid = fork
-		rescue NotImplementedError
-			logfh.close
+
+		if RUBY_PLATFORM =~ /java/
+      # FIXME: for some reason redirection in the system method don't
+      # work, so I ended up with this lengthy hack
+      logpath ||= "/dev/null"
+      f = File.open logpath, 'a'
+      old_stdout = $stdout
+      old_stderr = $stderr
+      $stdout = $stderr = f
 			system( *cmd )
+      $stdout = old_stdout
+      $stderr = old_stderr
 		else
+		  begin
+			  pid = fork
+		  rescue NotImplementedError
+			  logfh.close
+      end
 			if pid
 				logfh.close
 			else
@@ -144,9 +156,37 @@ module PG::TestingHelpers
 			Process.wait( pid )
 		end
 
-		raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
+    unless $?.success?
+      system("cat #{logpath}")
+      raise "Command failed: [%s]" % [cmd.join(' ')]
+    end
 	end
 
+  def certs_directory
+    File.expand_path "#{__FILE__}/../../../certs"
+  end
+
+	def log_and_run( logpath, *cmd )
+    return old_log_and_run logpath, cmd unless cmd.first =~ /initdb/
+
+    $stderr.puts "Setting up pg_hba.conf with some dummy usernames and passwords"
+    tmp = old_log_and_run logpath, cmd
+    File.open("#{@test_pgdata}/pg_hba.conf", "w") do |f|
+      f.puts "# TYPE    DATABASE        USER            ADDRESS         METHOD"
+      f.puts "  hostssl all             ssl             127.0.0.1/32    password"
+      f.puts "  host    all             ssl             127.0.0.1/32    reject"
+      f.puts "  host    all             password        127.0.0.1/32    password"
+      f.puts "  host    all             encrypt         127.0.0.1/32    md5"
+      f.puts "  host    all             all             127.0.0.1/32    trust"
+    end
+    File.open("#{@test_pgdata}/postgresql.conf", "a") do |f|
+      f.puts "ssl = yes"
+    end
+    FileUtils.cp "#{certs_directory}/server.key", @test_pgdata
+    File.chmod 0400, "#{@test_pgdata}/server.key"
+    FileUtils.cp "#{certs_directory}/server.crt", @test_pgdata
+    tmp
+  end
 
 	### Check the current directory for directories that look like they're
 	### testing directories from previous tests, and tell any postgres instances
@@ -166,7 +206,7 @@ module PG::TestingHelpers
 					# Process isn't alive, so don't try to stop it
 				else
 					$stderr.puts "Stopping lingering database at PID %d" % [ pid ]
-					run 'pg_ctl', '-D', datadir.to_s, '-m', 'fast', 'stop'
+					run pg_bin_path('pg_ctl'), '-D', datadir.to_s, '-m', 'fast', 'stop'
 				end
 			else
 				$stderr.puts "No pidfile (%p)" % [ pidfile ]
@@ -174,6 +214,15 @@ module PG::TestingHelpers
 		end
 	end
 
+
+  def pg_bin_path cmd
+    begin
+      bin_dir = `pg_config --bindir`.strip
+      "#{bin_dir}/#{cmd}"
+    rescue
+      cmd
+    end
+  end
 
 	### Set up a PostgreSQL database instance for testing.
 	def setup_testing_db( description )
@@ -196,17 +245,17 @@ module PG::TestingHelpers
 			unless (@test_pgdata+"postgresql.conf").exist?
 				FileUtils.rm_rf( @test_pgdata, :verbose => $DEBUG )
 				$stderr.puts "Running initdb"
-				log_and_run @logfile, 'initdb', '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
+				log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
 			end
 
-			trace "Starting postgres"
-			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-k #{TEST_DIRECTORY.to_s.dump}",
-				'-D', @test_pgdata.to_s, 'start'
+			$stderr.puts "Starting postgres"
+			log_and_run @logfile, pg_bin_path('pg_ctl'), 'start', '-l', @logfile.to_s, '-w', '-o', "-k #{TEST_DIRECTORY.to_s.dump}",
+				'-D', @test_pgdata.to_s
 			sleep 2
 
 			$stderr.puts "Creating the test DB"
-			log_and_run @logfile, 'psql', '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
-			log_and_run @logfile, 'createdb', '-e', 'test'
+			log_and_run @logfile, pg_bin_path('psql'), '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
+			log_and_run @logfile, pg_bin_path('createdb'), '-e', 'test'
 
 		rescue => err
 			$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
@@ -232,7 +281,7 @@ module PG::TestingHelpers
 			conn.finish
 		end
 
-		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
+		log_and_run @logfile, pg_bin_path('pg_ctl'), 'stop', '-m', 'fast', '-D', @test_pgdata.to_s
 	end
 
 

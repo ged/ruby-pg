@@ -1,0 +1,6 @@
+This directory contains the test certs that are used to test SSL.
+
+The server key passphrase is 'testkey'
+
+To generate new certs run './generate_keys.sh'
+To import the server certificate to Java run 'import_key.sh'

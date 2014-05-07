@@ -353,7 +353,7 @@ describe PG::Connection do
 		@conn.wait_for_notify( 10 ).should == 'woo'
 		@conn.exec( 'UNLISTEN woo' )
 
-		t.join
+    t.join
 	end
 
 	it "calls a block for NOTIFY events if one is given" do
@@ -377,7 +377,7 @@ describe PG::Connection do
 
 		@conn.exec( 'UNLISTEN woo' )
 
-		t.join
+    t.join
 	end
 
 	it "doesn't collapse sequential notifications" do
@@ -973,8 +973,8 @@ describe PG::Connection do
 					res = conn.exec("VALUES ('世界線航跡蔵')", [], 0)
 					out_string = res[0]['column1']
 				end
-				out_string.should == '世界線航跡蔵'
 				out_string.encoding.should == Encoding::UTF_8
+				out_string.should == '世界線航跡蔵'
 			end
 
 			it "should return results in the same encoding as the client (EUC-JP)" do
