@@ -41,6 +41,20 @@ class PG::BasicTypeMapping
 		map[value.class]
 	end
 
+	def column_mapping_for_query_params( params )
+		types = params.map do |p|
+			type_by_value(p)
+		end
+		PG::ColumnMapping.new types
+	end
+
+	def column_mapping_for_result( result )
+		types = Array.new(result.nfields) do |i|
+			@types_by_oid[result.fformat(i)][result.ftype(i)]
+		end
+		PG::ColumnMapping.new( types )
+	end
+
 	private
 	def check_format(format)
 		raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
@@ -258,19 +272,4 @@ class PG::BasicTypeMapping
 	register_type 1, 'bool', PG::BinaryEncoder::BOOLEAN, PG::BinaryDecoder::BOOLEAN
 	register_type 1, 'float4', nil, PG::BinaryDecoder::FLOAT
 	register_type 1, 'float8', nil, PG::BinaryDecoder::FLOAT
-
-
-	def column_mapping_for_query_params( params )
-		types = params.map do |p|
-			type_by_value(p)
-		end
-		PG::ColumnMapping.new types
-	end
-
-	def column_mapping_for_result( result )
-		types = Array.new(result.nfields) do |i|
-			@types_by_oid[result.fformat(i)][result.ftype(i)]
-		end
-		PG::ColumnMapping.new( types )
-	end
 end
