@@ -1522,7 +1522,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  * Then call Connection#get_result repeatedly, until it returns nil.
  *
  * Each (but the last) received Result has exactly one row and a
- * Result#result_status of PGRES_SINGLE_TUPLE. The last row has
+ * Result#result_status of PGRES_SINGLE_TUPLE. The last Result has
  * zero rows and is used to indicate a successful execution of the query.
  * All of these Result objects will contain the same row description data
  * (column names, types, etc) that an ordinary Result object for the query
