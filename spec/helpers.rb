@@ -9,6 +9,38 @@ TEST_DIRECTORY = Pathname.getwd + "tmp_test_specs"
 
 module PG::TestingHelpers
 
+	### Automatically set up the database when it's used, and wrap a transaction around
+	### examples that don't disable it.
+	def self::included( mod )
+		super
+
+		if mod.respond_to?( :around )
+
+			mod.before( :all ) { @conn = setup_testing_db(described_class.name) }
+
+			mod.around( :each ) do |example|
+				begin
+					@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
+					if PG.respond_to?( :library_version )
+						desc = example.source_location.join(':')
+						@conn.exec_params %Q{SET application_name TO '%s'} %
+							[@conn.escape_string(desc.slice(-60))]
+					end
+					example.run
+				ensure
+					@conn.exec( 'ROLLBACK' ) unless example.metadata[:without_transaction]
+				end
+			end
+
+			mod.after( :all ) { teardown_testing_db(@conn) }
+		end
+
+	end
+
+
+	#
+	# Examples
+	#
 
 	# Set some ANSI escape code constants (Shamelessly stolen from Perl's
 	# Term::ANSIColor by Russ Allbery <rra@stanford.edu> and Zenin <zenin@best.com>
@@ -121,28 +153,9 @@ module PG::TestingHelpers
 		end
 
 		# Eliminate the noise of creating/tearing down the database by
-		# redirecting STDERR/STDOUT to a logfile if the Ruby interpreter
-		# supports fork()
+		# redirecting STDERR/STDOUT to a logfile
 		logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
-		begin
-			pid = fork
-		rescue NotImplementedError
-			logfh.close
-			system( *cmd )
-		else
-			if pid
-				logfh.close
-			else
-				$stdout.reopen( logfh )
-				$stderr.reopen( $stdout )
-				$stderr.puts( ">>> " + cmd.shelljoin )
-				exec( *cmd )
-				$stderr.puts "After the exec()?!??!"
-				exit!
-			end
-
-			Process.wait( pid )
-		end
+		system( *cmd, [STDOUT, STDERR] => logfh )
 
 		raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
 	end
@@ -248,29 +261,19 @@ module PG::TestingHelpers
 		end
 	end
 
-	def connection_string_should_contain_application_name(conn_args, app_name)
-		conn_name = conn_args.match(/application_name='(.*)'/)[1]
-		conn_name.should include(app_name[0..10])
-		conn_name.should include(app_name[-10..-1])
-		conn_name.length.should <= 64
-	end
-
-	# Ensure the connection is in a clean execution status.
-	def verify_clean_exec_status
-		@conn.send_query( "VALUES (1)" )
-		@conn.get_last_result.values.should == [["1"]]
-	end
 end
 
 
 RSpec.configure do |config|
-	ruby_version_vec = RUBY_VERSION.split('.').map {|c| c.to_i }.pack( "N*" )
-
 	config.include( PG::TestingHelpers )
-	config.treat_symbols_as_metadata_keys_with_true_values = true
 
-	config.mock_with :rspec
-	config.filter_run_excluding :ruby_19 if ruby_version_vec <= [1,9,1].pack( "N*" )
+	config.run_all_when_everything_filtered = true
+	config.filter_run :focus
+	config.order = 'random'
+	config.mock_with( :rspec ) do |mock|
+		mock.syntax = :expect
+	end
+
 	if RUBY_PLATFORM =~ /mingw|mswin/
 		config.filter_run_excluding :unix
 	else
