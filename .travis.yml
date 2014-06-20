@@ -4,6 +4,7 @@ rvm:
 #   - "1.9.2"
   - "1.9.3"
   - "2.0.0"
+  - "2.1.2"
 #   - jruby-18mode # JRuby in 1.8 mode
 #   - jruby-19mode # JRuby in 1.9 mode
   - rbx-18mode
@@ -20,6 +21,8 @@ matrix:
     - rvm: 1.9.3
       env: "PGCROSS=true"
     - rvm: 2.0.0
+      env: "PGCROSS=true"
+    - rvm: 2.1.2
       env: "PGCROSS=true"
     - rvm: jruby-18mode
       env: "PGCROSS=true"
