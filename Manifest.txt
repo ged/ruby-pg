@@ -51,7 +51,7 @@ sample/wal_shipper.rb
 sample/warehouse_partitions.rb
 spec/data/expected_trace.out
 spec/data/random_binary_data
-spec/lib/helpers.rb
+spec/helpers.rb
 spec/pg/connection_spec.rb
 spec/pg/result_spec.rb
 spec/pg_spec.rb
