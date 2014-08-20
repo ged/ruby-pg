@@ -261,6 +261,55 @@ module PG::TestingHelpers
 		end
 	end
 
+
+	# A matcher for checking the status of a PG::Connection to ensure it's still
+	# usable.
+	class ConnStillUsableMatcher
+
+		def initialize
+			@conn = nil
+			@problem = nil
+		end
+
+		def matches?( conn )
+			@conn = conn
+			@problem = self.check_for_problems
+			return @problem.nil?
+		end
+
+		def check_for_problems
+			return "is finished" if @conn.finished?
+			return "has bad status" unless @conn.status == PG::CONNECTION_OK
+			return "has bad transaction status (%d)" % [ @conn.transaction_status ] unless
+				@conn.transaction_status.between?( PG::PQTRANS_IDLE, PG::PQTRANS_INTRANS )
+			return "is not usable." unless self.can_exec_query?
+			return nil
+		end
+
+		def can_exec_query?
+			@conn.send_query( "VALUES (1)" )
+			@conn.get_last_result.values == [["1"]]
+		end
+
+		def failure_message
+			return "expected %p to be usable, but it %s" % [ @conn, @problem ]
+		end
+
+		def failure_message_when_negated
+			"expected %p not to be usable, but it still is" % [ @conn ]
+		end
+
+	end
+
+
+	### Return a ConnStillUsableMatcher to be used like:
+	###
+	###    expect( pg_conn ).to still_be_usable
+	###
+	def still_be_usable
+		return ConnStillUsableMatcher.new
+	end
+
 end
 
 

@@ -457,8 +457,7 @@ describe PG::Connection do
 		end
 		expect( rows ).to eq( ["1\n", "2\n"] )
 		expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 	end
 
 	it "can handle incomplete #copy_data output queries" do
@@ -467,8 +466,7 @@ describe PG::Connection do
 				@conn.get_copy_data
 			end
 		}.to raise_error(PG::NotAllCopyDataRetrieved, /Not all/)
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 	end
 
 	it "can handle client errors in #copy_data for output" do
@@ -477,8 +475,7 @@ describe PG::Connection do
 				raise "boom"
 			end
 		}.to raise_error(RuntimeError, "boom")
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 	end
 
 	it "can handle server errors in #copy_data for output" do
@@ -492,8 +489,7 @@ describe PG::Connection do
 				end
 			}.to raise_error(PG::Error, /test-error/)
 		end
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 	end
 
 	it "can process #copy_data input queries" do
@@ -506,8 +502,7 @@ describe PG::Connection do
 		end
 		expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
 
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 
 		res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
 		expect( res.values ).to eq( [["1"], ["2"]] )
@@ -523,8 +518,8 @@ describe PG::Connection do
 				end
 			}.to raise_error(RuntimeError, "boom")
 		end
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+
+		expect( @conn ).to still_be_usable
 	end
 
 	it "can handle server errors in #copy_data for input" do
@@ -537,8 +532,7 @@ describe PG::Connection do
 				end
 			}.to raise_error(PG::Error, /invalid input syntax for integer/)
 		end
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 	end
 
 	it "should raise an error for non copy statements in #copy_data" do
@@ -546,8 +540,7 @@ describe PG::Connection do
 			@conn.copy_data( "SELECT 1" ){}
 		}.to raise_error(ArgumentError, /no COPY/)
 
-		@conn.send_query( "VALUES (1)" )
-		expect( @conn.get_last_result.values ).to eq( [["1"]] )
+		expect( @conn ).to still_be_usable
 	end
 
 	it "correctly finishes COPY queries passed to #async_exec" do
