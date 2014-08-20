@@ -46,6 +46,8 @@ pg_get_pgconn( VALUE self )
 }
 
 
+
+
 /*
  * Close the associated socket IO object if there is one.
  */
@@ -65,6 +67,40 @@ pgconn_close_socket_io( VALUE self )
 	}
 
 	rb_iv_set( self, "@socket_io", Qnil );
+}
+
+
+/*
+ * Create a Ruby Array of Hashes out of a PGconninfoOptions array.
+ */
+static VALUE
+pgconn_make_conninfo_array( const PQconninfoOption *options )
+{
+	VALUE ary = rb_ary_new();
+	VALUE hash;
+	int i = 0;
+
+	if (!options) return Qnil;
+
+	for(i = 0; options[i].keyword != NULL; i++) {
+		hash = rb_hash_new();
+		if(options[i].keyword)
+			rb_hash_aset(hash, ID2SYM(rb_intern("keyword")), rb_str_new2(options[i].keyword));
+		if(options[i].envvar)
+			rb_hash_aset(hash, ID2SYM(rb_intern("envvar")), rb_str_new2(options[i].envvar));
+		if(options[i].compiled)
+			rb_hash_aset(hash, ID2SYM(rb_intern("compiled")), rb_str_new2(options[i].compiled));
+		if(options[i].val)
+			rb_hash_aset(hash, ID2SYM(rb_intern("val")), rb_str_new2(options[i].val));
+		if(options[i].label)
+			rb_hash_aset(hash, ID2SYM(rb_intern("label")), rb_str_new2(options[i].label));
+		if(options[i].dispchar)
+			rb_hash_aset(hash, ID2SYM(rb_intern("dispchar")), rb_str_new2(options[i].dispchar));
+		rb_hash_aset(hash, ID2SYM(rb_intern("dispsize")), INT2NUM(options[i].dispsize));
+		rb_ary_push(ary, hash);
+	}
+
+	return ary;
 }
 
 
@@ -319,31 +355,13 @@ static VALUE
 pgconn_s_conndefaults(VALUE self)
 {
 	PQconninfoOption *options = PQconndefaults();
-	VALUE ary = rb_ary_new();
-	VALUE hash;
-	int i = 0;
+	VALUE array = pgconn_make_conninfo_array( options );
+
+	PQconninfoFree(options);
 
 	UNUSED( self );
 
-	for(i = 0; options[i].keyword != NULL; i++) {
-		hash = rb_hash_new();
-		if(options[i].keyword)
-			rb_hash_aset(hash, ID2SYM(rb_intern("keyword")), rb_str_new2(options[i].keyword));
-		if(options[i].envvar)
-			rb_hash_aset(hash, ID2SYM(rb_intern("envvar")), rb_str_new2(options[i].envvar));
-		if(options[i].compiled)
-			rb_hash_aset(hash, ID2SYM(rb_intern("compiled")), rb_str_new2(options[i].compiled));
-		if(options[i].val)
-			rb_hash_aset(hash, ID2SYM(rb_intern("val")), rb_str_new2(options[i].val));
-		if(options[i].label)
-			rb_hash_aset(hash, ID2SYM(rb_intern("label")), rb_str_new2(options[i].label));
-		if(options[i].dispchar)
-			rb_hash_aset(hash, ID2SYM(rb_intern("dispchar")), rb_str_new2(options[i].dispchar));
-		rb_hash_aset(hash, ID2SYM(rb_intern("dispsize")), INT2NUM(options[i].dispsize));
-		rb_ary_push(ary, hash);
-	}
-	PQconninfoFree(options);
-	return ary;
+	return array;
 }
 
 
@@ -603,6 +621,28 @@ pgconn_options(VALUE self)
 	if (!options) return Qnil;
 	return rb_tainted_str_new2(options);
 }
+
+
+/*
+ * call-seq:
+ *    conn.conninfo   -> hash
+ *
+ * Returns the connection options used by a live connection.
+ *
+ */
+static VALUE
+pgconn_conninfo( VALUE self )
+{
+	PGconn *conn = pg_get_pgconn(self);
+	PQconninfoOption *options = PQconninfo( conn );
+	VALUE array = pgconn_make_conninfo_array( options );
+
+	PQconninfoFree(options);
+
+	return array;
+}
+
+
 
 /*
  * call-seq:
@@ -3518,6 +3558,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "host", pgconn_host, 0);
 	rb_define_method(rb_cPGconn, "port", pgconn_port, 0);
 	rb_define_method(rb_cPGconn, "tty", pgconn_tty, 0);
+	rb_define_method(rb_cPGconn, "conninfo", pgconn_conninfo, 0);
 	rb_define_method(rb_cPGconn, "options", pgconn_options, 0);
 	rb_define_method(rb_cPGconn, "status", pgconn_status, 0);
 	rb_define_method(rb_cPGconn, "transaction_status", pgconn_transaction_status, 0);

@@ -172,6 +172,15 @@ class PG::Connection
 		return self.class.conndefaults
 	end
 
+
+	### Return the Postgres connection info structure as a Hash keyed by option
+	### keyword (as a Symbol).
+	def conninfo_hash
+		return self.conninfo.each_with_object({}) do |info, hash|
+			hash[ info[:keyword].to_sym ] = info[:val]
+		end
+	end
+
 end # class PG::Connection
 
 # Backward-compatible alias
