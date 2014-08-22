@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'pg' unless defined?( PG )
+require 'uri'
 
 # The PostgreSQL connection class. The interface for this class is based on
 # {libpq}[http://www.postgresql.org/docs/9.2/interactive/libpq.html], the C
@@ -46,6 +47,9 @@ class PG::Connection
 
 		if args.length == 1
 			case args.first
+			when URI, URI.regexp
+				uri = URI(args.first)
+				options.merge!( Hash[ URI.decode_www_form( uri.query ) ] ) if uri.query
 			when /=/
 				# Option string style
 				option_string = args.first.to_s
@@ -64,8 +68,18 @@ class PG::Connection
 
 		options.merge!(hash_arg)
 
-		option_string += ' ' unless option_string.empty? && options.empty?
-		option_string + options.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join(' ')
+		if uri
+			uri.host = nil if options[:host]
+			uri.port = nil if options[:port]
+			uri.user = nil if options[:user]
+			uri.password = nil if options[:password]
+			uri.path = '' if options[:dbname]
+			uri.query = URI.encode_www_form( options )
+			uri.to_s.sub(/^#{uri.scheme}:(?!\/\/)/, "#{uri.scheme}://")
+		else
+			option_string += ' ' unless option_string.empty? && options.empty?
+			option_string + options.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join(' ')
+		end
 	end
 
 	#  call-seq:
