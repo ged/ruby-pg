@@ -1,19 +1,10 @@
 #!/usr/bin/env rspec
 # encoding: utf-8
 
-BEGIN {
-	require 'pathname'
+require_relative '../helpers'
 
-	basedir = Pathname( __FILE__ ).dirname.parent.parent
-	libdir = basedir + 'lib'
-
-	$LOAD_PATH.unshift( basedir.to_s ) unless $LOAD_PATH.include?( basedir.to_s )
-	$LOAD_PATH.unshift( libdir.to_s ) unless $LOAD_PATH.include?( libdir.to_s )
-}
-
-require 'rspec'
-require 'spec/lib/helpers'
 require 'pg'
+
 
 describe PG::ColumnMapping do
 
@@ -65,19 +56,19 @@ describe PG::ColumnMapping do
 
 	it "should retrieve it's conversions" do
 		cm = PG::ColumnMapping.new( [text_int_type, text_string_type, text_float_type, pass_through_type, nil] )
-		cm.types.should == [
+		expect( cm.types ).to eq( [
 			text_int_type,
 			text_string_type,
 			text_float_type,
 			pass_through_type,
 			nil
-		]
-		cm.inspect.should == "#<PG::ColumnMapping INT4:0 TEXT:0 FLOAT4:0 pass_through:1 nil>"
+		] )
+		expect( cm.inspect ).to eq( "#<PG::ColumnMapping INT4:0 TEXT:0 FLOAT4:0 pass_through:1 nil>" )
 	end
 
 	it "should retrieve it's oids" do
 		cm = PG::ColumnMapping.new( [text_int_type, text_string_type, text_float_type, pass_through_type, nil] )
-		cm.oids.should == [23, 25, 700, 123456, nil]
+		expect( cm.oids ).to eq( [23, 25, 700, 123456, nil] )
 	end
 
 
@@ -89,11 +80,11 @@ describe PG::ColumnMapping do
 		res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5 at time zone 'utc'",
 			[1, "a", 2.1, true, Time.new(2013,6,30,14,58,59.3,"-02:00")], nil, basic_type_mapping )
 
-		res.values.should == [
+		expect( res.values ).to eq( [
 				[ "1", "a", "2.1", "t", "2013-06-30 16:58:59.3" ],
-		]
+		] )
 
-		result_typenames(res).should == ['bigint', 'text', 'double precision', 'boolean', 'timestamp without time zone']
+		expect( result_typenames(res) ).to eq( ['bigint', 'text', 'double precision', 'boolean', 'timestamp without time zone'] )
 	end
 
 	it "should do array param encoding" do
@@ -103,21 +94,21 @@ describe PG::ColumnMapping do
 				['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
 			], nil, basic_type_mapping )
 
-		res.values.should == [[
+		expect( res.values ).to eq( [[
 				'{1,2,3}', '{{1,2},{3,NULL}}',
 				'{1.11,2.21}',
 				'{"//,/"",NULL,abcäöü}'.gsub("/", "\\"),
-		]]
+		]] )
 
-		result_typenames(res).should == ['bigint[]', 'bigint[]', 'double precision[]', 'text[]']
+		expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]'] )
 	end
 
 	it "should encode integer params" do
 		col_map = PG::ColumnMapping.new( [text_int_type]*3 )
 		res = @conn.exec_params( "SELECT $1, $2, $3", [ 0, nil, "-999" ], 0, col_map )
-		res.values.should == [
+		expect( res.values ).to eq( [
 				[ "0", nil, "-999" ],
-		]
+		] )
 	end
 
 	it "should encode bytea params" do
@@ -125,9 +116,9 @@ describe PG::ColumnMapping do
 		col_map = PG::ColumnMapping.new( [binary_bytea_type]*2 )
 		res = @conn.exec_params( "SELECT $1, $2", [ data, nil ], 0, col_map )
 		res.column_mapping = PG::ColumnMapping.new( [text_bytea_type]*2 )
-		res.values.should == [
+		expect( res.values ).to eq( [
 				[ data, nil ],
-		]
+		] )
 	end
 
 	#
@@ -136,10 +127,10 @@ describe PG::ColumnMapping do
 
 	it "should do OID based type conversions", :ruby_19 do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE, generate_series(4,5)" )
-		res.map_types!(basic_type_mapping).values.should == [
+		expect( res.map_types!(basic_type_mapping).values ).to eq( [
 				[ 1, 'a', 2.0, true, Time.new(2013,6,30), 4 ],
 				[ 1, 'a', 2.0, true, Time.new(2013,6,30), 5 ],
-		]
+		] )
 	end
 
 	class Exception_in_column_mapping_for_result
@@ -196,7 +187,7 @@ describe PG::ColumnMapping do
 	it "should allow mixed type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
 		res.column_mapping = PG::ColumnMapping.new( [text_int_type, text_string_type, text_float_type, pass_through_type, nil] )
-		res.values.should == [[1, 'a', 2.0, ['2013-06-30', 0, 3], '3' ]]
+		expect( res.values ).to eq( [[1, 'a', 2.0, ['2013-06-30', 0, 3], '3' ]] )
 	end
 
 	#
@@ -215,22 +206,22 @@ describe PG::ColumnMapping do
 		it "should do boolean type conversions" do
 			[1, 0].each do |format|
 				res = @conn.exec( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN", [], format )
-				res.values.should == [[true, false, nil]]
+				expect( res.values ).to eq( [[true, false, nil]] )
 			end
 		end
 
 		it "should do binary type conversions" do
 			[1, 0].each do |format|
 				res = @conn.exec( "SELECT E'\\\\000\\\\377'::BYTEA", [], format )
-				res.values.should == [[["00ff"].pack("H*")]]
-				res.values[0][0].encoding.should == Encoding::ASCII_8BIT if Object.const_defined? :Encoding
+				expect( res.values ).to eq( [[["00ff"].pack("H*")]] )
+				expect( res.values[0][0].encoding ).to eq( Encoding::ASCII_8BIT ) if Object.const_defined? :Encoding
 			end
 		end
 
 		it "should do integer type conversions" do
 			[1, 0].each do |format|
 				res = @conn.exec( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], format )
-				res.values.should == [[-8999, -899999999, -8999999999999999999]]
+				expect( res.values ).to eq( [[-8999, -899999999, -8999999999999999999]] )
 			end
 		end
 
@@ -238,8 +229,8 @@ describe PG::ColumnMapping do
 			@conn.internal_encoding = 'utf-8' if Object.const_defined? :Encoding
 			[1, 0].each do |format|
 				res = @conn.exec( "SELECT 'abcäöü'::TEXT", [], format )
-				res.values.should == [['abcäöü']]
-				res.values[0][0].encoding.should == Encoding::UTF_8 if Object.const_defined? :Encoding
+				expect( res.values ).to eq( [['abcäöü']] )
+				expect( res.values[0][0].encoding ).to eq( Encoding::UTF_8 ) if Object.const_defined? :Encoding
 			end
 		end
 
@@ -253,13 +244,13 @@ describe PG::ColumnMapping do
 				                  'Infinity'::FLOAT4,
 				                  '-Infinity'::FLOAT4
 				                ", [], format )
-				res.getvalue(0,0).should be_within(1e-2).of(-8.999e3)
-				res.getvalue(0,1).should be_within(1e5).of(8.999e10)
-				res.getvalue(0,2).should be_within(1e-109).of(-8999999999e-99)
-				res.getvalue(0,3).should be_nil
-				res.getvalue(0,4).should be_nan
-				res.getvalue(0,5).should == Float::INFINITY
-				res.getvalue(0,6).should == -Float::INFINITY
+				expect( res.getvalue(0,0) ).to be_within(1e-2).of(-8.999e3)
+				expect( res.getvalue(0,1) ).to be_within(1e5).of(8.999e10)
+				expect( res.getvalue(0,2) ).to be_within(1e-109).of(-8999999999e-99)
+				expect( res.getvalue(0,3) ).to be_nil
+				expect( res.getvalue(0,4) ).to be_nan
+				expect( res.getvalue(0,5) ).to eq( Float::INFINITY )
+				expect( res.getvalue(0,6) ).to eq( -Float::INFINITY )
 			end
 		end
 
@@ -267,8 +258,8 @@ describe PG::ColumnMapping do
 			[0].each do |format|
 				res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
 																	CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
-				res.getvalue(0,0).should == Time.new(2013, 12, 31, 23, 58, 59)
-				res.getvalue(0,1).should be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
+				expect( res.getvalue(0,0) ).to eq( Time.new(2013, 12, 31, 23, 58, 59) )
+				expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
 			end
 		end
 
@@ -276,8 +267,8 @@ describe PG::ColumnMapping do
 			[0].each do |format|
 				res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITH TIME ZONE),
 																	CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE)", [], format )
-				res.getvalue(0,0).should == Time.new(2013, 12, 31, 23, 58, 59, "+02:00")
-				res.getvalue(0,1).should be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
+				expect( res.getvalue(0,0) ).to eq( Time.new(2013, 12, 31, 23, 58, 59, "+02:00") )
+				expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
 			end
 		end
 
@@ -285,8 +276,8 @@ describe PG::ColumnMapping do
 			[0].each do |format|
 				res = @conn.exec( "SELECT CAST('2113-12-31' AS DATE),
 																	CAST('1913-12-31' AS DATE)", [], format )
-				res.getvalue(0,0).should == Time.new(2113, 12, 31)
-				res.getvalue(0,1).should == Time.new(1913, 12, 31)
+				expect( res.getvalue(0,0) ).to eq( Time.new(2113, 12, 31) )
+				expect( res.getvalue(0,1) ).to eq( Time.new(1913, 12, 31) )
 			end
 		end
 
@@ -300,14 +291,14 @@ describe PG::ColumnMapping do
 														CAST('{1,2,3}' AS FLOAT4[]),
 														CAST('{1,2,3}' AS FLOAT8[])
 													", [], format )
-				res.getvalue(0,0).should == [1,2,3]
-				res.getvalue(0,1).should == [[1,2],[3,4]]
-				res.getvalue(0,2).should == [1,2,3]
-				res.getvalue(0,3).should == [1,2,3]
-				res.getvalue(0,4).should == ['1','2','3']
-				res.getvalue(0,5).should == ['1','2','3']
-				res.getvalue(0,6).should == [1.0,2.0,3.0]
-				res.getvalue(0,7).should == [1.0,2.0,3.0]
+				expect( res.getvalue(0,0) ).to eq( [1,2,3] )
+				expect( res.getvalue(0,1) ).to eq( [[1,2],[3,4]] )
+				expect( res.getvalue(0,2) ).to eq( [1,2,3] )
+				expect( res.getvalue(0,3) ).to eq( [1,2,3] )
+				expect( res.getvalue(0,4) ).to eq( ['1','2','3'] )
+				expect( res.getvalue(0,5) ).to eq( ['1','2','3'] )
+				expect( res.getvalue(0,6) ).to eq( [1.0,2.0,3.0] )
+				expect( res.getvalue(0,7) ).to eq( [1.0,2.0,3.0] )
 			end
 		end
 	end

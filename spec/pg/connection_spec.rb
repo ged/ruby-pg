@@ -1246,7 +1246,7 @@ describe PG::Connection do
 		end
 
 		it "should return nil if no type mapping is set" do
-			@conn.type_mapping.should == nil
+			expect( @conn.type_mapping ).to be_nil
 		end
 
 		it "shouldn't type map params unless requested" do
@@ -1266,11 +1266,11 @@ describe PG::Connection do
 
 			it "should respect a type mapping for params and result" do
 				res = @conn2.exec_params( "SELECT $1", [5] )
-				res.values.should == [[5]]
+				expect( res.values ).to eq( [[5]] )
 			end
 
 			it "should return the current type mapping" do
-				@conn2.type_mapping.should be_kind_of(PG::BasicTypeMapping)
+				expect( @conn2.type_mapping ).to be_kind_of(PG::BasicTypeMapping)
 			end
 		end
 	end

@@ -333,34 +333,34 @@ describe PG::Result do
 
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
-			res.column_mapping.should be_nil
+			expect( res.column_mapping ).to be_nil
 			res.column_mapping = PG::ColumnMapping.new [text_int_type]
-			res.column_mapping.should be_an_instance_of(PG::ColumnMapping)
-			res.column_mapping.types.should == [text_int_type]
+			expect( res.column_mapping ).to be_an_instance_of(PG::ColumnMapping)
+			expect( res.column_mapping.types ).to eq( [text_int_type] )
 			res.column_mapping = PG::ColumnMapping.new [text_float_type]
-			res.column_mapping.types.should == [text_float_type]
+			expect( res.column_mapping.types ).to eq( [text_float_type] )
 			res.column_mapping = nil
-			res.column_mapping.should be_nil
+			expect( res.column_mapping ).to be_nil
 		end
 
 		it "should be applied to all value retrieving methods" do
 			res = @conn.exec( "SELECT 123 as f" )
 			res.column_mapping = PG::ColumnMapping.new [text_int_type]
-			res.values.should == [[123]]
-			res.getvalue(0,0).should == 123
-			res[0].should == {'f' => 123 }
-			res.enum_for(:each_row).to_a.should == [[123]]
-			res.enum_for(:each).to_a.should == [{'f' => 123}]
+			expect( res.values ).to eq( [[123]] )
+			expect( res.getvalue(0,0) ).to eq( 123 )
+			expect( res[0] ).to eq( {'f' => 123 } )
+			expect( res.enum_for(:each_row).to_a ).to eq( [[123]] )
+			expect( res.enum_for(:each).to_a ).to eq( [{'f' => 123}] )
 		end
 
 		it "should be usable for several querys" do
 			colmap = PG::ColumnMapping.new [text_int_type]
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping = colmap
-			res.values.should == [[123]]
+			expect( res.values ).to eq( [[123]] )
 			res = @conn.exec( "SELECT 456" )
 			res.column_mapping = colmap
-			res.values.should == [[456]]
+			expect( res.values ).to eq( [[456]] )
 		end
 
 		it "shouldn't allow invalid column mappings" do

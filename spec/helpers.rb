@@ -16,7 +16,7 @@ module PG::TestingHelpers
 
 		if mod.respond_to?( :around )
 
-			mod.before( :all ) { @conn = setup_testing_db(described_class.name) }
+			mod.before( :all ) { @conn = setup_testing_db(described_class ? described_class.name : mod.description) }
 
 			mod.around( :each ) do |example|
 				begin
