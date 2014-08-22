@@ -304,7 +304,7 @@ pgresult_ntuples(VALUE self)
 
 /*
  * call-seq:
- *    res.nfields() -> Fixnum
+ *    res.nfields() -> Integer
  *
  * Returns the number of columns in the query result.
  */
@@ -375,7 +375,7 @@ pgresult_fnumber(VALUE self, VALUE name)
 
 /*
  * call-seq:
- *    res.ftable( column_number ) -> Fixnum
+ *    res.ftable( column_number ) -> Integer
  *
  * Returns the Oid of the table from which the column _column_number_
  * was fetched.
@@ -394,7 +394,7 @@ pgresult_ftable(VALUE self, VALUE column_number)
 		rb_raise(rb_eArgError,"Invalid column index: %d", col_number);
 
 	n = PQftable(pgresult, col_number);
-	return INT2FIX(n);
+	return UINT2NUM(n);
 }
 
 /*
@@ -445,7 +445,7 @@ pgresult_fformat(VALUE self, VALUE column_number)
 
 /*
  * call-seq:
- *    res.ftype( column_number )
+ *    res.ftype( column_number )  -> Integer
  *
  * Returns the data type associated with _column_number_.
  *
@@ -469,7 +469,7 @@ pgresult_ftype(VALUE self, VALUE index)
 	if (i < 0 || i >= PQnfields(result)) {
 		rb_raise(rb_eArgError, "invalid field number %d", i);
 	}
-	return INT2NUM(PQftype(result, i));
+	return UINT2NUM(PQftype(result, i));
 }
 
 /*
@@ -622,7 +622,7 @@ pgresult_paramtype(VALUE self, VALUE param_number)
 	PGresult *result;
 
 	result = pgresult_get(self);
-	return INT2FIX(PQparamtype(result,NUM2INT(param_number)));
+	return UINT2NUM(PQparamtype(result,NUM2INT(param_number)));
 }
 
 /*
@@ -641,7 +641,7 @@ pgresult_cmd_status(VALUE self)
 
 /*
  * call-seq:
- *    res.cmd_tuples() -> Fixnum
+ *    res.cmd_tuples() -> Integer
  *
  * Returns the number of tuples (rows) affected by the SQL command.
  *
@@ -663,7 +663,7 @@ pgresult_cmd_tuples(VALUE self)
 
 /*
  * call-seq:
- *    res.oid_value() -> Fixnum
+ *    res.oid_value() -> Integer
  *
  * Returns the +oid+ of the inserted row if applicable,
  * otherwise +nil+.
@@ -675,7 +675,7 @@ pgresult_oid_value(VALUE self)
 	if (n == InvalidOid)
 		return Qnil;
 	else
-		return INT2FIX(n);
+		return UINT2NUM(n);
 }
 
 /* Utility methods not in libpq */

@@ -53,14 +53,16 @@ $hoespec = Hoe.spec 'pg' do
 	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
 	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
 	self.extra_rdoc_files.include( 'ext/*.c' )
+	self.license :BSD
 
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
 
 	self.dependency 'rake-compiler', '~> 0.9', :developer
-	self.dependency 'hoe', '~> 3.5.1', :developer
-	self.dependency 'hoe-deveiate', '~> 0.2', :developer
+	self.dependency 'hoe', '~> 3.12', :developer
+	self.dependency 'hoe-deveiate', '~> 0.6', :developer
 	self.dependency 'hoe-bundler', '~> 1.0', :developer
+	self.dependency 'rspec', '~> 3.0', :developer
 
 	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
