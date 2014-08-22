@@ -7,8 +7,9 @@ source "https://rubygems.org/"
 
 gem "rdoc", "~>4.0", :group => [:development, :test]
 gem "rake-compiler", "~>0.9", :group => [:development, :test]
-gem "hoe", "~>3.5.1", :group => [:development, :test]
-gem "hoe-deveiate", "~>0.2", :group => [:development, :test]
+gem "hoe", "~>3.12", :group => [:development, :test]
+gem "hoe-deveiate", "~>0.6", :group => [:development, :test]
 gem "hoe-bundler", "~>1.0", :group => [:development, :test]
+gem "rspec", "~>3.0", :group => [:development, :test]
 
 # vim: syntax=ruby
