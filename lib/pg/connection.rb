@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'pg' unless defined?( PG )
+require 'uri'
 
 # The PostgreSQL connection class. The interface for this class is based on
 # {libpq}[http://www.postgresql.org/docs/9.2/interactive/libpq.html], the C
@@ -34,45 +35,54 @@ class PG::Connection
 	def self::parse_connect_args( *args )
 		return '' if args.empty?
 
-		# This will be swapped soon for code that makes options like those required for
-		# PQconnectdbParams()/PQconnectStartParams(). For now, stick to an options string for
-		# PQconnectdb()/PQconnectStart().
+		hash_arg = args.last.is_a?( Hash ) ? args.pop : {}
+		option_string = ''
+		options = {}
 
 		# Parameter 'fallback_application_name' was introduced in PostgreSQL 9.0
 		# together with PQescapeLiteral().
-		if PG::Connection.instance_methods.find{|m| m.to_sym == :escape_literal }
-			appname = $0.sub(/^(.{30}).{4,}(.{30})$/){ $1+"..."+$2 }
-			appname = PG::Connection.quote_connstr( appname )
-			connopts = ["fallback_application_name=#{appname}"]
-		else
-			connopts = []
+		if PG::Connection.instance_methods.find {|m| m.to_sym == :escape_literal }
+			options[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
 		end
 
-		# Handle an options hash first
-		if args.last.is_a?( Hash )
-			opthash = args.pop
-			opthash.each do |key, val|
-				connopts.push( "%s=%s" % [key, PG::Connection.quote_connstr(val)] )
+		if args.length == 1
+			case args.first
+			when URI, URI.regexp
+				uri = URI(args.first)
+				options.merge!( Hash[URI.decode_www_form( uri.query )] ) if uri.query
+			when /=/
+				# Option string style
+				option_string = args.first.to_s
+			else
+				# Positional parameters
+				options[CONNECT_ARGUMENT_ORDER.first.to_sym] = args.first
+			end
+		else
+			max = CONNECT_ARGUMENT_ORDER.length
+			raise ArgumentError,
+				"Extra positional parameter %d: %p" % [ max + 1, args[max] ] if args.length > max
+
+			CONNECT_ARGUMENT_ORDER.zip( args ) do |(k,v)|
+				options[ k.to_sym ] = v if v
 			end
 		end
 
-		# Option string style
-		if args.length == 1 && args.first.to_s.index( '=' )
-			connopts.unshift( args.first )
+		options.merge!( hash_arg )
 
-		# Append positional parameters
+		if uri
+			uri.host     = nil if options[:host]
+			uri.port     = nil if options[:port]
+			uri.user     = nil if options[:user]
+			uri.password = nil if options[:password]
+			uri.path     = '' if options[:dbname]
+			uri.query    = URI.encode_www_form( options )
+			return uri.to_s.sub( /^#{uri.scheme}:(?!\/\/)/, "#{uri.scheme}://" )
 		else
-			args.each_with_index do |val, i|
-				next unless val # Skip nil placeholders
-
-				key = CONNECT_ARGUMENT_ORDER[ i ] or
-					raise ArgumentError, "Extra positional parameter %d: %p" % [ i+1, val ]
-				connopts.push( "%s=%s" % [key, PG::Connection.quote_connstr(val.to_s)] )
-			end
+			option_string += ' ' unless option_string.empty? && options.empty?
+			return option_string + options.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
 		end
-
-		return connopts.join(' ')
 	end
+
 
 	#  call-seq:
 	#     conn.copy_data( sql ) {|sql_result| ... } -> PG::Result
