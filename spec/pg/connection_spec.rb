@@ -45,6 +45,14 @@ describe PG::Connection do
 		expect( optstring ).to match( /(^|\s)user='jrandom'/ )
 	end
 
+	it "can create a connection option string from an option string and a hash" do
+		optstring = described_class.parse_connect_args( 'dbname=original', :user => 'jrandom' )
+
+		expect( optstring ).to be_a( String )
+		expect( optstring ).to match( /(^|\s)dbname=original/ )
+		expect( optstring ).to match( /(^|\s)user='jrandom'/ )
+	end
+
 	it "escapes single quotes and backslashes in connection parameters" do
 		expect(
 			described_class.parse_connect_args( "DB 'browser' \\" )
@@ -89,8 +97,13 @@ describe PG::Connection do
 
 	it "raises an exception when connecting with an invalid number of arguments" do
 		expect {
-			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
-		}.to raise_error( ArgumentError, /extra positional parameter/i )
+			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'the-extra-arg' )
+		}.to raise_error do |error|
+			expect( error ).to be_an( ArgumentError )
+			expect( error.message ).to match( /extra positional parameter/i )
+			expect( error.message ).to match( /8/ )
+			expect( error.message ).to match( /the-extra-arg/ )
+		end
 	end
 
 	it "can connect asynchronously", :socket_io do
