@@ -623,6 +623,7 @@ pgconn_options(VALUE self)
 }
 
 
+#ifdef HAVE_PQCONNINFO
 /*
  * call-seq:
  *    conn.conninfo   -> hash
@@ -641,7 +642,7 @@ pgconn_conninfo( VALUE self )
 
 	return array;
 }
-
+#endif
 
 
 /*
@@ -3558,7 +3559,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "host", pgconn_host, 0);
 	rb_define_method(rb_cPGconn, "port", pgconn_port, 0);
 	rb_define_method(rb_cPGconn, "tty", pgconn_tty, 0);
+#ifdef HAVE_PQCONNINFO
 	rb_define_method(rb_cPGconn, "conninfo", pgconn_conninfo, 0);
+#endif
 	rb_define_method(rb_cPGconn, "options", pgconn_options, 0);
 	rb_define_method(rb_cPGconn, "status", pgconn_status, 0);
 	rb_define_method(rb_cPGconn, "transaction_status", pgconn_transaction_status, 0);

@@ -173,11 +173,15 @@ class PG::Connection
 	end
 
 
-	### Return the Postgres connection info structure as a Hash keyed by option
-	### keyword (as a Symbol).
-	def conninfo_hash
-		return self.conninfo.each_with_object({}) do |info, hash|
-			hash[ info[:keyword].to_sym ] = info[:val]
+	# Method 'conninfo' was introduced in PostgreSQL 9.3.
+	if self.instance_methods.find{|m| m.to_sym == :conninfo }
+
+		### Return the Postgres connection info structure as a Hash keyed by option
+		### keyword (as a Symbol).
+		def conninfo_hash
+			return self.conninfo.each_with_object({}) do |info, hash|
+				hash[ info[:keyword].to_sym ] = info[:val]
+			end
 		end
 	end
 
