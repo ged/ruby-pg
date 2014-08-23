@@ -9,18 +9,19 @@ env:
   - "PGVERSION=9.0.18-1-linux-x64 PATH=\"/opt/PostgreSQL/9.0/bin:$PATH\""
   - "PGCROSS=true"
 matrix:
-  # Test cross compilation only with 1.9.3
+  # Test cross compilation only with 2.1
   exclude:
-    - rvm: 1.9.3
+    - rvm: "1.9.3"
       env: "PGCROSS=true"
-    - rvm: 2.0.0
-      env: "PGCROSS=true"
-    - rvm: 2.1
+    - rvm: "2.0.0"
       env: "PGCROSS=true"
     - rvm: rbx
       env: "PGCROSS=true"
   allow_failures:
-    - rvm: rbx # one test fails because GVL unblocking function is not called by Rubinius core
+      # hoe-highline requires at least ruby-2.0
+    - rvm: "1.9.3"
+      # one test fails because GVL unblocking function is not called by Rubinius core
+    - rvm: rbx
 before_install:
   - gem install hoe rspec;
   - gem install rake-compiler --pre;

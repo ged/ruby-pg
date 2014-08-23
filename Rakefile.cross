@@ -184,7 +184,6 @@ class CrossLibrary < OpenStruct
 			puts "extracting %s to %s" % [ postgresql_tarball, static_postgresql_builddir.parent ]
 			static_postgresql_builddir.mkpath
 			run 'tar', '-xjf', postgresql_tarball.to_s, '-C', static_postgresql_builddir.parent.to_s
-			mv postgresql_shlib_makefile, postgresql_shlib_mf_orig
 
 			postgresql_patches.each do |patchfile|
 				puts "  applying patch #{patchfile}..."
@@ -200,7 +199,6 @@ class CrossLibrary < OpenStruct
 				"--host=#{host_platform}",
 				'--with-openssl',
 				'--without-zlib',
-				'--disable-shared',
 			]
 
 			Dir.chdir( static_postgresql_builddir ) do
@@ -217,25 +215,15 @@ class CrossLibrary < OpenStruct
 		end
 
 
-		# patch the Makefile.shlib -- depend on the build dir so it's only
-		# rewritten if the tarball is re-extracted.
-		file postgresql_shlib_makefile => postgresql_shlib_mf_orig do |t|
-			tf = Tempfile.new( postgresql_shlib_makefile.basename.to_s )
-			postgresql_shlib_mf_orig.open( File::RDONLY ) do |ifh|
-				ifh.each_line do |line|
-					tf.print( line.sub(/^(\s*haslibarule\s*=\s*yes)/, "# \\1 ") )
-				end
-			end
-			tf.close
-
-			FileUtils.mv( tf.path, t.name, :verbose => $puts )
-		end
-
-
 		# make libpq.a
-		task postgresql_lib => [ postgresql_global_makefile, postgresql_shlib_makefile ] do |t|
+		task postgresql_lib => [ postgresql_global_makefile ] do |t|
 			Dir.chdir( postgresql_lib.dirname ) do
-				sh 'make', "-j#{NUM_CPUS}", postgresql_lib.basename.to_s, 'PORTNAME=win32'
+				sh 'make',
+					"-j#{NUM_CPUS}",
+					postgresql_lib.basename.to_s,
+					'PORTNAME=win32',
+					'SHLIB_LINK=-lssleay32 -leay32 -lcrypt32 -lgdi32 -lsecur32 -lwsock32 -lws2_32',
+					'haslibarule=no'
 			end
 		end
 
