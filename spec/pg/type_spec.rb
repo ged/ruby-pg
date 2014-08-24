@@ -212,8 +212,8 @@ describe "PG::Type derivations" do
 					end
 					context 'timestamps' do
 						it 'decodes an array of timestamps with sub arrays' do
-							text_timestamp_array_type.decode('{2014-12-31 00:00:00,{NULL,2016-01-02 23:23:59.0000000}}').
-								should eq [Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59)]]
+							expect( text_timestamp_array_type.decode('{2014-12-31 00:00:00,{NULL,2016-01-02 23:23:59.0000000}}') ).
+								to eq( [Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59)]] )
 						end
 					end
 				end
@@ -272,8 +272,8 @@ describe "PG::Type derivations" do
 				end
 				context 'two dimensional arrays' do
 					it 'encodes an array of timestamps with sub arrays' do
-						text_timestamp_array_type.encode([Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59.99)]]).
-								should eq %[{2014-12-31 00:00:00.000000000,{NULL,2016-01-02 23:23:59.990000000}}]
+						expect( text_timestamp_array_type.encode([Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59.99)]]) ).
+								to eq( %[{2014-12-31 00:00:00.000000000,{NULL,2016-01-02 23:23:59.990000000}}] )
 					end
 				end
 				context 'one dimensional array' do
