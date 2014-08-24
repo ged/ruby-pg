@@ -127,7 +127,7 @@ static VALUE
 pg_type_oid_set(VALUE self, VALUE oid)
 {
 	t_pg_type *type_data = DATA_PTR(self);
-	type_data->oid = NUM2INT(oid);
+	type_data->oid = NUM2UINT(oid);
 	return oid;
 }
 
@@ -135,7 +135,7 @@ static VALUE
 pg_type_oid_get(VALUE self)
 {
 	t_pg_type *type_data = DATA_PTR(self);
-	return INT2NUM(type_data->oid);
+	return UINT2NUM(type_data->oid);
 }
 
 static VALUE
