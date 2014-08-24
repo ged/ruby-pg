@@ -23,6 +23,7 @@ matrix:
       # one test fails because GVL unblocking function is not called by Rubinius core
     - rvm: rbx
 before_install:
+  - gem install rake-compiler
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
   - "if [ -z \"$PGCROSS\" ]; then
       wget http://get.enterprisedb.com/postgresql/postgresql-$PGVERSION.run &&
