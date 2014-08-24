@@ -597,6 +597,19 @@ describe PG::Connection do
 		expect( described_class.encrypt_password("postgres", "postgres") ).to match( /\S+/ )
 	end
 
+	it "can return the default connection options" do
+		expect( described_class.conndefaults ).to be_a( Array )
+		expect( described_class.conndefaults ).to all( be_a(Hash) )
+		expect( described_class.conndefaults[0] ).to include( :keyword, :label, :dispchar, :dispsize )
+		expect( @conn.conndefaults ).to eq( described_class.conndefaults )
+	end
+
+	it "can return the default connection options as a Hash" do
+		expect( described_class.conndefaults_hash ).to be_a( Hash )
+		expect( described_class.conndefaults_hash ).to include( :user, :password, :dbname, :host, :port )
+		expect( described_class.conndefaults_hash[:port] ).to eq( '54321' )
+		expect( @conn.conndefaults_hash ).to eq( described_class.conndefaults_hash )
+	end
 
 	it "can return the connection's connection options", :postgresql_93 do
 		expect( @conn.conninfo ).to be_a( Array )
