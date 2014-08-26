@@ -322,30 +322,24 @@ describe PG::Result do
 	end
 
 	context 'result value conversions with ColumnMapping' do
-		let!(:text_int_type) do
-			PG::SimpleType.new encoder: PG::TextEncoder::INTEGER,
-					decoder: PG::TextDecoder::INTEGER, name: 'INT4', oid: 23
-		end
-		let!(:text_float_type) do
-			PG::SimpleType.new encoder: PG::TextEncoder::FLOAT,
-					decoder: PG::TextDecoder::FLOAT, name: 'FLOAT4', oid: 700
-		end
+		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
+		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }
 
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
 			expect( res.column_mapping ).to be_nil
-			res.column_mapping = PG::ColumnMapping.new [text_int_type]
+			res.column_mapping = PG::ColumnMapping.new [textdec_int]
 			expect( res.column_mapping ).to be_an_instance_of(PG::ColumnMapping)
-			expect( res.column_mapping.types ).to eq( [text_int_type] )
-			res.column_mapping = PG::ColumnMapping.new [text_float_type]
-			expect( res.column_mapping.types ).to eq( [text_float_type] )
+			expect( res.column_mapping.coders ).to eq( [textdec_int] )
+			res.column_mapping = PG::ColumnMapping.new [textdec_float]
+			expect( res.column_mapping.coders ).to eq( [textdec_float] )
 			res.column_mapping = nil
 			expect( res.column_mapping ).to be_nil
 		end
 
 		it "should be applied to all value retrieving methods" do
 			res = @conn.exec( "SELECT 123 as f" )
-			res.column_mapping = PG::ColumnMapping.new [text_int_type]
+			res.column_mapping = PG::ColumnMapping.new [textdec_int]
 			expect( res.values ).to eq( [[123]] )
 			expect( res.getvalue(0,0) ).to eq( 123 )
 			expect( res[0] ).to eq( {'f' => 123 } )
@@ -354,7 +348,7 @@ describe PG::Result do
 		end
 
 		it "should be usable for several querys" do
-			colmap = PG::ColumnMapping.new [text_int_type]
+			colmap = PG::ColumnMapping.new [textdec_int]
 			res = @conn.exec( "SELECT 123" )
 			res.column_mapping = colmap
 			expect( res.values ).to eq( [[123]] )

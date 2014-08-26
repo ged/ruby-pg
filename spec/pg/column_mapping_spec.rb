@@ -24,27 +24,21 @@ describe PG::ColumnMapping do
 		teardown_testing_db( @conn )
 	end
 
-	let!(:text_int_type) do
-		PG::SimpleType.new encoder: PG::TextEncoder::INTEGER,
-				decoder: PG::TextDecoder::INTEGER, name: 'INT4', oid: 23
-	end
-	let!(:text_float_type) do
-		PG::SimpleType.new encoder: PG::TextEncoder::FLOAT,
-				decoder: PG::TextDecoder::FLOAT, name: 'FLOAT4', oid: 700
-	end
-	let!(:text_string_type) do
-		PG::SimpleType.new encoder: PG::TextEncoder::STRING,
-				decoder: PG::TextDecoder::STRING, name: 'TEXT', oid: 25
-	end
-	let!(:text_bytea_type) do
-		PG::SimpleType.new decoder: PG::TextDecoder::BYTEA, name: 'BYTEA', oid: 17
-	end
-	let!(:binary_bytea_type) do
-		PG::SimpleType.new encoder: PG::BinaryEncoder::BYTEA,
-				decoder: PG::BinaryDecoder::BYTEA, name: 'BYTEA', oid: 17, format: 1
-	end
+	let!(:textenc_int){ PG::TextEncoder::Integer.new name: 'INT4', oid: 23 }
+	let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
+	let!(:textenc_float){ PG::TextEncoder::Float.new name: 'FLOAT4', oid: 700 }
+	let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }
+	let!(:textenc_string){ PG::TextEncoder::String.new name: 'TEXT', oid: 25 }
+	let!(:textdec_string){ PG::TextDecoder::String.new name: 'TEXT', oid: 25 }
+	let!(:textdec_bytea){ PG::TextDecoder::Bytea.new name: 'BYTEA', oid: 17 }
+	let!(:binaryenc_bytea){ PG::BinaryEncoder::Bytea.new name: 'BYTEA', oid: 17, format: 1 }
+	let!(:binarydec_bytea){ PG::BinaryDecoder::Bytea.new name: 'BYTEA', oid: 17, format: 1 }
 	let!(:pass_through_type) do
-		type = PG::SimpleType.new encoder: proc{|v| v }, decoder: proc{|*v| v }
+		type = Class.new(PG::SimpleDecoder) do
+			def decode(*v)
+				v
+			end
+		end.new
 		type.oid = 123456
 		type.format = 1
 		type.name = 'pass_through'
@@ -55,11 +49,11 @@ describe PG::ColumnMapping do
 	end
 
 	it "should retrieve it's conversions" do
-		cm = PG::ColumnMapping.new( [text_int_type, text_string_type, text_float_type, pass_through_type, nil] )
-		expect( cm.types ).to eq( [
-			text_int_type,
-			text_string_type,
-			text_float_type,
+		cm = PG::ColumnMapping.new( [textdec_int, textenc_string, textdec_float, pass_through_type, nil] )
+		expect( cm.coders ).to eq( [
+			textdec_int,
+			textenc_string,
+			textdec_float,
 			pass_through_type,
 			nil
 		] )
@@ -67,7 +61,7 @@ describe PG::ColumnMapping do
 	end
 
 	it "should retrieve it's oids" do
-		cm = PG::ColumnMapping.new( [text_int_type, text_string_type, text_float_type, pass_through_type, nil] )
+		cm = PG::ColumnMapping.new( [textdec_int, textdec_string, textdec_float, pass_through_type, nil] )
 		expect( cm.oids ).to eq( [23, 25, 700, 123456, nil] )
 	end
 
@@ -104,7 +98,7 @@ describe PG::ColumnMapping do
 	end
 
 	it "should encode integer params" do
-		col_map = PG::ColumnMapping.new( [text_int_type]*3 )
+		col_map = PG::ColumnMapping.new( [textenc_int]*3 )
 		res = @conn.exec_params( "SELECT $1, $2, $3", [ 0, nil, "-999" ], 0, col_map )
 		expect( res.values ).to eq( [
 				[ "0", nil, "-999" ],
@@ -113,9 +107,9 @@ describe PG::ColumnMapping do
 
 	it "should encode bytea params" do
 		data = "'\u001F\\"
-		col_map = PG::ColumnMapping.new( [binary_bytea_type]*2 )
+		col_map = PG::ColumnMapping.new( [binaryenc_bytea]*2 )
 		res = @conn.exec_params( "SELECT $1, $2", [ data, nil ], 0, col_map )
-		res.column_mapping = PG::ColumnMapping.new( [text_bytea_type]*2 )
+		res.column_mapping = PG::ColumnMapping.new( [textdec_bytea]*2 )
 		expect( res.values ).to eq( [
 				[ data, nil ],
 		] )
@@ -159,12 +153,12 @@ describe PG::ColumnMapping do
 		}.to raise_error(TypeError, /wrong argument type Symbol/)
 	end
 
-	class Exception_in_decode
+	class Exception_in_decode < PG::SimpleDecoder
 		def self.column_mapping_for_result(result)
-			types = result.nfields.times.map{ PG::SimpleType.new decoder: self }
+			types = Array.new result.nfields, self.new
 			PG::ColumnMapping.new( types )
 		end
-		def self.call(res, tuple, field)
+		def decode(res, tuple, field)
 			raise "no type decoder defined for tuple #{tuple} field #{field}"
 		end
 	end
@@ -186,7 +180,7 @@ describe PG::ColumnMapping do
 
 	it "should allow mixed type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
-		res.column_mapping = PG::ColumnMapping.new( [text_int_type, text_string_type, text_float_type, pass_through_type, nil] )
+		res.column_mapping = PG::ColumnMapping.new( [textdec_int, textdec_string, textdec_float, pass_through_type, nil] )
 		expect( res.values ).to eq( [[1, 'a', 2.0, ['2013-06-30', 0, 3], '3' ]] )
 	end
 

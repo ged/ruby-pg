@@ -151,7 +151,7 @@ class PG::BasicTypeMapping
 			elements_type = text_type_map[row['typelem'].to_i]
 			next unless elements_type
 
-			type = PG::CompositeType.new encoder: PG::TextEncoder::ARRAY, decoder: PG::TextDecoder::ARRAY
+			type = PG::TextDecoder::Array.new
 			type.oid = row['oid'].to_i
 			type.name = row['typname']
 			type.format = 0
@@ -196,8 +196,8 @@ class PG::BasicTypeMapping
 	# Register an OID type named +name+ with a typecasting object in
 	# +type+.  +name+ should correspond to the `typname` column in
 	# the `pg_type` table.
-	def self.register_type(format, name, encoder, decoder)
-		type = PG::SimpleType.new name: name, encoder: encoder, decoder: decoder, format: format
+	def self.register_type(format, name, encoder_class, decoder_class)
+		type = decoder_class.new(name: name, format: format)
 		NAMES[format][name] = type
 	end
 
@@ -211,13 +211,13 @@ class PG::BasicTypeMapping
 		NAMES[format].key? name
 	end
 
-	register_type 0, 'int2', PG::TextEncoder::INTEGER, PG::TextDecoder::INTEGER
+	register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
 	alias_type    0, 'int4', 'int2'
 	alias_type    0, 'int8', 'int2'
 	alias_type    0, 'oid',  'int2'
 
 # 	register_type 0, 'numeric', OID::Decimal.new
-	register_type 0, 'text', PG::TextEncoder::STRING, PG::TextDecoder::STRING
+	register_type 0, 'text', PG::TextEncoder::String, PG::TextDecoder::String
 	alias_type 0, 'varchar', 'text'
 	alias_type 0, 'char', 'text'
 	alias_type 0, 'bpchar', 'text'
@@ -230,17 +230,17 @@ class PG::BasicTypeMapping
 # 	alias_type 'uuid',     'text'
 #
 # 	register_type 'money', OID::Money.new
-	register_type 0, 'bytea', PG::BinaryEncoder::BYTEA, PG::TextDecoder::BYTEA
-	register_type 0, 'bool', PG::TextEncoder::BOOLEAN, PG::TextDecoder::BOOLEAN
+	register_type 0, 'bytea', PG::BinaryEncoder::Bytea, PG::TextDecoder::Bytea
+	register_type 0, 'bool', PG::TextEncoder::Boolean, PG::TextDecoder::Boolean
 # 	register_type 'bit', OID::Bit.new
 # 	register_type 'varbit', OID::Bit.new
 #
-	register_type 0, 'float4', PG::TextEncoder::FLOAT, PG::TextDecoder::FLOAT
+	register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
 	alias_type 0, 'float8', 'float4'
 
-	register_type 0, 'timestamp', PG::TextEncoder::TIMESTAMP_WITHOUT_TIME_ZONE, PG::TextDecoder::TIMESTAMP_WITHOUT_TIME_ZONE
-	register_type 0, 'timestamptz', PG::TextEncoder::TIMESTAMP_WITH_TIME_ZONE, PG::TextDecoder::TIMESTAMP_WITH_TIME_ZONE
-	register_type 0, 'date', PG::TextEncoder::DATE, PG::TextDecoder::DATE
+	register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
+	register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
+	register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
 # 	register_type 'time', OID::Time.new
 #
 # 	register_type 'path', OID::Text.new
@@ -257,19 +257,19 @@ class PG::BasicTypeMapping
 
 
 
-	register_type 1, 'int2', PG::BinaryEncoder::INT2, PG::BinaryDecoder::INTEGER
-	register_type 1, 'int4', PG::BinaryEncoder::INT4, PG::BinaryDecoder::INTEGER
-	register_type 1, 'int8', PG::BinaryEncoder::INT8, PG::BinaryDecoder::INTEGER
+	register_type 1, 'int2', PG::BinaryEncoder::Int2, PG::BinaryDecoder::Integer
+	register_type 1, 'int4', PG::BinaryEncoder::Int4, PG::BinaryDecoder::Integer
+	register_type 1, 'int8', PG::BinaryEncoder::Int8, PG::BinaryDecoder::Integer
 	alias_type    1, 'oid',  'int2'
 
-	register_type 1, 'text', PG::BinaryEncoder::STRING, PG::BinaryDecoder::STRING
+	register_type 1, 'text', PG::BinaryEncoder::String, PG::BinaryDecoder::String
 	alias_type 1, 'varchar', 'text'
 	alias_type 1, 'char', 'text'
 	alias_type 1, 'bpchar', 'text'
 	alias_type 1, 'xml', 'text'
 
-	register_type 1, 'bytea', PG::BinaryEncoder::BYTEA, PG::BinaryDecoder::BYTEA
-	register_type 1, 'bool', PG::BinaryEncoder::BOOLEAN, PG::BinaryDecoder::BOOLEAN
-	register_type 1, 'float4', nil, PG::BinaryDecoder::FLOAT
-	register_type 1, 'float8', nil, PG::BinaryDecoder::FLOAT
+	register_type 1, 'bytea', PG::BinaryEncoder::Bytea, PG::BinaryDecoder::Bytea
+	register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
+	register_type 1, 'float4', nil, PG::BinaryDecoder::Float
+	register_type 1, 'float8', nil, PG::BinaryDecoder::Float
 end

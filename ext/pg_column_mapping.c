@@ -7,7 +7,7 @@
 #include "pg.h"
 
 VALUE rb_cColumnMap;
-static ID s_id_call;
+static ID s_id_decode;
 
 
 static VALUE
@@ -46,7 +46,7 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 	VALUE ret;
 	char * val;
 	int len;
-	t_pg_type *conv = NULL;
+	t_pg_coder *conv = NULL;
 
 	if (PQgetisnull(result, tuple, field)) {
 		return Qnil;
@@ -70,7 +70,7 @@ colmap_result_value(VALUE self, PGresult *result, int tuple, int field, t_colmap
 	}
 
 	if( conv ){
-		ret = rb_funcall( conv->dec_obj, s_id_call, 3, ret, INT2NUM(tuple), INT2NUM(field) );
+		ret = rb_funcall( conv->coder_obj, s_id_decode, 3, ret, INT2NUM(tuple), INT2NUM(field) );
 	}
 
 	return ret;
@@ -83,7 +83,7 @@ colmap_init(VALUE self, VALUE conv_ary)
 	int i;
 	t_colmap *this;
 	int conv_ary_len;
-	VALUE ary_types = rb_ary_new();
+	VALUE ary_coders = rb_ary_new();
 
 	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
@@ -98,21 +98,21 @@ colmap_init(VALUE self, VALUE conv_ary)
 		if( obj == Qnil ){
 			/* no type cast */
 			this->convs[i].cconv = NULL;
-		} else if( rb_obj_is_kind_of(obj, rb_cPG_Type) ){
+		} else if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
 			Check_Type(obj, T_DATA);
 			this->convs[i].cconv = DATA_PTR(obj);
 		} else {
-			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Type)",
+			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
 							 i+1, rb_obj_classname( obj ));
 		}
 
-		rb_ary_push( ary_types, obj );
+		rb_ary_push( ary_coders, obj );
 	}
 
 	/* encoding_index is set, when the ColumnMapping is assigned to a PG::Result. */
 	this->encoding_index = 0;
 	this->nfields = conv_ary_len;
-	rb_iv_set( self, "@types", rb_obj_freeze(ary_types) );
+	rb_iv_set( self, "@coders", rb_obj_freeze(ary_coders) );
 
 	return self;
 }
@@ -121,10 +121,10 @@ colmap_init(VALUE self, VALUE conv_ary)
 void
 init_pg_column_mapping()
 {
-	s_id_call = rb_intern("call");
+	s_id_decode = rb_intern("decode");
 
 	rb_cColumnMap = rb_define_class_under( rb_mPG, "ColumnMapping", rb_cObject );
 	rb_define_alloc_func( rb_cColumnMap, colmap_s_allocate );
 	rb_define_method( rb_cColumnMap, "initialize", colmap_init, 1 );
-	rb_define_attr( rb_cColumnMap, "types", 1, 0 );
+	rb_define_attr( rb_cColumnMap, "coders", 1, 0 );
 }

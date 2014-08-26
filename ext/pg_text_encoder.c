@@ -9,9 +9,7 @@
 #include <inttypes.h>
 
 VALUE rb_mPG_TextEncoder;
-VALUE rb_cPG_TextEncoder_Simple;
-VALUE rb_cPG_TextEncoder_Composite;
-static ID s_id_call;
+static ID s_id_encode;
 static ID s_id_to_i;
 
 VALUE
@@ -28,7 +26,7 @@ pg_obj_to_i( VALUE value )
 }
 
 int
-pg_type_enc_to_str(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_coder_enc_to_str(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		memcpy( out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
@@ -40,11 +38,11 @@ pg_type_enc_to_str(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-pg_text_enc_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_integer(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		if(TYPE(*intermediate) == T_STRING){
-			return pg_type_enc_to_str(conv, value, out, intermediate);
+			return pg_coder_enc_to_str(conv, value, out, intermediate);
 		}else{
 			return sprintf(out, "%lld", NUM2LL(*intermediate));
 		}
@@ -79,19 +77,19 @@ pg_text_enc_integer(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate
 					if( ll < 100000000000000 ){
 						len = ll < 10000000000000 ? 13 : 14;
 					}else{
-						return pg_type_enc_to_str(conv, *intermediate, NULL, intermediate);
+						return pg_coder_enc_to_str(conv, *intermediate, NULL, intermediate);
 					}
 				}
 			}
 			return sll < 0 ? len+1 : len;
 		}else{
-			return pg_type_enc_to_str(conv, *intermediate, NULL, intermediate);
+			return pg_coder_enc_to_str(conv, *intermediate, NULL, intermediate);
 		}
 	}
 }
 
 static int
-pg_text_enc_float(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		return sprintf( out, "%.16E", NUM2DBL(value));
@@ -102,7 +100,7 @@ pg_text_enc_float(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_type_enc_func enc_func, int quote, int *interm_pos)
+write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_coder_enc_func enc_func, int quote, int *interm_pos)
 {
 	int i;
 	if(out){
@@ -211,20 +209,20 @@ write_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, t_pg_t
 }
 
 static int
-pg_text_enc_in_ruby(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if( out ){
 		memcpy(out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
 		return RSTRING_LEN(*intermediate);
 	}else{
-		*intermediate = rb_funcall( conv->enc_obj, s_id_call, 1, value );
+		*intermediate = rb_funcall( conv->coder_obj, s_id_encode, 1, value );
 		StringValue( *intermediate );
 		return RSTRING_LEN(*intermediate);
 	}
 }
 
-static t_pg_type_enc_func
-composite_elem_func(t_pg_composite_type *comp_conv)
+static t_pg_coder_enc_func
+composite_elem_func(t_pg_composite_coder *comp_conv)
 {
 	if( comp_conv->elem ){
 		if( comp_conv->elem->enc_func ){
@@ -234,25 +232,25 @@ composite_elem_func(t_pg_composite_type *comp_conv)
 		}
 	}else{
 		/* no element encoder defined -> use std to_str conversion */
-		return pg_type_enc_to_str;
+		return pg_coder_enc_to_str;
 	}
 }
 
 static int
-pg_text_enc_array(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
-	t_pg_type_enc_func enc_func = composite_elem_func(comp_conv);
+	t_pg_composite_coder *comp_conv = (t_pg_composite_coder *)conv;
+	t_pg_coder_enc_func enc_func = composite_elem_func(comp_conv);
 	int pos = -1;
 
 	return write_array(comp_conv->elem, value, out, intermediate, enc_func, comp_conv->needs_quotation, &pos);
 }
 
 static int
-quote_string(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, char quote_char)
+quote_string(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, char quote_char)
 {
-	t_pg_composite_type *comp_conv = (t_pg_composite_type *)conv;
-	t_pg_type_enc_func enc_func = composite_elem_func(comp_conv);
+	t_pg_composite_coder *comp_conv = (t_pg_composite_coder *)conv;
+	t_pg_coder_enc_func enc_func = composite_elem_func(comp_conv);
 
 	if( comp_conv->needs_quotation ){
 		if( out ){
@@ -300,7 +298,7 @@ quote_string(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate, char 
 }
 
 static int
-pg_text_enc_array_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_array_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	int sumlen = 0;
 	int i;
@@ -337,7 +335,7 @@ pg_text_enc_array_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *int
 }
 
 static int
-pg_text_enc_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if( TYPE(value) == T_ARRAY){
 		return pg_text_enc_array_identifier(conv, value, out, intermediate);
@@ -347,7 +345,7 @@ pg_text_enc_identifier(t_pg_type *conv, VALUE value, char *out, VALUE *intermedi
 }
 
 static int
-pg_text_enc_quoted_literal(t_pg_type *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	return quote_string(conv, value, out, intermediate, '\'');
 }
@@ -355,19 +353,17 @@ pg_text_enc_quoted_literal(t_pg_type *conv, VALUE value, char *out, VALUE *inter
 void
 init_pg_text_encoder()
 {
-	s_id_call = rb_intern("call");
+	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
 
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
-	rb_cPG_TextEncoder_Simple = rb_define_class_under( rb_mPG_TextEncoder, "Simple", rb_cPG_Coder );
-	pg_define_coder( "BOOLEAN", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "INTEGER", pg_text_enc_integer, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "FLOAT", pg_text_enc_float, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
-	pg_define_coder( "STRING", pg_type_enc_to_str, rb_cPG_TextEncoder_Simple, rb_mPG_TextEncoder );
+	pg_define_coder( "Boolean", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "String", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 
-	rb_cPG_TextEncoder_Composite = rb_define_class_under( rb_mPG_TextEncoder, "Composite", rb_cPG_Coder );
-	pg_define_coder( "ARRAY", pg_text_enc_array, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
-	pg_define_coder( "IDENTIFIER", pg_text_enc_identifier, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
-	pg_define_coder( "QUOTED_LITERAL", pg_text_enc_quoted_literal, rb_cPG_TextEncoder_Composite, rb_mPG_TextEncoder );
+	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "QuotedLiteral", pg_text_enc_quoted_literal, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 }

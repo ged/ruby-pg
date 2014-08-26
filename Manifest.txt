@@ -29,7 +29,6 @@ ext/pg_errors.c
 ext/pg_result.c
 ext/pg_text_decoder.c
 ext/pg_text_encoder.c
-ext/pg_type.c
 ext/util.c
 ext/util.h
 ext/vc/pg.sln
@@ -45,7 +44,6 @@ lib/pg/exceptions.rb
 lib/pg/result.rb
 lib/pg/text_decoder.rb
 lib/pg/text_encoder.rb
-lib/pg/type.rb
 sample/array_insert.rb
 sample/async_api.rb
 sample/async_copyto.rb
