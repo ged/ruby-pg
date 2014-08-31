@@ -2,82 +2,184 @@
 
 require 'pg' unless defined?( PG )
 
-
+# Simple set of rules for type casting common Ruby types to PostgreSQL and vice versa.
+#
+# OIDs of supported type casts are not hard-coded in the sources, but are retrieved from the
+# PostgreSQL's pg_type table in PG::BasicTypeMapping.new .
+#
+# Query params are type casted based on the Ruby class of the given value.
+# Result values are type casted based on the type OID of the given result column.
+# Type encoders and decoders are assigned for each query param set and each result set.
+# There is currently no caching of type assignments.
+#
+# Higher level libraries will most likely not make use of this class, but use their
+# own set of rules to choose suitable encoders and decoders.
+#
+# Example:
+#   conn = PG::Connection.new
+#   # Assign a default ruleset for type casts of input and output values.
+#   conn.type_mapping = PG::BasicTypeMapping.new(conn)
+#   # Execute a query. The Integer param value is typecasted internally by PG::BinaryEncoder::Int8.
+#   # The format of the parameter is set to 1 (binary) and the OID of this parameter is set to 20 (int8).
+#   res = conn.exec_params( "SELECT $1", [5] )
+#   # Retrieve and cast the result value. Value format is 0 (text) and OID is 20. Therefore typecasting
+#   # is done by PG::TextDecoder::Integer internally for all value retrieval methods.
+#   res.values  # => [[5]]
 class PG::BasicTypeMapping
-	ValidFormats = { 0 => true, 1 => true }
+
+	# An instance of this class stores the coders that should be used for a given wire format (text or binary)
+	# and type cast direction (encoder or decoder).
+	class CoderMap
+		# Hash of text types that don't require quotation, when used within composite types.
+		#   type.name => true
+		DONT_QUOTE_TYPES = %w[
+			int2 int4 int8
+			float4 float8
+			oid
+			bool
+			date timestamp timestamptz
+		].inject({}){|h,e| h[e] = true; h }
+
+		def initialize(result, coders_by_name, format, arraycoder)
+			coder_map = {}
+
+			ranges, nodes = result.partition { |row| row['typinput'] == 'range_in' }
+			leaves, nodes = nodes.partition { |row| row['typelem'] == '0' }
+			arrays, nodes = nodes.partition { |row| row['typinput'] == 'array_in' }
+
+			# populate the enum types
+			enums, leaves = leaves.partition { |row| row['typinput'] == 'enum_in' }
+	# 		enums.each do |row|
+	# 			coder_map[row['oid'].to_i] = OID::Enum.new
+	# 		end
+
+			# populate the base types
+			leaves.find_all { |row| coders_by_name.key?(row['typname']) }.each do |row|
+				coder = coders_by_name[row['typname']].dup
+				coder.oid = row['oid'].to_i
+				coder.name = row['typname']
+				coder.format = format
+				coder_map[coder.oid] = coder
+			end
+
+			records_by_oid = result.group_by { |row| row['oid'] }
+
+			# populate composite types
+	# 		nodes.each do |row|
+	# 			add_oid row, records_by_oid, coder_map
+	# 		end
+
+			if arraycoder
+				# populate array types
+				arrays.each do |row|
+					elements_coder = coder_map[row['typelem'].to_i]
+					next unless elements_coder
+
+					coder = arraycoder.new
+					coder.oid = row['oid'].to_i
+					coder.name = row['typname']
+					coder.format = format
+					coder.elements_type = elements_coder
+					coder.needs_quotation = !DONT_QUOTE_TYPES[elements_coder.name]
+					coder_map[coder.oid] = coder
+				end
+			end
+
+			# populate range types
+	# 		ranges.find_all { |row| coder_map.key? row['rngsubtype'].to_i }.each do |row|
+	# 			subcoder = coder_map[row['rngsubtype'].to_i]
+	# 			range = OID::Range.new subcoder
+	# 			coder_map[row['oid'].to_i] = range
+	# 		end
+
+			@coders = coder_map.values
+			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }
+			@coders_by_oid = @coders.inject({}){|h, t| h[t.oid] = t; h }
+		end
+
+		attr_reader :coders
+		attr_reader :coders_by_oid
+		attr_reader :coders_by_name
+
+		def coder_by_name(name)
+			@coders_by_name[name]
+		end
+
+		def coder_by_oid(oid)
+			@coders_by_oid[oid]
+		end
+	end
+
 
 	attr_reader :connection
-	attr_reader :text_types
-	attr_reader :binary_types
 
 	def initialize(connection)
 		@connection = connection
-		@types = build_types
-		@text_types = @types[0].freeze
-		@binary_types = @types[1].freeze
+		@coder_maps = build_coder_maps
+		@decoders_by_format_and_oid = @coder_maps.map{|f| f[:decoder].coders_by_oid }
 
-		@types_by_name = types_by_name
-		@types_by_oid = types_by_oid
-		@types_by_value = types_by_value
-		@array_types_by_value = array_types_by_value
+		@encoders_by_value = encoders_by_value
+		@array_encoders_by_value = array_encoders_by_value
 	end
 
-	def type_by_name(format, name)
-		check_format(format)
-		@types_by_name[format][name]
+	# Returns an Array of all encoders and decoders used by BasicTypeMapping.
+	def coders
+		@coder_maps.map{|d| d.values.map{|cm| cm.coders } }.flatten
 	end
 
-	def type_by_oid(format, oid)
-		check_format(format)
-		@types_by_oid[format][oid]
+	def coder_by_name(format, direction, name)
+		check_format_and_direction(format, direction)
+		@coder_maps[format][direction].coder_by_name(name)
 	end
 
-	def type_by_value(value)
-		map = @types_by_value
+	def coder_by_oid(format, direction, oid)
+		check_format_and_direction(format, direction)
+		@coder_maps[format][direction].coder_by_oid(oid)
+	end
+
+	def coder_by_value(value)
+		map = @encoders_by_value
 		while value.kind_of?(Array)
 			value = value.first
-			map = @array_types_by_value
+			map = @array_encoders_by_value
 		end
 		map[value.class]
 	end
 
 	def column_mapping_for_query_params( params )
-		types = params.map do |p|
-			type_by_value(p)
+		coders = params.map do |p|
+			coder_by_value(p)
 		end
-		PG::ColumnMapping.new types
+		PG::ColumnMapping.new coders
 	end
 
 	def column_mapping_for_result( result )
-		types = Array.new(result.nfields) do |i|
-			@types_by_oid[result.fformat(i)][result.ftype(i)]
+		coders = Array.new(result.nfields) do |i|
+			@decoders_by_format_and_oid[result.fformat(i)][result.ftype(i)]
 		end
-		PG::ColumnMapping.new( types )
+		PG::ColumnMapping.new( coders )
 	end
 
 	private
-	def check_format(format)
+
+	ValidFormats = { 0 => true, 1 => true }
+	ValidDirections = { :encoder => true, :decoder => true }
+
+	def check_format_and_direction(format, direction)
 		raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
+		raise(ArgumentError, "Invalid direction %p" % direction) unless ValidDirections[direction]
 	end
 
-	def types_by_oid
-		@types.map{|f| f.inject({}){|h, t| h[t.oid] = t; h } }
-	end
-
-	def types_by_name
-		@types.map{|f| f.inject({}){|h, t| h[t.name] = t; h } }
-	end
-
-	def types_by_value
+	def encoders_by_value
 		DEFAULT_TYPE_MAP.inject({}) do |h, (klass, (format, name))|
-			h[klass] = type_by_name(format, name)
+			h[klass] = coder_by_name(format, :encoder, name)
 			h
 		end
 	end
 
-	def array_types_by_value
+	def array_encoders_by_value
 		DEFAULT_ARRAY_TYPE_MAP.inject({}) do |h, (klass, (format, name))|
-			h[klass] = type_by_name(format, name)
+			h[klass] = coder_by_name(format, :encoder, name)
 			h
 		end
 	end
@@ -105,10 +207,7 @@ class PG::BasicTypeMapping
 		@connection.server_version >= 90200
 	end
 
-	def build_types
-		type_map = [{}, {}]
-		text_type_map = type_map[0]
-
+	def build_coder_maps
 		if supports_ranges?
 			result = @connection.exec <<-SQL
 				SELECT t.oid, t.typname, t.typelem, t.typdelim, t.typinput, r.rngsubtype
@@ -121,94 +220,38 @@ class PG::BasicTypeMapping
 				FROM pg_type as t
 			SQL
 		end
-		ranges, nodes = result.partition { |row| row['typinput'] == 'range_in' }
-		leaves, nodes = nodes.partition { |row| row['typelem'] == '0' }
-		arrays, nodes = nodes.partition { |row| row['typinput'] == 'array_in' }
 
-		# populate the enum types
-		enums, leaves = leaves.partition { |row| row['typinput'] == 'enum_in' }
-# 		enums.each do |row|
-# 			type_map[row['oid'].to_i] = OID::Enum.new
-# 		end
-
-		# populate the base types
-		leaves.find_all { |row| self.class.registered_type? 0, row['typname'] }.each do |row|
-			type = NAMES[0][row['typname']].dup
-			type.oid = row['oid'].to_i
-			type.name = row['typname']
-			text_type_map[type.oid] = type
+		[
+			[0, :encoder, PG::TextEncoder::Array],
+			[0, :decoder, PG::TextDecoder::Array],
+			[1, :encoder, nil],
+			[1, :decoder, nil],
+		].inject([]) do |h, (format, direction, arraycoder)|
+			h[format] ||= {}
+			h[format][direction] = CoderMap.new result, CODERS_BY_NAME[format][direction], format, arraycoder
+			h
 		end
-
-		records_by_oid = result.group_by { |row| row['oid'] }
-
-		# populate composite types
-# 		nodes.each do |row|
-# 			add_oid row, records_by_oid, type_map
-# 		end
-
-		# populate array types
-		arrays.each do |row|
-			elements_type = text_type_map[row['typelem'].to_i]
-			next unless elements_type
-
-			type = PG::TextDecoder::Array.new
-			type.oid = row['oid'].to_i
-			type.name = row['typname']
-			type.format = 0
-			type.elements_type = elements_type
-			type.needs_quotation = !DONT_QUOTE_TYPES[row['typelem']]
-			text_type_map[type.oid] = type
-		end
-
-		# populate range types
-# 		ranges.find_all { |row| type_map.key? row['rngsubtype'].to_i }.each do |row|
-# 			subtype = type_map[row['rngsubtype'].to_i]
-# 			range = OID::Range.new subtype
-# 			type_map[row['oid'].to_i] = range
-# 		end
-
-		binary_type_map = type_map[1]
-
-		# populate the base types
-		leaves.find_all { |row| self.class.registered_type? 1, row['typname'] }.each do |row|
-			type = NAMES[1][row['typname']].dup
-			type.oid = row['oid'].to_i
-			type.name = row['typname']
-			binary_type_map[type.oid] = type
-		end
-
-		type_map.map(&:values)
 	end
 
-	# Hash of text types that don't require quotation, when used within composite types.
-	#   type.name => true
-	DONT_QUOTE_TYPES = %w[
-		int2 int4 int8
-		float4 float8
-		oid
-	].inject({}){|h,e| h[e] = true; h }
 
 	# The key of this hash maps to the `typname` column from the table.
-	# type_map is then dynamically built with oids as the key and type
+	# encoder_map is then dynamically built with oids as the key and Type
 	# objects as values.
-	NAMES = [{}, {}]
+	CODERS_BY_NAME = []
 
-	# Register an OID type named +name+ with a typecasting object in
+	# Register an OID type named +name+ with a typecasting encoder and decoder object in
 	# +type+.  +name+ should correspond to the `typname` column in
 	# the `pg_type` table.
 	def self.register_type(format, name, encoder_class, decoder_class)
-		type = decoder_class.new(name: name, format: format)
-		NAMES[format][name] = type
+		CODERS_BY_NAME[format] ||= { encoder: {}, decoder: {} }
+		CODERS_BY_NAME[format][:encoder][name] = encoder_class.new(name: name, format: format) if encoder_class
+		CODERS_BY_NAME[format][:decoder][name] = decoder_class.new(name: name, format: format) if decoder_class
 	end
 
 	# Alias the +old+ type to the +new+ type.
 	def self.alias_type(format, new, old)
-		NAMES[format][new] = NAMES[format][old]
-	end
-
-	# Is +name+ a registered type?
-	def self.registered_type?(format, name)
-		NAMES[format].key? name
+		CODERS_BY_NAME[format][:encoder][new] = CODERS_BY_NAME[format][:encoder][old]
+		CODERS_BY_NAME[format][:decoder][new] = CODERS_BY_NAME[format][:decoder][old]
 	end
 
 	register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
@@ -230,7 +273,9 @@ class PG::BasicTypeMapping
 # 	alias_type 'uuid',     'text'
 #
 # 	register_type 'money', OID::Money.new
-	register_type 0, 'bytea', PG::BinaryEncoder::Bytea, PG::TextDecoder::Bytea
+	# There is no PG::TextEncoder::Bytea, because it's simple and more efficient to send bytea-data
+	# in binary format, either with PG::BinaryEncoder::Bytea or in Hash param format.
+	register_type 0, 'bytea', nil, PG::TextDecoder::Bytea
 	register_type 0, 'bool', PG::TextEncoder::Boolean, PG::TextDecoder::Boolean
 # 	register_type 'bit', OID::Bit.new
 # 	register_type 'varbit', OID::Bit.new
