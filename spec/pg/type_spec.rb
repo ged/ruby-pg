@@ -1,8 +1,6 @@
 #!/usr/bin/env rspec
 # encoding: utf-8
 
-require_relative '../helpers'
-
 require 'pg'
 
 
