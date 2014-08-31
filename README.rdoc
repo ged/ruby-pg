@@ -70,7 +70,7 @@ Pg can optionally type cast result and query parameters in Ruby or native
 C code. This can speed up data transfers to and from the database by
 avoiding String allocations for each value.
 
-Standard type casting can be enabled by:
+Basic type casting can be enabled by:
 
     conn.type_mapping = PG::BasicTypeMapping.new conn
     # this works for result value mapping:
@@ -81,24 +81,21 @@ Standard type casting can be enabled by:
         # => [["1", "2014-04-17 22:58:47.101513+02", "{2,3}"]]
 
 Pg's type casting is highly customizable. That's why it's divided into
-4 layers:
+3 layers:
 
 === Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
 
-This is the lowest layer, containing encoding functions that convert Ruby
-objects for transmission to the DBMS and decoding functions to convert
-received data back to Ruby objects. The C-functions are reachable from Ruby
-in namespaces PG::TextEncoder, PG::TextDecoder, PG::BinaryEncoder and
-PG::BinaryDecoder. They can be assigned to a PG::Type object.
+This is the lowest layer, containing encoding classes that convert Ruby
+objects for transmission to the DBMS and decoding classes to convert
+received data back to Ruby objects. The classes are namespaced according
+to their format and direction in PG::TextEncoder, PG::TextDecoder,
+PG::BinaryEncoder and PG::BinaryDecoder.
 
-=== PG::Type (ext/pg_type.c)
-
-A PG::Type object binds an encoding and a decoding function, a type OID,
-format code (text or binary) and optionally a name together.
-A PG::CompositeType in addition defines the PG::Type that should be used
-for en-/decoding of it's elements. Type objects can be used to convert
-single values to/from their string representation and to build
-PG::ColumnMapping objects.
+It is possible to assign a type OID, format code (text or binary) and
+optionally a name to an encoder or decoder object. Inaddition for composite
+types it is possible to assign the encoder/decoder of it's elements.
+Coder objects can be used to convert single values to/from their string
+representation and to build PG::ColumnMapping objects.
 
 === PG::ColumnMapping (ext/pg_column_mapping.c)
 
