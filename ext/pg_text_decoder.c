@@ -114,7 +114,7 @@ pg_text_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, in
  * https://github.com/dockyard/pg_array_parser
  */
 static VALUE
-read_array(t_pg_coder *conv, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+read_array(t_pg_composite_coder *comp_conv, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	/* Return value: array */
 	VALUE array;
@@ -148,7 +148,7 @@ read_array(t_pg_coder *conv, int *index, char *c_pg_array_string, int array_stri
 		c = c_pg_array_string[*index];
 		if(openQuote < 1)
 		{
-			if(c == ',' || c == '}')
+			if(c == comp_conv->delimiter || c == '}')
 			{
 				if(!escapeNext)
 				{
@@ -160,7 +160,7 @@ read_array(t_pg_coder *conv, int *index, char *c_pg_array_string, int array_stri
 					{
 						VALUE val;
 						word[word_index] = 0;
-						val = dec_func(conv, word, word_index, tuple, field, enc_idx);
+						val = dec_func(comp_conv->elem, word, word_index, tuple, field, enc_idx);
 						rb_ary_push(array, val);
 					}
 				}
@@ -179,7 +179,7 @@ read_array(t_pg_coder *conv, int *index, char *c_pg_array_string, int array_stri
 			else if(c == '{')
 			{
 				(*index)++;
-				rb_ary_push(array, read_array(conv, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func));
+				rb_ary_push(array, read_array(comp_conv, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func));
 				escapeNext = 1;
 			}
 			else
@@ -242,7 +242,7 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
 	char *word = xmalloc(len + 1);
 	int index = 1;
 
-	VALUE return_value = read_array(comp_conv->elem, &index, val, len, word, enc_idx, tuple, field, dec_func);
+	VALUE return_value = read_array(comp_conv, &index, val, len, word, enc_idx, tuple, field, dec_func);
 	free(word);
 	return return_value;
 }

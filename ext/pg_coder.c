@@ -59,6 +59,7 @@ pg_composite_encoder_allocate( VALUE klass )
 	sval->comp.format = 0;
 	sval->elem = NULL;
 	sval->needs_quotation = 1;
+	sval->delimiter = ',';
 	rb_iv_set( self, "@name", Qnil );
 	rb_iv_set( self, "@elements_type", Qnil );
 	return self;
@@ -100,6 +101,7 @@ pg_composite_decoder_allocate( VALUE klass )
 	sval->comp.format = 0;
 	sval->elem = NULL;
 	sval->needs_quotation = 1;
+	sval->delimiter = ',';
 	rb_iv_set( self, "@name", Qnil );
 	rb_iv_set( self, "@elements_type", Qnil );
 	return self;
@@ -200,6 +202,24 @@ pg_coder_needs_quotation_get(VALUE self)
 }
 
 static VALUE
+pg_coder_delimiter_set(VALUE self, VALUE delimiter)
+{
+	t_pg_composite_coder *type_data = DATA_PTR(self);
+	StringValue(delimiter);
+	if(RSTRING_LEN(delimiter) != 1)
+		rb_raise( rb_eArgError, "delimiter size must be one byte");
+	type_data->delimiter = *RSTRING_PTR(delimiter);
+	return delimiter;
+}
+
+static VALUE
+pg_coder_delimiter_get(VALUE self)
+{
+	t_pg_composite_coder *type_data = DATA_PTR(self);
+	return rb_str_new(&type_data->delimiter, 1);
+}
+
+static VALUE
 pg_coder_elements_type_set(VALUE self, VALUE elem_type)
 {
 	t_pg_composite_coder *p_type = DATA_PTR( self );
@@ -256,6 +276,8 @@ init_pg_coder()
 	rb_define_attr( rb_cPG_CompositeCoder, "elements_type", 1, 0 );
 	rb_define_method( rb_cPG_CompositeCoder, "needs_quotation=", pg_coder_needs_quotation_set, 1 );
 	rb_define_method( rb_cPG_CompositeCoder, "needs_quotation?", pg_coder_needs_quotation_get, 0 );
+	rb_define_method( rb_cPG_CompositeCoder, "delimiter=", pg_coder_delimiter_set, 1 );
+	rb_define_method( rb_cPG_CompositeCoder, "delimiter", pg_coder_delimiter_get, 0 );
 
 	rb_cPG_CompositeEncoder = rb_define_class_under( rb_mPG, "CompositeEncoder", rb_cPG_CompositeCoder );
 	rb_define_alloc_func( rb_cPG_CompositeEncoder, pg_composite_encoder_allocate );

@@ -100,7 +100,7 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static int
-write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_coder_enc_func enc_func, int quote, int *interm_pos)
+write_array(t_pg_composite_coder *comp_conv, VALUE value, char *out, VALUE *intermediate, t_pg_coder_enc_func enc_func, int quote, int *interm_pos)
 {
 	int i;
 	if(out){
@@ -112,10 +112,10 @@ write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_
 		for( i=0; i<RARRAY_LEN(value); i++){
 			VALUE subint;
 			VALUE entry = rb_ary_entry(value, i);
-			if( i > 0 ) *current_out++ = ',';
+			if( i > 0 ) *current_out++ = comp_conv->delimiter;
 			switch(TYPE(entry)){
 				case T_ARRAY:
-					current_out += write_array(conv, entry, current_out, intermediate, enc_func, quote, interm_pos);
+					current_out += write_array(comp_conv, entry, current_out, intermediate, enc_func, quote, interm_pos);
 				break;
 				case T_NIL:
 					*current_out++ = 'N';
@@ -134,7 +134,7 @@ write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_
 						*current_out++ = '"';
 
 						/* Place the unescaped string at current output position. */
-						strlen = enc_func(conv, entry, current_out, &subint);
+						strlen = enc_func(comp_conv->elem, entry, current_out, &subint);
 						ptr1 = current_out;
 						ptr2 = current_out + strlen;
 
@@ -159,7 +159,7 @@ write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_
 							}
 						}
 					}else{
-						current_out += enc_func(conv, entry, current_out, &subint);
+						current_out += enc_func(comp_conv->elem, entry, current_out, &subint);
 					}
 			}
 		}
@@ -183,7 +183,7 @@ write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_
 			switch(TYPE(entry)){
 				case T_ARRAY:
 					/* size of array content */
-					sumlen += write_array(conv, entry, NULL, intermediate, enc_func, quote, interm_pos);
+					sumlen += write_array(comp_conv, entry, NULL, intermediate, enc_func, quote, interm_pos);
 				break;
 				case T_NIL:
 					/* size of "NULL" */
@@ -194,10 +194,10 @@ write_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, t_pg_
 						/* size of string assuming the worst case, that every character must be escaped
 						 * plus two bytes for quotation.
 						 */
-						sumlen += 2 * enc_func(conv, entry, NULL, &subint) + 2;
+						sumlen += 2 * enc_func(comp_conv->elem, entry, NULL, &subint) + 2;
 					}else{
 						/* size of the unquoted string */
-						sumlen += enc_func(conv, entry, NULL, &subint);
+						sumlen += enc_func(comp_conv->elem, entry, NULL, &subint);
 					}
 					rb_ary_push(*intermediate, subint);
 			}
@@ -243,7 +243,7 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	t_pg_coder_enc_func enc_func = composite_elem_func(comp_conv);
 	int pos = -1;
 
-	return write_array(comp_conv->elem, value, out, intermediate, enc_func, comp_conv->needs_quotation, &pos);
+	return write_array(comp_conv, value, out, intermediate, enc_func, comp_conv->needs_quotation, &pos);
 }
 
 static int

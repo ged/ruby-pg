@@ -147,6 +147,8 @@ describe "PG::Type derivations" do
 			let!(:textdec_float_array) { PG::TextDecoder::Array.new elements_type: textdec_float, needs_quotation: false }
 			let!(:textenc_timestamp_array) { PG::TextEncoder::Array.new elements_type: textenc_timestamp, needs_quotation: false }
 			let!(:textdec_timestamp_array) { PG::TextDecoder::Array.new elements_type: textdec_timestamp, needs_quotation: false }
+			let!(:textenc_string_array_with_delimiter) { PG::TextEncoder::Array.new elements_type: textenc_string, delimiter: ';' }
+			let!(:textdec_string_array_with_delimiter) { PG::TextDecoder::Array.new elements_type: textdec_string, delimiter: ';' }
 
 			#
 			# Array parser specs are thankfully borrowed from here:
@@ -198,6 +200,10 @@ describe "PG::Type derivations" do
 
 						it 'returns an array containing unicode strings' do
 							expect( textdec_string_array.decode(%[{"Paragraph 399(b)(i) – “valid leave” – meaning"}]) ).to eq(['Paragraph 399(b)(i) – “valid leave” – meaning'])
+						end
+
+						it 'respects a different delimiter' do
+							expect( textdec_string_array_with_delimiter.decode(%[{1;2;3}]) ).to eq( ['1','2','3'] )
 						end
 					end
 				end
@@ -301,6 +307,9 @@ describe "PG::Type derivations" do
 						expect( textenc_int_array.encode([]) ).to eq( '{}' )
 						expect( textenc_string_array.encode([]) ).to eq( '{}' )
 					end
+					it 'respects a different delimiter' do
+						expect( textenc_string_array_with_delimiter.encode(['a','b','c']) ).to eq( '{"a";"b";"c"}' )
+					end
 				end
 
 				context 'array of types with encoder in ruby space' do
@@ -358,7 +367,7 @@ describe "PG::Type derivations" do
 			it "should respond to to_h" do
 				expect( textenc_int_array.to_h ).to eq( {
 					name: nil, oid: 0, format: 0,
-					elements_type: textenc_int, needs_quotation: false
+					elements_type: textenc_int, needs_quotation: false, delimiter: ','
 				} )
 			end
 
@@ -372,6 +381,7 @@ describe "PG::Type derivations" do
 				expect( t.oid ).to eq( 0 )
 				expect( t.name ).to be_nil
 				expect( t.needs_quotation? ).to eq( true )
+				expect( t.delimiter ).to eq( ',' )
 				expect( t.elements_type ).to be_nil
 			end
 		end

@@ -48,6 +48,7 @@ module PG
 			super.merge!({
 				elements_type: elements_type,
 				needs_quotation: needs_quotation?,
+				delimiter: delimiter,
 			})
 		end
 
