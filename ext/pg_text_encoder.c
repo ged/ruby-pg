@@ -354,6 +354,7 @@ init_pg_text_encoder()
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
 
+	/* This module encapsulates all encoder classes for text format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
 	pg_define_coder( "Boolean", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );

@@ -16,12 +16,26 @@ static ID s_id_encode;
 static ID s_id_decode;
 static ID s_id_CFUNC;
 
+/*
+ * Document-class: PG::Coder
+ *
+ * This is the base class for all type cast encoder and decoder classes.
+ *
+ */
 
 static VALUE
 pg_coder_allocate( VALUE klass )
 {
 	rb_raise( rb_eTypeError, "PG::Coder cannot be instantiated directly");
 }
+
+/*
+ * Document-class: PG::CompositeCoder
+ *
+ * This is the base class for all type cast classes of PostgreSQL types,
+ * that are made up of some sub type.
+ *
+ */
 
 static VALUE
 pg_simple_encoder_allocate( VALUE klass )
