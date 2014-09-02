@@ -300,24 +300,22 @@ quote_string(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, char
 static int
 pg_text_enc_array_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	int sumlen = 0;
 	int i;
 	if( out ){
+		char *out_start = out;
 		int nr_elems = RARRAY_LEN(value);
 		for( i=0; i<nr_elems; i++){
 			VALUE subint = rb_ary_entry(*intermediate, i);
 			VALUE entry = rb_ary_entry(value, i);
 
-			sumlen += quote_string(conv, entry, out, &subint, '"');
-			out += sumlen;
+			out += quote_string(conv, entry, out, &subint, '"');
 			if( i < nr_elems-1 ){
 				*out++ = '.';
 			}
 		}
-		/* add one byte per "." seperator */
-		sumlen += RARRAY_LEN(value) - 1;
-		return sumlen;
+		return out - out_start;
 	} else {
+		int sumlen = 0;
 		Check_Type(value, T_ARRAY);
 		*intermediate = rb_ary_new();
 

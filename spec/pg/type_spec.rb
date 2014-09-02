@@ -332,6 +332,7 @@ describe "PG::Type derivations" do
 				context 'identifier quotation' do
 					it 'should quote and escape identifier' do
 						quoted_type = PG::TextEncoder::Identifier.new elements_type: textenc_string
+						expect( quoted_type.encode(['schema','table','col']) ).to eq( %["schema"."table"."col"] )
 						expect( quoted_type.encode(['A.','.B']) ).to eq( %["A.".".B"] )
 						expect( quoted_type.encode(%['A"."B']) ).to eq( %["'A"".""B'"] )
 					end
