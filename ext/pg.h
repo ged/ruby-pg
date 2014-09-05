@@ -115,6 +115,7 @@ extern VALUE rb_eConnectionBad;
 extern VALUE rb_mPGconstants;
 extern VALUE rb_cPGconn;
 extern VALUE rb_cPGresult;
+extern VALUE rb_cPGnoticeReceiverResult;
 extern VALUE rb_hErrors;
 
 

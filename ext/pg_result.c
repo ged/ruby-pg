@@ -8,6 +8,7 @@
 
 
 VALUE rb_cPGresult;
+VALUE rb_cPGnoticeReceiverResult;
 
 static void pgresult_gc_free( PGresult * );
 static PGresult* pgresult_get( VALUE );
@@ -117,6 +118,22 @@ VALUE
 pg_result_clear(VALUE self)
 {
 	PQclear(pgresult_get(self));
+	DATA_PTR(self) = NULL;
+	return Qnil;
+}
+
+
+/*
+ * call-seq:
+ *    res.clear() -> nil
+ *
+ * Clears the PG::Result object as the result of the query.  As the underlying
+ * notice receiver result is cleared by libpq automatically, does not clear
+ * the underlying result to avoid a double free.
+ */
+VALUE
+pg_notice_receiver_result_clear(VALUE self)
+{
 	DATA_PTR(self) = NULL;
 	return Qnil;
 }
@@ -873,6 +890,7 @@ void
 init_pg_result()
 {
 	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cObject );
+	rb_cPGnoticeReceiverResult = rb_define_class_under( rb_mPG, "NoticeReceiverResult", rb_cPGresult );
 	rb_include_module(rb_cPGresult, rb_mEnumerable);
 	rb_include_module(rb_cPGresult, rb_mPGconstants);
 
@@ -884,6 +902,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "error_field", pgresult_error_field, 1);
 	rb_define_alias( rb_cPGresult, "result_error_field", "error_field" );
 	rb_define_method(rb_cPGresult, "clear", pg_result_clear, 0);
+	rb_define_method(rb_cPGnoticeReceiverResult, "clear", pg_notice_receiver_result_clear, 0);
 	rb_define_method(rb_cPGresult, "check", pg_result_check, 0);
 	rb_define_alias (rb_cPGresult, "check_result", "check");
 	rb_define_method(rb_cPGresult, "ntuples", pgresult_ntuples, 0);
