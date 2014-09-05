@@ -2682,6 +2682,17 @@ pgconn_untrace(VALUE self)
 	return Qnil;
 }
 
+static VALUE
+notice_receiver_call(void * ary) {
+	return rb_funcall(rb_ary_entry((VALUE)ary, 0), rb_intern("call"), 1, rb_ary_entry((VALUE)ary, 1));
+}
+
+static VALUE
+notice_receiver_ensure(void * val) {
+	DATA_PTR((VALUE)val) = NULL;
+	return Qnil;
+}
+
 
 /*
  * Notice callback proxy function -- delegate the callback to the
@@ -2694,16 +2705,20 @@ notice_receiver_proxy(void *arg, const PGresult *result)
 	VALUE self = (VALUE)arg;
 
 	if ((proc = rb_iv_get(self, "@notice_receiver")) != Qnil) {
-		VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result);
+		VALUE val = Data_Wrap_Struct(rb_cPGnoticeReceiverResult, NULL, NULL, (PGresult*)result);
+		VALUE ary = rb_ary_new2(2);
 #ifdef M17N_SUPPORTED
 		PGconn *conn = pg_get_pgconn( self );
 		rb_encoding *enc = pg_conn_enc_get( conn );
 		ENCODING_SET( val, rb_enc_to_index(enc) );
 #endif
-		rb_funcall(proc, rb_intern("call"), 1, val);
+		rb_ary_store(ary, 0, proc);
+		rb_ary_store(ary, 1, val);
+		rb_ensure(notice_receiver_call, ary, notice_receiver_ensure, val);
 	}
 	return;
 }
+
 
 /*
  * call-seq:
