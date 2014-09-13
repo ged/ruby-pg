@@ -7,9 +7,6 @@ require 'pg'
 
 
 describe PG::TypeMap do
-	#
-	# Decoding Examples
-	#
 
 	class Exception_in_fit_to_result < PG::TypeMap
 		def fit_to_result(result)
