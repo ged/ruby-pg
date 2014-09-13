@@ -233,6 +233,9 @@ pg_coder_delimiter_get(VALUE self)
 	return rb_str_new(&type_data->delimiter, 1);
 }
 
+/*
+ *
+ */
 static VALUE
 pg_coder_elements_type_set(VALUE self, VALUE elem_type)
 {

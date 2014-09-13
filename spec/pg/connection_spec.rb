@@ -1255,11 +1255,12 @@ describe PG::Connection do
 		it "should raise an error on invalid param mapping" do
 			expect{
 				@conn.exec_params( "SELECT 1", [], nil, :invalid )
-			}.to raise_error(NoMethodError)
+			}.to raise_error(TypeError)
 		end
 
 		it "should return nil if no type mapping is set" do
-			expect( @conn.type_mapping ).to be_nil
+			expect( @conn.type_map_for_query ).to be_nil
+			expect( @conn.type_map_for_result ).to be_nil
 		end
 
 		it "shouldn't type map params unless requested" do
@@ -1268,22 +1269,42 @@ describe PG::Connection do
 			}.to raise_error(PG::IndeterminateDatatype)
 		end
 
-		context "with default type map" do
+		context "with default query type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				@conn2.type_mapping = PG::BasicTypeMapping.new @conn2
+				@conn2.type_map_for_query = PG::BasicTypeMapping.new @conn2
 			end
 			after :each do
 				@conn2.close
 			end
 
-			it "should respect a type mapping for params and result" do
+			it "should respect a type mapping for params" do
 				res = @conn2.exec_params( "SELECT $1", [5] )
+				expect( res.values ).to eq( [["5"]] )
+				expect( res.ftype(0) ).to eq( 20 )
+			end
+
+			it "should return the current type mapping" do
+				expect( @conn2.type_map_for_query ).to be_kind_of(PG::BasicTypeMapping)
+			end
+		end
+
+		context "with default result type map" do
+			before :each do
+				@conn2 = described_class.new(@conninfo)
+				@conn2.type_map_for_result = PG::BasicTypeMapping.new @conn2
+			end
+			after :each do
+				@conn2.close
+			end
+
+			it "should respect a type mapping for result" do
+				res = @conn2.exec_params( "SELECT $1::INT", ["5"] )
 				expect( res.values ).to eq( [[5]] )
 			end
 
 			it "should return the current type mapping" do
-				expect( @conn2.type_mapping ).to be_kind_of(PG::BasicTypeMapping)
+				expect( @conn2.type_map_for_result ).to be_kind_of(PG::BasicTypeMapping)
 			end
 		end
 	end

@@ -3,7 +3,7 @@
 require 'pg' unless defined?( PG )
 
 
-class PG::ColumnMapping
+class PG::TypeMapByColumn
 	def oids
 		coders.map{|c| c.oid if c }
 	end

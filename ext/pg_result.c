@@ -10,8 +10,8 @@
 VALUE rb_cPGresult;
 
 static void pgresult_gc_free( PGresult * );
-static t_colmap *pgresult_get_colmap( VALUE );
-static VALUE pgresult_column_mapping_set2(PGresult *, VALUE, VALUE );
+static t_typemap *pgresult_get_typemap( VALUE );
+static VALUE pgresult_type_map_set( VALUE, VALUE );
 
 
 /*
@@ -25,19 +25,19 @@ VALUE
 pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
 	PGconn *conn = pg_get_pgconn( rb_pgconn );
-	VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, pgresult_gc_free, result);
+	VALUE self = Data_Wrap_Struct(rb_cPGresult, NULL, pgresult_gc_free, result);
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
-	ENCODING_SET( val, rb_enc_to_index(enc) );
+	ENCODING_SET( self, rb_enc_to_index(enc) );
 #endif
 
-	rb_iv_set( val, "@connection", rb_pgconn );
+	rb_iv_set( self, "@connection", rb_pgconn );
 	if( result ){
-		VALUE type_mapping = rb_iv_get(rb_pgconn, "@type_mapping");
-		pgresult_column_mapping_set2( result, val, type_mapping );
+		VALUE typemap = rb_iv_get(rb_pgconn, "@type_map_for_result");
+		pgresult_type_map_set( self, typemap );
 	}
 
-	return val;
+	return self;
 }
 
 /*
@@ -533,7 +533,7 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	PGresult *result;
 	int i = NUM2INT(tup_num);
 	int j = NUM2INT(field_num);
-	t_colmap *p_colmap = pgresult_get_colmap(self);
+	t_typemap *p_typemap = pgresult_get_typemap(self);
 
 	result = pgresult_get(self);
 	if(i < 0 || i >= PQntuples(result)) {
@@ -542,7 +542,7 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	if(j < 0 || j >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
 	}
-	return colmap_result_value(self, result, i, j, p_colmap);
+	return p_typemap->typecast(self, result, i, j, p_typemap);
 }
 
 /*
@@ -694,7 +694,7 @@ pgresult_aref(VALUE self, VALUE index)
 	int field_num;
 	VALUE fname;
 	VALUE tuple;
-	t_colmap *p_colmap = pgresult_get_colmap(self);
+	t_typemap *p_typemap = pgresult_get_typemap(self);
 
 	if ( tuple_num < 0 || tuple_num >= PQntuples(result) )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
@@ -703,7 +703,7 @@ pgresult_aref(VALUE self, VALUE index)
 	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
 		fname = rb_tainted_str_new2( PQfname(result,field_num) );
 		ASSOCIATE_INDEX(fname, self);
-		rb_hash_aset( tuple, fname, colmap_result_value(self, result, tuple_num, field_num, p_colmap) );
+		rb_hash_aset( tuple, fname, p_typemap->typecast(self, result, tuple_num, field_num, p_typemap) );
 	}
 	return tuple;
 }
@@ -722,14 +722,14 @@ pgresult_each_row(VALUE self)
 	int field;
 	int num_rows = PQntuples(result);
 	int num_fields = PQnfields(result);
-	t_colmap *p_colmap = pgresult_get_colmap(self);
+	t_typemap *p_typemap = pgresult_get_typemap(self);
 
 	for ( row = 0; row < num_rows; row++ ) {
 		VALUE new_row = rb_ary_new2(num_fields);
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, colmap_result_value(self, result, row, field, p_colmap) );
+			rb_ary_store( new_row, field, p_typemap->typecast(self, result, row, field, p_typemap) );
 		}
 		rb_yield( new_row );
 	}
@@ -852,51 +852,78 @@ pgresult_fields(VALUE self)
 	return fields;
 }
 
-static VALUE
-pgresult_column_mapping_set2(PGresult *result, VALUE self, VALUE column_mapping)
-{
-	if( column_mapping != Qnil ){
-		t_colmap *p_colmap;
-		if ( !rb_obj_is_kind_of(column_mapping, rb_cColumnMap) ) {
-			column_mapping = rb_funcall( column_mapping, rb_intern("column_mapping_for_result"), 1, self );
-		}
-		p_colmap = colmap_get_and_check( column_mapping, PQnfields( result ));
-
-#ifdef M17N_SUPPORTED
-		p_colmap->encoding_index = ENCODING_GET(self);
-#endif
-	}
-	rb_iv_set( self, "@column_mapping", column_mapping );
-
-	return column_mapping;
-}
-
 /*
  * call-seq:
- *    res.column_mapping = value
+ *    res.type_map = value
  *
  * +value+ can be:
- * * an instance of PG::ColumnMapping
- * * +nil+ - disables custom type mapping.
+ * * a kind of PG::TypeMap
+ * * +nil+ - type cast to strings.
  *
  */
 static VALUE
-pgresult_column_mapping_set(VALUE self, VALUE column_mapping)
+pgresult_type_map_set(VALUE self, VALUE typemap)
 {
-	PGresult *result = pgresult_get(self);
-	return pgresult_column_mapping_set2( result, self, column_mapping );
+	if( typemap != Qnil ){
+		t_typemap *p_typemap;
+
+		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type( typemap, T_DATA );
+
+		p_typemap = DATA_PTR( typemap );
+		typemap = p_typemap->fit_to_result( self, typemap );
+		p_typemap = DATA_PTR( typemap );
+
+#ifdef M17N_SUPPORTED
+		/* TODO: this should be removed */
+		p_typemap->encoding_index = ENCODING_GET(self);
+#endif
+	}
+	rb_iv_set( self, "@type_map", typemap );
+
+	return typemap;
 }
 
-static t_colmap *
-pgresult_get_colmap(VALUE self)
+static VALUE
+pgresult_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
 {
-	VALUE column_mapping = rb_iv_get( self, "@column_mapping" );
-	if( column_mapping == Qnil ){
-		return NULL;
+	VALUE ret;
+	char * val;
+	int len;
+
+	if (PQgetisnull(result, tuple, field)) {
+		return Qnil;
+	}
+
+	val = PQgetvalue( result, tuple, field );
+	len = PQgetlength( result, tuple, field );
+
+	if ( 0 == PQfformat(result, field) ) {
+		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(self));
 	} else {
-		/* The type of @column_mapping is already checked when the
+		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(self));
+	}
+
+	return ret;
+}
+
+static const t_typemap pgresult_default_typemap = {
+	typecast: pgresult_value
+};
+
+static t_typemap *
+pgresult_get_typemap(VALUE self)
+{
+	VALUE type_map = rb_iv_get( self, "@type_map" );
+	if( type_map == Qnil ){
+		return (t_typemap *)&pgresult_default_typemap;
+	} else {
+		/* The type of @type_map is already checked when the
 		 * value is assigned. */
-		return DATA_PTR( column_mapping );
+		return DATA_PTR( type_map );
 	}
 }
 
@@ -948,8 +975,8 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 
-	rb_define_attr(rb_cPGresult, "column_mapping", 1, 0);
-	rb_define_method(rb_cPGresult, "column_mapping=", pgresult_column_mapping_set, 1);
+	rb_define_attr(rb_cPGresult, "type_map", 1, 0);
+	rb_define_method(rb_cPGresult, "type_map=", pgresult_type_map_set, 1);
 }
 
 

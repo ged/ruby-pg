@@ -10,16 +10,13 @@ class PG::Result
 		return enum_for(:each_row).to_a
 	end
 
-	# Apply a ColumnMapping based on the given OID-to-Type Mapping.
+	# Apply a type map for all value retrieving methods.
 	#
-	# +column_mapping+: a ColumnMapping instance or some Object that
-	#   responds to column_mapping_for_result(result) .
-	#   This method should build and return a PG::ColumnMapping object suitable
-	#   for the given result.
+	# +type_map+: a PG::TypeMap instance.
 	#
 	# See PG::BasicTypeMapping
-	def map_types!(column_mapping)
-		self.column_mapping = column_mapping
+	def map_types!(type_map)
+		self.type_map = type_map
 		self
 	end
 

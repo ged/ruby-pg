@@ -321,25 +321,25 @@ describe PG::Result do
 		}
 	end
 
-	context 'result value conversions with ColumnMapping' do
+	context 'result value conversions with TypeMapByColumn' do
 		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }
 
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
-			expect( res.column_mapping ).to be_nil
-			res.column_mapping = PG::ColumnMapping.new [textdec_int]
-			expect( res.column_mapping ).to be_an_instance_of(PG::ColumnMapping)
-			expect( res.column_mapping.coders ).to eq( [textdec_int] )
-			res.column_mapping = PG::ColumnMapping.new [textdec_float]
-			expect( res.column_mapping.coders ).to eq( [textdec_float] )
-			res.column_mapping = nil
-			expect( res.column_mapping ).to be_nil
+			expect( res.type_map ).to be_nil
+			res.type_map = PG::TypeMapByColumn.new [textdec_int]
+			expect( res.type_map ).to be_an_instance_of(PG::TypeMapByColumn)
+			expect( res.type_map.coders ).to eq( [textdec_int] )
+			res.type_map = PG::TypeMapByColumn.new [textdec_float]
+			expect( res.type_map.coders ).to eq( [textdec_float] )
+			res.type_map = nil
+			expect( res.type_map ).to be_nil
 		end
 
 		it "should be applied to all value retrieving methods" do
 			res = @conn.exec( "SELECT 123 as f" )
-			res.column_mapping = PG::ColumnMapping.new [textdec_int]
+			res.type_map = PG::TypeMapByColumn.new [textdec_int]
 			expect( res.values ).to eq( [[123]] )
 			expect( res.getvalue(0,0) ).to eq( 123 )
 			expect( res[0] ).to eq( {'f' => 123 } )
@@ -348,23 +348,18 @@ describe PG::Result do
 		end
 
 		it "should be usable for several querys" do
-			colmap = PG::ColumnMapping.new [textdec_int]
+			colmap = PG::TypeMapByColumn.new [textdec_int]
 			res = @conn.exec( "SELECT 123" )
-			res.column_mapping = colmap
+			res.type_map = colmap
 			expect( res.values ).to eq( [[123]] )
 			res = @conn.exec( "SELECT 456" )
-			res.column_mapping = colmap
+			res.type_map = colmap
 			expect( res.values ).to eq( [[456]] )
 		end
 
-		it "shouldn't allow invalid column mappings" do
+		it "shouldn't allow invalid type maps" do
 			res = @conn.exec( "SELECT 1" )
-			expect{ res.column_mapping = 1 }.to raise_error(NoMethodError)
-		end
-
-		it "shouldn't allow column mappings with different number of fields" do
-			res = @conn.exec( "SELECT 1" )
-			expect{ res.column_mapping = PG::ColumnMapping.new([]) }.to raise_error(ArgumentError, /mapped columns/)
+			expect{ res.type_map = 1 }.to raise_error(TypeError)
 		end
 	end
 end

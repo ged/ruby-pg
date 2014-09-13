@@ -25,7 +25,7 @@ require 'pg' unless defined?( PG )
 #   # Retrieve and cast the result value. Value format is 0 (text) and OID is 20. Therefore typecasting
 #   # is done by PG::TextDecoder::Integer internally for all value retrieval methods.
 #   res.values  # => [[5]]
-class PG::BasicTypeMapping
+class PG::BasicTypeMapping < PG::TypeMap
 
 	# An instance of this class stores the coders that should be used for a given wire format (text or binary)
 	# and type cast direction (encoder or decoder).
@@ -146,18 +146,18 @@ class PG::BasicTypeMapping
 		map[value.class]
 	end
 
-	def column_mapping_for_query_params( params )
+	def fit_to_query( params )
 		coders = params.map do |p|
 			coder_by_value(p)
 		end
-		PG::ColumnMapping.new coders
+		PG::TypeMapByColumn.new coders
 	end
 
-	def column_mapping_for_result( result )
+	def fit_to_result( result )
 		coders = Array.new(result.nfields) do |i|
 			@decoders_by_format_and_oid[result.fformat(i)][result.ftype(i)]
 		end
-		PG::ColumnMapping.new( coders )
+		PG::TypeMapByColumn.new( coders )
 	end
 
 	private

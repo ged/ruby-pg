@@ -47,7 +47,7 @@ module PG
 	require 'pg/text_encoder'
 	require 'pg/text_decoder'
 	require 'pg/basic_type_mapping'
-	require 'pg/column_mapping'
+	require 'pg/type_map_by_column'
 	require 'pg/connection'
 	require 'pg/result'
 
