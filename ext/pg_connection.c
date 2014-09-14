@@ -935,7 +935,6 @@ alloc_query_params1(VALUE _paramsData)
 	paramsData->values = ALLOC_N(char *, nParams);
 	paramsData->lengths = ALLOC_N(int, nParams);
 	paramsData->formats = ALLOC_N(int, nParams);
-	paramsData->param_values = ALLOC_N(VALUE, nParams);
 
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_value = ID2SYM(rb_intern("value"));
@@ -956,7 +955,6 @@ alloc_query_params1(VALUE _paramsData)
 		if( NIL_P(param_value) ){
 			paramsData->values[i] = NULL;
 			paramsData->lengths[i] = 0;
-			paramsData->param_values[i] = param_value;
 		} else  {
 			param_value = rb_obj_as_string(param_value);
 			/* make sure param_value doesn't get freed by the GC */
