@@ -10,15 +10,6 @@ static VALUE rb_cTypeMapByColumn;
 static ID s_id_decode;
 static ID s_id_encode;
 
-typedef struct {
-	t_typemap typemap;
-	int nfields;
-	struct pg_tmbc_converter {
-		t_pg_coder *cconv;
-	} convs[0];
-} t_tmbc;
-
-
 static VALUE
 pg_tmbc_fit_to_result( VALUE result, VALUE typemap )
 {
@@ -48,7 +39,7 @@ pg_tmbc_fit_to_query( VALUE params, VALUE typemap )
 }
 
 
-static VALUE
+VALUE
 pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
 {
 	VALUE ret;
@@ -188,10 +179,27 @@ pg_tmbc_alloc_query_params(VALUE _paramsData)
 	return (VALUE)nParams;
 }
 
+static void
+pg_tmbc_mark(void *p)
+{
+	int i;
+	t_tmbc *this = (t_tmbc *)p;
+
+	for( i=0; i<this->nfields; i++){
+		rb_gc_mark(this->convs[i].cconv->coder_obj);
+	}
+}
+
 static VALUE
 pg_tmbc_s_allocate( VALUE klass )
 {
-	return Data_Wrap_Struct( klass, NULL, -1, NULL );
+	return Data_Wrap_Struct( klass, pg_tmbc_mark, -1, NULL );
+}
+
+VALUE
+pg_tmbc_allocate()
+{
+	return pg_tmbc_s_allocate(rb_cTypeMapByColumn);
 }
 
 static VALUE
@@ -200,7 +208,6 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	int i;
 	t_tmbc *this;
 	int conv_ary_len;
-	VALUE ary_coders = rb_ary_new();
 
 	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
@@ -222,8 +229,6 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
 							 i+1, rb_obj_classname( obj ));
 		}
-
-		rb_ary_push( ary_coders, obj );
 	}
 
 	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
@@ -233,11 +238,28 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	this->typemap.fit_to_query = pg_tmbc_fit_to_query;
 	this->typemap.typecast = pg_tmbc_result_value;
 	this->typemap.alloc_query_params = pg_tmbc_alloc_query_params;
-	rb_iv_set( self, "@coders", rb_obj_freeze(ary_coders) );
 
 	return self;
 }
 
+static VALUE
+pg_tmbc_coders(VALUE self)
+{
+	int i;
+	t_tmbc *this = DATA_PTR( self );
+	VALUE ary_coders = rb_ary_new();
+
+	for( i=0; i<this->nfields; i++){
+		t_pg_coder *conv = this->convs[i].cconv;
+		if( conv ) {
+			rb_ary_push( ary_coders, conv->coder_obj );
+		} else {
+			rb_ary_push( ary_coders, Qnil );
+		}
+	}
+
+	return rb_obj_freeze(ary_coders);
+}
 
 void
 init_pg_type_map_by_column()
@@ -248,5 +270,5 @@ init_pg_type_map_by_column()
 	rb_cTypeMapByColumn = rb_define_class_under( rb_mPG, "TypeMapByColumn", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByColumn, pg_tmbc_s_allocate );
 	rb_define_method( rb_cTypeMapByColumn, "initialize", pg_tmbc_init, 1 );
-	rb_define_attr( rb_cTypeMapByColumn, "coders", 1, 0 );
+	rb_define_method( rb_cTypeMapByColumn, "coders", pg_tmbc_coders, 0 );
 }

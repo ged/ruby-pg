@@ -543,6 +543,7 @@ Init_pg_ext()
 	init_pg_errors();
 	init_pg_type_map();
 	init_pg_type_map_by_column();
+	init_pg_type_map_by_oid();
 	init_pg_coder();
 	init_pg_text_encoder();
 	init_pg_text_decoder();

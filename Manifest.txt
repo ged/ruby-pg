@@ -25,6 +25,7 @@ ext/pg_binary_encoder.c
 ext/pg_coder.c
 ext/pg_type_map.c
 ext/pg_type_map_by_column.c
+ext/pg_type_map_by_oid.c
 ext/pg_connection.c
 ext/pg_errors.c
 ext/pg_result.c
@@ -70,6 +71,7 @@ spec/pg/basic_type_mapping_spec.rb
 spec/pg/connection_spec.rb
 spec/pg/result_spec.rb
 spec/pg/type_map_by_column_spec.rb
+spec/pg/type_map_by_oid_spec.rb
 spec/pg/type_map_spec.rb
 spec/pg/type_spec.rb
 spec/pg_spec.rb

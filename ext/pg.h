@@ -151,6 +151,13 @@ struct query_params_data {
 	t_typemap *p_typemap;
 };
 
+typedef struct {
+	t_typemap typemap;
+	int nfields;
+	struct pg_tmbc_converter {
+		t_pg_coder *cconv;
+	} convs[0];
+} t_tmbc;
 
 
 #include "gvl_wrappers.h"
@@ -194,6 +201,7 @@ void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_type_map                                  _(( void ));
 void init_pg_type_map_by_column                        _(( void ));
+void init_pg_type_map_by_oid                           _(( void ));
 void init_pg_coder                                     _(( void ));
 void init_pg_text_encoder                              _(( void ));
 void init_pg_text_decoder                              _(( void ));
@@ -204,6 +212,8 @@ VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, 
 VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
 VALUE pg_obj_to_i                                      _(( VALUE ));
+VALUE pg_tmbc_allocate                                 _(( void ));
+VALUE pg_tmbc_result_value                             _(( VALUE, PGresult *, int, int, t_typemap * ));
 
 PGconn *pg_get_pgconn	                                 _(( VALUE ));
 
