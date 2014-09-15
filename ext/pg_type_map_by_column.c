@@ -113,7 +113,6 @@ pg_tmbc_alloc_query_params(VALUE _paramsData)
 			if( NIL_P(param_value) ){
 				paramsData->values[i] = NULL;
 				paramsData->lengths[i] = 0;
-				paramsData->param_values[i] = param_value;
 				if( conv )
 					param_type = conv->oid;
 			} else if( conv ) {
@@ -123,7 +122,6 @@ pg_tmbc_alloc_query_params(VALUE _paramsData)
 					int len = conv->enc_func(conv, param_value, NULL, &intermediates[i]);
 					/* text format strings must be zero terminated */
 					sum_lengths += len + (conv->format == 0 ? 1 : 0);
-					paramsData->param_values[i] = param_value;
 				} else {
 					/* Ruby-based converter */
 					param_value = rb_funcall( conv->coder_obj, s_id_encode, 1, param_value );
@@ -147,6 +145,7 @@ pg_tmbc_alloc_query_params(VALUE _paramsData)
 			}
 
 			paramsData->formats[i] = param_format;
+			paramsData->param_values[i] = param_value;
 		}
 
 		paramsData->mapping_buf = ALLOC_N(char, sum_lengths);
