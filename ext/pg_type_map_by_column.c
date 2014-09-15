@@ -180,10 +180,11 @@ pg_tmbc_alloc_query_params(VALUE _paramsData)
 }
 
 static void
-pg_tmbc_mark(void *p)
+pg_tmbc_mark( t_tmbc *this )
 {
 	int i;
-	t_tmbc *this = (t_tmbc *)p;
+
+	if( !this ) return;
 
 	for( i=0; i<this->nfields; i++){
 		rb_gc_mark(this->convs[i].cconv->coder_obj);

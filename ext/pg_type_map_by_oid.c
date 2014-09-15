@@ -84,10 +84,9 @@ pg_tmbo_fit_to_result( VALUE result, VALUE self )
 }
 
 static void
-pg_tmbo_mark( void *p )
+pg_tmbo_mark( t_tmbo *this )
 {
 	int i;
-	t_tmbo *this = (t_tmbo *)p;
 
 	for( i=0; i<2; i++){
 		rb_gc_mark(this->format[i].oid_to_coder);
