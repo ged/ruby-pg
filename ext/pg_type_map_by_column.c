@@ -183,10 +183,13 @@ pg_tmbc_mark( t_tmbc *this )
 {
 	int i;
 
+	/* allocated but not initialized ? */
 	if( !this ) return;
 
 	for( i=0; i<this->nfields; i++){
-		rb_gc_mark(this->convs[i].cconv->coder_obj);
+		t_pg_coder *p_coder = this->convs[i].cconv;
+		if( p_coder )
+			rb_gc_mark(p_coder->coder_obj);
 	}
 }
 
@@ -215,6 +218,14 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	this = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * conv_ary_len);
 	DATA_PTR(self) = this;
 
+	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
+	this->nfields = conv_ary_len;
+	this->typemap.encoding_index = 0;
+	this->typemap.fit_to_result = pg_tmbc_fit_to_result;
+	this->typemap.fit_to_query = pg_tmbc_fit_to_query;
+	this->typemap.typecast = pg_tmbc_result_value;
+	this->typemap.alloc_query_params = pg_tmbc_alloc_query_params;
+
 	for(i=0; i<conv_ary_len; i++)
 	{
 		VALUE obj = rb_ary_entry(conv_ary, i);
@@ -230,14 +241,6 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 							 i+1, rb_obj_classname( obj ));
 		}
 	}
-
-	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
-	this->nfields = conv_ary_len;
-	this->typemap.encoding_index = 0;
-	this->typemap.fit_to_result = pg_tmbc_fit_to_result;
-	this->typemap.fit_to_query = pg_tmbc_fit_to_query;
-	this->typemap.typecast = pg_tmbc_result_value;
-	this->typemap.alloc_query_params = pg_tmbc_alloc_query_params;
 
 	return self;
 }
