@@ -14,7 +14,7 @@ class PG::Result
 	#
 	# +type_map+: a PG::TypeMap instance.
 	#
-	# See PG::BasicTypeMapping
+	# See PG::BasicTypeMapForResults
 	def map_types!(type_map)
 		self.type_map = type_map
 		self

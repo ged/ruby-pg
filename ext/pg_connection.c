@@ -153,8 +153,8 @@ pgconn_s_allocate( VALUE klass )
 	rb_iv_set( self, "@socket_io", Qnil );
 	rb_iv_set( self, "@notice_receiver", Qnil);
 	rb_iv_set( self, "@notice_processor", Qnil);
-	rb_iv_set( self, "@type_map_for_query", Qnil);
-	rb_iv_set( self, "@type_map_for_result", Qnil);
+	rb_iv_set( self, "@type_map_for_queries", Qnil);
+	rb_iv_set( self, "@type_map_for_results", Qnil);
 	return self;
 }
 
@@ -1097,7 +1097,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 		return pgconn_exec( 1, argv, self );
 	}
 	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_query");
+		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1224,7 +1224,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 		paramsData.params = rb_ary_new2(0);
 	}
 	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_query");
+		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1657,7 +1657,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	 */
 
 	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_query");
+		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
 	}
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
@@ -1781,7 +1781,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		resultFormat = 0;
 	}
 	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_query");
+		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -3540,7 +3540,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_default_encoding", pgconn_set_default_encoding, 0);
 #endif /* M17N_SUPPORTED */
 
-	rb_define_attr(rb_cPGconn, "type_map_for_query", 1, 1);
-	rb_define_attr(rb_cPGconn, "type_map_for_result", 1, 1);
+	rb_define_attr(rb_cPGconn, "type_map_for_queries", 1, 1);
+	rb_define_attr(rb_cPGconn, "type_map_for_results", 1, 1);
 }
 

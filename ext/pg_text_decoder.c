@@ -52,7 +52,7 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
 		/* rb_cstr2inum() seems to be slow, so we do the int conversion by hand.
 		 * This proved to be 40% faster by the following benchmark:
 		 *
-		 *   conn.type_mapping = PG::BasicTypeMapping.new conn
+		 *   conn.type_mapping_for_results = PG::BasicTypeMapForResults.new conn
 		 *   Benchmark.measure do
 		 *     conn.exec("select generate_series(1,1000000)").values }
 		 *   end

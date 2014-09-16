@@ -1259,8 +1259,8 @@ describe PG::Connection do
 		end
 
 		it "should return nil if no type mapping is set" do
-			expect( @conn.type_map_for_query ).to be_nil
-			expect( @conn.type_map_for_result ).to be_nil
+			expect( @conn.type_map_for_queries ).to be_nil
+			expect( @conn.type_map_for_results ).to be_nil
 		end
 
 		it "shouldn't type map params unless requested" do
@@ -1272,7 +1272,7 @@ describe PG::Connection do
 		context "with default query type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				@conn2.type_map_for_query = PG::BasicTypeMapping.new @conn2
+				@conn2.type_map_for_queries = PG::BasicTypeMapForQueries.new @conn2
 			end
 			after :each do
 				@conn2.close
@@ -1285,14 +1285,14 @@ describe PG::Connection do
 			end
 
 			it "should return the current type mapping" do
-				expect( @conn2.type_map_for_query ).to be_kind_of(PG::BasicTypeMapping)
+				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::BasicTypeMapForQueries)
 			end
 		end
 
 		context "with default result type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				@conn2.type_map_for_result = PG::BasicTypeMapping.new @conn2
+				@conn2.type_map_for_results = PG::BasicTypeMapForResults.new @conn2
 			end
 			after :each do
 				@conn2.close
@@ -1304,7 +1304,7 @@ describe PG::Connection do
 			end
 
 			it "should return the current type mapping" do
-				expect( @conn2.type_map_for_result ).to be_kind_of(PG::BasicTypeMapping)
+				expect( @conn2.type_map_for_results ).to be_kind_of(PG::BasicTypeMapForResults)
 			end
 		end
 	end
