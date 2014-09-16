@@ -1,0 +1,100 @@
+#!/usr/bin/env rspec
+# encoding: utf-8
+
+require_relative '../helpers'
+
+require 'pg'
+
+
+describe PG::TypeMapByMriType do
+
+	let!(:textenc_int){ PG::TextEncoder::Integer.new name: 'INT4', oid: 23 }
+	let!(:textenc_float){ PG::TextEncoder::Float.new name: 'FLOAT8', oid: 701 }
+	let!(:textenc_string){ PG::TextEncoder::String.new name: 'TEXT', oid: 25 }
+	let!(:binaryenc_int){ PG::BinaryEncoder::Int8.new name: 'INT8', oid: 20, format: 1 }
+	let!(:pass_through_type) do
+		type = Class.new(PG::SimpleEncoder) do
+			def encode(v)
+				v.inspect
+			end
+		end.new
+		type.oid = 25
+		type.format = 0
+		type.name = 'pass_through'
+		type
+	end
+
+	let!(:tm) do
+		tm = PG::TypeMapByMriType.new
+		tm['T_FIXNUM'] = binaryenc_int
+		tm['T_FLOAT'] = textenc_float
+		tm['T_HASH'] = pass_through_type
+		tm
+	end
+
+	it "should retrieve all conversions" do
+		expect( tm.coders ).to eq( {
+			"T_FIXNUM" => binaryenc_int,
+			"T_FLOAT" => textenc_float,
+			"T_HASH" => pass_through_type,
+			"T_ARRAY" => nil,
+			"T_BIGNUM" => nil,
+			"T_CLASS" => nil,
+			"T_COMPLEX" => nil,
+			"T_DATA" => nil,
+			"T_FALSE" => nil,
+			"T_FILE" => nil,
+			"T_MODULE" => nil,
+			"T_NIL" => nil,
+			"T_OBJECT" => nil,
+			"T_RATIONAL" => nil,
+			"T_REGEXP" => nil,
+			"T_STRING" => nil,
+			"T_STRUCT" => nil,
+			"T_SYMBOL" => nil,
+			"T_TRUE" => nil,
+		} )
+	end
+
+	it "should retrieve particular conversions" do
+		expect( tm['T_FIXNUM'] ).to eq(binaryenc_int)
+		expect( tm['T_HASH'] ).to eq(pass_through_type)
+		expect( tm['T_BIGNUM'] ).to be_nil
+	end
+
+	it "should allow deletion of coders" do
+		tm['T_FIXNUM'] = nil
+		expect( tm['T_FIXNUM'] ).to be_nil
+	end
+
+	it "should check MRI type key" do
+		expect{ tm['NO_TYPE'] }.to raise_error(ArgumentError)
+		expect{ tm[123] }.to raise_error(TypeError)
+		expect{ tm['NO_TYPE'] = textenc_float }.to raise_error(ArgumentError)
+		expect{ tm[123] = textenc_float }.to raise_error(TypeError)
+	end
+
+	it "should check coder type" do
+		expect{ tm['T_FIXNUM'] = :dummy }.to raise_error(ArgumentError)
+	end
+
+	#
+	# Decoding Examples
+	#
+
+	it "should raise an error when used for results" do
+		res = @conn.exec_params( "SELECT 1", [], 1 )
+		expect{ res.type_map = tm }.to raise_error(NotImplementedError, /not suitable to map result values/)
+	end
+
+	#
+	# Encoding Examples
+	#
+
+	it "should allow mixed type conversions" do
+		res = @conn.exec_params( "SELECT $1, $2, $3", [5, 1.23, {1=>2}], 0, tm )
+		expect( res.values ).to eq([['5', '1.23', '{1=>2}']])
+		expect( res.ftype(0) ).to eq(20)
+	end
+
+end
