@@ -80,7 +80,7 @@ static VALUE
 pg_tmbc_alloc_query_params(VALUE _paramsData)
 {
 	struct query_params_data *paramsData = (struct query_params_data *)_paramsData;
-	VALUE param, param_value;
+	VALUE param_value;
 	int param_type, param_format;
 	VALUE param_mapping;
 	int nParams;
@@ -103,8 +103,7 @@ pg_tmbc_alloc_query_params(VALUE _paramsData)
 		VALUE intermediates[nParams];
 
 		for ( i = 0; i < nParams; i++ ) {
-			param = rb_ary_entry(paramsData->params, i);
-			param_value = param;
+			param_value = rb_ary_entry(paramsData->params, i);
 			param_type = 0;
 			param_format = 0;
 
