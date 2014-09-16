@@ -147,6 +147,7 @@ struct query_params_data {
 	int *formats;
 	char *mapping_buf;
 	VALUE *param_values;
+	t_pg_coder **p_coders;
 	VALUE gc_array;
 	t_typemap *p_typemap;
 };

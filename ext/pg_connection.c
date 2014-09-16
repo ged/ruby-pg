@@ -988,6 +988,7 @@ free_query_params(struct query_params_data *paramsData)
 	xfree(paramsData->lengths);
 	xfree(paramsData->formats);
 	xfree(paramsData->param_values);
+	xfree(paramsData->p_coders);
 }
 
 static const t_typemap pgconn_default_typemap_for_query = {
@@ -1022,6 +1023,7 @@ alloc_query_params(struct query_params_data *paramsData)
 	paramsData->formats = NULL;
 	paramsData->mapping_buf = NULL;
 	paramsData->param_values = NULL;
+	paramsData->p_coders = NULL;
 	paramsData->p_typemap = p_typemap;
 
 	paramsData->gc_array = rb_ary_new();

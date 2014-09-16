@@ -14,7 +14,7 @@ describe PG::TypeMapByMriType do
 	let!(:binaryenc_int){ PG::BinaryEncoder::Int8.new name: 'INT8', oid: 20, format: 1 }
 	let!(:pass_through_type) do
 		type = Class.new(PG::SimpleEncoder) do
-			def encode(v)
+			def encode(*v)
 				v.inspect
 			end
 		end.new
@@ -28,7 +28,19 @@ describe PG::TypeMapByMriType do
 		tm = PG::TypeMapByMriType.new
 		tm['T_FIXNUM'] = binaryenc_int
 		tm['T_FLOAT'] = textenc_float
-		tm['T_HASH'] = pass_through_type
+		tm['T_SYMBOL'] = pass_through_type
+		tm
+	end
+
+	let!(:derived_tm) do
+		tm = Class.new(PG::TypeMapByMriType) do
+			def array_type_map_for(value)
+				PG::TextEncoder::Array.new name: '_INT4', oid: 1007, elements_type: PG::TextEncoder::Integer.new
+			end
+		end.new
+		tm['T_FIXNUM'] = proc{|value| textenc_int }
+		tm['T_REGEXP'] = proc{|value| :invalid }
+		tm['T_ARRAY'] = :array_type_map_for
 		tm
 	end
 
@@ -36,7 +48,8 @@ describe PG::TypeMapByMriType do
 		expect( tm.coders ).to eq( {
 			"T_FIXNUM" => binaryenc_int,
 			"T_FLOAT" => textenc_float,
-			"T_HASH" => pass_through_type,
+			"T_SYMBOL" => pass_through_type,
+			"T_HASH" => nil,
 			"T_ARRAY" => nil,
 			"T_BIGNUM" => nil,
 			"T_CLASS" => nil,
@@ -45,21 +58,21 @@ describe PG::TypeMapByMriType do
 			"T_FALSE" => nil,
 			"T_FILE" => nil,
 			"T_MODULE" => nil,
-			"T_NIL" => nil,
 			"T_OBJECT" => nil,
 			"T_RATIONAL" => nil,
 			"T_REGEXP" => nil,
 			"T_STRING" => nil,
 			"T_STRUCT" => nil,
-			"T_SYMBOL" => nil,
 			"T_TRUE" => nil,
 		} )
 	end
 
 	it "should retrieve particular conversions" do
 		expect( tm['T_FIXNUM'] ).to eq(binaryenc_int)
-		expect( tm['T_HASH'] ).to eq(pass_through_type)
+		expect( tm['T_FLOAT'] ).to eq(textenc_float)
 		expect( tm['T_BIGNUM'] ).to be_nil
+		expect( derived_tm['T_REGEXP'] ).to be_kind_of(Proc)
+		expect( derived_tm['T_ARRAY'] ).to eq(:array_type_map_for)
 	end
 
 	it "should allow deletion of coders" do
@@ -72,10 +85,6 @@ describe PG::TypeMapByMriType do
 		expect{ tm[123] }.to raise_error(TypeError)
 		expect{ tm['NO_TYPE'] = textenc_float }.to raise_error(ArgumentError)
 		expect{ tm[123] = textenc_float }.to raise_error(TypeError)
-	end
-
-	it "should check coder type" do
-		expect{ tm['T_FIXNUM'] = :dummy }.to raise_error(ArgumentError)
 	end
 
 	#
@@ -92,9 +101,22 @@ describe PG::TypeMapByMriType do
 	#
 
 	it "should allow mixed type conversions" do
-		res = @conn.exec_params( "SELECT $1, $2, $3", [5, 1.23, {1=>2}], 0, tm )
-		expect( res.values ).to eq([['5', '1.23', '{1=>2}']])
+		res = @conn.exec_params( "SELECT $1, $2, $3", [5, 1.23, :TestSymbol], 0, tm )
+		expect( res.values ).to eq([['5', '1.23', '[:TestSymbol]']])
 		expect( res.ftype(0) ).to eq(20)
+	end
+
+	it "should allow mixed type conversions with derived type map" do
+		res = @conn.exec_params( "SELECT $1, $2", [6, [7]], 0, derived_tm )
+		expect( res.values ).to eq([['6', '{7}']])
+		expect( res.ftype(0) ).to eq(23)
+		expect( res.ftype(1) ).to eq(1007)
+	end
+
+	it "should raise TypeError with derived type map" do
+		expect{
+			@conn.exec_params( "SELECT $1", [//], 0, derived_tm )
+		}.to raise_error(TypeError, /argument 1/)
 	end
 
 end

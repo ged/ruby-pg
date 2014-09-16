@@ -10,7 +10,6 @@ static VALUE rb_cTypeMapByMriType;
 static ID s_id_encode;
 
 #define FOR_EACH_MRI_TYPE(func) \
-	func(T_NIL) \
 	func(T_OBJECT) \
 	func(T_CLASS) \
 	func(T_MODULE) \
@@ -30,7 +29,9 @@ static ID s_id_encode;
 	func(T_DATA) \
 	func(T_SYMBOL)
 
-#define DECLARE_CODER(type) t_pg_coder *coder_##type;
+#define DECLARE_CODER(type) \
+	t_pg_coder *coder_##type; \
+	VALUE ask_##type;
 
 typedef struct {
 	t_typemap typemap;
@@ -43,6 +44,7 @@ typedef struct {
 #define CASE_AND_GET(type) \
 	case type: \
 		conv = this->coders.coder_##type; \
+		ask_for_coder = this->coders.ask_##type; \
 		break;
 
 static VALUE
@@ -56,6 +58,7 @@ pg_tmbmt_alloc_query_params(VALUE _paramsData)
 	int i=0;
 	t_tmbmt *this = (t_tmbmt *)paramsData->p_typemap;
 	t_pg_coder *conv;
+	VALUE ask_for_coder;
 	int sum_lengths = 0;
 	int buffer_pos = 0;
 
@@ -67,6 +70,7 @@ pg_tmbmt_alloc_query_params(VALUE _paramsData)
 	paramsData->lengths = ALLOC_N(int, nParams);
 	paramsData->formats = ALLOC_N(int, nParams);
 	paramsData->param_values = ALLOC_N(VALUE, nParams);
+	paramsData->p_coders = ALLOC_N(t_pg_coder *, nParams);
 
 	{
 		VALUE intermediates[nParams];
@@ -81,7 +85,27 @@ pg_tmbmt_alloc_query_params(VALUE _paramsData)
 				default:
 					/* unknown MRI type */
 					conv = NULL;
+					ask_for_coder = Qnil;
 			}
+
+			if( !NIL_P(ask_for_coder) ){
+				/* No static Coder object, but proc/method given to ask for the Coder to use. */
+				VALUE obj;
+
+				if( TYPE(ask_for_coder) == T_SYMBOL ){
+					obj = rb_funcall(param_mapping, SYM2ID(ask_for_coder), 1, param_value);
+				}else{
+					obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
+				}
+
+				if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
+					Data_Get_Struct(obj, t_pg_coder, conv);
+				}else{
+					rb_raise(rb_eTypeError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
+							 i+1, rb_obj_classname( obj ));
+				}
+			}
+			paramsData->p_coders[i] = conv;
 
 			if( NIL_P(param_value) ){
 				paramsData->values[i] = NULL;
@@ -125,13 +149,7 @@ pg_tmbmt_alloc_query_params(VALUE _paramsData)
 
 		for ( i = 0; i < nParams; i++ ) {
 			param_value = paramsData->param_values[i];
-
-			switch(TYPE(param_value)){
-					FOR_EACH_MRI_TYPE( CASE_AND_GET )
-				default:
-					/* unknown MRI type */
-					conv = NULL;
-			}
+			conv = paramsData->p_coders[i];
 
 			if( NIL_P(param_value) ){
 				/* Qnil was mapped to NULL value above */
@@ -179,7 +197,8 @@ pg_tmbmt_fit_to_result( VALUE result, VALUE self )
 }
 
 #define GC_MARK_AS_USED(type) \
-	if(this->coders.coder_##type) rb_gc_mark(this->coders.coder_##type->coder_obj);
+	if(this->coders.coder_##type) rb_gc_mark(this->coders.coder_##type->coder_obj); \
+	rb_gc_mark( this->coders.ask_##type );
 
 static void
 pg_tmbmt_mark( t_tmbmt *this )
@@ -187,22 +206,23 @@ pg_tmbmt_mark( t_tmbmt *this )
 	FOR_EACH_MRI_TYPE( GC_MARK_AS_USED );
 }
 
+#define INIT_VARIABLES(type) \
+	this->coders.coder_##type = NULL; \
+	this->coders.ask_##type = Qnil;
+
 static VALUE
 pg_tmbmt_s_allocate( VALUE klass )
 {
 	t_tmbmt *this;
-	return Data_Make_Struct( klass, t_tmbmt, pg_tmbmt_mark, -1, this );
-}
+	VALUE self;
 
-static VALUE
-pg_tmbmt_init( VALUE self )
-{
-	t_tmbmt *this = DATA_PTR( self );
-
+	self = Data_Make_Struct( klass, t_tmbmt, pg_tmbmt_mark, -1, this );
 	this->typemap.fit_to_result = pg_tmbmt_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbmt_fit_to_query;
 	this->typemap.typecast = pg_tmbmt_result_value;
 	this->typemap.alloc_query_params = pg_tmbmt_alloc_query_params;
+
+	FOR_EACH_MRI_TYPE( INIT_VARIABLES );
 
 	return self;
 }
@@ -211,8 +231,13 @@ pg_tmbmt_init( VALUE self )
 	else if(!strcmp(p_mri_type, #type)){ \
 		if(NIL_P(coder)){ \
 			this->coders.coder_##type = NULL; \
-		}else{ \
+			this->coders.ask_##type = Qnil; \
+		}else if(rb_obj_is_kind_of(coder, rb_cPG_Coder)){ \
 			Data_Get_Struct(coder, t_pg_coder, this->coders.coder_##type); \
+			this->coders.ask_##type = Qnil; \
+		}else{ \
+			this->coders.coder_##type = NULL; \
+			this->coders.ask_##type = coder; \
 		} \
 	}
 
@@ -221,10 +246,6 @@ pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 {
 	t_tmbmt *this = DATA_PTR( self );
 	char *p_mri_type;
-
-	if( !NIL_P(coder) && !rb_obj_is_kind_of(coder, rb_cPG_Coder) )
-		rb_raise(rb_eArgError, "invalid type %s (should be nil or some kind of PG::Coder)",
-							rb_obj_classname( coder ));
 
 	p_mri_type = StringValueCStr(mri_type);
 
@@ -239,7 +260,7 @@ pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 
 #define COMPARE_AND_GET(type) \
 	else if(!strcmp(p_mri_type, #type)){ \
-		coder = this->coders.coder_##type ? this->coders.coder_##type->coder_obj : Qnil; \
+		coder = this->coders.coder_##type ? this->coders.coder_##type->coder_obj : this->coders.ask_##type; \
 	}
 
 static VALUE
@@ -261,7 +282,7 @@ pg_tmbmt_aref( VALUE self, VALUE mri_type )
 }
 
 #define ADD_TO_HASH(type) \
-	rb_hash_aset( hash_coders, rb_obj_freeze(rb_str_new2(#type)), this->coders.coder_##type ? this->coders.coder_##type->coder_obj : Qnil );
+	rb_hash_aset( hash_coders, rb_obj_freeze(rb_str_new2(#type)), this->coders.coder_##type ? this->coders.coder_##type->coder_obj : this->coders.ask_##type );
 
 
 static VALUE
@@ -282,7 +303,6 @@ init_pg_type_map_by_mri_type()
 
 	rb_cTypeMapByMriType = rb_define_class_under( rb_mPG, "TypeMapByMriType", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByMriType, pg_tmbmt_s_allocate );
-	rb_define_method( rb_cTypeMapByMriType, "initialize", pg_tmbmt_init, 0 );
 	rb_define_method( rb_cTypeMapByMriType, "[]=", pg_tmbmt_aset, 2 );
 	rb_define_method( rb_cTypeMapByMriType, "[]", pg_tmbmt_aref, 1 );
 	rb_define_method( rb_cTypeMapByMriType, "coders", pg_tmbmt_coders, 0 );
