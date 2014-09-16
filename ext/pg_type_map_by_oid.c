@@ -97,22 +97,19 @@ static VALUE
 pg_tmbo_s_allocate( VALUE klass )
 {
 	t_tmbo *this;
-	return Data_Make_Struct( klass, t_tmbo, pg_tmbo_mark, -1, this );
-}
-
-static VALUE
-pg_tmbo_init( VALUE self )
-{
+	VALUE self;
 	int i;
-	t_tmbo *this = DATA_PTR( self );
 
-	for( i=0; i<2; i++){
-		this->format[i].oid_to_coder = rb_hash_new();
-	}
+	self = Data_Make_Struct( klass, t_tmbo, pg_tmbo_mark, -1, this );
+
 	this->typemap.fit_to_result = pg_tmbo_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbo_fit_to_query;
 	this->typemap.typecast = pg_tmbo_result_value;
 	this->typemap.alloc_query_params = pg_tmbo_alloc_query_params;
+
+	for( i=0; i<2; i++){
+		this->format[i].oid_to_coder = rb_hash_new();
+	}
 
 	return self;
 }
@@ -171,7 +168,6 @@ init_pg_type_map_by_oid()
 {
 	rb_cTypeMapByOid = rb_define_class_under( rb_mPG, "TypeMapByOid", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByOid, pg_tmbo_s_allocate );
-	rb_define_method( rb_cTypeMapByOid, "initialize", pg_tmbo_init, 0 );
 	rb_define_method( rb_cTypeMapByOid, "add_coder", pg_tmbo_add_coder, 1 );
 	rb_define_method( rb_cTypeMapByOid, "rm_coder", pg_tmbo_rm_coder, 2 );
 	rb_define_method( rb_cTypeMapByOid, "coders", pg_tmbo_coders, 0 );
