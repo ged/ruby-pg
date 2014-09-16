@@ -69,6 +69,12 @@ describe PG::TypeMapByOid do
 		expect{ tm.add_coder :dummy }.to raise_error(ArgumentError)
 	end
 
+	it "should allow reading and writing max_rows_for_online_lookup" do
+		expect( tm.max_rows_for_online_lookup ).to eq(2)
+		tm.max_rows_for_online_lookup = 5
+		expect( tm.max_rows_for_online_lookup ).to eq(5)
+	end
+
 	#
 	# Decoding Examples text format
 	#
@@ -79,11 +85,17 @@ describe PG::TypeMapByOid do
 		expect( res.values ).to eq( [[1, 'a', 2.0, ['2013-06-30', 0, 3] ]] )
 	end
 
-	it "should build a TypeMapByColumn when assigned" do
-		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE" )
+	it "should build a TypeMapByColumn when assigned and number of rows is high enough" do
+		res = @conn.exec( "SELECT generate_series(1,10), 'a', 2.0::FLOAT, '2013-06-30'::DATE" )
 		res.type_map = tm
 		expect( res.type_map ).to be_kind_of( PG::TypeMapByColumn )
 		expect( res.type_map.coders ).to eq( [textdec_int, nil, textdec_float, pass_through_type] )
+	end
+
+	it "should build no TypeMapByColumn when assigned and number of rows is low enough" do
+		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE" )
+		res.type_map = tm
+		expect( res.type_map ).to be_kind_of( PG::TypeMapByOid )
 	end
 
 	#
