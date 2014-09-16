@@ -233,8 +233,7 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 			/* no type cast */
 			this->convs[i].cconv = NULL;
 		} else if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-			Check_Type(obj, T_DATA);
-			this->convs[i].cconv = DATA_PTR(obj);
+			Data_Get_Struct(obj, t_pg_coder, this->convs[i].cconv);
 		} else {
 			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
 							 i+1, rb_obj_classname( obj ));

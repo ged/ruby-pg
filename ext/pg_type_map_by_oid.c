@@ -128,8 +128,7 @@ pg_tmbo_add_coder( VALUE self, VALUE coder )
 		rb_raise(rb_eArgError, "invalid type %s (should be some kind of PG::Coder)",
 							rb_obj_classname( coder ));
 
-	Check_Type(coder, T_DATA);
-	p_coder = DATA_PTR(coder);
+	Data_Get_Struct(coder, t_pg_coder, p_coder);
 
 	if( p_coder->format < 0 || p_coder->format > 1 )
 		rb_raise(rb_eArgError, "invalid format code %d", p_coder->format);

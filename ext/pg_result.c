@@ -871,9 +871,8 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
 					rb_obj_classname( typemap ) );
 		}
-		Check_Type( typemap, T_DATA );
+		Data_Get_Struct(typemap, t_typemap, p_typemap);
 
-		p_typemap = DATA_PTR( typemap );
 		typemap = p_typemap->fit_to_result( self, typemap );
 		p_typemap = DATA_PTR( typemap );
 
