@@ -12,10 +12,22 @@ static ID s_id_decode;
 typedef struct {
 	t_typemap typemap;
 	int max_rows_for_online_lookup;
+
 	struct pg_tmbo_converter {
 		VALUE oid_to_coder;
+
+		struct pg_tmbo_oid_cache_entry {
+			Oid oid;
+			t_pg_coder *p_coder;
+		} cache_row[0x100];
 	} format[2];
 } t_tmbo;
+
+/*
+ * We use the OID's minor 8 Bits as index to a 256 entry cache. This avoids full ruby hash lookups
+ * for each value in most cases.
+ */
+#define CACHE_LOOKUP(this, form, oid) ( &this->format[(form)].cache_row[(oid) & 0xff] )
 
 static VALUE
 pg_tmbo_alloc_query_params(VALUE _paramsData)
@@ -25,15 +37,37 @@ pg_tmbo_alloc_query_params(VALUE _paramsData)
 	return Qnil;
 }
 
+static t_pg_coder *
+pg_tmbo_lookup_oid(t_tmbo *this, int format, Oid oid)
+{
+	t_pg_coder *conv;
+	struct pg_tmbo_oid_cache_entry *p_ce;
+
+	p_ce = CACHE_LOOKUP(this, format, oid);
+
+	/* Has the entry the expected OID and is it a non empty entry? */
+	if( p_ce->oid == oid && (oid || p_ce->p_coder) ) {
+		conv = p_ce->p_coder;
+	} else {
+		VALUE obj = rb_hash_lookup( this->format[format].oid_to_coder, UINT2NUM( oid ));
+		/* obj must be nil or some kind of PG::Coder, this is checked at insertion */
+		conv = NIL_P(obj) ? NULL : DATA_PTR(obj);
+		/* Write the retrieved coder to the cache */
+		p_ce->oid = oid;
+		p_ce->p_coder = conv;
+	}
+	return conv;
+}
+
 static VALUE
 pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typemap *p_typemap)
 {
-	VALUE ret, obj;
+	VALUE ret;
 	char * val;
 	int len;
 	int format;
 	t_tmbo *this = (t_tmbo *) p_typemap;
-	t_pg_coder *conv;
+	t_pg_coder *p_coder;
 
 	if (PQgetisnull(pgresult, tuple, field)) {
 		return Qnil;
@@ -46,12 +80,10 @@ pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typ
 	if( format < 0 || format > 1 )
 		rb_raise(rb_eArgError, "result field %d has unsupported format code %d", field+1, format);
 
-	obj = rb_hash_lookup( this->format[format].oid_to_coder, UINT2NUM( PQftype(pgresult, field) ));
-	/* obj must be nil or some kind of PG::Coder, this is checked at insertion */
-	conv = NIL_P(obj) ? NULL : DATA_PTR(obj);
+	p_coder = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, field) );
 
-	if( conv && conv->dec_func ){
-		return conv->dec_func(conv, val, len, tuple, field, this->typemap.encoding_index);
+	if( p_coder && p_coder->dec_func ){
+		return p_coder->dec_func(p_coder, val, len, tuple, field, this->typemap.encoding_index);
 	}
 
 	if ( 0 == format ) {
@@ -60,8 +92,8 @@ pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typ
 		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(self));
 	}
 
-	if( conv ){
-		ret = rb_funcall( obj, s_id_decode, 3, ret, INT2NUM(tuple), INT2NUM(field) );
+	if( p_coder ){
+		ret = rb_funcall( p_coder->coder_obj, s_id_decode, 3, ret, INT2NUM(tuple), INT2NUM(field) );
 	}
 
 	return ret;
@@ -99,21 +131,12 @@ pg_tmbo_fit_to_result( VALUE result, VALUE self )
 
 		for(i=0; i<nfields; i++)
 		{
-			VALUE obj;
 			int format = PQfformat(pgresult, i);
 
 			if( format < 0 || format > 1 )
 				rb_raise(rb_eArgError, "result field %d has unsupported format code %d", i+1, format);
 
-			obj = rb_hash_lookup( this->format[format].oid_to_coder, UINT2NUM( PQftype(pgresult, i) ));
-
-			if( obj == Qnil ){
-				/* no type cast */
-				p_colmap->convs[i].cconv = NULL;
-			} else {
-				/* obj must be some kind of PG::Coder, this is checked at insertion */
-				p_colmap->convs[i].cconv = DATA_PTR(obj);
-			}
+			p_colmap->convs[i].cconv = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, i) );
 		}
 
 		/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
@@ -151,7 +174,7 @@ pg_tmbo_s_allocate( VALUE klass )
 	this->typemap.fit_to_query = pg_tmbo_fit_to_query;
 	this->typemap.typecast = pg_tmbo_result_value;
 	this->typemap.alloc_query_params = pg_tmbo_alloc_query_params;
-	this->max_rows_for_online_lookup = 2;
+	this->max_rows_for_online_lookup = 10;
 
 	for( i=0; i<2; i++){
 		this->format[i].oid_to_coder = rb_hash_new();
@@ -166,6 +189,7 @@ pg_tmbo_add_coder( VALUE self, VALUE coder )
 	VALUE hash;
 	t_tmbo *this = DATA_PTR( self );
 	t_pg_coder *p_coder;
+	struct pg_tmbo_oid_cache_entry *p_ce;
 
 	if( !rb_obj_is_kind_of(coder, rb_cPG_Coder) )
 		rb_raise(rb_eArgError, "invalid type %s (should be some kind of PG::Coder)",
@@ -176,6 +200,11 @@ pg_tmbo_add_coder( VALUE self, VALUE coder )
 	if( p_coder->format < 0 || p_coder->format > 1 )
 		rb_raise(rb_eArgError, "invalid format code %d", p_coder->format);
 
+	/* Update cache entry */
+	p_ce = CACHE_LOOKUP(this, p_coder->format, p_coder->oid);
+	p_ce->oid = p_coder->oid;
+	p_ce->p_coder = p_coder;
+	/* Write coder into the hash of the given format */
 	hash = this->format[p_coder->format].oid_to_coder;
 	rb_hash_aset( hash, UINT2NUM(p_coder->oid), coder);
 
@@ -189,10 +218,15 @@ pg_tmbo_rm_coder( VALUE self, VALUE format, VALUE oid )
 	VALUE coder;
 	t_tmbo *this = DATA_PTR( self );
 	int i_format = NUM2INT(format);
+	struct pg_tmbo_oid_cache_entry *p_ce;
 
 	if( i_format < 0 || i_format > 1 )
 		rb_raise(rb_eArgError, "invalid format code %d", i_format);
 
+	/* Mark the cache entry as empty */
+	p_ce = CACHE_LOOKUP(this, i_format, NUM2UINT(oid));
+	p_ce->oid = 0;
+	p_ce->p_coder = NULL;
 	hash = this->format[i_format].oid_to_coder;
 	coder = rb_hash_delete( hash, oid );
 
