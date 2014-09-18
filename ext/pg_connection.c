@@ -12,7 +12,6 @@ VALUE rb_cPGconn;
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
 
-static PGconn *pgconn_check( VALUE );
 static VALUE pgconn_finish( VALUE );
 #ifdef M17N_SUPPORTED
 static VALUE pgconn_set_default_encoding( VALUE self );
@@ -37,7 +36,8 @@ static VALUE pgconn_set_default_encoding( VALUE self );
 PGconn *
 pg_get_pgconn( VALUE self )
 {
-	PGconn *conn = pgconn_check( self );
+	PGconn *conn;
+	Data_Get_Struct( self, PGconn, conn);
 
 	if ( !conn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
@@ -101,27 +101,6 @@ pgconn_make_conninfo_array( const PQconninfoOption *options )
 	}
 
 	return ary;
-}
-
-
-/*
- * Allocation/
- */
-
-/*
- * Object validity checker. Returns the data pointer.
- */
-static PGconn *
-pgconn_check( VALUE self ) {
-
-	Check_Type( self, T_DATA );
-
-    if ( !rb_obj_is_kind_of(self, rb_cPGconn) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Connection)",
-				  rb_obj_classname( self ) );
-    }
-
-	return DATA_PTR( self );
 }
 
 
