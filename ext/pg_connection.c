@@ -30,21 +30,28 @@ static VALUE pgconn_set_default_encoding( VALUE self );
  * Global functions
  */
 
+t_pg_connection *
+pg_get_connection( VALUE self )
+{
+	t_pg_connection *p_conn;
+	Data_Get_Struct( self, t_pg_connection, p_conn);
+
+	return p_conn;
+}
+
 /*
  * Fetch the data pointer and check it for sanity.
  */
 PGconn *
 pg_get_pgconn( VALUE self )
 {
-	PGconn *conn;
-	Data_Get_Struct( self, PGconn, conn);
+	t_pg_connection *p_conn = pg_get_connection( self );
 
-	if ( !conn )
+	if ( !p_conn->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
 
-	return conn;
+	return p_conn->pgconn;
 }
-
 
 
 
@@ -54,7 +61,8 @@ pg_get_pgconn( VALUE self )
 void
 pgconn_close_socket_io( VALUE self )
 {
-	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+	t_pg_connection *p_conn = pg_get_connection( self );
+	VALUE socket_io = p_conn->socket_io;
 
 	if ( RTEST(socket_io) ) {
 #if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
@@ -66,7 +74,7 @@ pgconn_close_socket_io( VALUE self )
 		rb_funcall( socket_io, rb_intern("close"), 0 );
 	}
 
-	rb_iv_set( self, "@socket_io", Qnil );
+	p_conn->socket_io = Qnil;
 }
 
 
@@ -105,13 +113,27 @@ pgconn_make_conninfo_array( const PQconninfoOption *options )
 
 
 /*
+ * GC Mark function
+ */
+static void
+pgconn_gc_mark( t_pg_connection *p_conn )
+{
+	rb_gc_mark( p_conn->socket_io );
+	rb_gc_mark( p_conn->notice_receiver );
+	rb_gc_mark( p_conn->notice_processor );
+	rb_gc_mark( p_conn->type_map_for_queries );
+	rb_gc_mark( p_conn->type_map_for_results );
+}
+
+
+/*
  * GC Free function
  */
 static void
-pgconn_gc_free( PGconn *conn )
+pgconn_gc_free( t_pg_connection *p_conn )
 {
-	if (conn != NULL)
-		PQfinish( conn );
+	if (p_conn->pgconn != NULL)
+		PQfinish( p_conn->pgconn );
 }
 
 
@@ -128,12 +150,16 @@ pgconn_gc_free( PGconn *conn )
 static VALUE
 pgconn_s_allocate( VALUE klass )
 {
-	VALUE self = Data_Wrap_Struct( klass, NULL, pgconn_gc_free, NULL );
-	rb_iv_set( self, "@socket_io", Qnil );
-	rb_iv_set( self, "@notice_receiver", Qnil);
-	rb_iv_set( self, "@notice_processor", Qnil);
-	rb_iv_set( self, "@type_map_for_queries", Qnil);
-	rb_iv_set( self, "@type_map_for_results", Qnil);
+	t_pg_connection *p_conn;
+	VALUE self = Data_Make_Struct( klass, t_pg_connection, pgconn_gc_mark, pgconn_gc_free, p_conn );
+
+	p_conn->pgconn = NULL;
+	p_conn->socket_io = Qnil;
+	p_conn->notice_receiver = Qnil;
+	p_conn->notice_processor = Qnil;
+	p_conn->type_map_for_queries = Qnil;
+	p_conn->type_map_for_results = Qnil;
+
 	return self;
 }
 
@@ -246,27 +272,25 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 {
-	PGconn *conn = NULL;
 	VALUE rb_conn;
 	VALUE conninfo;
 	VALUE error;
+	t_pg_connection *p_conn;
 
 	/*
 	 * PG::Connection.connect_start must act as both alloc() and initialize()
 	 * because it is not invoked by calling new().
 	 */
 	rb_conn  = pgconn_s_allocate( klass );
+	p_conn = pg_get_connection( rb_conn );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	conn     = gvl_PQconnectStart( StringValuePtr(conninfo) );
+	p_conn->pgconn = gvl_PQconnectStart( StringValuePtr(conninfo) );
 
-	if( conn == NULL )
+	if( p_conn->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
 
-	Check_Type(rb_conn, T_DATA);
-	DATA_PTR(rb_conn) = conn;
-
-	if ( PQstatus(conn) == CONNECTION_BAD ) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
+	if ( PQstatus(p_conn->pgconn) == CONNECTION_BAD ) {
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(p_conn->pgconn));
 		rb_iv_set(error, "@connection", rb_conn);
 		rb_exc_raise(error);
 	}
@@ -775,7 +799,8 @@ pgconn_socket_io(VALUE self)
 	int sd;
 	int ruby_sd;
 	ID id_autoclose = rb_intern("autoclose=");
-	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+	t_pg_connection *p_conn = pg_get_connection( self );
+	VALUE socket_io = p_conn->socket_io;
 
 	if ( !RTEST(socket_io) ) {
 		if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
@@ -794,7 +819,7 @@ pgconn_socket_io(VALUE self)
 			rb_funcall( socket_io, id_autoclose, 1, Qfalse );
 		}
 
-		rb_iv_set( self, "@socket_io", socket_io );
+		p_conn->socket_io = socket_io;
 	}
 
 	return socket_io;

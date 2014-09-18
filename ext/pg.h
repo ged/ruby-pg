@@ -101,6 +101,22 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
+typedef struct {
+	PGconn *pgconn;
+
+	/* Cached IO object for the socket descriptor */
+	VALUE socket_io;
+	/* Proc object that receives notices as PG::Result objects */
+	VALUE notice_receiver;
+	/* Proc object that receives notices as String objects */
+	VALUE notice_processor;
+	/* Kind of PG::TypeMap object for casting query params */
+	VALUE type_map_for_queries;
+	/* Kind of PG::TypeMap object for casting result values */
+	VALUE type_map_for_results;
+
+} t_pg_connection;
+
 typedef struct pg_coder t_pg_coder;
 typedef struct pg_typemap t_typemap;
 typedef int (* t_pg_coder_enc_func)(t_pg_coder *, VALUE, char *, VALUE *);
