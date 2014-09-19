@@ -9,24 +9,24 @@
 static VALUE rb_cTypeMapByMriType;
 
 #define FOR_EACH_MRI_TYPE(func) \
+	func(T_FIXNUM) \
+	func(T_TRUE) \
+	func(T_FALSE) \
+	func(T_FLOAT) \
+	func(T_BIGNUM) \
+	func(T_COMPLEX) \
+	func(T_RATIONAL) \
+	func(T_ARRAY) \
+	func(T_STRING) \
+	func(T_SYMBOL) \
 	func(T_OBJECT) \
 	func(T_CLASS) \
 	func(T_MODULE) \
-	func(T_FLOAT) \
-	func(T_STRING) \
 	func(T_REGEXP) \
-	func(T_ARRAY) \
 	func(T_HASH) \
 	func(T_STRUCT) \
-	func(T_BIGNUM) \
-	func(T_FIXNUM) \
-	func(T_COMPLEX) \
-	func(T_RATIONAL) \
 	func(T_FILE) \
-	func(T_TRUE) \
-	func(T_FALSE) \
-	func(T_DATA) \
-	func(T_SYMBOL)
+	func(T_DATA)
 
 #define DECLARE_CODER(type) \
 	t_pg_coder *coder_##type; \
