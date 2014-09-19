@@ -7,7 +7,6 @@
 #include "pg.h"
 
 static VALUE rb_cTypeMapByMriType;
-static ID s_id_encode;
 
 #define FOR_EACH_MRI_TYPE(func) \
 	func(T_OBJECT) \
@@ -47,133 +46,39 @@ typedef struct {
 		ask_for_coder = this->coders.ask_##type; \
 		break;
 
-static VALUE
-pg_tmbmt_alloc_query_params(VALUE _paramsData)
+static t_pg_coder *
+pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
-	struct query_params_data *paramsData = (struct query_params_data *)_paramsData;
-	VALUE param_value;
-	int param_type, param_format;
-	VALUE param_mapping;
-	int nParams;
-	int i=0;
-	t_tmbmt *this = (t_tmbmt *)paramsData->p_typemap;
+	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
 	t_pg_coder *conv;
 	VALUE ask_for_coder;
-	int sum_lengths = 0;
-	int buffer_pos = 0;
 
-	param_mapping = paramsData->param_mapping;
-	nParams = (int)RARRAY_LEN(paramsData->params);
-	if( paramsData->with_types )
-		paramsData->types = ALLOC_N(Oid, nParams);
-	paramsData->values = ALLOC_N(char *, nParams);
-	paramsData->lengths = ALLOC_N(int, nParams);
-	paramsData->formats = ALLOC_N(int, nParams);
-	paramsData->param_values = ALLOC_N(VALUE, nParams);
-	paramsData->p_coders = ALLOC_N(t_pg_coder *, nParams);
-
-	{
-		VALUE intermediates[nParams];
-
-		for ( i = 0; i < nParams; i++ ) {
-			param_value = rb_ary_entry(paramsData->params, i);
-			param_type = 0;
-			param_format = 0;
-
-			switch(TYPE(param_value)){
-					FOR_EACH_MRI_TYPE( CASE_AND_GET )
-				default:
-					/* unknown MRI type */
-					conv = NULL;
-					ask_for_coder = Qnil;
-			}
-
-			if( !NIL_P(ask_for_coder) ){
-				/* No static Coder object, but proc/method given to ask for the Coder to use. */
-				VALUE obj;
-
-				if( TYPE(ask_for_coder) == T_SYMBOL ){
-					obj = rb_funcall(param_mapping, SYM2ID(ask_for_coder), 1, param_value);
-				}else{
-					obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
-				}
-
-				if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-					Data_Get_Struct(obj, t_pg_coder, conv);
-				}else{
-					rb_raise(rb_eTypeError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
-							 i+1, rb_obj_classname( obj ));
-				}
-			}
-			paramsData->p_coders[i] = conv;
-
-			if( NIL_P(param_value) ){
-				paramsData->values[i] = NULL;
-				paramsData->lengths[i] = 0;
-				if( conv )
-					param_type = conv->oid;
-			} else if( conv ) {
-				if( conv->enc_func ){
-					/* C-based converter */
-					/* 1st pass for retiving the required memory space */
-					int len = conv->enc_func(conv, param_value, NULL, &intermediates[i]);
-					/* text format strings must be zero terminated */
-					sum_lengths += len + (conv->format == 0 ? 1 : 0);
-				} else {
-					/* Ruby-based converter */
-					param_value = rb_funcall( conv->coder_obj, s_id_encode, 1, param_value );
-					rb_ary_push(paramsData->gc_array, param_value);
-					paramsData->values[i] = RSTRING_PTR(param_value);
-					paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
-				}
-
-				param_type = conv->oid;
-				param_format = conv->format;
-			} else {
-				param_value = rb_obj_as_string(param_value);
-				/* make sure param_value doesn't get freed by the GC */
-				rb_ary_push(paramsData->gc_array, param_value);
-				paramsData->values[i] = RSTRING_PTR(param_value);
-				paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
-			}
-
-			if( paramsData->with_types ){
-				paramsData->types[i] = param_type;
-			}
-
-			paramsData->formats[i] = param_format;
-			paramsData->param_values[i] = param_value;
-		}
-
-		paramsData->mapping_buf = ALLOC_N(char, sum_lengths);
-
-		for ( i = 0; i < nParams; i++ ) {
-			param_value = paramsData->param_values[i];
-			conv = paramsData->p_coders[i];
-
-			if( NIL_P(param_value) ){
-				/* Qnil was mapped to NULL value above */
-			} else if( conv && conv->enc_func ){
-				/* 2nd pass for writing the data to prepared buffer */
-				int len = conv->enc_func(conv, param_value, &paramsData->mapping_buf[buffer_pos], &intermediates[i]);
-				paramsData->values[i] = &paramsData->mapping_buf[buffer_pos];
-				paramsData->lengths[i] = len;
-				if( conv->format == 0 ){
-					/* text format strings must be zero terminated */
-					paramsData->mapping_buf[buffer_pos+len] = 0;
-					buffer_pos += len + 1;
-				} else {
-					buffer_pos += len;
-				}
-			}
-		}
-		RB_GC_GUARD_PTR(intermediates);
+	switch(TYPE(param_value)){
+			FOR_EACH_MRI_TYPE( CASE_AND_GET )
+		default:
+			/* unknown MRI type */
+			conv = NULL;
+			ask_for_coder = Qnil;
 	}
 
+	if( !NIL_P(ask_for_coder) ){
+		/* No static Coder object, but proc/method given to ask for the Coder to use. */
+		VALUE obj;
 
-	RB_GC_GUARD(param_mapping);
+		if( TYPE(ask_for_coder) == T_SYMBOL ){
+			obj = rb_funcall(self, SYM2ID(ask_for_coder), 1, param_value);
+		}else{
+			obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
+		}
 
-	return (VALUE)nParams;
+		if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
+			Data_Get_Struct(obj, t_pg_coder, conv);
+		}else{
+			rb_raise(rb_eTypeError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
+						field+1, rb_obj_classname( obj ));
+		}
+	}
+	return conv;
 }
 
 static VALUE
@@ -220,7 +125,7 @@ pg_tmbmt_s_allocate( VALUE klass )
 	this->typemap.fit_to_result = pg_tmbmt_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbmt_fit_to_query;
 	this->typemap.typecast = pg_tmbmt_result_value;
-	this->typemap.alloc_query_params = pg_tmbmt_alloc_query_params;
+	this->typemap.typecast_query_param = pg_tmbmt_typecast_query_param;
 
 	FOR_EACH_MRI_TYPE( INIT_VARIABLES );
 
@@ -299,8 +204,6 @@ pg_tmbmt_coders( VALUE self )
 void
 init_pg_type_map_by_mri_type()
 {
-	s_id_encode = rb_intern("encode");
-
 	rb_cTypeMapByMriType = rb_define_class_under( rb_mPG, "TypeMapByMriType", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByMriType, pg_tmbmt_s_allocate );
 	rb_define_method( rb_cTypeMapByMriType, "[]=", pg_tmbmt_aset, 2 );

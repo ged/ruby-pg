@@ -124,7 +124,7 @@ typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, char *, int, int, int, int);
 typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
 typedef VALUE (* t_pg_typecast_result)(VALUE, PGresult *, int, int, t_typemap *);
-typedef VALUE (* t_pg_alloc_query_params)(VALUE);
+typedef t_pg_coder *(* t_pg_typecast_query_param)(VALUE, VALUE, int);
 
 struct pg_coder {
 	t_pg_coder_enc_func enc_func;
@@ -145,27 +145,8 @@ struct pg_typemap {
 	t_pg_fit_to_result fit_to_result;
 	t_pg_fit_to_query fit_to_query;
 	t_pg_typecast_result typecast;
-	t_pg_alloc_query_params alloc_query_params;
+	t_pg_typecast_query_param typecast_query_param;
 	int encoding_index;
-};
-
-struct query_params_data {
-
-	/* filled by caller */
-	int with_types;
-	VALUE params;
-	VALUE param_mapping;
-
-	/* filled by alloc_query_params() */
-	Oid *types;
-	char **values;
-	int *lengths;
-	int *formats;
-	char *mapping_buf;
-	VALUE *param_values;
-	t_pg_coder **p_coders;
-	VALUE gc_array;
-	t_typemap *p_typemap;
 };
 
 typedef struct {

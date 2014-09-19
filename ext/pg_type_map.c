@@ -47,12 +47,11 @@ pg_typemap_result_value(VALUE self, PGresult *result, int tuple, int field, t_ty
 	return Qnil;
 }
 
-static VALUE
-pg_typemap_alloc_query_params(VALUE _paramsData)
+static t_pg_coder *
+pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
-	struct query_params_data *paramsData = (struct query_params_data *)_paramsData;
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", RSTRING_PTR(rb_inspect(paramsData->param_mapping)) );
-	return Qnil;
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", RSTRING_PTR(rb_inspect(self)) );
+	return NULL;
 }
 
 static VALUE
@@ -66,7 +65,7 @@ pg_typemap_s_allocate( VALUE klass )
 	this->fit_to_result = pg_typemap_fit_to_result;
 	this->fit_to_query = pg_typemap_fit_to_query;
 	this->typecast = pg_typemap_result_value;
-	this->alloc_query_params = pg_typemap_alloc_query_params;
+	this->typecast_query_param = pg_typemap_typecast_query_param;
 
 	return self;
 }
