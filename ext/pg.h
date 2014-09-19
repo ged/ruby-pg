@@ -222,6 +222,7 @@ PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
+VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));
 PGresult* pgresult_get                                 _(( VALUE ));
 VALUE pg_result_check                                  _(( VALUE ));
 VALUE pg_result_clear                                  _(( VALUE ));

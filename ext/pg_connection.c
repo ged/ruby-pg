@@ -2664,19 +2664,16 @@ pgconn_untrace(VALUE self)
  * currently-registered Ruby notice_receiver object.
  */
 void
-notice_receiver_proxy(void *arg, const PGresult *result)
+notice_receiver_proxy(void *arg, const PGresult *pgresult)
 {
 	VALUE self = (VALUE)arg;
 	t_pg_connection *this = pg_get_connection( self );
 
 	if (this->notice_receiver != Qnil) {
-		VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result);
-#ifdef M17N_SUPPORTED
-		PGconn *conn = pg_get_pgconn( self );
-		rb_encoding *enc = pg_conn_enc_get( conn );
-		ENCODING_SET( val, rb_enc_to_index(enc) );
-#endif
-		rb_funcall(this->notice_receiver, rb_intern("call"), 1, val);
+		VALUE result = pg_new_result_autoclear( (PGresult *)pgresult, self );
+
+		rb_funcall(this->notice_receiver, rb_intern("call"), 1, result);
+		pg_result_clear( result );
 	}
 	return;
 }

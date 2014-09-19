@@ -1163,6 +1163,21 @@ describe PG::Connection do
 			conn.finish if conn
 		end
 
+		it "handles clearing result in or after set_notice_receiver", :postgresql_90 do
+			r = nil
+			@conn.set_notice_receiver do |result|
+				r = result
+				expect( r.cleared? ).to eq(false)
+			end
+			@conn.exec "do $$ BEGIN RAISE NOTICE 'foo'; END; $$ LANGUAGE plpgsql;"
+			sleep 0.2
+			expect( r ).to be_a( PG::Result )
+			expect( r.cleared? ).to eq(true)
+			expect( r.autoclear? ).to eq(true)
+			r.clear
+			@conn.set_notice_receiver
+		end
+
 		it "receives properly encoded messages in the notice callbacks", :postgresql_90 do
 			[:receiver, :processor].each do |kind|
 				notices = []

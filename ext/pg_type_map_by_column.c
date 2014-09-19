@@ -16,7 +16,7 @@ pg_tmbc_fit_to_result( VALUE result, VALUE typemap )
 	int nfields;
 	t_tmbc *this = DATA_PTR( typemap );
 
-	nfields = PQnfields( DATA_PTR(result) );
+	nfields = PQnfields( pgresult_get(result) );
 	if ( this->nfields != nfields ) {
 		rb_raise( rb_eArgError, "number of result fields (%d) does not match number of mapped columns (%d)",
 				nfields, this->nfields );

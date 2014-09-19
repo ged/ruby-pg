@@ -321,6 +321,14 @@ describe PG::Result do
 		}
 	end
 
+	it "does not clear the result itself" do
+		r = @conn.exec "select 1"
+		expect( r.autoclear? ).to eq(false)
+		expect( r.cleared? ).to eq(false)
+		r.clear
+		expect( r.cleared? ).to eq(true)
+	end
+
 	context 'result value conversions with TypeMapByColumn' do
 		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }

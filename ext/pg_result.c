@@ -9,9 +9,27 @@
 
 VALUE rb_cPGresult;
 
-static void pgresult_gc_free( PGresult * );
+typedef struct {
+	PGresult *pgresult;
+
+	/* The connection object used to build this result */
+	VALUE connection;
+
+	/* The TypeMap used to type cast result values */
+	VALUE typemap;
+
+	/* 0 = PGresult is cleared by PG::Result#clear or by the GC
+	 * 1 = PGresult is cleared internally by libpq
+	 */
+	int autoclear;
+} t_pg_result;
+
+static void pgresult_gc_free( t_pg_result * );
 static t_typemap *pgresult_get_typemap( VALUE );
 static VALUE pgresult_type_map_set( VALUE, VALUE );
+static VALUE pgresult_s_allocate( VALUE );
+static t_pg_result *pgresult_get_struct( VALUE );
+
 
 
 /*
@@ -25,18 +43,29 @@ VALUE
 pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
 	PGconn *conn = pg_get_pgconn( rb_pgconn );
-	VALUE self = Data_Wrap_Struct(rb_cPGresult, NULL, pgresult_gc_free, result);
+	VALUE self = pgresult_s_allocate( rb_cPGresult );
+	t_pg_result *this = pgresult_get_struct(self);
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
 	ENCODING_SET( self, rb_enc_to_index(enc) );
 #endif
 
-	rb_iv_set( self, "@connection", rb_pgconn );
+	this->pgresult = result;
+	this->connection = rb_pgconn;
 	if( result ){
 		VALUE typemap = pg_get_connection(rb_pgconn)->type_map_for_results;
 		pgresult_type_map_set( self, typemap );
 	}
 
+	return self;
+}
+
+VALUE
+pg_new_result_autoclear(PGresult *result, VALUE rb_pgconn)
+{
+	VALUE self = pg_new_result(result, rb_pgconn);
+	t_pg_result *this = pgresult_get_struct(self);
+	this->autoclear = 1;
 	return self;
 }
 
@@ -49,24 +78,21 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 VALUE
 pg_result_check( VALUE self )
 {
+	t_pg_result *this = pgresult_get_struct(self);
 	VALUE error, exception, klass;
-	VALUE rb_pgconn = rb_iv_get( self, "@connection" );
-	PGconn *conn = pg_get_pgconn(rb_pgconn);
-	PGresult *result;
+	PGconn *conn = pg_get_pgconn(this->connection);
 #ifdef M17N_SUPPORTED
 	rb_encoding *enc = pg_conn_enc_get( conn );
 #endif
 	char * sqlstate;
 
-	Data_Get_Struct(self, PGresult, result);
-
-	if(result == NULL)
+	if(this->pgresult == NULL)
 	{
 		error = rb_str_new2( PQerrorMessage(conn) );
 	}
 	else
 	{
-		switch (PQresultStatus(result))
+		switch (PQresultStatus(this->pgresult))
 		{
 		case PGRES_TUPLES_OK:
 		case PGRES_COPY_OUT:
@@ -83,7 +109,7 @@ pg_result_check( VALUE self )
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
 		case PGRES_NONFATAL_ERROR:
-			error = rb_str_new2( PQresultErrorMessage(result) );
+			error = rb_str_new2( PQresultErrorMessage(this->pgresult) );
 			break;
 		default:
 			error = rb_str_new2( "internal error : unknown result status." );
@@ -94,11 +120,11 @@ pg_result_check( VALUE self )
 	rb_enc_set_index( error, rb_enc_to_index(enc) );
 #endif
 
-	sqlstate = PQresultErrorField( result, PG_DIAG_SQLSTATE );
+	sqlstate = PQresultErrorField( this->pgresult, PG_DIAG_SQLSTATE );
 	klass = lookup_error_class( sqlstate );
 	exception = rb_exc_new3( klass, error );
-	rb_iv_set( exception, "@connection", rb_pgconn );
-	rb_iv_set( exception, "@result", result ? self : Qnil );
+	rb_iv_set( exception, "@connection", this->connection );
+	rb_iv_set( exception, "@result", this->pgresult ? self : Qnil );
 	rb_exc_raise( exception );
 
 	/* Not reached */
@@ -117,41 +143,117 @@ pg_result_check( VALUE self )
  *    res.clear() -> nil
  *
  * Clears the PG::Result object as the result of the query.
+ *
+ * If PG::Result#autoclear? is true then the result is marked as cleared
+ * and the underlying C struct will be cleared automatically by libpq.
+ *
  */
 VALUE
 pg_result_clear(VALUE self)
 {
-	PQclear(pgresult_get(self));
-	DATA_PTR(self) = NULL;
+	t_pg_result *this = pgresult_get_struct(self);
+	if( !this->autoclear )
+		PQclear(pgresult_get(self));
+	this->pgresult = NULL;
 	return Qnil;
 }
 
+/*
+ * call-seq:
+ *    res.cleared?      -> boolean
+ *
+ * Returns +true+ if the backend result memory has been free'd.
+ */
+VALUE
+pgresult_cleared_p( VALUE self )
+{
+	t_pg_result *this = pgresult_get_struct(self);
+	return this->pgresult ? Qfalse : Qtrue;
+}
 
+/*
+ * call-seq:
+ *    res.autoclose?      -> boolean
+ *
+ * Returns +true+ if the underlying C struct will be cleared automatically by libpq.
+ * Elsewise the result is cleared by PG::Result#clear or by the GC when it's no longer in use.
+ *
+ */
+VALUE
+pgresult_autoclear_p( VALUE self )
+{
+	t_pg_result *this = pgresult_get_struct(self);
+	return this->autoclear ? Qtrue : Qfalse;
+}
 
 /*
  * DATA pointer functions
  */
 
 /*
+ * GC Mark function
+ */
+static void
+pgresult_gc_mark( t_pg_result *this )
+{
+	rb_gc_mark( this->connection );
+	rb_gc_mark( this->typemap );
+}
+
+/*
  * GC Free function
  */
 static void
-pgresult_gc_free( PGresult *result )
+pgresult_gc_free( t_pg_result *this )
 {
-	if(result != NULL)
-		PQclear(result);
+	if(this->pgresult != NULL && !this->autoclear)
+		PQclear(this->pgresult);
+
+	xfree(this);
 }
 
 /*
  * Fetch the data pointer for the result object
  */
+static t_pg_result *
+pgresult_get_struct( VALUE self )
+{
+	t_pg_result *this;
+	Data_Get_Struct( self, t_pg_result, this);
+
+	return this;
+}
+
+/*
+ * Fetch the PGresult pointer for the result object and check validity
+ */
 PGresult*
 pgresult_get(VALUE self)
 {
-	PGresult *result;
-	Data_Get_Struct(self, PGresult, result);
-	if (result == NULL) rb_raise(rb_ePGerror, "result has been cleared");
-	return result;
+	t_pg_result *this = pgresult_get_struct(self);
+
+	if (this->pgresult == NULL) rb_raise(rb_ePGerror, "result has been cleared");
+	return this->pgresult;
+}
+
+/*
+ * Document-method: allocate
+ *
+ * call-seq:
+ *   PG::Result.allocate -> result
+ */
+static VALUE
+pgresult_s_allocate( VALUE klass )
+{
+	t_pg_result *this;
+	VALUE self = Data_Make_Struct( klass, t_pg_result, pgresult_gc_mark, pgresult_gc_free, this );
+
+	this->pgresult = NULL;
+	this->connection = Qnil;
+	this->typemap = Qnil;
+	this->autoclear = 0;
+
+	return self;
 }
 
 
@@ -854,16 +956,20 @@ pgresult_fields(VALUE self)
 
 /*
  * call-seq:
- *    res.type_map = value
+ *    res.type_map = typemap
  *
- * +value+ can be:
+ * Set the TypeMap that is used for type casts of result values to ruby objects.
+ *
+ * +typemap+ can be:
  * * a kind of PG::TypeMap
- * * +nil+ - type cast to strings.
+ * * +nil+ - to type cast all result values to String.
  *
  */
 static VALUE
 pgresult_type_map_set(VALUE self, VALUE typemap)
 {
+	t_pg_result *this = pgresult_get_struct(self);
+
 	if( typemap != Qnil ){
 		t_typemap *p_typemap;
 
@@ -881,9 +987,29 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 		p_typemap->encoding_index = ENCODING_GET(self);
 #endif
 	}
-	rb_iv_set( self, "@type_map", typemap );
+
+	this->typemap = typemap;
 
 	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.type_map -> value
+ *
+ * Returns the TypeMap that is currently set for type casts of result values to ruby objects.
+ *
+ * Returns either:
+ * * a kind of PG::TypeMap or
+ * * +nil+ - when no type map is set.
+ *
+ */
+static VALUE
+pgresult_type_map_get(VALUE self)
+{
+	t_pg_result *this = pgresult_get_struct(self);
+
+	return this->typemap;
 }
 
 static VALUE
@@ -916,13 +1042,14 @@ static const t_typemap pgresult_default_typemap = {
 static t_typemap *
 pgresult_get_typemap(VALUE self)
 {
-	VALUE type_map = rb_iv_get( self, "@type_map" );
-	if( type_map == Qnil ){
+	t_pg_result *this = pgresult_get_struct(self);
+
+	if( this->typemap == Qnil ){
 		return (t_typemap *)&pgresult_default_typemap;
 	} else {
 		/* The type of @type_map is already checked when the
 		 * value is assigned. */
-		return DATA_PTR( type_map );
+		return DATA_PTR( this->typemap );
 	}
 }
 
@@ -931,6 +1058,7 @@ void
 init_pg_result()
 {
 	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cObject );
+	rb_define_alloc_func( rb_cPGresult, pgresult_s_allocate );
 	rb_include_module(rb_cPGresult, rb_mEnumerable);
 	rb_include_module(rb_cPGresult, rb_mPGconstants);
 
@@ -973,9 +1101,11 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "each_row", pgresult_each_row, 0);
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
+	rb_define_method(rb_cPGresult, "cleared?", pgresult_cleared_p, 0);
+	rb_define_method(rb_cPGresult, "autoclear?", pgresult_autoclear_p, 0);
 
-	rb_define_attr(rb_cPGresult, "type_map", 1, 0);
 	rb_define_method(rb_cPGresult, "type_map=", pgresult_type_map_set, 1);
+	rb_define_method(rb_cPGresult, "type_map", pgresult_type_map_get, 0);
 }
 
 

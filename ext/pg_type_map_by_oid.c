@@ -112,7 +112,7 @@ pg_tmbo_fit_to_result( VALUE result, VALUE self )
 	int i;
 	VALUE colmap;
 	t_tmbo *this = DATA_PTR( self );
-	PGresult *pgresult = DATA_PTR( result );
+	PGresult *pgresult = pgresult_get( result );
 
 	nfields = PQnfields( pgresult );
 
