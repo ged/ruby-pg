@@ -38,10 +38,10 @@ static VALUE pgconn_set_default_encoding( VALUE self );
 t_pg_connection *
 pg_get_connection( VALUE self )
 {
-	t_pg_connection *p_conn;
-	Data_Get_Struct( self, t_pg_connection, p_conn);
+	t_pg_connection *this;
+	Data_Get_Struct( self, t_pg_connection, this);
 
-	return p_conn;
+	return this;
 }
 
 /*
@@ -50,12 +50,12 @@ pg_get_connection( VALUE self )
 PGconn *
 pg_get_pgconn( VALUE self )
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
-	if ( !p_conn->pgconn )
+	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
 
-	return p_conn->pgconn;
+	return this->pgconn;
 }
 
 
@@ -66,8 +66,8 @@ pg_get_pgconn( VALUE self )
 void
 pgconn_close_socket_io( VALUE self )
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
-	VALUE socket_io = p_conn->socket_io;
+	t_pg_connection *this = pg_get_connection( self );
+	VALUE socket_io = this->socket_io;
 
 	if ( RTEST(socket_io) ) {
 #if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
@@ -79,7 +79,7 @@ pgconn_close_socket_io( VALUE self )
 		rb_funcall( socket_io, rb_intern("close"), 0 );
 	}
 
-	p_conn->socket_io = Qnil;
+	this->socket_io = Qnil;
 }
 
 
@@ -121,15 +121,15 @@ pgconn_make_conninfo_array( const PQconninfoOption *options )
  * GC Mark function
  */
 static void
-pgconn_gc_mark( t_pg_connection *p_conn )
+pgconn_gc_mark( t_pg_connection *this )
 {
-	rb_gc_mark( p_conn->socket_io );
-	rb_gc_mark( p_conn->notice_receiver );
-	rb_gc_mark( p_conn->notice_processor );
-	rb_gc_mark( p_conn->type_map_for_queries );
-	rb_gc_mark( p_conn->type_map_for_results );
-	rb_gc_mark( p_conn->trace_stream );
-	rb_gc_mark( p_conn->external_encoding );
+	rb_gc_mark( this->socket_io );
+	rb_gc_mark( this->notice_receiver );
+	rb_gc_mark( this->notice_processor );
+	rb_gc_mark( this->type_map_for_queries );
+	rb_gc_mark( this->type_map_for_results );
+	rb_gc_mark( this->trace_stream );
+	rb_gc_mark( this->external_encoding );
 }
 
 
@@ -137,12 +137,12 @@ pgconn_gc_mark( t_pg_connection *p_conn )
  * GC Free function
  */
 static void
-pgconn_gc_free( t_pg_connection *p_conn )
+pgconn_gc_free( t_pg_connection *this )
 {
-	if (p_conn->pgconn != NULL)
-		PQfinish( p_conn->pgconn );
+	if (this->pgconn != NULL)
+		PQfinish( this->pgconn );
 
-	xfree(p_conn);
+	xfree(this);
 }
 
 
@@ -159,17 +159,17 @@ pgconn_gc_free( t_pg_connection *p_conn )
 static VALUE
 pgconn_s_allocate( VALUE klass )
 {
-	t_pg_connection *p_conn;
-	VALUE self = Data_Make_Struct( klass, t_pg_connection, pgconn_gc_mark, pgconn_gc_free, p_conn );
+	t_pg_connection *this;
+	VALUE self = Data_Make_Struct( klass, t_pg_connection, pgconn_gc_mark, pgconn_gc_free, this );
 
-	p_conn->pgconn = NULL;
-	p_conn->socket_io = Qnil;
-	p_conn->notice_receiver = Qnil;
-	p_conn->notice_processor = Qnil;
-	p_conn->type_map_for_queries = Qnil;
-	p_conn->type_map_for_results = Qnil;
-	p_conn->trace_stream = Qnil;
-	p_conn->external_encoding = Qnil;
+	this->pgconn = NULL;
+	this->socket_io = Qnil;
+	this->notice_receiver = Qnil;
+	this->notice_processor = Qnil;
+	this->type_map_for_queries = Qnil;
+	this->type_map_for_results = Qnil;
+	this->trace_stream = Qnil;
+	this->external_encoding = Qnil;
 
 	return self;
 }
@@ -235,19 +235,19 @@ pgconn_s_allocate( VALUE klass )
 static VALUE
 pgconn_init(int argc, VALUE *argv, VALUE self)
 {
-	t_pg_connection *p_conn;
+	t_pg_connection *this;
 	VALUE conninfo;
 	VALUE error;
 
-	p_conn = pg_get_connection( self );
+	this = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
-	p_conn->pgconn = gvl_PQconnectdb(StringValuePtr(conninfo));
+	this->pgconn = gvl_PQconnectdb(StringValuePtr(conninfo));
 
-	if(p_conn->pgconn == NULL)
+	if(this->pgconn == NULL)
 		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
 
-	if (PQstatus(p_conn->pgconn) == CONNECTION_BAD) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(p_conn->pgconn));
+	if (PQstatus(this->pgconn) == CONNECTION_BAD) {
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -284,22 +284,22 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	VALUE rb_conn;
 	VALUE conninfo;
 	VALUE error;
-	t_pg_connection *p_conn;
+	t_pg_connection *this;
 
 	/*
 	 * PG::Connection.connect_start must act as both alloc() and initialize()
 	 * because it is not invoked by calling new().
 	 */
 	rb_conn  = pgconn_s_allocate( klass );
-	p_conn = pg_get_connection( rb_conn );
+	this = pg_get_connection( rb_conn );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	p_conn->pgconn = gvl_PQconnectStart( StringValuePtr(conninfo) );
+	this->pgconn = gvl_PQconnectStart( StringValuePtr(conninfo) );
 
-	if( p_conn->pgconn == NULL )
+	if( this->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
 
-	if ( PQstatus(p_conn->pgconn) == CONNECTION_BAD ) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(p_conn->pgconn));
+	if ( PQstatus(this->pgconn) == CONNECTION_BAD ) {
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", rb_conn);
 		rb_exc_raise(error);
 	}
@@ -467,11 +467,11 @@ pgconn_connect_poll(VALUE self)
 static VALUE
 pgconn_finish( VALUE self )
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
 	pgconn_close_socket_io( self );
 	PQfinish( pg_get_pgconn(self) );
-	p_conn->pgconn = NULL;
+	this->pgconn = NULL;
 	return Qnil;
 }
 
@@ -485,8 +485,8 @@ pgconn_finish( VALUE self )
 static VALUE
 pgconn_finished_p( VALUE self )
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
-	if ( p_conn->pgconn ) return Qfalse;
+	t_pg_connection *this = pg_get_connection( self );
+	if ( this->pgconn ) return Qfalse;
 	return Qtrue;
 }
 
@@ -811,8 +811,8 @@ pgconn_socket_io(VALUE self)
 	int sd;
 	int ruby_sd;
 	ID id_autoclose = rb_intern("autoclose=");
-	t_pg_connection *p_conn = pg_get_connection( self );
-	VALUE socket_io = p_conn->socket_io;
+	t_pg_connection *this = pg_get_connection( self );
+	VALUE socket_io = this->socket_io;
 
 	if ( !RTEST(socket_io) ) {
 		if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
@@ -831,7 +831,7 @@ pgconn_socket_io(VALUE self)
 			rb_funcall( socket_io, id_autoclose, 1, Qfalse );
 		}
 
-		p_conn->socket_io = socket_io;
+		this->socket_io = socket_io;
 	}
 
 	return socket_io;
@@ -2650,11 +2650,11 @@ pgconn_trace(VALUE self, VALUE stream)
 static VALUE
 pgconn_untrace(VALUE self)
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
 	PQuntrace(pg_get_pgconn(self));
-	rb_funcall(p_conn->trace_stream, rb_intern("close"), 0);
-	p_conn->trace_stream = Qnil;
+	rb_funcall(this->trace_stream, rb_intern("close"), 0);
+	this->trace_stream = Qnil;
 	return Qnil;
 }
 
@@ -2667,16 +2667,16 @@ void
 notice_receiver_proxy(void *arg, const PGresult *result)
 {
 	VALUE self = (VALUE)arg;
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
-	if (p_conn->notice_receiver != Qnil) {
+	if (this->notice_receiver != Qnil) {
 		VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result);
 #ifdef M17N_SUPPORTED
 		PGconn *conn = pg_get_pgconn( self );
 		rb_encoding *enc = pg_conn_enc_get( conn );
 		ENCODING_SET( val, rb_enc_to_index(enc) );
 #endif
-		rb_funcall(p_conn->notice_receiver, rb_intern("call"), 1, val);
+		rb_funcall(this->notice_receiver, rb_intern("call"), 1, val);
 	}
 	return;
 }
@@ -2714,7 +2714,7 @@ static VALUE
 pgconn_set_notice_receiver(VALUE self)
 {
 	VALUE proc, old_proc;
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 	PGconn *conn = pg_get_pgconn(self);
 
 	/* If default_notice_receiver is unset, assume that the current
@@ -2725,7 +2725,7 @@ pgconn_set_notice_receiver(VALUE self)
 	if(default_notice_receiver == NULL)
 		default_notice_receiver = PQsetNoticeReceiver(conn, NULL, NULL);
 
-	old_proc = p_conn->notice_receiver;
+	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
 		PQsetNoticeReceiver(conn, gvl_notice_receiver_proxy, (void *)self);
@@ -2735,7 +2735,7 @@ pgconn_set_notice_receiver(VALUE self)
 		PQsetNoticeReceiver(conn, default_notice_receiver, NULL);
 	}
 
-	p_conn->notice_receiver = proc;
+	this->notice_receiver = proc;
 	return old_proc;
 }
 
@@ -2748,16 +2748,16 @@ void
 notice_processor_proxy(void *arg, const char *message)
 {
 	VALUE self = (VALUE)arg;
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
-	if (p_conn->notice_receiver != Qnil) {
+	if (this->notice_receiver != Qnil) {
 		VALUE message_str = rb_tainted_str_new2(message);
 #ifdef M17N_SUPPORTED
 		PGconn *conn = pg_get_pgconn( self );
 		rb_encoding *enc = pg_conn_enc_get( conn );
 		ENCODING_SET( message_str, rb_enc_to_index(enc) );
 #endif
-		rb_funcall(p_conn->notice_receiver, rb_intern("call"), 1, message_str);
+		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
 	return;
 }
@@ -2779,7 +2779,7 @@ static VALUE
 pgconn_set_notice_processor(VALUE self)
 {
 	VALUE proc, old_proc;
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 	PGconn *conn = pg_get_pgconn(self);
 
 	/* If default_notice_processor is unset, assume that the current
@@ -2790,7 +2790,7 @@ pgconn_set_notice_processor(VALUE self)
 	if(default_notice_processor == NULL)
 		default_notice_processor = PQsetNoticeProcessor(conn, NULL, NULL);
 
-	old_proc = p_conn->notice_receiver;
+	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
 		PQsetNoticeProcessor(conn, gvl_notice_processor_proxy, (void *)self);
@@ -2800,7 +2800,7 @@ pgconn_set_notice_processor(VALUE self)
 		PQsetNoticeProcessor(conn, default_notice_processor, NULL);
 	}
 
-	p_conn->notice_receiver = proc;
+	this->notice_receiver = proc;
 	return old_proc;
 }
 
@@ -3438,19 +3438,19 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 static VALUE
 pgconn_external_encoding(VALUE self)
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 	PGconn *conn = pg_get_pgconn( self );
 	rb_encoding *enc = NULL;
 	const char *pg_encname = NULL;
 
 	/* Use cached value if found */
-	if ( RTEST(p_conn->external_encoding) ) return p_conn->external_encoding;
+	if ( RTEST(this->external_encoding) ) return this->external_encoding;
 
 	pg_encname = PQparameterStatus( conn, "server_encoding" );
 	enc = pg_get_pg_encname_as_rb_encoding( pg_encname );
-	p_conn->external_encoding = rb_enc_from_encoding( enc );
+	this->external_encoding = rb_enc_from_encoding( enc );
 
-	return p_conn->external_encoding;
+	return this->external_encoding;
 }
 
 
@@ -3498,7 +3498,7 @@ pgconn_set_default_encoding( VALUE self )
 static VALUE
 pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
 	if( typemap != Qnil ){
 		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
@@ -3507,7 +3507,7 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 		}
 		Check_Type(typemap, T_DATA);
 	}
-	p_conn->type_map_for_queries = typemap;
+	this->type_map_for_queries = typemap;
 
 	return typemap;
 }
@@ -3526,9 +3526,9 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 static VALUE
 pgconn_type_map_for_queries_get(VALUE self)
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
-	return p_conn->type_map_for_queries;
+	return this->type_map_for_queries;
 }
 
 /*
@@ -3545,7 +3545,7 @@ pgconn_type_map_for_queries_get(VALUE self)
 static VALUE
 pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
 	if( typemap != Qnil ){
 		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
@@ -3554,7 +3554,7 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 		}
 		Check_Type(typemap, T_DATA);
 	}
-	p_conn->type_map_for_results = typemap;
+	this->type_map_for_results = typemap;
 
 	return typemap;
 }
@@ -3573,9 +3573,9 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 static VALUE
 pgconn_type_map_for_results_get(VALUE self)
 {
-	t_pg_connection *p_conn = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection( self );
 
-	return p_conn->type_map_for_results;
+	return this->type_map_for_results;
 }
 
 
