@@ -6,8 +6,13 @@
 
 #include "pg.h"
 
+/* Number of bytes that are reserved in advance for type casted query params. */
+#define TYPEMAP_BUFFER_SIZE 150
+
 
 VALUE rb_cPGconn;
+static VALUE sym_type, sym_value, sym_format;
+static ID s_id_encode;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
@@ -899,61 +904,165 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 }
 
+
+struct query_params_data {
+
+	/* filled by caller */
+	int with_types;
+	VALUE params;
+	VALUE typemap;
+
+	/* filled by alloc_query_params() */
+	Oid *types;
+	char **values;
+	int *lengths;
+	int *formats;
+	char *mapping_buf;
+	VALUE *param_values;
+	t_pg_coder **p_coders;
+	VALUE gc_array;
+};
+
+
 static VALUE
 alloc_query_params1(VALUE _paramsData)
 {
 	struct query_params_data *paramsData = (struct query_params_data *)_paramsData;
-	VALUE sym_type, sym_value, sym_format;
-	VALUE param, param_type, param_value, param_format;
+	VALUE param_value;
+	int param_type, param_format;
+	VALUE typemap;
+	t_typemap *p_typemap;
 	int nParams;
 	int i=0;
+	t_pg_coder *conv;
+	int sum_lengths = 0;
+	int buffer_pos = 0;
+	char *mapping_buf;
+
+	typemap = paramsData->typemap;
+	if( typemap )
+		Data_Get_Struct( typemap, t_typemap, p_typemap);
+	else
+		p_typemap = NULL;
 
 	nParams = (int)RARRAY_LEN(paramsData->params);
+
+	/* Allocate one combined memory pool for all possible function parameters */
+	paramsData->values = (char **)xmalloc( nParams * (
+			sizeof(char *) +
+			sizeof(int) +
+			sizeof(int) +
+			sizeof(VALUE) +
+			sizeof(t_pg_coder *) +
+			(paramsData->with_types ? sizeof(Oid) : 0)
+		) + TYPEMAP_BUFFER_SIZE );
+
+	paramsData->lengths = (int *)((char*)paramsData->values + sizeof(char *) * nParams);
+	paramsData->formats = (int *)((char*)paramsData->values + (sizeof(char *) + sizeof(int)) * nParams);
+	paramsData->param_values = (VALUE *)((char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int)) * nParams);
+	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int) + sizeof(VALUE)) * nParams);
 	if( paramsData->with_types )
-		paramsData->types = ALLOC_N(Oid, nParams);
-	paramsData->values = ALLOC_N(char *, nParams);
-	paramsData->lengths = ALLOC_N(int, nParams);
-	paramsData->formats = ALLOC_N(int, nParams);
+		paramsData->types = (Oid *)((char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int) + sizeof(VALUE) + sizeof(t_pg_coder *)) * nParams);
 
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
+	{
+		VALUE intermediates[nParams];
 
-	for ( i = 0; i < nParams; i++ ) {
-		param = rb_ary_entry(paramsData->params, i);
-		if (TYPE(param) == T_HASH) {
-			param_type = paramsData->with_types ? rb_hash_aref(param, sym_type) : Qnil;
-			param_value = rb_hash_aref(param, sym_value);
-			param_format = rb_hash_aref(param, sym_format);
-		} else {
-			param_type = Qnil;
-			param_value = param;
-			param_format = Qnil;
-		}
+		for ( i = 0; i < nParams; i++ ) {
+			param_value = rb_ary_entry(paramsData->params, i);
+			param_type = 0;
+			param_format = 0;
 
-		if( NIL_P(param_value) ){
-			paramsData->values[i] = NULL;
-			paramsData->lengths[i] = 0;
-		} else  {
-			param_value = rb_obj_as_string(param_value);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(paramsData->gc_array, param_value);
-			paramsData->values[i] = RSTRING_PTR(param_value);
-			paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if( paramsData->with_types ){
-			if(param_type == Qnil)
-				paramsData->types[i] = 0;
+			/* Let the given typemap select a coder for this param */
+			if( p_typemap )
+				conv = p_typemap->typecast_query_param(typemap, param_value, i);
 			else
-				paramsData->types[i] = NUM2INT(param_type);
+				conv = NULL;
+
+			paramsData->p_coders[i] = conv;
+
+			if( NIL_P(param_value) ){
+				paramsData->values[i] = NULL;
+				paramsData->lengths[i] = 0;
+				if( conv )
+					param_type = conv->oid;
+			} else if( conv ) {
+				if( conv->enc_func ){
+					/* C-based converter */
+					/* 1st pass for retiving the required memory space */
+					int len = conv->enc_func(conv, param_value, NULL, &intermediates[i]);
+					/* text format strings must be zero terminated */
+					sum_lengths += len + (conv->format == 0 ? 1 : 0);
+				} else {
+					/* Ruby-based converter */
+					param_value = rb_funcall( conv->coder_obj, s_id_encode, 1, param_value );
+					rb_ary_push(paramsData->gc_array, param_value);
+					paramsData->values[i] = RSTRING_PTR(param_value);
+					paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
+				}
+
+				param_type = conv->oid;
+				param_format = conv->format;
+			} else {
+				if (TYPE(param_value) == T_HASH) {
+					VALUE format_value = rb_hash_aref(param_value, sym_format);
+					VALUE type_value = paramsData->with_types ? rb_hash_aref(param_value, sym_type) : Qnil;
+
+					param_type = NIL_P(type_value) ? 0 : NUM2UINT(type_value);
+					param_format = NIL_P(format_value) ? 0 : NUM2INT(format_value);
+					param_value = rb_hash_aref(param_value, sym_value);
+				}
+
+				param_value = rb_obj_as_string(param_value);
+				/* make sure param_value doesn't get freed by the GC */
+				rb_ary_push(paramsData->gc_array, param_value);
+				paramsData->values[i] = RSTRING_PTR(param_value);
+				paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
+			}
+
+			if( paramsData->with_types ){
+				paramsData->types[i] = param_type;
+			}
+
+			paramsData->formats[i] = param_format;
+			paramsData->param_values[i] = param_value;
 		}
 
-		if(param_format == Qnil)
-			paramsData->formats[i] = 0;
-		else
-			paramsData->formats[i] = NUM2INT(param_format);
+		/* Do the type casts for params with encoder */
+		if( p_typemap ){
+			/* Is the preallocated memory big enough to take all type casted values of this query? */
+			if( sum_lengths > TYPEMAP_BUFFER_SIZE ){
+				/* Point the buffer to the preallocated memory */
+				mapping_buf = (char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int) + sizeof(VALUE) + sizeof(t_pg_coder *) + (paramsData->with_types ? sizeof(Oid) : 0)) * nParams;
+			} else {
+				paramsData->mapping_buf = mapping_buf = ALLOC_N(char, sum_lengths);
+			}
+
+			for ( i = 0; i < nParams; i++ ) {
+				param_value = paramsData->param_values[i];
+				conv = paramsData->p_coders[i];
+
+				if( NIL_P(param_value) ){
+					/* Qnil was mapped to NULL value above */
+				} else if( conv && conv->enc_func ){
+					/* 2nd pass for writing the data to prepared buffer */
+					int len = conv->enc_func(conv, param_value, &mapping_buf[buffer_pos], &intermediates[i]);
+					paramsData->values[i] = &mapping_buf[buffer_pos];
+					paramsData->lengths[i] = len;
+					if( conv->format == 0 ){
+						/* text format strings must be zero terminated */
+						mapping_buf[buffer_pos+len] = 0;
+						buffer_pos += len + 1;
+					} else {
+						buffer_pos += len;
+					}
+				}
+			}
+			RB_GC_GUARD_PTR(intermediates);
+		}
 	}
+
+
+	RB_GC_GUARD(typemap);
 
 	return (VALUE)nParams;
 }
@@ -962,16 +1071,12 @@ static void
 free_query_params(struct query_params_data *paramsData)
 {
 	rb_gc_unregister_address(&paramsData->gc_array);
-	xfree(paramsData->types);
 	xfree(paramsData->values);
-	xfree(paramsData->lengths);
-	xfree(paramsData->formats);
-	xfree(paramsData->param_values);
-	xfree(paramsData->p_coders);
+ 	xfree(paramsData->mapping_buf);
 }
 
 static const t_typemap pgconn_default_typemap_for_query = {
-	alloc_query_params: alloc_query_params1
+	typecast_query_param: NULL
 };
 
 static int
@@ -979,21 +1084,18 @@ alloc_query_params(struct query_params_data *paramsData)
 {
 	int nParams;
 	int error_raised;
-	t_typemap *p_typemap;
 	Check_Type(paramsData->params, T_ARRAY);
 
-	if( NIL_P(paramsData->param_mapping) ){
-		p_typemap = (t_typemap *)&pgconn_default_typemap_for_query;
+	if( NIL_P(paramsData->typemap) ){
+		paramsData->typemap = 0;
 	} else {
-		if ( !rb_obj_is_kind_of(paramsData->param_mapping, rb_cTypeMap) ) {
+		t_typemap *p_typemap;
+		if ( !rb_obj_is_kind_of(paramsData->typemap, rb_cTypeMap) ) {
 			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( paramsData->param_mapping ) );
+					rb_obj_classname( paramsData->typemap ) );
 		}
-		Check_Type( paramsData->param_mapping, T_DATA );
-
-		p_typemap = DATA_PTR( paramsData->param_mapping );
-		paramsData->param_mapping = p_typemap->fit_to_query( paramsData->params, paramsData->param_mapping );
-		p_typemap = DATA_PTR( paramsData->param_mapping );
+		Data_Get_Struct( paramsData->typemap, t_typemap, p_typemap);
+		paramsData->typemap = p_typemap->fit_to_query( paramsData->params, paramsData->typemap );
 	}
 
 	paramsData->types = NULL;
@@ -1003,12 +1105,11 @@ alloc_query_params(struct query_params_data *paramsData)
 	paramsData->mapping_buf = NULL;
 	paramsData->param_values = NULL;
 	paramsData->p_coders = NULL;
-	paramsData->p_typemap = p_typemap;
 
 	paramsData->gc_array = rb_ary_new();
 	rb_gc_register_address(&paramsData->gc_array);
 
-	nParams = (int) rb_protect(p_typemap->alloc_query_params, (VALUE)paramsData, &error_raised);
+	nParams = (int) rb_protect(alloc_query_params1, (VALUE)paramsData, &error_raised);
 	if( error_raised ){
 		free_query_params(paramsData);
 		rb_jump_tag(error_raised);
@@ -1065,7 +1166,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	int resultFormat;
 	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.param_mapping);
+	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 1;
 
 	/*
@@ -1075,8 +1176,8 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	if ( NIL_P(paramsData.params) ) {
 		return pgconn_exec( 1, argv, self );
 	}
-	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
+	if(NIL_P(paramsData.typemap)){
+		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1195,15 +1296,15 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	int resultFormat;
 	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.param_mapping);
+	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 0;
 	Check_Type(name, T_STRING);
 
 	if(NIL_P(paramsData.params)) {
 		paramsData.params = rb_ary_new2(0);
 	}
-	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
+	if(NIL_P(paramsData.typemap)){
+		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1617,7 +1718,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	int resultFormat;
 	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.param_mapping);
+	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 1;
 	Check_Type(command, T_STRING);
 
@@ -1635,8 +1736,8 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	 * use PQsendQueryParams
 	 */
 
-	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
+	if(NIL_P(paramsData.typemap)){
+		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
 	}
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
@@ -1751,7 +1852,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	int resultFormat;
 	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.param_mapping);
+	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 0;
 	Check_Type(name, T_STRING);
 
@@ -1759,8 +1860,8 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		paramsData.params = rb_ary_new2(0);
 		resultFormat = 0;
 	}
-	if(NIL_P(paramsData.param_mapping)){
-		paramsData.param_mapping = rb_iv_get(self, "@type_map_for_queries");
+	if(NIL_P(paramsData.typemap)){
+		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -3356,6 +3457,11 @@ pgconn_set_default_encoding( VALUE self )
 void
 init_pg_connection()
 {
+	sym_type = ID2SYM(rb_intern("type"));
+	sym_value = ID2SYM(rb_intern("value"));
+	sym_format = ID2SYM(rb_intern("format"));
+	s_id_encode = rb_intern("encode");
+
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
 
