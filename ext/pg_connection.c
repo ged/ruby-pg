@@ -1118,12 +1118,12 @@ alloc_query_params1(VALUE _paramsData)
 					/* 2nd pass for writing the data to prepared buffer */
 					int len = conv->enc_func(conv, param_value, &mapping_buf[buffer_pos], &intermediates[i]);
 					paramsData->values[i] = &mapping_buf[buffer_pos];
-					paramsData->lengths[i] = len;
 					if( conv->format == 0 ){
-						/* text format strings must be zero terminated */
+						/* text format strings must be zero terminated and lengths are ignored */
 						mapping_buf[buffer_pos+len] = 0;
 						buffer_pos += len + 1;
 					} else {
+						paramsData->lengths[i] = len;
 						buffer_pos += len;
 					}
 				}
@@ -1159,12 +1159,7 @@ alloc_query_params(struct query_params_data *paramsData)
 	if( NIL_P(paramsData->typemap) ){
 		paramsData->typemap = 0;
 	} else {
-		t_typemap *p_typemap;
-		if ( !rb_obj_is_kind_of(paramsData->typemap, rb_cTypeMap) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( paramsData->typemap ) );
-		}
-		Data_Get_Struct( paramsData->typemap, t_typemap, p_typemap);
+		t_typemap *p_typemap = DATA_PTR( paramsData->typemap );
 		paramsData->typemap = p_typemap->fit_to_query( paramsData->params, paramsData->typemap );
 	}
 
@@ -1182,6 +1177,21 @@ alloc_query_params(struct query_params_data *paramsData)
 	return nParams;
 }
 
+void
+pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
+{
+	if(NIL_P(paramsData->typemap)){
+		/* Use default typemap for queries. It's type is checked when assigned. */
+		paramsData->typemap = pg_get_connection(self)->type_map_for_queries;
+	}else{
+		/* Check type of method param */
+		if ( !rb_obj_is_kind_of(paramsData->typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( paramsData->typemap ) );
+		}
+		Check_Type( paramsData->typemap, T_DATA );
+	}
+}
 
 /*
  * call-seq:
@@ -1241,9 +1251,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	if ( NIL_P(paramsData.params) ) {
 		return pgconn_exec( 1, argv, self );
 	}
-	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
@@ -1368,9 +1376,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	if(NIL_P(paramsData.params)) {
 		paramsData.params = rb_ary_new2(0);
 	}
-	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
@@ -1801,9 +1807,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	 * use PQsendQueryParams
 	 */
 
-	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
@@ -1925,9 +1929,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		paramsData.params = rb_ary_new2(0);
 		resultFormat = 0;
 	}
-	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
