@@ -114,6 +114,10 @@ typedef struct {
 	VALUE type_map_for_queries;
 	/* Kind of PG::TypeMap object for casting result values */
 	VALUE type_map_for_results;
+	/* IO object internally used for the trace stream */
+	VALUE trace_stream;
+	/* Cached Encoding object */
+	VALUE external_encoding;
 
 } t_pg_connection;
 
@@ -214,7 +218,8 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 VALUE pg_tmbc_result_value                             _(( VALUE, PGresult *, int, int, t_typemap * ));
 
-PGconn *pg_get_pgconn	                                 _(( VALUE ));
+PGconn *pg_get_pgconn                                  _(( VALUE ));
+t_pg_connection *pg_get_connection                     _(( VALUE ));
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
 PGresult* pgresult_get                                 _(( VALUE ));

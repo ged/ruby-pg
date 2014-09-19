@@ -33,7 +33,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 
 	rb_iv_set( self, "@connection", rb_pgconn );
 	if( result ){
-		VALUE typemap = rb_iv_get(rb_pgconn, "@type_map_for_results");
+		VALUE typemap = pg_get_connection(rb_pgconn)->type_map_for_results;
 		pgresult_type_map_set( self, typemap );
 	}
 

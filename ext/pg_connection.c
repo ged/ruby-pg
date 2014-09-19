@@ -128,6 +128,8 @@ pgconn_gc_mark( t_pg_connection *p_conn )
 	rb_gc_mark( p_conn->notice_processor );
 	rb_gc_mark( p_conn->type_map_for_queries );
 	rb_gc_mark( p_conn->type_map_for_results );
+	rb_gc_mark( p_conn->trace_stream );
+	rb_gc_mark( p_conn->external_encoding );
 }
 
 
@@ -139,6 +141,8 @@ pgconn_gc_free( t_pg_connection *p_conn )
 {
 	if (p_conn->pgconn != NULL)
 		PQfinish( p_conn->pgconn );
+
+	xfree(p_conn);
 }
 
 
@@ -164,6 +168,8 @@ pgconn_s_allocate( VALUE klass )
 	p_conn->notice_processor = Qnil;
 	p_conn->type_map_for_queries = Qnil;
 	p_conn->type_map_for_results = Qnil;
+	p_conn->trace_stream = Qnil;
+	p_conn->external_encoding = Qnil;
 
 	return self;
 }
@@ -229,21 +235,19 @@ pgconn_s_allocate( VALUE klass )
 static VALUE
 pgconn_init(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = NULL;
+	t_pg_connection *p_conn;
 	VALUE conninfo;
 	VALUE error;
 
+	p_conn = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
-	conn = gvl_PQconnectdb(StringValuePtr(conninfo));
+	p_conn->pgconn = gvl_PQconnectdb(StringValuePtr(conninfo));
 
-	if(conn == NULL)
+	if(p_conn->pgconn == NULL)
 		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
 
-	Check_Type(self, T_DATA);
-	DATA_PTR(self) = conn;
-
-	if (PQstatus(conn) == CONNECTION_BAD) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
+	if (PQstatus(p_conn->pgconn) == CONNECTION_BAD) {
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(p_conn->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -463,9 +467,11 @@ pgconn_connect_poll(VALUE self)
 static VALUE
 pgconn_finish( VALUE self )
 {
+	t_pg_connection *p_conn = pg_get_connection( self );
+
 	pgconn_close_socket_io( self );
 	PQfinish( pg_get_pgconn(self) );
-	DATA_PTR( self ) = NULL;
+	p_conn->pgconn = NULL;
 	return Qnil;
 }
 
@@ -479,7 +485,8 @@ pgconn_finish( VALUE self )
 static VALUE
 pgconn_finished_p( VALUE self )
 {
-	if ( DATA_PTR(self) ) return Qfalse;
+	t_pg_connection *p_conn = pg_get_connection( self );
+	if ( p_conn->pgconn ) return Qfalse;
 	return Qtrue;
 }
 
@@ -1202,7 +1209,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 		return pgconn_exec( 1, argv, self );
 	}
 	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
+		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1329,7 +1336,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 		paramsData.params = rb_ary_new2(0);
 	}
 	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
+		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -1762,7 +1769,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	 */
 
 	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
+		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
 	}
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
@@ -1886,7 +1893,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		resultFormat = 0;
 	}
 	if(NIL_P(paramsData.typemap)){
-		paramsData.typemap = rb_iv_get(self, "@type_map_for_queries");
+		paramsData.typemap = pg_get_connection(self)->type_map_for_queries;
 	}
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -2628,7 +2635,7 @@ pgconn_trace(VALUE self, VALUE stream)
 		rb_raise(rb_eArgError, "stream is not writable");
 
 	new_file = rb_funcall(rb_cIO, rb_intern("new"), 1, INT2NUM(new_fd));
-	rb_iv_set(self, "@trace_stream", new_file);
+	pg_get_connection( self )->trace_stream = new_file;
 
 	PQtrace(pg_get_pgconn(self), new_fp);
 	return Qnil;
@@ -2643,11 +2650,11 @@ pgconn_trace(VALUE self, VALUE stream)
 static VALUE
 pgconn_untrace(VALUE self)
 {
-	VALUE trace_stream;
+	t_pg_connection *p_conn = pg_get_connection( self );
+
 	PQuntrace(pg_get_pgconn(self));
-	trace_stream = rb_iv_get(self, "@trace_stream");
-	rb_funcall(trace_stream, rb_intern("close"), 0);
-	rb_iv_set(self, "@trace_stream", Qnil);
+	rb_funcall(p_conn->trace_stream, rb_intern("close"), 0);
+	p_conn->trace_stream = Qnil;
 	return Qnil;
 }
 
@@ -2659,17 +2666,17 @@ pgconn_untrace(VALUE self)
 void
 notice_receiver_proxy(void *arg, const PGresult *result)
 {
-	VALUE proc;
 	VALUE self = (VALUE)arg;
+	t_pg_connection *p_conn = pg_get_connection( self );
 
-	if ((proc = rb_iv_get(self, "@notice_receiver")) != Qnil) {
+	if (p_conn->notice_receiver != Qnil) {
 		VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result);
 #ifdef M17N_SUPPORTED
 		PGconn *conn = pg_get_pgconn( self );
 		rb_encoding *enc = pg_conn_enc_get( conn );
 		ENCODING_SET( val, rb_enc_to_index(enc) );
 #endif
-		rb_funcall(proc, rb_intern("call"), 1, val);
+		rb_funcall(p_conn->notice_receiver, rb_intern("call"), 1, val);
 	}
 	return;
 }
@@ -2707,6 +2714,7 @@ static VALUE
 pgconn_set_notice_receiver(VALUE self)
 {
 	VALUE proc, old_proc;
+	t_pg_connection *p_conn = pg_get_connection( self );
 	PGconn *conn = pg_get_pgconn(self);
 
 	/* If default_notice_receiver is unset, assume that the current
@@ -2717,7 +2725,7 @@ pgconn_set_notice_receiver(VALUE self)
 	if(default_notice_receiver == NULL)
 		default_notice_receiver = PQsetNoticeReceiver(conn, NULL, NULL);
 
-	old_proc = rb_iv_get(self, "@notice_receiver");
+	old_proc = p_conn->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
 		PQsetNoticeReceiver(conn, gvl_notice_receiver_proxy, (void *)self);
@@ -2727,7 +2735,7 @@ pgconn_set_notice_receiver(VALUE self)
 		PQsetNoticeReceiver(conn, default_notice_receiver, NULL);
 	}
 
-	rb_iv_set(self, "@notice_receiver", proc);
+	p_conn->notice_receiver = proc;
 	return old_proc;
 }
 
@@ -2739,17 +2747,17 @@ pgconn_set_notice_receiver(VALUE self)
 void
 notice_processor_proxy(void *arg, const char *message)
 {
-	VALUE proc;
 	VALUE self = (VALUE)arg;
+	t_pg_connection *p_conn = pg_get_connection( self );
 
-	if ((proc = rb_iv_get(self, "@notice_processor")) != Qnil) {
+	if (p_conn->notice_receiver != Qnil) {
 		VALUE message_str = rb_tainted_str_new2(message);
 #ifdef M17N_SUPPORTED
 		PGconn *conn = pg_get_pgconn( self );
 		rb_encoding *enc = pg_conn_enc_get( conn );
 		ENCODING_SET( message_str, rb_enc_to_index(enc) );
 #endif
-		rb_funcall(proc, rb_intern("call"), 1, message_str);
+		rb_funcall(p_conn->notice_receiver, rb_intern("call"), 1, message_str);
 	}
 	return;
 }
@@ -2771,6 +2779,7 @@ static VALUE
 pgconn_set_notice_processor(VALUE self)
 {
 	VALUE proc, old_proc;
+	t_pg_connection *p_conn = pg_get_connection( self );
 	PGconn *conn = pg_get_pgconn(self);
 
 	/* If default_notice_processor is unset, assume that the current
@@ -2781,7 +2790,7 @@ pgconn_set_notice_processor(VALUE self)
 	if(default_notice_processor == NULL)
 		default_notice_processor = PQsetNoticeProcessor(conn, NULL, NULL);
 
-	old_proc = rb_iv_get(self, "@notice_processor");
+	old_proc = p_conn->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
 		PQsetNoticeProcessor(conn, gvl_notice_processor_proxy, (void *)self);
@@ -2791,7 +2800,7 @@ pgconn_set_notice_processor(VALUE self)
 		PQsetNoticeProcessor(conn, default_notice_processor, NULL);
 	}
 
-	rb_iv_set(self, "@notice_processor", proc);
+	p_conn->notice_receiver = proc;
 	return old_proc;
 }
 
@@ -3429,21 +3438,19 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 static VALUE
 pgconn_external_encoding(VALUE self)
 {
+	t_pg_connection *p_conn = pg_get_connection( self );
 	PGconn *conn = pg_get_pgconn( self );
-	VALUE encoding = rb_iv_get( self, "@external_encoding" );
 	rb_encoding *enc = NULL;
 	const char *pg_encname = NULL;
 
 	/* Use cached value if found */
-	if ( RTEST(encoding) ) return encoding;
+	if ( RTEST(p_conn->external_encoding) ) return p_conn->external_encoding;
 
 	pg_encname = PQparameterStatus( conn, "server_encoding" );
 	enc = pg_get_pg_encname_as_rb_encoding( pg_encname );
-	encoding = rb_enc_from_encoding( enc );
+	p_conn->external_encoding = rb_enc_from_encoding( enc );
 
-	rb_iv_set( self, "@external_encoding", encoding );
-
-	return encoding;
+	return p_conn->external_encoding;
 }
 
 
@@ -3476,6 +3483,100 @@ pgconn_set_default_encoding( VALUE self )
 
 
 #endif /* M17N_SUPPORTED */
+
+/*
+ * call-seq:
+ *    res.type_map_for_queries = typemap
+ *
+ * Set the TypeMap that is used for type casts of query params.
+ *
+ * +typemap+ can be:
+ * * a kind of PG::TypeMap
+ * * +nil+ - to type cast all query params by #to_str.
+ *
+ */
+static VALUE
+pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *p_conn = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	p_conn->type_map_for_queries = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.type_map_for_queries -> TypeMap
+ *
+ * Returns the TypeMap that is currently set for type casts of query params.
+ *
+ * Returns either:
+ * * a kind of PG::TypeMap or
+ * * +nil+ - when no type map is set.
+ *
+ */
+static VALUE
+pgconn_type_map_for_queries_get(VALUE self)
+{
+	t_pg_connection *p_conn = pg_get_connection( self );
+
+	return p_conn->type_map_for_queries;
+}
+
+/*
+ * call-seq:
+ *    res.type_map_for_results = typemap
+ *
+ * Set the TypeMap that is used for type casts of result values.
+ *
+ * +typemap+ can be:
+ * * a kind of PG::TypeMap
+ * * +nil+ - to type cast all result values to String.
+ *
+ */
+static VALUE
+pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *p_conn = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	p_conn->type_map_for_results = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.type_map_for_results -> TypeMap
+ *
+ * Returns the TypeMap that is currently set for type casts of result values.
+ *
+ * Returns either:
+ * * a kind of PG::TypeMap or
+ * * +nil+ - when no type map is set.
+ *
+ */
+static VALUE
+pgconn_type_map_for_results_get(VALUE self)
+{
+	t_pg_connection *p_conn = pg_get_connection( self );
+
+	return p_conn->type_map_for_results;
+}
 
 
 
@@ -3650,7 +3751,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_default_encoding", pgconn_set_default_encoding, 0);
 #endif /* M17N_SUPPORTED */
 
-	rb_define_attr(rb_cPGconn, "type_map_for_queries", 1, 1);
-	rb_define_attr(rb_cPGconn, "type_map_for_results", 1, 1);
+	rb_define_method(rb_cPGconn, "type_map_for_queries=", pgconn_type_map_for_queries_set, 1);
+	rb_define_method(rb_cPGconn, "type_map_for_queries", pgconn_type_map_for_queries_get, 0);
+	rb_define_method(rb_cPGconn, "type_map_for_results=", pgconn_type_map_for_results_set, 1);
+	rb_define_method(rb_cPGconn, "type_map_for_results", pgconn_type_map_for_results_get, 0);
 }
 
