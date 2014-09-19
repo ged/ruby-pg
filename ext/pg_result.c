@@ -839,6 +839,35 @@ pgresult_each_row(VALUE self)
 	return Qnil;
 }
 
+/*
+ * call-seq:
+ *    res.values -> Array
+ *
+ * Returns all tuples as an array of arrays.
+ */
+static VALUE
+pgresult_values(VALUE self)
+{
+	PGresult* result = (PGresult*) pgresult_get(self);
+	int row;
+	int field;
+	int num_rows = PQntuples(result);
+	int num_fields = PQnfields(result);
+	t_typemap *p_typemap = pgresult_get_typemap(self);
+	VALUE results = rb_ary_new2( num_rows );
+
+	for ( row = 0; row < num_rows; row++ ) {
+		VALUE new_row = rb_ary_new2(num_fields);
+
+		/* populate the row */
+		for ( field = 0; field < num_fields; field++ ) {
+			rb_ary_store( new_row, field, p_typemap->typecast(self, result, row, field, p_typemap) );
+		}
+		rb_ary_store( results, row, new_row );
+	}
+
+	return results;
+}
 
 /*
  * Make a Ruby array out of the encoded values from the specified
@@ -1099,6 +1128,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
 	rb_define_method(rb_cPGresult, "each_row", pgresult_each_row, 0);
+	rb_define_method(rb_cPGresult, "values", pgresult_values, 0);
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 	rb_define_method(rb_cPGresult, "cleared?", pgresult_cleared_p, 0);

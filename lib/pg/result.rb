@@ -5,11 +5,6 @@ require 'pg' unless defined?( PG )
 
 class PG::Result
 
-	### Returns all tuples as an array of arrays
-	def values
-		return enum_for(:each_row).to_a
-	end
-
 	# Apply a type map for all value retrieving methods.
 	#
 	# +type_map+: a PG::TypeMap instance.

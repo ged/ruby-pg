@@ -945,7 +945,7 @@ struct query_params_data {
 
 	/* Is the query function to execute one with types array? */
 	int with_types;
-	/* The query params from user space */
+	/* Array of query params from user space */
 	VALUE params;
 	/* The typemap given from user space */
 	VALUE typemap;
