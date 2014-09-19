@@ -6,8 +6,8 @@
 
 #include "pg.h"
 
-/* Number of bytes that are reserved in advance for type casted query params. */
-#define TYPEMAP_BUFFER_SIZE 150
+/* Number of bytes that are reserved on the stack for query params. */
+#define QUERYDATA_BUFFER_SIZE 4000
 
 
 VALUE rb_cPGconn;
@@ -936,23 +936,53 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 }
 
-
+/* This struct is allocated on the stack for all query execution functions. */
 struct query_params_data {
 
-	/* filled by caller */
+	/*
+	 * Filled by caller
+	 */
+
+	/* Is the query function to execute one with types array? */
 	int with_types;
+	/* The query params from user space */
 	VALUE params;
+	/* The typemap given from user space */
 	VALUE typemap;
 
-	/* filled by alloc_query_params() */
-	Oid *types;
+	/*
+	 * Filled by alloc_query_params()
+	 */
+
+	/* Holds the pointer of allocated memory, if function parameters dont't
+	 * fit in the memory_pool below.
+	 */
+	char *heap_pool;
+
+	/* Pointer to the value strings (either within memory_pool or heap_pool) */
 	char **values;
+	/* Pointer to the param lengths (either within memory_pool or heap_pool) */
 	int *lengths;
+	/* Pointer to the format codes (either within memory_pool or heap_pool) */
 	int *formats;
-	char *mapping_buf;
+	/* Pointer to the params converted to strings (either within memory_pool or heap_pool) */
 	VALUE *param_values;
+	/* Pointer to the coder objects used for the query (either within memory_pool or heap_pool) */
 	t_pg_coder **p_coders;
+	/* Pointer to the OID types (either within memory_pool or heap_pool) */
+	Oid *types;
+
+	/* Holds the pointer of allocated memory, if typecasted values dont't
+	 * fit in the memory_pool below.
+	 */
+	char *mapping_buf;
+	/* This array takes the string values for the timeframe of the query,
+	 * if param value convertion is required
+	 */
 	VALUE gc_array;
+
+	/* This memory pool is used to place above query function parameters on it. */
+	char memory_pool[QUERYDATA_BUFFER_SIZE];
 };
 
 
@@ -967,9 +997,11 @@ alloc_query_params1(VALUE _paramsData)
 	int nParams;
 	int i=0;
 	t_pg_coder *conv;
-	int sum_lengths = 0;
+	unsigned int sum_lengths = 0;
 	int buffer_pos = 0;
 	char *mapping_buf;
+	unsigned int required_pool_size;
+	char *memory_pool;
 
 	typemap = paramsData->typemap;
 	if( typemap )
@@ -979,22 +1011,28 @@ alloc_query_params1(VALUE _paramsData)
 
 	nParams = (int)RARRAY_LEN(paramsData->params);
 
-	/* Allocate one combined memory pool for all possible function parameters */
-	paramsData->values = (char **)xmalloc( nParams * (
+	required_pool_size = nParams * (
 			sizeof(char *) +
 			sizeof(int) +
 			sizeof(int) +
 			sizeof(VALUE) +
 			sizeof(t_pg_coder *) +
-			(paramsData->with_types ? sizeof(Oid) : 0)
-		) + TYPEMAP_BUFFER_SIZE );
+			(paramsData->with_types ? sizeof(Oid) : 0));
 
+	if( sizeof(paramsData->memory_pool) < required_pool_size ){
+		/* Allocate one combined memory pool for all possible function parameters */
+		paramsData->heap_pool = memory_pool = (char*)xmalloc( required_pool_size );
+	}else{
+		/* Use stack memory for function parameters */
+		memory_pool = paramsData->memory_pool;
+	}
+
+	paramsData->values = (char **)memory_pool;
 	paramsData->lengths = (int *)((char*)paramsData->values + sizeof(char *) * nParams);
-	paramsData->formats = (int *)((char*)paramsData->values + (sizeof(char *) + sizeof(int)) * nParams);
-	paramsData->param_values = (VALUE *)((char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int)) * nParams);
-	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int) + sizeof(VALUE)) * nParams);
-	if( paramsData->with_types )
-		paramsData->types = (Oid *)((char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int) + sizeof(VALUE) + sizeof(t_pg_coder *)) * nParams);
+	paramsData->formats = (int *)((char*)paramsData->lengths + sizeof(int) * nParams);
+	paramsData->param_values = (VALUE *)((char*)paramsData->formats + sizeof(int) * nParams);
+	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->param_values + sizeof(VALUE) * nParams);
+	paramsData->types = (Oid *)((char*)paramsData->p_coders + sizeof(t_pg_coder *) * nParams);
 
 	{
 		VALUE intermediates[nParams];
@@ -1061,11 +1099,12 @@ alloc_query_params1(VALUE _paramsData)
 
 		/* Do the type casts for params with encoder */
 		if( p_typemap ){
-			/* Is the preallocated memory big enough to take all type casted values of this query? */
-			if( sum_lengths > TYPEMAP_BUFFER_SIZE ){
+			/* Is the stack memory big enough to take all type casted values of this query? */
+			if( !paramsData->heap_pool && sum_lengths <= sizeof(paramsData->memory_pool) - required_pool_size ){
 				/* Point the buffer to the preallocated memory */
-				mapping_buf = (char*)paramsData->values + (sizeof(char *) + sizeof(int) + sizeof(int) + sizeof(VALUE) + sizeof(t_pg_coder *) + (paramsData->with_types ? sizeof(Oid) : 0)) * nParams;
+				mapping_buf = (char*)paramsData->types + (paramsData->with_types ? sizeof(Oid) : 0) * nParams;
 			} else {
+				/* allocate a dedicated memory buffer */
 				paramsData->mapping_buf = mapping_buf = ALLOC_N(char, sum_lengths);
 			}
 
@@ -1102,8 +1141,7 @@ alloc_query_params1(VALUE _paramsData)
 static void
 free_query_params(struct query_params_data *paramsData)
 {
-	rb_gc_unregister_address(&paramsData->gc_array);
-	xfree(paramsData->values);
+	xfree(paramsData->heap_pool);
  	xfree(paramsData->mapping_buf);
 }
 
@@ -1130,16 +1168,11 @@ alloc_query_params(struct query_params_data *paramsData)
 		paramsData->typemap = p_typemap->fit_to_query( paramsData->params, paramsData->typemap );
 	}
 
-	paramsData->types = NULL;
-	paramsData->values = NULL;
-	paramsData->lengths = NULL;
-	paramsData->formats = NULL;
 	paramsData->mapping_buf = NULL;
-	paramsData->param_values = NULL;
-	paramsData->p_coders = NULL;
+	paramsData->heap_pool = NULL;
 
 	paramsData->gc_array = rb_ary_new();
-	rb_gc_register_address(&paramsData->gc_array);
+	RB_GC_GUARD(paramsData->gc_array);
 
 	nParams = (int) rb_protect(alloc_query_params1, (VALUE)paramsData, &error_raised);
 	if( error_raised ){

@@ -328,6 +328,21 @@ describe PG::Connection do
 		expect( res.values ).to eq( [ ['Wally'], ['Sally'] ] )
 	end
 
+	it "should work with arbitrary number of params" do
+		begin
+			3.step( 12, 0.2 ) do |exp|
+				num_params = (2 ** exp).to_i
+				sql = num_params.times.map{|n| "$#{n+1}::INT" }.join(",")
+				params = num_params.times.to_a
+				res = @conn.exec_params( "SELECT #{sql}", params )
+				expect( res.nfields ).to eq( num_params )
+				expect( res.values ).to eq( [num_params.times.map(&:to_s)] )
+			end
+		rescue PG::ProgramLimitExceeded
+			# Stop silently if the server complains about too many params
+		end
+	end
+
 	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
 		@conn.exec( 'LISTEN woo' )
@@ -1301,6 +1316,21 @@ describe PG::Connection do
 
 			it "should return the current type mapping" do
 				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::BasicTypeMapForQueries)
+			end
+
+			it "should work with arbitrary number of params" do
+				begin
+					3.step( 12, 0.2 ) do |exp|
+						num_params = (2 ** exp).to_i
+						sql = num_params.times.map{|n| "$#{n+1}" }.join(",")
+						params = num_params.times.to_a
+						res = @conn2.exec_params( "SELECT #{sql}", params )
+						expect( res.nfields ).to eq( num_params )
+						expect( res.values ).to eq( [num_params.times.map(&:to_s)] )
+					end
+				rescue PG::ProgramLimitExceeded
+					# Stop silently if the server complains about too many params
+				end
 			end
 		end
 
