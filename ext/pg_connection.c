@@ -937,6 +937,12 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 
 }
 
+
+struct linked_typecast_data {
+	struct linked_typecast_data *next;
+	char data[0];
+};
+
 /* This struct is allocated on the stack for all query execution functions. */
 struct query_params_data {
 
@@ -973,19 +979,19 @@ struct query_params_data {
 	/* Pointer to the OID types (either within memory_pool or heap_pool) */
 	Oid *types;
 
-	/* Holds the pointer of allocated memory, if typecasted values dont't
-	 * fit in the memory_pool below.
-	 */
-	char *mapping_buf;
 	/* This array takes the string values for the timeframe of the query,
 	 * if param value convertion is required
 	 */
 	VALUE gc_array;
 
+	/* Single linked list of allocated memory chunks for type casted params.
+	 * Used when the memory_pool is to small.
+	 */
+	struct linked_typecast_data *typecast_heap_chain;
+
 	/* This memory pool is used to place above query function parameters on it. */
 	char memory_pool[QUERYDATA_BUFFER_SIZE];
 };
-
 
 static VALUE
 alloc_query_params1(VALUE _paramsData)
@@ -998,9 +1004,6 @@ alloc_query_params1(VALUE _paramsData)
 	int nParams;
 	int i=0;
 	t_pg_coder *conv;
-	unsigned int sum_lengths = 0;
-	int buffer_pos = 0;
-	char *mapping_buf;
 	unsigned int required_pool_size;
 	char *memory_pool;
 
@@ -1031,12 +1034,12 @@ alloc_query_params1(VALUE _paramsData)
 	paramsData->values = (char **)memory_pool;
 	paramsData->lengths = (int *)((char*)paramsData->values + sizeof(char *) * nParams);
 	paramsData->formats = (int *)((char*)paramsData->lengths + sizeof(int) * nParams);
-	paramsData->param_values = (VALUE *)((char*)paramsData->formats + sizeof(int) * nParams);
+	paramsData->types = (Oid *)((char*)paramsData->formats + sizeof(int) * nParams);
+	paramsData->param_values = (VALUE *)((char*)paramsData->types + (paramsData->with_types ? sizeof(Oid) : 0) * nParams);
 	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->param_values + sizeof(VALUE) * nParams);
-	paramsData->types = (Oid *)((char*)paramsData->p_coders + sizeof(t_pg_coder *) * nParams);
 
 	{
-		VALUE intermediates[nParams];
+		char *typecast_buf = (char*)paramsData->p_coders + sizeof(t_pg_coder *) * nParams;
 
 		for ( i = 0; i < nParams; i++ ) {
 			param_value = rb_ary_entry(paramsData->params, i);
@@ -1059,10 +1062,39 @@ alloc_query_params1(VALUE _paramsData)
 			} else if( conv ) {
 				if( conv->enc_func ){
 					/* C-based converter */
+					VALUE intermediate;
+
 					/* 1st pass for retiving the required memory space */
-					int len = conv->enc_func(conv, param_value, NULL, &intermediates[i]);
+					int len = conv->enc_func(conv, param_value, NULL, &intermediate);
 					/* text format strings must be zero terminated */
-					sum_lengths += len + (conv->format == 0 ? 1 : 0);
+					if( conv->format == 0 ) len++;
+					required_pool_size += len;
+
+					/* Is the stack memory big enough to take the type casted value? */
+					if( sizeof(paramsData->memory_pool) < required_pool_size ){
+						/* Allocate a new memory chunk from heap */
+						struct linked_typecast_data *allocated =
+							(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len);
+
+						allocated->next = paramsData->typecast_heap_chain;
+						paramsData->typecast_heap_chain = allocated;
+						typecast_buf = &allocated->data[0];
+					}
+
+					/* 2nd pass for writing the data to prepared buffer */
+					len = conv->enc_func(conv, param_value, typecast_buf, &intermediate);
+					paramsData->values[i] = typecast_buf;
+					if( conv->format == 0 ){
+						/* text format strings must be zero terminated and lengths are ignored */
+						typecast_buf[len] = 0;
+						typecast_buf += len + 1;
+					} else {
+						paramsData->lengths[i] = len;
+						typecast_buf += len;
+					}
+
+					RB_GC_GUARD(intermediate);
+
 				} else {
 					/* Ruby-based converter */
 					param_value = rb_funcall( conv->coder_obj, s_id_encode, 1, param_value );
@@ -1097,40 +1129,6 @@ alloc_query_params1(VALUE _paramsData)
 			paramsData->formats[i] = param_format;
 			paramsData->param_values[i] = param_value;
 		}
-
-		/* Do the type casts for params with encoder */
-		if( p_typemap ){
-			/* Is the stack memory big enough to take all type casted values of this query? */
-			if( !paramsData->heap_pool && sum_lengths <= sizeof(paramsData->memory_pool) - required_pool_size ){
-				/* Point the buffer to the preallocated memory */
-				mapping_buf = (char*)paramsData->types + (paramsData->with_types ? sizeof(Oid) : 0) * nParams;
-			} else {
-				/* allocate a dedicated memory buffer */
-				paramsData->mapping_buf = mapping_buf = ALLOC_N(char, sum_lengths);
-			}
-
-			for ( i = 0; i < nParams; i++ ) {
-				param_value = paramsData->param_values[i];
-				conv = paramsData->p_coders[i];
-
-				if( NIL_P(param_value) ){
-					/* Qnil was mapped to NULL value above */
-				} else if( conv && conv->enc_func ){
-					/* 2nd pass for writing the data to prepared buffer */
-					int len = conv->enc_func(conv, param_value, &mapping_buf[buffer_pos], &intermediates[i]);
-					paramsData->values[i] = &mapping_buf[buffer_pos];
-					if( conv->format == 0 ){
-						/* text format strings must be zero terminated and lengths are ignored */
-						mapping_buf[buffer_pos+len] = 0;
-						buffer_pos += len + 1;
-					} else {
-						paramsData->lengths[i] = len;
-						buffer_pos += len;
-					}
-				}
-			}
-			RB_GC_GUARD_PTR(intermediates);
-		}
 	}
 
 
@@ -1142,8 +1140,14 @@ alloc_query_params1(VALUE _paramsData)
 static void
 free_query_params(struct query_params_data *paramsData)
 {
+	struct linked_typecast_data *chain_entry = paramsData->typecast_heap_chain;
+
 	xfree(paramsData->heap_pool);
- 	xfree(paramsData->mapping_buf);
+	while(chain_entry){
+		struct linked_typecast_data *next = chain_entry->next;
+		xfree(chain_entry);
+		chain_entry = next;
+	}
 }
 
 static const t_typemap pgconn_default_typemap_for_query = {
@@ -1164,8 +1168,8 @@ alloc_query_params(struct query_params_data *paramsData)
 		paramsData->typemap = p_typemap->fit_to_query( paramsData->params, paramsData->typemap );
 	}
 
-	paramsData->mapping_buf = NULL;
 	paramsData->heap_pool = NULL;
+	paramsData->typecast_heap_chain = NULL;
 
 	paramsData->gc_array = rb_ary_new();
 	RB_GC_GUARD(paramsData->gc_array);
