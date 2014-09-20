@@ -24,7 +24,6 @@
 #if defined(HAVE_RUBY_ENCODING_H) && HAVE_RUBY_ENCODING_H
 #	include "ruby/encoding.h"
 #	define M17N_SUPPORTED
-#	define ASSOCIATE_INDEX( obj, index_holder ) rb_enc_associate_index((obj), pg_enc_get_index((index_holder)))
 #	ifdef HAVE_RB_ENCDB_ALIAS
 		extern int rb_encdb_alias(const char *, const char *);
 #		define ENC_ALIAS(name, orig) rb_encdb_alias((name), (orig))
@@ -230,7 +229,6 @@ VALUE pg_result_clear                                  _(( VALUE ));
 rb_encoding * pg_get_pg_encoding_as_rb_encoding        _(( int ));
 rb_encoding * pg_get_pg_encname_as_rb_encoding         _(( const char * ));
 const char * pg_get_rb_encoding_as_pg_encoding         _(( rb_encoding * ));
-int pg_enc_get_index                                   _(( VALUE ));
 rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 #endif /* M17N_SUPPORTED */
 

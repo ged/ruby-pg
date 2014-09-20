@@ -320,7 +320,7 @@ static VALUE
 pgresult_res_status(VALUE self, VALUE status)
 {
 	VALUE ret = rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
-	ASSOCIATE_INDEX(ret, self);
+	ENCODING_SET(ret, ENCODING_GET(self));
 	return ret;
 }
 
@@ -334,7 +334,7 @@ static VALUE
 pgresult_error_message(VALUE self)
 {
 	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(pgresult_get(self)));
-	ASSOCIATE_INDEX(ret, self);
+	ENCODING_SET(ret, ENCODING_GET(self));
 	return ret;
 }
 
@@ -394,7 +394,7 @@ pgresult_error_field(VALUE self, VALUE field)
 
 	if ( fieldstr ) {
 		ret = rb_tainted_str_new2( fieldstr );
-		ASSOCIATE_INDEX( ret, self );
+		ENCODING_SET( ret, ENCODING_GET(self ));
 	}
 
 	return ret;
@@ -442,7 +442,7 @@ pgresult_fname(VALUE self, VALUE index)
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
 	fname = rb_tainted_str_new2(PQfname(result, i));
-	ASSOCIATE_INDEX(fname, self);
+	ENCODING_SET(fname, ENCODING_GET(self));
 	return fname;
 }
 
@@ -745,7 +745,7 @@ static VALUE
 pgresult_cmd_status(VALUE self)
 {
 	VALUE ret = rb_tainted_str_new2(PQcmdStatus(pgresult_get(self)));
-	ASSOCIATE_INDEX(ret, self);
+	ENCODING_SET(ret, ENCODING_GET(self));
 	return ret;
 }
 
@@ -812,7 +812,7 @@ pgresult_aref(VALUE self, VALUE index)
 	tuple = rb_hash_new();
 	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
 		fname = rb_tainted_str_new2( PQfname(result,field_num) );
-		ASSOCIATE_INDEX(fname, self);
+		ENCODING_SET(fname, ENCODING_GET(self));
 		rb_hash_aset( tuple, fname, p_typemap->typecast_result_value(self, result, tuple_num, field_num, p_typemap) );
 	}
 	return tuple;
@@ -973,7 +973,7 @@ pgresult_fields(VALUE self)
 
 	for ( i = 0; i < n; i++ ) {
 		VALUE val = rb_tainted_str_new2(PQfname(result, i));
-		ASSOCIATE_INDEX(val, self);
+		ENCODING_SET(val, ENCODING_GET(self));
 		rb_ary_store( fields, i, val );
 	}
 

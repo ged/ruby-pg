@@ -123,24 +123,6 @@ const char * const (pg_enc_pg2ruby_mapping[][2]) = {
  * A cache of mapping from PostgreSQL's encoding indices to Ruby's rb_encoding*s.
  */
 static struct st_table *enc_pg2ruby;
-static ID s_id_index;
-
-
-/*
- * Get the index of encoding +val+.
- * :FIXME: Look into replacing this with rb_enc_get_index() since 1.9.1 isn't really
- * used anymore.
- */
-int
-pg_enc_get_index(VALUE val)
-{
-	int i = ENCODING_GET_INLINED(val);
-	if (i == ENCODING_INLINE_MAX) {
-		VALUE iv = rb_ivar_get(val, s_id_index);
-		i = NUM2INT(iv);
-	}
-	return i;
-}
 
 
 /*
@@ -534,7 +516,6 @@ Init_pg_ext()
 
 #ifdef M17N_SUPPORTED
 	enc_pg2ruby = st_init_numtable();
-	s_id_index = rb_intern("@encoding");
 #endif
 
 	/* Initialize the main extension classes */

@@ -1506,9 +1506,6 @@ pgconn_s_escape(VALUE self, VALUE string)
 	size_t size;
 	int error;
 	VALUE result;
-#ifdef M17N_SUPPORTED
-	rb_encoding* enc;
-#endif
 
 	Check_Type(string, T_STRING);
 
@@ -1528,12 +1525,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	OBJ_INFECT(result, string);
 
 #ifdef M17N_SUPPORTED
-	if ( rb_obj_class(self) == rb_cPGconn ) {
-		enc = pg_conn_enc_get( pg_get_pgconn(self) );
-	} else {
-		enc = rb_enc_get(string);
-	}
-	rb_enc_associate(result, enc);
+	ENCODING_SET(result, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : string ));
 #endif
 
 	return result;
@@ -1646,7 +1638,7 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	OBJ_INFECT(result, string);
 
 #ifdef M17N_SUPPORTED
-	rb_enc_associate(result, pg_conn_enc_get( pg_get_pgconn(self) ));
+	ENCODING_SET(result, ENCODING_GET(self));
 #endif
 
 	return result;
@@ -1686,7 +1678,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	OBJ_INFECT(result, string);
 
 #ifdef M17N_SUPPORTED
-	rb_enc_associate(result, pg_conn_enc_get( pg_get_pgconn(self) ));
+	ENCODING_SET(result, ENCODING_GET(self));
 #endif
 
 	return result;
@@ -2950,9 +2942,6 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	 * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
 	unsigned int i=0,j=0;
-#ifdef M17N_SUPPORTED
-	rb_encoding* enc;
-#endif
 
 	UNUSED( self );
 
@@ -2972,12 +2961,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	OBJ_INFECT(ret, in_str);
 
 #ifdef M17N_SUPPORTED
-	if ( rb_obj_class(self) == rb_cPGconn ) {
-		enc = pg_conn_enc_get( pg_get_pgconn(self) );
-	} else {
-		enc = rb_enc_get(in_str);
-	}
-	rb_enc_associate(ret, enc);
+	ENCODING_SET(ret, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : in_str ));
 #endif
 
 	return ret;
@@ -3401,8 +3385,8 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 void
 pgconn_set_internal_encoding_index( VALUE self )
 {
-	t_pg_connection *this = pg_get_connection(self);
-	rb_encoding *enc = pg_conn_enc_get( this->pgconn );
+	PGconn *conn = pg_get_pgconn(self);
+	rb_encoding *enc = pg_conn_enc_get( conn );
 	ENCODING_SET( self, rb_enc_to_index(enc));
 }
 
