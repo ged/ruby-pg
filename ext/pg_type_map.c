@@ -61,10 +61,9 @@ pg_typemap_s_allocate( VALUE klass )
 	t_typemap *this;
 
 	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
-	this->encoding_index = 0;
 	this->fit_to_result = pg_typemap_fit_to_result;
 	this->fit_to_query = pg_typemap_fit_to_query;
-	this->typecast = pg_typemap_result_value;
+	this->typecast_result_value = pg_typemap_result_value;
 	this->typecast_query_param = pg_typemap_typecast_query_param;
 
 	return self;

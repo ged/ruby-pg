@@ -59,7 +59,7 @@ pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typem
 		conv = this->convs[field].cconv;
 
 		if( conv && conv->dec_func ){
-			return conv->dec_func(conv, val, len, tuple, field, this->typemap.encoding_index);
+			return conv->dec_func(conv, val, len, tuple, field, ENCODING_GET(self));
 		}
 	}
 
@@ -126,10 +126,9 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 
 	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
 	this->nfields = conv_ary_len;
-	this->typemap.encoding_index = 0;
 	this->typemap.fit_to_result = pg_tmbc_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbc_fit_to_query;
-	this->typemap.typecast = pg_tmbc_result_value;
+	this->typemap.typecast_result_value = pg_tmbc_result_value;
 	this->typemap.typecast_query_param = pg_tmbc_typecast_query_param;
 
 	for(i=0; i<conv_ary_len; i++)

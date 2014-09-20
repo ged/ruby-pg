@@ -82,7 +82,7 @@ pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typ
 	p_coder = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, field) );
 
 	if( p_coder && p_coder->dec_func ){
-		return p_coder->dec_func(p_coder, val, len, tuple, field, this->typemap.encoding_index);
+		return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(self));
 	}
 
 	if ( 0 == format ) {
@@ -140,10 +140,9 @@ pg_tmbo_fit_to_result( VALUE result, VALUE self )
 
 		/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
 		p_colmap->nfields = nfields;
-		p_colmap->typemap.encoding_index = 0;
 		p_colmap->typemap.fit_to_result = pg_tmbo_fit_to_result;
 		p_colmap->typemap.fit_to_query = pg_tmbo_fit_to_query;
-		p_colmap->typemap.typecast = pg_tmbc_result_value;
+		p_colmap->typemap.typecast_result_value = pg_tmbc_result_value;
 		p_colmap->typemap.typecast_query_param = pg_tmbo_typecast_query_param;
 
 		return colmap;
@@ -171,7 +170,7 @@ pg_tmbo_s_allocate( VALUE klass )
 
 	this->typemap.fit_to_result = pg_tmbo_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbo_fit_to_query;
-	this->typemap.typecast = pg_tmbo_result_value;
+	this->typemap.typecast_result_value = pg_tmbo_result_value;
 	this->typemap.typecast_query_param = pg_tmbo_typecast_query_param;
 	this->max_rows_for_online_lookup = 10;
 

@@ -148,9 +148,8 @@ typedef struct {
 struct pg_typemap {
 	t_pg_fit_to_result fit_to_result;
 	t_pg_fit_to_query fit_to_query;
-	t_pg_typecast_result typecast;
+	t_pg_typecast_result typecast_result_value;
 	t_pg_typecast_query_param typecast_query_param;
-	int encoding_index;
 };
 
 typedef struct {

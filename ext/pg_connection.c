@@ -20,6 +20,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
 static VALUE pgconn_finish( VALUE );
 #ifdef M17N_SUPPORTED
 static VALUE pgconn_set_default_encoding( VALUE self );
+void pgconn_set_internal_encoding_index( VALUE );
 #endif
 
 #ifndef HAVE_RB_THREAD_FD_SELECT
@@ -2209,8 +2210,8 @@ pgconn_notifies(VALUE self)
 	be_pid = INT2NUM(notification->be_pid);
 	extra = rb_tainted_str_new2(notification->extra);
 #ifdef M17N_SUPPORTED
-	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
-	ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
+	ENCODING_SET( relname, ENCODING_GET(self) );
+	ENCODING_SET( extra, ENCODING_GET(self) );
 #endif
 
 	rb_hash_aset(hash, sym_relname, relname);
@@ -2464,6 +2465,9 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	struct timeval *ptimeout = NULL;
 	VALUE timeout_in = Qnil, relname = Qnil, be_pid = Qnil, extra = Qnil;
 	double timeout_sec;
+#ifdef M17N_SUPPORTED
+	int encoding_index = ENCODING_GET(self);
+#endif
 
 	rb_scan_args( argc, argv, "01", &timeout_in );
 
@@ -2481,14 +2485,14 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 
 	relname = rb_tainted_str_new2( pnotification->relname );
 #ifdef M17N_SUPPORTED
-	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
+	ENCODING_SET( relname, encoding_index );
 #endif
 	be_pid = INT2NUM( pnotification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
 	if ( *pnotification->extra ) {
 		extra = rb_tainted_str_new2( pnotification->extra );
 #ifdef M17N_SUPPORTED
-		ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
+		ENCODING_SET( extra, encoding_index );
 #endif
 	}
 #endif
@@ -2785,9 +2789,7 @@ notice_processor_proxy(void *arg, const char *message)
 	if (this->notice_receiver != Qnil) {
 		VALUE message_str = rb_tainted_str_new2(message);
 #ifdef M17N_SUPPORTED
-		PGconn *conn = pg_get_pgconn( self );
-		rb_encoding *enc = pg_conn_enc_get( conn );
-		ENCODING_SET( message_str, rb_enc_to_index(enc) );
+		ENCODING_SET( message_str, ENCODING_GET(self) );
 #endif
 		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
@@ -2867,6 +2869,9 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 	if ( (PQsetClientEncoding(conn, StringValuePtr(str))) == -1 ) {
 		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValuePtr(str));
 	}
+#ifdef M17N_SUPPORTED
+	pgconn_set_internal_encoding_index( self );
+#endif
 
 	return Qnil;
 }
@@ -3393,6 +3398,14 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 
 #ifdef M17N_SUPPORTED
 
+void
+pgconn_set_internal_encoding_index( VALUE self )
+{
+	t_pg_connection *this = pg_get_connection(self);
+	rb_encoding *enc = pg_conn_enc_get( this->pgconn );
+	ENCODING_SET( self, rb_enc_to_index(enc));
+}
+
 /*
  * call-seq:
  *   conn.internal_encoding -> Encoding
@@ -3450,6 +3463,7 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 			rb_raise( rb_eEncCompatError, "incompatible character encodings: %s and %s",
 					  rb_enc_name(rb_to_encoding(server_encoding)), name );
 		}
+		pgconn_set_internal_encoding_index( self );
 		return enc;
 	}
 
@@ -3507,8 +3521,10 @@ pgconn_set_default_encoding( VALUE self )
 		if ( PQsetClientEncoding(conn, encname) != 0 )
 			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
+		pgconn_set_internal_encoding_index( self );
 		return rb_enc_from_encoding( enc );
 	} else {
+		pgconn_set_internal_encoding_index( self );
 		return Qnil;
 	}
 }

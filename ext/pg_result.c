@@ -42,19 +42,30 @@ static t_pg_result *pgresult_get_struct( VALUE );
 VALUE
 pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
-	PGconn *conn = pg_get_pgconn( rb_pgconn );
 	VALUE self = pgresult_s_allocate( rb_cPGresult );
 	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
+
 #ifdef M17N_SUPPORTED
-	rb_encoding *enc = pg_conn_enc_get( conn );
-	ENCODING_SET( self, rb_enc_to_index(enc) );
+	ENCODING_SET(self, ENCODING_GET(rb_pgconn));
 #endif
 
 	this->pgresult = result;
 	this->connection = rb_pgconn;
 	if( result ){
-		VALUE typemap = pg_get_connection(rb_pgconn)->type_map_for_results;
-		pgresult_type_map_set( self, typemap );
+		VALUE typemap = p_conn->type_map_for_results;
+
+		if( typemap != Qnil ){
+			t_typemap *p_typemap;
+
+			/* Type check is done when assigned to PG::Connection. */
+			p_typemap = DATA_PTR(typemap);
+
+			typemap = p_typemap->fit_to_result( self, typemap );
+			p_typemap = DATA_PTR( typemap );
+		}
+
+		this->typemap = typemap;
 	}
 
 	return self;
@@ -81,9 +92,6 @@ pg_result_check( VALUE self )
 	t_pg_result *this = pgresult_get_struct(self);
 	VALUE error, exception, klass;
 	PGconn *conn = pg_get_pgconn(this->connection);
-#ifdef M17N_SUPPORTED
-	rb_encoding *enc = pg_conn_enc_get( conn );
-#endif
 	char * sqlstate;
 
 	if(this->pgresult == NULL)
@@ -117,7 +125,7 @@ pg_result_check( VALUE self )
 	}
 
 #ifdef M17N_SUPPORTED
-	rb_enc_set_index( error, rb_enc_to_index(enc) );
+	ENCODING_SET( error, ENCODING_GET(self) );
 #endif
 
 	sqlstate = PQresultErrorField( this->pgresult, PG_DIAG_SQLSTATE );
@@ -644,7 +652,7 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	if(j < 0 || j >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
 	}
-	return p_typemap->typecast(self, result, i, j, p_typemap);
+	return p_typemap->typecast_result_value(self, result, i, j, p_typemap);
 }
 
 /*
@@ -805,7 +813,7 @@ pgresult_aref(VALUE self, VALUE index)
 	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
 		fname = rb_tainted_str_new2( PQfname(result,field_num) );
 		ASSOCIATE_INDEX(fname, self);
-		rb_hash_aset( tuple, fname, p_typemap->typecast(self, result, tuple_num, field_num, p_typemap) );
+		rb_hash_aset( tuple, fname, p_typemap->typecast_result_value(self, result, tuple_num, field_num, p_typemap) );
 	}
 	return tuple;
 }
@@ -831,7 +839,7 @@ pgresult_each_row(VALUE self)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, p_typemap->typecast(self, result, row, field, p_typemap) );
+			rb_ary_store( new_row, field, p_typemap->typecast_result_value(self, result, row, field, p_typemap) );
 		}
 		rb_yield( new_row );
 	}
@@ -861,7 +869,7 @@ pgresult_values(VALUE self)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, p_typemap->typecast(self, result, row, field, p_typemap) );
+			rb_ary_store( new_row, field, p_typemap->typecast_result_value(self, result, row, field, p_typemap) );
 		}
 		rb_ary_store( results, row, new_row );
 	}
@@ -1010,11 +1018,6 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 
 		typemap = p_typemap->fit_to_result( self, typemap );
 		p_typemap = DATA_PTR( typemap );
-
-#ifdef M17N_SUPPORTED
-		/* TODO: this should be removed */
-		p_typemap->encoding_index = ENCODING_GET(self);
-#endif
 	}
 
 	this->typemap = typemap;
@@ -1065,7 +1068,7 @@ pgresult_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_
 }
 
 static const t_typemap pgresult_default_typemap = {
-	typecast: pgresult_value
+	typecast_result_value: pgresult_value
 };
 
 static t_typemap *

@@ -26,7 +26,7 @@ pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, i
 {
 	VALUE ret = rb_tainted_str_new( val, len );
 #ifdef M17N_SUPPORTED
-	ENCODING_SET_INLINED( ret, enc_idx );
+	ENCODING_SET( ret, enc_idx );
 #endif
 	return ret;
 }

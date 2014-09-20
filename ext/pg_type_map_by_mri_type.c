@@ -124,7 +124,7 @@ pg_tmbmt_s_allocate( VALUE klass )
 	self = Data_Make_Struct( klass, t_tmbmt, pg_tmbmt_mark, -1, this );
 	this->typemap.fit_to_result = pg_tmbmt_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbmt_fit_to_query;
-	this->typemap.typecast = pg_tmbmt_result_value;
+	this->typemap.typecast_result_value = pg_tmbmt_result_value;
 	this->typemap.typecast_query_param = pg_tmbmt_typecast_query_param;
 
 	FOR_EACH_MRI_TYPE( INIT_VARIABLES );
