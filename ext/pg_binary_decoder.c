@@ -66,9 +66,7 @@ pg_bin_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 {
 	VALUE ret;
 	ret = rb_tainted_str_new( val, len );
-#ifdef M17N_SUPPORTED
-	ENCODING_SET( ret, rb_ascii8bit_encindex() );
-#endif
+	PG_ENCODING_SET_NOCHECK( ret, rb_ascii8bit_encindex() );
 	return ret;
 }
 

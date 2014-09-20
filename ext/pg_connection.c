@@ -1523,10 +1523,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	result = rb_str_new(escaped, size);
 	xfree(escaped);
 	OBJ_INFECT(result, string);
-
-#ifdef M17N_SUPPORTED
-	ENCODING_SET(result, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : string ));
-#endif
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : string ));
 
 	return result;
 }
@@ -1636,10 +1633,7 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	OBJ_INFECT(result, string);
-
-#ifdef M17N_SUPPORTED
-	ENCODING_SET(result, ENCODING_GET(self));
-#endif
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET(self));
 
 	return result;
 }
@@ -1676,10 +1670,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	OBJ_INFECT(result, string);
-
-#ifdef M17N_SUPPORTED
-	ENCODING_SET(result, ENCODING_GET(self));
-#endif
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET(self));
 
 	return result;
 }
@@ -2201,10 +2192,8 @@ pgconn_notifies(VALUE self)
 	relname = rb_tainted_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
 	extra = rb_tainted_str_new2(notification->extra);
-#ifdef M17N_SUPPORTED
-	ENCODING_SET( relname, ENCODING_GET(self) );
-	ENCODING_SET( extra, ENCODING_GET(self) );
-#endif
+	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
+	PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
 
 	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
@@ -2457,9 +2446,6 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	struct timeval *ptimeout = NULL;
 	VALUE timeout_in = Qnil, relname = Qnil, be_pid = Qnil, extra = Qnil;
 	double timeout_sec;
-#ifdef M17N_SUPPORTED
-	int encoding_index = ENCODING_GET(self);
-#endif
 
 	rb_scan_args( argc, argv, "01", &timeout_in );
 
@@ -2476,16 +2462,12 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	if ( !pnotification ) return Qnil;
 
 	relname = rb_tainted_str_new2( pnotification->relname );
-#ifdef M17N_SUPPORTED
-	ENCODING_SET( relname, encoding_index );
-#endif
+	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
 	be_pid = INT2NUM( pnotification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
 	if ( *pnotification->extra ) {
 		extra = rb_tainted_str_new2( pnotification->extra );
-#ifdef M17N_SUPPORTED
-		ENCODING_SET( extra, encoding_index );
-#endif
+		PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
 	}
 #endif
 	PQfreemem( pnotification );
@@ -2780,9 +2762,7 @@ notice_processor_proxy(void *arg, const char *message)
 
 	if (this->notice_receiver != Qnil) {
 		VALUE message_str = rb_tainted_str_new2(message);
-#ifdef M17N_SUPPORTED
-		ENCODING_SET( message_str, ENCODING_GET(self) );
-#endif
+		PG_ENCODING_SET_NOCHECK( message_str, ENCODING_GET(self) );
 		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
 	return;
@@ -2959,10 +2939,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	buffer[j++] = '"';
 	ret = rb_str_new(buffer,j);
 	OBJ_INFECT(ret, in_str);
-
-#ifdef M17N_SUPPORTED
-	ENCODING_SET(ret, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : in_str ));
-#endif
+	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : in_str ));
 
 	return ret;
 }
@@ -3387,7 +3364,7 @@ pgconn_set_internal_encoding_index( VALUE self )
 {
 	PGconn *conn = pg_get_pgconn(self);
 	rb_encoding *enc = pg_conn_enc_get( conn );
-	ENCODING_SET( self, rb_enc_to_index(enc));
+	PG_ENCODING_SET_NOCHECK( self, rb_enc_to_index(enc));
 }
 
 /*

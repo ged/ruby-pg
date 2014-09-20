@@ -46,9 +46,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 	t_pg_result *this = pgresult_get_struct(self);
 	t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 
-#ifdef M17N_SUPPORTED
-	ENCODING_SET(self, ENCODING_GET(rb_pgconn));
-#endif
+	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 
 	this->pgresult = result;
 	this->connection = rb_pgconn;
@@ -124,9 +122,7 @@ pg_result_check( VALUE self )
 		}
 	}
 
-#ifdef M17N_SUPPORTED
-	ENCODING_SET( error, ENCODING_GET(self) );
-#endif
+	PG_ENCODING_SET_NOCHECK( error, ENCODING_GET(self) );
 
 	sqlstate = PQresultErrorField( this->pgresult, PG_DIAG_SQLSTATE );
 	klass = lookup_error_class( sqlstate );
@@ -320,7 +316,7 @@ static VALUE
 pgresult_res_status(VALUE self, VALUE status)
 {
 	VALUE ret = rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
-	ENCODING_SET(ret, ENCODING_GET(self));
+	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET(self));
 	return ret;
 }
 
@@ -334,7 +330,7 @@ static VALUE
 pgresult_error_message(VALUE self)
 {
 	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(pgresult_get(self)));
-	ENCODING_SET(ret, ENCODING_GET(self));
+	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET(self));
 	return ret;
 }
 
@@ -394,7 +390,7 @@ pgresult_error_field(VALUE self, VALUE field)
 
 	if ( fieldstr ) {
 		ret = rb_tainted_str_new2( fieldstr );
-		ENCODING_SET( ret, ENCODING_GET(self ));
+		PG_ENCODING_SET_NOCHECK( ret, ENCODING_GET(self ));
 	}
 
 	return ret;
@@ -442,7 +438,7 @@ pgresult_fname(VALUE self, VALUE index)
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
 	fname = rb_tainted_str_new2(PQfname(result, i));
-	ENCODING_SET(fname, ENCODING_GET(self));
+	PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
 	return fname;
 }
 
@@ -745,7 +741,7 @@ static VALUE
 pgresult_cmd_status(VALUE self)
 {
 	VALUE ret = rb_tainted_str_new2(PQcmdStatus(pgresult_get(self)));
-	ENCODING_SET(ret, ENCODING_GET(self));
+	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET(self));
 	return ret;
 }
 
@@ -812,7 +808,7 @@ pgresult_aref(VALUE self, VALUE index)
 	tuple = rb_hash_new();
 	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
 		fname = rb_tainted_str_new2( PQfname(result,field_num) );
-		ENCODING_SET(fname, ENCODING_GET(self));
+		PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
 		rb_hash_aset( tuple, fname, p_typemap->typecast_result_value(self, result, tuple_num, field_num, p_typemap) );
 	}
 	return tuple;
@@ -973,7 +969,7 @@ pgresult_fields(VALUE self)
 
 	for ( i = 0; i < n; i++ ) {
 		VALUE val = rb_tainted_str_new2(PQfname(result, i));
-		ENCODING_SET(val, ENCODING_GET(self));
+		PG_ENCODING_SET_NOCHECK(val, ENCODING_GET(self));
 		rb_ary_store( fields, i, val );
 	}
 

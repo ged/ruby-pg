@@ -34,8 +34,17 @@
 		extern int rb_enc_alias(const char *alias, const char *orig); /* declaration missing in Ruby 1.9.1 */
 #		define ENC_ALIAS(name, orig) rb_enc_alias((name), (orig))
 #	endif
+
+# define PG_ENCODING_SET_NOCHECK(obj,i) \
+	do { \
+		if ((i) < ENCODING_INLINE_MAX) \
+			ENCODING_SET_INLINED((obj), (i)); \
+		else \
+			rb_enc_set_index((obj), (i)); \
+	} while(0)
+
 #else
-#	define ASSOCIATE_INDEX( obj, index_holder ) /* nothing */
+#	define PG_ENCODING_SET_NOCHECK(obj,i) /* nothing */
 #endif
 
 #if RUBY_VM != 1
