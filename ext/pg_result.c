@@ -887,25 +887,14 @@ make_column_result_array( VALUE self, int col )
 	PGresult *result = pgresult_get( self );
 	int rows = PQntuples( result );
 	int i;
-	VALUE val = Qnil;
+	t_typemap *p_typemap = pgresult_get_typemap(self);
 	VALUE results = rb_ary_new2( rows );
 
 	if ( col >= PQnfields(result) )
 		rb_raise( rb_eIndexError, "no column %d in result", col );
 
 	for ( i=0; i < rows; i++ ) {
-		val = rb_tainted_str_new( PQgetvalue(result, i, col),
-		                          PQgetlength(result, i, col) );
-
-#ifdef M17N_SUPPORTED
-		/* associate client encoding for text format only */
-		if ( 0 == PQfformat(result, col) ) {
-			ASSOCIATE_INDEX( val, self );
-		} else {
-			rb_enc_associate( val, rb_ascii8bit_encoding() );
-		}
-#endif
-
+		VALUE val = p_typemap->typecast_result_value(self, result, i, col, p_typemap);
 		rb_ary_store( results, i, val );
 	}
 

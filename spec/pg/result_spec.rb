@@ -353,6 +353,8 @@ describe PG::Result do
 			expect( res[0] ).to eq( {'f' => 123 } )
 			expect( res.enum_for(:each_row).to_a ).to eq( [[123]] )
 			expect( res.enum_for(:each).to_a ).to eq( [{'f' => 123}] )
+			expect( res.column_values(0) ).to eq( [123] )
+			expect( res.field_values('f') ).to eq( [123] )
 		end
 
 		it "should be usable for several querys" do
