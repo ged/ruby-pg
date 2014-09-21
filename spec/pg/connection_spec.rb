@@ -1299,23 +1299,25 @@ describe PG::Connection do
 			}.to raise_error(PG::IndeterminateDatatype)
 		end
 
-		context "with default query type map" do
+		context "with query type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				@conn2.type_map_for_queries = PG::BasicTypeMapForQueries.new @conn2
+				tm = PG::TypeMapByMriType.new
+				tm['T_FIXNUM'] = PG::BinaryEncoder::Int8.new oid: 20, format: 1
+				@conn2.type_map_for_queries = tm
 			end
 			after :each do
 				@conn2.close
 			end
 
-			it "should respect a type mapping for params" do
+			it "should respect a type mapping for params and it's OID and format code" do
 				res = @conn2.exec_params( "SELECT $1", [5] )
 				expect( res.values ).to eq( [["5"]] )
 				expect( res.ftype(0) ).to eq( 20 )
 			end
 
 			it "should return the current type mapping" do
-				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::BasicTypeMapForQueries)
+				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::TypeMapByMriType)
 			end
 
 			it "should work with arbitrary number of params in conjunction with type casting" do
@@ -1334,10 +1336,12 @@ describe PG::Connection do
 			end
 		end
 
-		context "with default result type map" do
+		context "with result type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				@conn2.type_map_for_results = PG::BasicTypeMapForResults.new @conn2
+				tm = PG::TypeMapByOid.new
+				tm.add_coder PG::TextDecoder::Integer.new oid: 23, format: 0
+				@conn2.type_map_for_results = tm
 			end
 			after :each do
 				@conn2.close
@@ -1349,7 +1353,7 @@ describe PG::Connection do
 			end
 
 			it "should return the current type mapping" do
-				expect( @conn2.type_map_for_results ).to be_kind_of(PG::BasicTypeMapForResults)
+				expect( @conn2.type_map_for_results ).to be_kind_of(PG::TypeMapByOid)
 			end
 
 			it "should work with arbitrary number of params in conjunction with type casting" do

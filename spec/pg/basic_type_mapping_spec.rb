@@ -17,7 +17,7 @@ describe 'Basic type mapping' do
 		#
 
 		it "should do basic param encoding", :ruby_19 do
-			res = @conn.exec_params( "SELECT $1,$2,$3,$4::TEXT",
+			res = @conn.exec_params( "SELECT $1::int8,$2::float,$3,$4::TEXT",
 				[1, 2.1, true, "b"], nil, basic_type_mapping )
 
 			expect( res.values ).to eq( [

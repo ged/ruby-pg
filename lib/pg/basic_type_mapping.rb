@@ -282,8 +282,14 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByMriType
 	def populate_encoder_list
 		DEFAULT_TYPE_MAP.each do |mri_type, selector|
 			if Array === selector
-				format, name = selector
-				self[mri_type] = coder_by_name(format, :encoder, name)
+				format, name, oid_name = selector
+				coder = coder_by_name(format, :encoder, name).dup
+				if oid_name
+					coder.oid = coder_by_name(format, :encoder, oid_name).oid
+				else
+					coder.oid = 0
+				end
+				self[mri_type] = coder
 			else
 				self[mri_type] = selector
 			end
@@ -306,10 +312,12 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByMriType
 	end
 
 	DEFAULT_TYPE_MAP = {
-		'T_TRUE'.freeze => [1, 'bool'],
-		'T_FALSE'.freeze => [1, 'bool'],
-		'T_FIXNUM'.freeze => [1, 'int8'],
-		'T_BIGNUM'.freeze => [1, 'int8'],
+		'T_TRUE'.freeze => [1, 'bool', 'bool'],
+		'T_FALSE'.freeze => [1, 'bool', 'bool'],
+		# We use text format and no type OID for numbers, because setting the OID can lead
+		# to unnecessary type conversions on server side.
+		'T_FIXNUM'.freeze => [0, 'int8'],
+		'T_BIGNUM'.freeze => [0, 'int8'],
 		'T_FLOAT'.freeze => [0, 'float8'],
 		'T_ARRAY'.freeze => :get_array_type,
 	}
