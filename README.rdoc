@@ -66,58 +66,49 @@ want to chat about something.
 
 == Type Casts
 
-Pg can optionally type cast result and query parameters in Ruby or native
-C code. This can speed up data transfers to and from the database by
-avoiding String allocations for each value.
+Pg can optionally type cast result values and query parameters in Ruby or
+native C code. This can speed up data transfers to and from the database,
+because String allocations are reduced and conversions in (slower) Ruby code
+can be omitted.
 
-Basic type casting can be enabled by:
+Very basic type casting can be enabled by:
 
-    conn.type_mapping = PG::BasicTypeMapping.new conn
-    # this works for result value mapping:
+    conn.type_map_for_results = PG::BasicTypeMapForResults.new conn
+    # ... this works for result value mapping:
     conn.exec("select 1, now(), '{2,3}'::int[]").values
-        # => [[1, 2014-04-17 22:58:01 +0200, [2, 3]]]
-    # ... and for param value mapping:
-    conn.exec_params("SELECT $1::text, $2::text, $3::text", [1, Time.now, [2,3]]).values
-        # => [["1", "2014-04-17 22:58:47.101513+02", "{2,3}"]]
+        # => [[1, 2014-09-21 20:51:56 +0200, [2, 3]]]
 
-Pg's type casting is highly customizable. That's why it's divided into
-3 layers:
+    conn.type_map_for_queries = PG::BasicTypeMapForQueries.new conn
+    # ... and this for param value mapping:
+    conn.exec_params("SELECT $1::text, $2::text, $3::text", [1, 1.23, [2,3]]).values
+        # => [["1", "1.2300000000000000E+00", "{2,3}"]]
+
+But Pg's type casting is highly customizable. That's why it's divided into
+2 layers:
 
 === Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
 
-This is the lowest layer, containing encoding classes that convert Ruby
+This is the lower layer, containing encoding classes that convert Ruby
 objects for transmission to the DBMS and decoding classes to convert
 received data back to Ruby objects. The classes are namespaced according
 to their format and direction in PG::TextEncoder, PG::TextDecoder,
 PG::BinaryEncoder and PG::BinaryDecoder.
 
 It is possible to assign a type OID, format code (text or binary) and
-optionally a name to an encoder or decoder object. Inaddition for composite
-types it is possible to assign the encoder/decoder of it's elements.
-Coder objects can be used to convert single values to/from their string
-representation and to build PG::ColumnMapping objects.
+optionally a name to an encoder or decoder object. It's also possible
+to build composite types by assigning an element encoder/decoder.
+PG::Coder objects can be used to set up a PG::TypeMap or alternatively
+to convert single values to/from their string representation.
 
-=== PG::ColumnMapping (ext/pg_column_mapping.c)
+=== PG::TypeMap and derivations (ext/pg_type_map*.c, lib/pg/type_map*.rb)
 
-A ColumnMapping combines multiple types together, suitable to convert the
-input or result values of a given query. ColumnMappings are in particular
-useful in conjunction with prepared statements, since they can be cached
-alongside with the statement handle.
+A TypeMap defines which value will be converted by which encoder/decoder.
+There are different type map strategies, implemented by several derivations
+of this class. They can be chosen and configured according to the particular
+needs for type casting.
 
-=== PG::BasicTypeMapping (lib/pg/basic_type_mapping.rb)
-
-A type mapping defines the logic to select which Ruby type is converted to
-which text/binary representation and OID for query params and vice versa
-for result values.
-It builds a ColumnMapping out of a given set of query parameters or a given
-PG::Result object. PG itself defines BasicTypeMapping, that could be extended
-or replaced in order to define customized conversion rules.
-
-With Connection#type_mapping= a connection wide default type mapping can be
-set. A type mapping can also be used as alternative for parameters accepting
-PG::ColumnMapping. In both cases the a ColumnMapping is built on the fly,
-which is obviously somewhat slower than using a prepared or cached
-PG::ColumnMapping.
+A type map can be assigned per connection or per query respectively per
+result set.
 
 
 == Contributing
