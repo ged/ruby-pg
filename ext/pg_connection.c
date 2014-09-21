@@ -972,8 +972,6 @@ struct query_params_data {
 	int *lengths;
 	/* Pointer to the format codes (either within memory_pool or heap_pool) */
 	int *formats;
-	/* Pointer to the params converted to strings (either within memory_pool or heap_pool) */
-	VALUE *param_values;
 	/* Pointer to the coder objects used for the query (either within memory_pool or heap_pool) */
 	t_pg_coder **p_coders;
 	/* Pointer to the OID types (either within memory_pool or heap_pool) */
@@ -1026,6 +1024,7 @@ alloc_query_params1(VALUE _paramsData)
 	if( sizeof(paramsData->memory_pool) < required_pool_size ){
 		/* Allocate one combined memory pool for all possible function parameters */
 		paramsData->heap_pool = memory_pool = (char*)xmalloc( required_pool_size );
+		required_pool_size = 0;
 	}else{
 		/* Use stack memory for function parameters */
 		memory_pool = paramsData->memory_pool;
@@ -1035,8 +1034,7 @@ alloc_query_params1(VALUE _paramsData)
 	paramsData->lengths = (int *)((char*)paramsData->values + sizeof(char *) * nParams);
 	paramsData->formats = (int *)((char*)paramsData->lengths + sizeof(int) * nParams);
 	paramsData->types = (Oid *)((char*)paramsData->formats + sizeof(int) * nParams);
-	paramsData->param_values = (VALUE *)((char*)paramsData->types + (paramsData->with_types ? sizeof(Oid) : 0) * nParams);
-	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->param_values + sizeof(VALUE) * nParams);
+	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->types + (paramsData->with_types ? sizeof(Oid) : 0) * nParams);
 
 	{
 		char *typecast_buf = (char*)paramsData->p_coders + sizeof(t_pg_coder *) * nParams;
@@ -1066,15 +1064,12 @@ alloc_query_params1(VALUE _paramsData)
 
 					/* 1st pass for retiving the required memory space */
 					int len = conv->enc_func(conv, param_value, NULL, &intermediate);
-					/* text format strings must be zero terminated */
-					if( conv->format == 0 ) len++;
-					required_pool_size += len;
 
 					/* Is the stack memory big enough to take the type casted value? */
-					if( sizeof(paramsData->memory_pool) < required_pool_size ){
+					if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
 						/* Allocate a new memory chunk from heap */
 						struct linked_typecast_data *allocated =
-							(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len);
+							(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len + 1);
 
 						allocated->next = paramsData->typecast_heap_chain;
 						paramsData->typecast_heap_chain = allocated;
@@ -1088,9 +1083,11 @@ alloc_query_params1(VALUE _paramsData)
 						/* text format strings must be zero terminated and lengths are ignored */
 						typecast_buf[len] = 0;
 						typecast_buf += len + 1;
+						required_pool_size += len + 1;
 					} else {
 						paramsData->lengths[i] = len;
 						typecast_buf += len;
+						required_pool_size += len;
 					}
 
 					RB_GC_GUARD(intermediate);
@@ -1127,7 +1124,6 @@ alloc_query_params1(VALUE _paramsData)
 			}
 
 			paramsData->formats[i] = param_format;
-			paramsData->param_values[i] = param_value;
 		}
 	}
 
