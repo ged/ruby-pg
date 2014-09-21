@@ -44,7 +44,45 @@ pg_text_enc_integer(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 		if(TYPE(*intermediate) == T_STRING){
 			return pg_coder_enc_to_str(conv, value, out, intermediate);
 		}else{
-			return sprintf(out, "%lld", NUM2LL(*intermediate));
+			char *start = out;
+			int len;
+			int neg = 0;
+			long long ll = NUM2LL(*intermediate);
+
+			if (ll < 0) {
+				/* We don't expect problems with the most negative integer not being representable
+				 * as a positive integer, because Fixnum is only up to 63 bits.
+				 */
+				ll = -ll;
+				neg = 1;
+			}
+
+			/* Compute the result string backwards. */
+			do {
+				long long remainder;
+				long long oldval = ll;
+
+				ll /= 10;
+				remainder = oldval - ll * 10;
+				*out++ = '0' + remainder;
+			} while (ll != 0);
+
+			if (neg)
+				*out++ = '-';
+
+			len = out - start;
+
+			/* Reverse string. */
+			out--;
+			while (start < out)
+			{
+				char swap = *start;
+
+				*start++ = *out;
+				*out-- = swap;
+			}
+
+			return len;
 		}
 	}else{
 		*intermediate = pg_obj_to_i(value);

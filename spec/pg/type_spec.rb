@@ -61,6 +61,21 @@ describe "PG::Type derivations" do
 				expect( intdec_incrementer.decode("3") ).to eq( 4 )
 			end
 
+			it "should decode integers of different lengths form text format" do
+				30.times do |zeros|
+					expect( textdec_int.decode("1" + "0"*zeros) ).to eq( 10 ** zeros )
+					expect( textdec_int.decode(zeros==0 ? "0" : "9"*zeros) ).to eq( 10 ** zeros - 1 )
+					expect( textdec_int.decode("-1" + "0"*zeros) ).to eq( -10 ** zeros )
+					expect( textdec_int.decode(zeros==0 ? "0" : "-" + "9"*zeros) ).to eq( -10 ** zeros + 1 )
+				end
+				66.times do |bits|
+					expect( textdec_int.decode((2 ** bits).to_s) ).to eq( 2 ** bits )
+					expect( textdec_int.decode((2 ** bits - 1).to_s) ).to eq( 2 ** bits - 1 )
+					expect( textdec_int.decode((-2 ** bits).to_s) ).to eq( -2 ** bits )
+					expect( textdec_int.decode((-2 ** bits + 1).to_s) ).to eq( -2 ** bits + 1 )
+				end
+			end
+
 			it "should raise when decode method is called with wrong args" do
 				expect{ textdec_int.decode() }.to raise_error(ArgumentError)
 				expect{ textdec_int.decode("123", 2, 3, 4) }.to raise_error(ArgumentError)
@@ -89,11 +104,18 @@ describe "PG::Type derivations" do
 				expect( binaryenc_int8.encode("  123-xyz  ") ).to eq( [123].pack("q>") )
 			end
 
-			it "should encode integers of different length to text format" do
-				expect( textenc_int.encode(0) ).to eq( "0" )
+			it "should encode integers of different lengths to text format" do
 				30.times do |zeros|
 					expect( textenc_int.encode(10 ** zeros) ).to eq( "1" + "0"*zeros )
+					expect( textenc_int.encode(10 ** zeros - 1) ).to eq( zeros==0 ? "0" : "9"*zeros )
 					expect( textenc_int.encode(-10 ** zeros) ).to eq( "-1" + "0"*zeros )
+					expect( textenc_int.encode(-10 ** zeros + 1) ).to eq( zeros==0 ? "0" : "-" + "9"*zeros )
+				end
+				66.times do |bits|
+					expect( textenc_int.encode(2 ** bits) ).to eq( (2 ** bits).to_s )
+					expect( textenc_int.encode(2 ** bits - 1) ).to eq( (2 ** bits - 1).to_s )
+					expect( textenc_int.encode(-2 ** bits) ).to eq( (-2 ** bits).to_s )
+					expect( textenc_int.encode(-2 ** bits + 1) ).to eq( (-2 ** bits + 1).to_s )
 				end
 			end
 
