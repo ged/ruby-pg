@@ -966,7 +966,10 @@ struct query_params_data {
 	 */
 	char *heap_pool;
 
-	/* Pointer to the value strings (either within memory_pool or heap_pool) */
+	/* Pointer to the value string pointers (either within memory_pool or heap_pool).
+	 * The value strings itself are either directly within RString memory or,
+	 * in case of type casted values, within memory_pool or typecast_heap_chain.
+	 */
 	char **values;
 	/* Pointer to the param lengths (either within memory_pool or heap_pool) */
 	int *lengths;
@@ -1103,6 +1106,7 @@ alloc_query_params1(VALUE _paramsData)
 				param_type = conv->oid;
 				param_format = conv->format;
 			} else {
+				VALUE param_str_value;
 				if (TYPE(param_value) == T_HASH) {
 					VALUE format_value = rb_hash_aref(param_value, sym_format);
 					VALUE type_value = paramsData->with_types ? rb_hash_aref(param_value, sym_type) : Qnil;
@@ -1112,11 +1116,12 @@ alloc_query_params1(VALUE _paramsData)
 					param_value = rb_hash_aref(param_value, sym_value);
 				}
 
-				param_value = rb_obj_as_string(param_value);
-				/* make sure param_value doesn't get freed by the GC */
-				rb_ary_push(paramsData->gc_array, param_value);
-				paramsData->values[i] = RSTRING_PTR(param_value);
-				paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
+				param_str_value = rb_obj_as_string(param_value);
+				/* in case a new string object was generated, make sure it doesn't get freed by the GC */
+				if( param_str_value != param_value )
+					rb_ary_push(paramsData->gc_array, param_str_value);
+				paramsData->values[i] = RSTRING_PTR(param_str_value);
+				paramsData->lengths[i] = (int)RSTRING_LEN(param_str_value);
 			}
 
 			if( paramsData->with_types ){
