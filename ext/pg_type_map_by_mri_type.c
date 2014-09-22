@@ -2,6 +2,11 @@
  * pg_type_map_by_mri_type.c - PG::TypeMapByMriType class extension
  * $Id$
  *
+ * This type map can be used to select value encoders based on the MRI-internal
+ * value type code.
+ *
+ * This class is planned to get replaced by a PG::TypeMapByClass implementation.
+ *
  */
 
 #include "pg.h"
