@@ -7,62 +7,33 @@ require 'pg'
 
 
 describe PG::TypeMap do
+	let!(:tm){ PG::TypeMap.new }
 
-	class Exception_in_fit_to_result < PG::TypeMap
-		def fit_to_result(result)
-			raise "no mapping defined for result #{result.inspect}"
-		end
+	it "should respond to fit_to_query" do
+		expect{ tm.fit_to_query( [123] ) }.to raise_error(NotImplementedError, /not suitable to map query params/)
 	end
 
-	it "should raise an error from default oid type conversion" do
+	it "should respond to fit_to_result" do
 		res = @conn.exec( "SELECT 1" )
-		expect{
-			res.map_types!(Exception_in_fit_to_result.new)
-		}.to raise_error(/no mapping defined/)
+		expect{ tm.fit_to_result( res ) }.to raise_error(NotImplementedError, /not suitable to map result values/)
 	end
 
-	class WrongTypeMapBuilder < PG::TypeMap
-		def fit_to_result(result)
-			:invalid_value
-		end
+	it "should check params type" do
+		expect{ tm.fit_to_query( :invalid ) }.to raise_error(TypeError, /expected Array/)
 	end
 
-	it "should raise an error for non TypeMap results" do
-		res = @conn.exec( "SELECT 1" )
-		expect{
-			res.type_map = WrongTypeMapBuilder.new
-		}.to raise_error(TypeError, /wrong return type.*Symbol/)
-	end
-
-	it "should raise an error when not subclassed for result" do
-		res = @conn.exec( "SELECT 1" )
-		expect{ res.map_types!(PG::TypeMap.new) }.to raise_error(NoMethodError, /fit_to_result/)
-	end
-
-	it "should raise an error when not subclassed for query params" do
-		expect{
-			@conn.exec_params( "SELECT $1", [5], 0, PG::TypeMap.new )
-		}.to raise_error(NoMethodError, /fit_to_query/)
-	end
-
-	class TypeMapUsedForTypeCast < PG::TypeMap
-		def fit_to_result(result)
-			self
-		end
-		def fit_to_query(params)
-			self
-		end
+	it "should check result class" do
+		expect{ tm.fit_to_result( :invalid ) }.to raise_error(TypeError, /expected kind of PG::Result/)
 	end
 
 	it "should raise an error when used for param type casts" do
 		expect{
-			@conn.exec_params( "SELECT $1", [5], 0, TypeMapUsedForTypeCast.new )
+			@conn.exec_params( "SELECT $1", [5], 0, tm )
 		}.to raise_error(NotImplementedError, /not suitable to map query params/)
 	end
 
 	it "should raise an error when used for result type casts" do
 		res = @conn.exec( "SELECT 1" )
-		res.map_types!(TypeMapUsedForTypeCast.new)
-		expect{ res.values }.to raise_error(NotImplementedError, /not suitable to map result values/)
+		expect{ res.map_types!(tm) }.to raise_error(NotImplementedError, /not suitable to map result values/)
 	end
 end

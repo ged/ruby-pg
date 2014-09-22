@@ -58,6 +58,36 @@ pg_tmbo_lookup_oid(t_tmbo *this, int format, Oid oid)
 	return conv;
 }
 
+/* Build a TypeMapByColumn that fits to the given result */
+static VALUE
+pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
+{
+	t_tmbc *p_colmap;
+	int i;
+	VALUE colmap;
+	int nfields = PQnfields( pgresult );
+
+	p_colmap = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * nfields);
+	colmap = pg_tmbc_allocate();
+	DATA_PTR(colmap) = p_colmap;
+
+	for(i=0; i<nfields; i++)
+	{
+		int format = PQfformat(pgresult, i);
+
+		if( format < 0 || format > 1 )
+			rb_raise(rb_eArgError, "result field %d has unsupported format code %d", i+1, format);
+
+		p_colmap->convs[i].cconv = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, i) );
+	}
+
+	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
+	p_colmap->nfields = nfields;
+	p_colmap->typemap = pg_tmbc_default_typemap;
+
+	return colmap;
+}
+
 static VALUE
 pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typemap *p_typemap)
 {
@@ -99,53 +129,26 @@ pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typ
 }
 
 static VALUE
-pg_tmbo_fit_to_query( VALUE params, VALUE self )
+pg_tmbo_fit_to_query( VALUE self, VALUE params )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", RSTRING_PTR(rb_inspect(self)) );
 	return self;
 }
 
 static VALUE
-pg_tmbo_fit_to_result( VALUE result, VALUE self )
+pg_tmbo_fit_to_result( VALUE self, VALUE result )
 {
-	int nfields;
-	int i;
-	VALUE colmap;
 	t_tmbo *this = DATA_PTR( self );
 	PGresult *pgresult = pgresult_get( result );
 
-	nfields = PQnfields( pgresult );
-
 	if( PQntuples( pgresult ) <= this->max_rows_for_online_lookup ){
-		/* do a hash lookup for each result value in pg_tmbc_result_value() */
-
+		/* Do a hash lookup for each result value in pg_tmbc_result_value() */
 		return self;
 	}else{
-		/* Build a TypeMapByColumn that fits to the given result */
-		t_tmbc *p_colmap;
-
-		p_colmap = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * nfields);
-		colmap = pg_tmbc_allocate();
-		DATA_PTR(colmap) = p_colmap;
-
-		for(i=0; i<nfields; i++)
-		{
-			int format = PQfformat(pgresult, i);
-
-			if( format < 0 || format > 1 )
-				rb_raise(rb_eArgError, "result field %d has unsupported format code %d", i+1, format);
-
-			p_colmap->convs[i].cconv = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, i) );
-		}
-
-		/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
-		p_colmap->nfields = nfields;
-		p_colmap->typemap.fit_to_result = pg_tmbo_fit_to_result;
-		p_colmap->typemap.fit_to_query = pg_tmbo_fit_to_query;
-		p_colmap->typemap.typecast_result_value = pg_tmbc_result_value;
-		p_colmap->typemap.typecast_query_param = pg_tmbo_typecast_query_param;
-
-		return colmap;
+		/* Build a new TypeMapByColumn that fits to the given result and
+		 * uses a fast array lookup.
+		 */
+		return pg_tmbo_build_type_map_for_result2( this, pgresult );
 	}
 }
 
@@ -256,6 +259,40 @@ pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
 	return INT2NUM(this->max_rows_for_online_lookup);
 }
 
+/* This is an extended version of PG::TypeMap#fit_to_result that
+ * allows explicit selection of online lookup or building of a new
+ * PG::TypeMapByColumn.
+ */
+static VALUE
+pg_tmbo_fit_to_result_ext( int argc, VALUE *argv, VALUE self )
+{
+	t_tmbo *this = DATA_PTR( self );
+	VALUE result;
+	VALUE online_lookup;
+
+	rb_scan_args(argc, argv, "11", &result, &online_lookup);
+
+	if ( !rb_obj_is_kind_of(result, rb_cPGresult) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Result)",
+				rb_obj_classname( result ) );
+	}
+
+	if( NIL_P( online_lookup ) ){
+		/* call super */
+		return this->typemap.fit_to_result(self, result);
+	} else if( RB_TYPE_P( online_lookup, T_TRUE ) ){
+		return self;
+	} else if( RB_TYPE_P( online_lookup, T_FALSE ) ){
+		PGresult *pgresult = pgresult_get( result );
+
+		return pg_tmbo_build_type_map_for_result2( this, pgresult );
+	} else {
+		rb_raise( rb_eArgError, "argument online_lookup %s should be true, false or nil instead",
+				rb_obj_classname( result ) );
+	}
+}
+
+
 void
 init_pg_type_map_by_oid()
 {
@@ -268,4 +305,5 @@ init_pg_type_map_by_oid()
 	rb_define_method( rb_cTypeMapByOid, "coders", pg_tmbo_coders, 0 );
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup=", pg_tmbo_max_rows_for_online_lookup_set, 1 );
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup", pg_tmbo_max_rows_for_online_lookup_get, 0 );
+	rb_define_method( rb_cTypeMapByOid, "fit_to_result", pg_tmbo_fit_to_result_ext, -1 );
 }

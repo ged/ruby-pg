@@ -94,13 +94,13 @@ pg_tmbmt_result_value(VALUE self, PGresult *result, int tuple, int field, t_type
 }
 
 static VALUE
-pg_tmbmt_fit_to_query( VALUE params, VALUE self )
+pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 {
 	return self;
 }
 
 static VALUE
-pg_tmbmt_fit_to_result( VALUE result, VALUE self )
+pg_tmbmt_fit_to_result( VALUE self, VALUE result )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", RSTRING_PTR(rb_inspect(self)) );
 	return self;

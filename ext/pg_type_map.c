@@ -11,46 +11,30 @@ static ID s_id_fit_to_query;
 static ID s_id_fit_to_result;
 
 static VALUE
-pg_typemap_fit_to_result( VALUE result, VALUE self )
+pg_typemap_fit_to_result( VALUE self, VALUE result )
 {
-	VALUE new_typemap;
-	new_typemap = rb_funcall( self, s_id_fit_to_result, 1, result );
-
-	if ( !rb_obj_is_kind_of(new_typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong return type from fit_to_result: %s expected kind of PG::TypeMap",
-				rb_obj_classname( new_typemap ) );
-	}
-	Check_Type( new_typemap, T_DATA );
-
-	return new_typemap;
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", rb_obj_classname(self) );
+	return Qnil;
 }
 
 static VALUE
-pg_typemap_fit_to_query( VALUE params, VALUE self )
+pg_typemap_fit_to_query( VALUE self, VALUE params )
 {
-	VALUE new_typemap;
-	new_typemap = rb_funcall( self, s_id_fit_to_query, 1, params );
-
-	if ( !rb_obj_is_kind_of(new_typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong return type from fit_to_query: %s expected kind of PG::TypeMap",
-				rb_obj_classname( new_typemap ) );
-	}
-	Check_Type( new_typemap, T_DATA );
-
-	return new_typemap;
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
+	return Qnil;
 }
 
 static VALUE
 pg_typemap_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
 {
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", RSTRING_PTR(rb_inspect(self)) );
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", rb_obj_classname(self) );
 	return Qnil;
 }
 
 static t_pg_coder *
 pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", RSTRING_PTR(rb_inspect(self)) );
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
 	return NULL;
 }
 
@@ -69,6 +53,29 @@ pg_typemap_s_allocate( VALUE klass )
 	return self;
 }
 
+static VALUE
+pg_typemap_fit_to_result_ext( VALUE self, VALUE result )
+{
+	t_typemap *this = DATA_PTR( self );
+
+	if ( !rb_obj_is_kind_of(result, rb_cPGresult) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Result)",
+				rb_obj_classname( result ) );
+	}
+
+	return this->fit_to_result( self, result );
+}
+
+static VALUE
+pg_typemap_fit_to_query_ext( VALUE self, VALUE params )
+{
+	t_typemap *this = DATA_PTR( self );
+
+	Check_Type( params, T_ARRAY);
+
+	return this->fit_to_query( self, params );
+}
+
 void
 init_pg_type_map()
 {
@@ -77,4 +84,6 @@ init_pg_type_map()
 
 	rb_cTypeMap = rb_define_class_under( rb_mPG, "TypeMap", rb_cObject );
 	rb_define_alloc_func( rb_cTypeMap, pg_typemap_s_allocate );
+	rb_define_method( rb_cTypeMap, "fit_to_result", pg_typemap_fit_to_result_ext, 1 );
+	rb_define_method( rb_cTypeMap, "fit_to_query", pg_typemap_fit_to_query_ext, 1 );
 }

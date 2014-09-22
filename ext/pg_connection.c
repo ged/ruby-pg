@@ -975,10 +975,10 @@ struct query_params_data {
 	int *lengths;
 	/* Pointer to the format codes (either within memory_pool or heap_pool) */
 	int *formats;
-	/* Pointer to the coder objects used for the query (either within memory_pool or heap_pool) */
-	t_pg_coder **p_coders;
 	/* Pointer to the OID types (either within memory_pool or heap_pool) */
 	Oid *types;
+	/* Pointer to the coder objects used for the query (either within memory_pool or heap_pool) */
+	t_pg_coder **p_coders;
 
 	/* This array takes the string values for the timeframe of the query,
 	 * if param value convertion is required
@@ -1166,7 +1166,7 @@ alloc_query_params(struct query_params_data *paramsData)
 		paramsData->typemap = 0;
 	} else {
 		t_typemap *p_typemap = DATA_PTR( paramsData->typemap );
-		paramsData->typemap = p_typemap->fit_to_query( paramsData->params, paramsData->typemap );
+		paramsData->typemap = p_typemap->fit_to_query( paramsData->typemap, paramsData->params );
 	}
 
 	paramsData->heap_pool = NULL;

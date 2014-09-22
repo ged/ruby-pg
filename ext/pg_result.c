@@ -59,7 +59,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 			/* Type check is done when assigned to PG::Connection. */
 			p_typemap = DATA_PTR(typemap);
 
-			typemap = p_typemap->fit_to_result( self, typemap );
+			typemap = p_typemap->fit_to_result( typemap, self );
 			p_typemap = DATA_PTR( typemap );
 		}
 
@@ -1001,7 +1001,7 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 		}
 		Data_Get_Struct(typemap, t_typemap, p_typemap);
 
-		typemap = p_typemap->fit_to_result( self, typemap );
+		typemap = p_typemap->fit_to_result( typemap, self );
 		p_typemap = DATA_PTR( typemap );
 	}
 

@@ -190,7 +190,7 @@ extern VALUE rb_cPG_SimpleEncoder;
 extern VALUE rb_cPG_SimpleDecoder;
 extern VALUE rb_cPG_CompositeEncoder;
 extern VALUE rb_cPG_CompositeDecoder;
-
+extern const t_typemap pg_tmbc_default_typemap;
 
 /***************************************************************************
  * MACROS
@@ -223,7 +223,6 @@ VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, 
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
 VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
-VALUE pg_tmbc_result_value                             _(( VALUE, PGresult *, int, int, t_typemap * ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));

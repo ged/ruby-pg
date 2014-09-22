@@ -11,31 +11,31 @@ static ID s_id_decode;
 static ID s_id_encode;
 
 static VALUE
-pg_tmbc_fit_to_result( VALUE result, VALUE typemap )
+pg_tmbc_fit_to_result( VALUE self, VALUE result )
 {
 	int nfields;
-	t_tmbc *this = DATA_PTR( typemap );
+	t_tmbc *this = DATA_PTR( self );
 
 	nfields = PQnfields( pgresult_get(result) );
 	if ( this->nfields != nfields ) {
 		rb_raise( rb_eArgError, "number of result fields (%d) does not match number of mapped columns (%d)",
 				nfields, this->nfields );
 	}
-	return typemap;
+	return self;
 }
 
 static VALUE
-pg_tmbc_fit_to_query( VALUE params, VALUE typemap )
+pg_tmbc_fit_to_query( VALUE self, VALUE params )
 {
 	int nfields;
-	t_tmbc *this = DATA_PTR( typemap );
+	t_tmbc *this = DATA_PTR( self );
 
 	nfields = (int)RARRAY_LEN( params );
 	if ( this->nfields != nfields ) {
 		rb_raise( rb_eArgError, "number of result fields (%d) does not match number of mapped columns (%d)",
 				nfields, this->nfields );
 	}
-	return typemap;
+	return self;
 }
 
 
@@ -84,6 +84,13 @@ pg_tmbc_typecast_query_param(VALUE self, VALUE param_value, int field)
 	return this->convs[field].cconv;
 }
 
+const t_typemap pg_tmbc_default_typemap = {
+	fit_to_result: pg_tmbc_fit_to_result,
+	fit_to_query: pg_tmbc_fit_to_query,
+	typecast_result_value: pg_tmbc_result_value,
+	typecast_query_param: pg_tmbc_typecast_query_param
+};
+
 static void
 pg_tmbc_mark( t_tmbc *this )
 {
@@ -126,10 +133,7 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 
 	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
 	this->nfields = conv_ary_len;
-	this->typemap.fit_to_result = pg_tmbc_fit_to_result;
-	this->typemap.fit_to_query = pg_tmbc_fit_to_query;
-	this->typemap.typecast_result_value = pg_tmbc_result_value;
-	this->typemap.typecast_query_param = pg_tmbc_typecast_query_param;
+	this->typemap = pg_tmbc_default_typemap;
 
 	for(i=0; i<conv_ary_len; i++)
 	{
