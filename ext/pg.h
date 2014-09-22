@@ -35,13 +35,21 @@
 #		define ENC_ALIAS(name, orig) rb_enc_alias((name), (orig))
 #	endif
 
-# define PG_ENCODING_SET_NOCHECK(obj,i) \
+
+# ifdef RUBINIUS
+#  define PG_ENCODING_SET_NOCHECK(obj,i) \
+	do { \
+		rb_enc_set_index((obj), (i)); \
+	} while(0)
+# else
+#  define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
 		if ((i) < ENCODING_INLINE_MAX) \
 			ENCODING_SET_INLINED((obj), (i)); \
 		else \
 			rb_enc_set_index((obj), (i)); \
 	} while(0)
+# endif
 
 #else
 #	define PG_ENCODING_SET_NOCHECK(obj,i) /* nothing */
@@ -72,6 +80,11 @@
 #	include "rubyio.h"
 #else
 #	include "ruby/io.h"
+#endif
+
+#ifdef RUBINIUS
+	/* Workaround for wrong FIXNUM_MAX definition */
+	typedef intptr_t native_int;
 #endif
 
 #ifndef timeradd
