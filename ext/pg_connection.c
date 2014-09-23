@@ -1068,7 +1068,7 @@ alloc_query_params1(VALUE _paramsData)
 					/* 1st pass for retiving the required memory space */
 					int len = conv->enc_func(conv, param_value, NULL, &intermediate);
 
-					/* Is the stack memory big enough to take the type casted value? */
+					/* Is the stack memory pool too small to take the type casted value? */
 					if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
 						/* Allocate a new memory chunk from heap */
 						struct linked_typecast_data *allocated =
@@ -3593,6 +3593,104 @@ pgconn_type_map_for_results_get(VALUE self)
 }
 
 
+/*
+ * call-seq:
+ *    res.encoder_for_put_copy_data = encoder
+ *
+ * Set the Coder that is used for type casting of parameters
+ * to #put_copy_data .
+ *
+ * +encoder+ can be:
+ * * a kind of PG::CopyEncoder
+ * * +nil+ - disable type encoding, data must be a String.
+ *
+ */
+static VALUE
+pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cPG_CopyEncoder) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::CopyEncoder)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	this->type_map_for_results = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.encoder_for_put_copy_data -> PG::CopyEncoder
+ *
+ * Returns the CopyEncoder that is currently set for type casting of parameters
+ * to #put_copy_data .
+ *
+ * Returns either:
+ * * a kind of PG::CopyEncoder
+ * * +nil+ - type encoding is disabled, returned data will be a String.
+ *
+ */
+static VALUE
+pgconn_encoder_for_put_copy_data_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	return this->encoder_for_put_copy_data;
+}
+
+/*
+ * call-seq:
+ *    res.decoder_for_get_copy_data = decoder
+ *
+ * Set the Coder that is used for type casting of received data
+ * by #get_copy_data .
+ *
+ * +decoder+ can be:
+ * * a kind of PG::CopyDecoder
+ * * +nil+ - disable type decoding, returned data will be a String.
+ *
+ */
+static VALUE
+pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cPG_CopyDecoder) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::CopyDecoder)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	this->type_map_for_results = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.decoder_for_get_copy_data -> PG::CopyDecoder
+ *
+ * Returns the CopyDecoder that is currently set for type casting of received
+ * data by #get_copy_data .
+ *
+ * Returns either:
+ * * a kind of PG::CopyDecoder
+ * * +nil+ - type encoding is disabled, returned data will be a String.
+ *
+ */
+static VALUE
+pgconn_decoder_for_get_copy_data_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	return this->decoder_for_get_copy_data;
+}
+
 
 void
 init_pg_connection()
@@ -3769,5 +3867,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "type_map_for_queries", pgconn_type_map_for_queries_get, 0);
 	rb_define_method(rb_cPGconn, "type_map_for_results=", pgconn_type_map_for_results_set, 1);
 	rb_define_method(rb_cPGconn, "type_map_for_results", pgconn_type_map_for_results_get, 0);
+	rb_define_method(rb_cPGconn, "encoder_for_put_copy_data=", pgconn_encoder_for_put_copy_data_set, 1);
+	rb_define_method(rb_cPGconn, "encoder_for_put_copy_data", pgconn_encoder_for_put_copy_data_get, 0);
+	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data=", pgconn_decoder_for_get_copy_data_set, 1);
+	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data", pgconn_decoder_for_get_copy_data_get, 0);
 }
 

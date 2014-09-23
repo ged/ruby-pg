@@ -37,11 +37,11 @@ pg_coder_allocate( VALUE klass )
  *
  */
 
-static VALUE
-pg_simple_encoder_allocate( VALUE klass )
+void
+pg_coder_init_encoder( VALUE self )
 {
-	t_pg_coder *sval;
-	VALUE self = Data_Make_Struct( klass, t_pg_coder, NULL, -1, sval );
+	t_pg_coder *sval = DATA_PTR( self );
+	VALUE klass = rb_class_of(self);
 	if( rb_const_defined( klass, s_id_CFUNC ) ){
 		VALUE cfunc = rb_const_get( klass, s_id_CFUNC );
 		sval->enc_func = DATA_PTR(cfunc);
@@ -53,37 +53,13 @@ pg_simple_encoder_allocate( VALUE klass )
 	sval->oid = 0;
 	sval->format = 0;
 	rb_iv_set( self, "@name", Qnil );
-	return self;
 }
 
-static VALUE
-pg_composite_encoder_allocate( VALUE klass )
+void
+pg_coder_init_decoder( VALUE self )
 {
-	t_pg_composite_coder *sval;
-	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, NULL, -1, sval );
-	if( rb_const_defined( klass, s_id_CFUNC ) ){
-		VALUE cfunc = rb_const_get( klass, s_id_CFUNC );
-		sval->comp.enc_func = DATA_PTR(cfunc);
-	} else {
-		sval->comp.enc_func = NULL;
-	}
-	sval->comp.dec_func = NULL;
-	sval->comp.coder_obj = self;
-	sval->comp.oid = 0;
-	sval->comp.format = 0;
-	sval->elem = NULL;
-	sval->needs_quotation = 1;
-	sval->delimiter = ',';
-	rb_iv_set( self, "@name", Qnil );
-	rb_iv_set( self, "@elements_type", Qnil );
-	return self;
-}
-
-static VALUE
-pg_simple_decoder_allocate( VALUE klass )
-{
-	t_pg_coder *sval;
-	VALUE self = Data_Make_Struct( klass, t_pg_coder, NULL, -1, sval );
+	t_pg_coder *sval = DATA_PTR( self );
+	VALUE klass = rb_class_of(self);
 	sval->enc_func = NULL;
 	if( rb_const_defined( klass, s_id_CFUNC ) ){
 		VALUE cfunc = rb_const_get( klass, s_id_CFUNC );
@@ -95,6 +71,36 @@ pg_simple_decoder_allocate( VALUE klass )
 	sval->oid = 0;
 	sval->format = 0;
 	rb_iv_set( self, "@name", Qnil );
+}
+
+static VALUE
+pg_simple_encoder_allocate( VALUE klass )
+{
+	t_pg_coder *sval;
+	VALUE self = Data_Make_Struct( klass, t_pg_coder, NULL, -1, sval );
+	pg_coder_init_encoder( self );
+	return self;
+}
+
+static VALUE
+pg_composite_encoder_allocate( VALUE klass )
+{
+	t_pg_composite_coder *sval;
+	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, NULL, -1, sval );
+	pg_coder_init_encoder( self );
+	sval->elem = NULL;
+	sval->needs_quotation = 1;
+	sval->delimiter = ',';
+	rb_iv_set( self, "@elements_type", Qnil );
+	return self;
+}
+
+static VALUE
+pg_simple_decoder_allocate( VALUE klass )
+{
+	t_pg_coder *sval;
+	VALUE self = Data_Make_Struct( klass, t_pg_coder, NULL, -1, sval );
+	pg_coder_init_decoder( self );
 	return self;
 }
 
@@ -103,20 +109,10 @@ pg_composite_decoder_allocate( VALUE klass )
 {
 	t_pg_composite_coder *sval;
 	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, NULL, -1, sval );
-	sval->comp.enc_func = NULL;
-	if( rb_const_defined( klass, s_id_CFUNC ) ){
-		VALUE cfunc = rb_const_get( klass, s_id_CFUNC );
-		sval->comp.dec_func = DATA_PTR(cfunc);
-	} else {
-		sval->comp.dec_func = NULL;
-	}
-	sval->comp.coder_obj = self;
-	sval->comp.oid = 0;
-	sval->comp.format = 0;
+	pg_coder_init_decoder( self );
 	sval->elem = NULL;
 	sval->needs_quotation = 1;
 	sval->delimiter = ',';
-	rb_iv_set( self, "@name", Qnil );
 	rb_iv_set( self, "@elements_type", Qnil );
 	return self;
 }

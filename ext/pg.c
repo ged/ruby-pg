@@ -531,5 +531,6 @@ Init_pg_ext()
 	init_pg_text_decoder();
 	init_pg_binary_encoder();
 	init_pg_binary_decoder();
+	init_pg_copycoder();
 }
 

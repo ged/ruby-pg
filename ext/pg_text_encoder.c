@@ -246,7 +246,7 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *out, VALUE *inte
 	}
 }
 
-static int
+int
 pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if( out ){
@@ -385,6 +385,7 @@ pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *inte
 {
 	return quote_string(conv, value, out, intermediate, '\'');
 }
+
 
 void
 init_pg_text_encoder()
