@@ -129,11 +129,10 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	Check_Type(conv_ary, T_ARRAY);
 	conv_ary_len = RARRAY_LEN(conv_ary);
 	this = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * conv_ary_len);
-	DATA_PTR(self) = this;
-
-	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
-	this->nfields = conv_ary_len;
+	/* Set nfields to 0 at first, so that GC mark function doesn't access uninitialized memory. */
+	this->nfields = 0;
 	this->typemap = pg_tmbc_default_typemap;
+	DATA_PTR(self) = this;
 
 	for(i=0; i<conv_ary_len; i++)
 	{
@@ -149,6 +148,8 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 							 i+1, rb_obj_classname( obj ));
 		}
 	}
+
+	this->nfields = conv_ary_len;
 
 	return self;
 }

@@ -68,6 +68,10 @@ pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
 	int nfields = PQnfields( pgresult );
 
 	p_colmap = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * nfields);
+	/* Set nfields to 0 at first, so that GC mark function doesn't access uninitialized memory. */
+	p_colmap->nfields = 0;
+	p_colmap->typemap = pg_tmbc_default_typemap;
+
 	colmap = pg_tmbc_allocate();
 	DATA_PTR(colmap) = p_colmap;
 
@@ -81,9 +85,7 @@ pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
 		p_colmap->convs[i].cconv = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, i) );
 	}
 
-	/* encoding_index is set, when the TypeMapByColumn is assigned to a PG::Result. */
 	p_colmap->nfields = nfields;
-	p_colmap->typemap = pg_tmbc_default_typemap;
 
 	return colmap;
 }
