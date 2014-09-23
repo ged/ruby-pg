@@ -10,9 +10,6 @@
 
 VALUE rb_mPG_BinaryEncoder;
 
-/* encoders usable for both text and binary formats */
-extern int pg_coder_enc_to_str(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate);
-
 
 static int
 pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)

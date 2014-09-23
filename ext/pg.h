@@ -190,6 +190,13 @@ extern VALUE rb_cPG_SimpleEncoder;
 extern VALUE rb_cPG_SimpleDecoder;
 extern VALUE rb_cPG_CompositeEncoder;
 extern VALUE rb_cPG_CompositeDecoder;
+extern VALUE rb_cPG_CopyCoder;
+extern VALUE rb_cPG_CopyEncoder;
+extern VALUE rb_cPG_CopyDecoder;
+extern VALUE rb_mPG_TextEncoder;
+extern VALUE rb_mPG_TextDecoder;
+extern VALUE rb_mPG_BinaryEncoder;
+extern VALUE rb_mPG_BinaryDecoder;
 extern const t_typemap pg_tmbc_default_typemap;
 
 /***************************************************************************
@@ -213,6 +220,7 @@ void init_pg_type_map_by_column                        _(( void ));
 void init_pg_type_map_by_mri_type                      _(( void ));
 void init_pg_type_map_by_oid                           _(( void ));
 void init_pg_coder                                     _(( void ));
+void init_pg_copycoder                                 _(( void ));
 void init_pg_text_encoder                              _(( void ));
 void init_pg_text_decoder                              _(( void ));
 void init_pg_binary_encoder                            _(( void ));
@@ -220,9 +228,13 @@ void init_pg_binary_decoder                            _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
+int pg_coder_enc_to_str                                _(( t_pg_coder*, VALUE, char *, VALUE *));
+int pg_text_enc_in_ruby                                _(( t_pg_coder*, VALUE, char *, VALUE *));
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
 VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
+void pg_coder_init_encoder                             _(( VALUE ));
+void pg_coder_init_decoder                             _(( VALUE ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));

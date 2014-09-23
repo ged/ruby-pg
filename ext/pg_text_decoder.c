@@ -320,4 +320,6 @@ init_pg_text_decoder()
 
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
+
+// 	pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
 }

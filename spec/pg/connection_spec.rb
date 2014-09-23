@@ -1299,12 +1299,15 @@ describe PG::Connection do
 			}.to raise_error(PG::IndeterminateDatatype)
 		end
 
-		context "with query type map" do
+		context "with default query type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
 				tm = PG::TypeMapByMriType.new
 				tm['T_FIXNUM'] = PG::BinaryEncoder::Int8.new oid: 20, format: 1
 				@conn2.type_map_for_queries = tm
+
+				row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
+				@conn2.encoder_for_put_copy_data = row_encoder
 			end
 			after :each do
 				@conn2.close
@@ -1334,14 +1337,28 @@ describe PG::Connection do
 					# Stop silently as soon the server complains about too many params
 				end
 			end
+
+			it "can process #copy_data input queries with row encoder" do
+				@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+				res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+					@conn.put_copy_data [1]
+					@conn.put_copy_data [2]
+				end
+
+				res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
+				expect( res.values ).to eq( [["1"], ["2"]] )
+			end
 		end
 
-		context "with result type map" do
+		context "with default result type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
 				tm = PG::TypeMapByOid.new
 				tm.add_coder PG::TextDecoder::Integer.new oid: 23, format: 0
 				@conn2.type_map_for_results = tm
+
+				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
+				@conn2.decoder_for_get_copy_data = row_decoder
 			end
 			after :each do
 				@conn2.close
@@ -1369,6 +1386,16 @@ describe PG::Connection do
 				rescue PG::ProgramLimitExceeded
 					# Stop silently as soon the server complains about too many params
 				end
+			end
+
+			it "can process #copy_data output queries with row decoder" do
+				rows = []
+				res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+					while row=@conn.get_copy_data
+						rows << row
+					end
+				end
+				expect( rows ).to eq( [[1], [2]] )
 			end
 		end
 	end
