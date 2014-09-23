@@ -126,6 +126,10 @@ typedef struct {
 	VALUE trace_stream;
 	/* Cached Encoding object */
 	VALUE external_encoding;
+	/* Kind of PG::Coder object for casting ruby values to COPY rows */
+	VALUE encoder_for_put_copy_data;
+	/* Kind of PG::Coder object for casting COPY rows to ruby values */
+	VALUE decoder_for_get_copy_data;
 
 } t_pg_connection;
 
