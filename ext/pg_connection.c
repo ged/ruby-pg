@@ -1068,7 +1068,7 @@ alloc_query_params1(VALUE _paramsData)
 					/* 1st pass for retiving the required memory space */
 					int len = conv->enc_func(conv, param_value, NULL, &intermediate);
 
-					/* Is the stack memory big enough to take the type casted value? */
+					/* Is the stack memory pool too small to take the type casted value? */
 					if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
 						/* Allocate a new memory chunk from heap */
 						struct linked_typecast_data *allocated =
