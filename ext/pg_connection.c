@@ -3617,7 +3617,7 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
 		}
 		Check_Type(typemap, T_DATA);
 	}
-	this->type_map_for_results = typemap;
+	this->encoder_for_put_copy_data = typemap;
 
 	return typemap;
 }
@@ -3666,7 +3666,7 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE typemap)
 		}
 		Check_Type(typemap, T_DATA);
 	}
-	this->type_map_for_results = typemap;
+	this->decoder_for_get_copy_data = typemap;
 
 	return typemap;
 }
