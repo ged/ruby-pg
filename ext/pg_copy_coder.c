@@ -107,6 +107,17 @@ copy_elem_func(t_pg_coder *elem_coder)
 	}
 }
 
+static char *
+ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+{
+	long curr_len = end_ptr - RSTRING_PTR(str);
+	long curr_capa = rb_str_capacity( str );
+	if( curr_capa < curr_len + expand_len ){
+		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
+		return RSTRING_PTR(str) + curr_len;
+	}
+	return end_ptr;
+}
 
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
@@ -114,10 +125,10 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 	t_pg_coder_enc_func enc_func;
 	VALUE typemap;
-	VALUE elem_coder;
 	static t_pg_coder *p_elem_coder;
 	int i;
 	t_typemap *p_typemap;
+	char *current_out;
 
 	if( NIL_P(this->typemap) ){
 		rb_raise( rb_eTypeError, "no type_map defined" );
@@ -127,32 +138,56 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 		p_typemap = DATA_PTR( typemap );
 	}
 
-	if(out){
-		char *current_out = out;
-		int interm_pos = 0;
+	*intermediate = rb_str_new(NULL, 0);
+	current_out = RSTRING_PTR(*intermediate);
 
-		for( i=0; i<RARRAY_LEN(value); i++){
-			char *ptr1;
-			char *ptr2;
-			int strlen;
-			int backslashs;
-			VALUE subint;
-			VALUE entry;
+	for( i=0; i<RARRAY_LEN(value); i++){
+		char *ptr1;
+		char *ptr2;
+		int strlen;
+		int backslashs;
+		VALUE subint;
+		VALUE entry;
 
-			entry = rb_ary_entry(value, i);
+		entry = rb_ary_entry(value, i);
 
-			if( i > 0 ) *current_out++ = this->delimiter;
-			switch(TYPE(entry)){
-				case T_NIL:
-					*current_out++ = '\\';
-					*current_out++ = 'N';
-					break;
-				default:
-					elem_coder = rb_ary_entry(*intermediate, interm_pos++);
-					p_elem_coder = NIL_P(elem_coder) ? NULL : DATA_PTR(elem_coder);
-					subint = rb_ary_entry(*intermediate, interm_pos++);
+		if( i > 0 ){
+			current_out = ensure_str_capa( *intermediate, 1, current_out );
+			*current_out++ = this->delimiter;
+		}
 
-					enc_func = copy_elem_func(p_elem_coder);
+		switch(TYPE(entry)){
+			case T_NIL:
+				current_out = ensure_str_capa( *intermediate, 2, current_out );
+				*current_out++ = '\\';
+				*current_out++ = 'N';
+				break;
+			default:
+				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
+				enc_func = copy_elem_func(p_elem_coder);
+
+				/* 1st pass for retiving the required memory space */
+				strlen = enc_func(p_elem_coder, entry, NULL, &subint);
+
+				if( strlen == -1 ){
+					/* we can directly use String value in subint */
+					strlen = RSTRING_LEN(subint);
+
+					/* size of string assuming the worst case, that every character must be escaped. */
+					current_out = ensure_str_capa( *intermediate, strlen * 2, current_out );
+
+					/* Copy string from subint with backslash escaping */
+					for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
+						/* Escape backslash itself, newline, carriage return, and the current delimiter character. */
+						if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
+							*current_out++ = '\\';
+						}
+						*current_out++ = *ptr1;
+					}
+				} else {
+					/* 2nd pass for writing the data to prepared buffer */
+					/* size of string assuming the worst case, that every character must be escaped. */
+					current_out = ensure_str_capa( *intermediate, strlen * 2, current_out );
 
 					/* Place the unescaped string at current output position. */
 					strlen = enc_func(p_elem_coder, entry, current_out, &subint);
@@ -180,44 +215,15 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 							*--ptr2 = '\\';
 						}
 					}
-			}
+				}
 		}
-		*current_out++ = '\n';
-		return current_out - out;
-
-	} else {
-		int sumlen = 0;
-		int nr_elems;
-		Check_Type(value, T_ARRAY);
-		nr_elems = RARRAY_LEN(value);
-
-		*intermediate = rb_ary_new2(nr_elems * 2);
-
-		for( i=0; i<nr_elems; i++){
-			VALUE subint;
-			VALUE entry = rb_ary_entry(value, i);
-			switch(TYPE(entry)){
-				case T_NIL:
-					/* size of "\N" */
-					sumlen += 2;
-					subint = Qnil;
-					break;
-				default:
-
-					p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
-					enc_func = copy_elem_func(p_elem_coder);
-
-					/* size of string assuming the worst case, that every character must be escaped. */
-					sumlen += 2 * enc_func(p_elem_coder, entry, NULL, &subint);
-
-					rb_ary_push(*intermediate, p_elem_coder ? p_elem_coder->coder_obj : Qnil);
-					rb_ary_push(*intermediate, subint);
-			}
-		}
-
-		/* size of content plus n-1 times "\t" plus "\n" */
-		return sumlen + (nr_elems>0 ? nr_elems-1 : 0) + 1;
 	}
+	current_out = ensure_str_capa( *intermediate, 1, current_out );
+	*current_out++ = '\n';
+
+	rb_str_set_len( *intermediate, current_out - RSTRING_PTR(*intermediate) );
+
+	return -1;
 }
 
 

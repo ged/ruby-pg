@@ -120,23 +120,32 @@ pg_composite_decoder_allocate( VALUE klass )
 static VALUE
 pg_coder_encode(VALUE self, VALUE value)
 {
-	VALUE res = rb_str_new_cstr("");
+	VALUE res;
 	VALUE intermediate;
 	int len, len2;
 	t_pg_coder *type_data = DATA_PTR(self);
 
-	if( type_data->enc_func ){
-		len = type_data->enc_func( type_data, value, NULL, &intermediate );
-		res = rb_str_resize( res, len );
-		len2 = type_data->enc_func( type_data, value, RSTRING_PTR(res), &intermediate);
-		if( len < len2 ){
-			rb_bug("%s: result length of first encoder run (%i) is less than second run (%i)",
-				rb_obj_classname( self ), len, len2 );
-		}
-		rb_str_set_len( res, len2 );
-	} else {
+	if( !type_data->enc_func ){
 		rb_raise(rb_eRuntimeError, "no encoder function defined");
 	}
+
+	len = type_data->enc_func( type_data, value, NULL, &intermediate );
+
+	if( len == -1 ){
+		/* The intermediate value is a String that can be used directly. */
+		return intermediate;
+	}
+
+	res = rb_str_new(NULL, 0);
+	rb_str_modify_expand( res, len );
+	len2 = type_data->enc_func( type_data, value, RSTRING_PTR(res), &intermediate);
+	if( len < len2 ){
+		rb_bug("%s: result length of first encoder run (%i) is less than second run (%i)",
+			rb_obj_classname( self ), len, len2 );
+	}
+	rb_str_set_len( res, len2 );
+
+	RB_GC_GUARD(intermediate);
 
 	return res;
 }
@@ -147,7 +156,6 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	char *val;
 	VALUE tuple = -1;
 	VALUE field = -1;
-	VALUE ret;
 	t_pg_coder *type_data = DATA_PTR(self);
 
 	if(argc < 1 || argc > 3){
@@ -158,12 +166,11 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	}
 
 	val = StringValuePtr(argv[0]);
-	if( type_data->dec_func ){
-		ret = type_data->dec_func(type_data, val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
-	} else {
+	if( !type_data->dec_func ){
 		rb_raise(rb_eRuntimeError, "no decoder function defined");
 	}
-	return ret;
+
+	return type_data->dec_func(type_data, val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
 }
 
 static VALUE

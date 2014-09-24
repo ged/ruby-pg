@@ -1068,29 +1068,37 @@ alloc_query_params1(VALUE _paramsData)
 					/* 1st pass for retiving the required memory space */
 					int len = conv->enc_func(conv, param_value, NULL, &intermediate);
 
-					/* Is the stack memory pool too small to take the type casted value? */
-					if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
-						/* Allocate a new memory chunk from heap */
-						struct linked_typecast_data *allocated =
-							(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len + 1);
+					if( len == -1 ){
+						/* The intermediate value is a String that can be used directly. */
+						rb_ary_push(paramsData->gc_array, intermediate);
+						paramsData->values[i] = RSTRING_PTR(intermediate);
+						paramsData->lengths[i] = RSTRING_LENINT(intermediate);
 
-						allocated->next = paramsData->typecast_heap_chain;
-						paramsData->typecast_heap_chain = allocated;
-						typecast_buf = &allocated->data[0];
-					}
-
-					/* 2nd pass for writing the data to prepared buffer */
-					len = conv->enc_func(conv, param_value, typecast_buf, &intermediate);
-					paramsData->values[i] = typecast_buf;
-					if( conv->format == 0 ){
-						/* text format strings must be zero terminated and lengths are ignored */
-						typecast_buf[len] = 0;
-						typecast_buf += len + 1;
-						required_pool_size += len + 1;
 					} else {
-						paramsData->lengths[i] = len;
-						typecast_buf += len;
-						required_pool_size += len;
+						/* Is the stack memory pool too small to take the type casted value? */
+						if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
+							/* Allocate a new memory chunk from heap */
+							struct linked_typecast_data *allocated =
+								(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len + 1);
+
+							allocated->next = paramsData->typecast_heap_chain;
+							paramsData->typecast_heap_chain = allocated;
+							typecast_buf = &allocated->data[0];
+						}
+
+						/* 2nd pass for writing the data to prepared buffer */
+						len = conv->enc_func(conv, param_value, typecast_buf, &intermediate);
+						paramsData->values[i] = typecast_buf;
+						if( conv->format == 0 ){
+							/* text format strings must be zero terminated and lengths are ignored */
+							typecast_buf[len] = 0;
+							typecast_buf += len + 1;
+							required_pool_size += len + 1;
+						} else {
+							paramsData->lengths[i] = len;
+							typecast_buf += len;
+							required_pool_size += len;
+						}
 					}
 
 					RB_GC_GUARD(intermediate);
@@ -1100,7 +1108,7 @@ alloc_query_params1(VALUE _paramsData)
 					param_value = rb_funcall( conv->coder_obj, s_id_encode, 1, param_value );
 					rb_ary_push(paramsData->gc_array, param_value);
 					paramsData->values[i] = RSTRING_PTR(param_value);
-					paramsData->lengths[i] = (int)RSTRING_LEN(param_value);
+					paramsData->lengths[i] = RSTRING_LENINT(param_value);
 				}
 
 				param_type = conv->oid;
@@ -1121,7 +1129,7 @@ alloc_query_params1(VALUE _paramsData)
 				if( param_str_value != param_value )
 					rb_ary_push(paramsData->gc_array, param_str_value);
 				paramsData->values[i] = RSTRING_PTR(param_str_value);
-				paramsData->lengths[i] = (int)RSTRING_LEN(param_str_value);
+				paramsData->lengths[i] = RSTRING_LENINT(param_str_value);
 			}
 
 			if( paramsData->with_types ){
@@ -1523,7 +1531,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 			rb_raise(rb_ePGerror, "%s", PQerrorMessage(pg_get_pgconn(self)));
 		}
 	} else {
-		size = PQescapeString(escaped, RSTRING_PTR(string), (int)RSTRING_LEN(string));
+		size = PQescapeString(escaped, RSTRING_PTR(string), RSTRING_LENINT(string));
 	}
 	result = rb_str_new(escaped, size);
 	xfree(escaped);
@@ -2507,7 +2515,7 @@ pgconn_put_copy_data(self, buffer)
 	PGconn *conn = pg_get_pgconn(self);
 	Check_Type(buffer, T_STRING);
 
-	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), (int)RSTRING_LEN(buffer));
+	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
 	if(ret == -1) {
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);

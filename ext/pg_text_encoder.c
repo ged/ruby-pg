@@ -1,8 +1,36 @@
 /*
- * pg_column_map.c - PG::ColumnMap class extension
+ * pg_text_encoder.c - PG::TextEncoder module
  * $Id$
  *
  */
+
+/*
+ *
+ * Type casts for encoding Ruby objects to PostgreSQL string representation.
+ *
+ * Encoder classes are defined with pg_define_coder(). This assigns the encoder function to
+ * the coder. The encoder function is called twice - the first call to determine the
+ * required output size and the second call to do the actual conversion.
+ *
+ * Signature of all type cast encoders is:
+ *    int encoder_function(t_pg_coder *coder, VALUE value, char *out, VALUE *intermediate)
+ *
+ * Params:
+ *   coder - The coder object that belongs to the encoder function.
+ *   value - The Ruby object to cast.
+ *   out   - NULL for the first call,
+ *           pointer to a buffer with the requested size for the second call.
+ *   intermediate - pointer to a VALUE that might be set by the encoding function to some
+ *           value in the first call that can be retrieved in the second call.
+ *
+ * Returns:
+ *   >= 0  - If out==NULL the encoder function must return the expected output buffer size.
+ *           This can be larger than the size of the second call.
+ *           If out!=NULL the encoder function must return the actually used output buffer size.
+ *   -1    - The encoder function can alternatively return -1 to indicate that no second call
+ *           is required, but the String value in *intermediate should be used instead.
+ */
+
 
 #include "pg.h"
 #include "util.h"
@@ -28,13 +56,8 @@ pg_obj_to_i( VALUE value )
 int
 pg_coder_enc_to_str(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	if(out){
-		memcpy( out, RSTRING_PTR(*intermediate), RSTRING_LEN(*intermediate));
-	} else {
-		*intermediate = rb_obj_as_string(value);
-	}
-
-	return RSTRING_LEN(*intermediate);
+	*intermediate = rb_obj_as_string(value);
+	return -1;
 }
 
 static int
@@ -137,38 +160,87 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	}
 }
 
-static int
-write_array(t_pg_composite_coder *comp_conv, VALUE value, char *out, VALUE *intermediate, t_pg_coder_enc_func enc_func, int quote, int *interm_pos)
+static char *
+ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+{
+	long curr_len = end_ptr - RSTRING_PTR(str);
+	long curr_capa = rb_str_capacity( str );
+	if( curr_capa < curr_len + expand_len ){
+		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
+		return RSTRING_PTR(str) + curr_len;
+	}
+	return end_ptr;
+}
+
+static char *
+write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VALUE *intermediate, t_pg_coder_enc_func enc_func, int quote)
 {
 	int i;
-	if(out){
-		char *current_out = out;
 
-		if( *interm_pos < 0 ) *interm_pos = 0;
+	/* size of "{}" */
+	current_out = ensure_str_capa( *intermediate, 2, current_out );
+	*current_out++ = '{';
 
-		*current_out++ = '{';
-		for( i=0; i<RARRAY_LEN(value); i++){
-			VALUE subint;
-			VALUE entry = rb_ary_entry(value, i);
-			if( i > 0 ) *current_out++ = comp_conv->delimiter;
-			switch(TYPE(entry)){
-				case T_ARRAY:
-					current_out += write_array(comp_conv, entry, current_out, intermediate, enc_func, quote, interm_pos);
+	for( i=0; i<RARRAY_LEN(value); i++){
+		int strlen;
+		VALUE subint;
+		VALUE entry = rb_ary_entry(value, i);
+
+
+		if( i > 0 ){
+			current_out = ensure_str_capa( *intermediate, 1, current_out );
+			*current_out++ = comp_conv->delimiter;
+		}
+
+		switch(TYPE(entry)){
+			case T_ARRAY:
+				current_out = write_array(comp_conv, entry, current_out, intermediate, enc_func, quote);
+			break;
+			case T_NIL:
+				current_out = ensure_str_capa( *intermediate, 4, current_out );
+				*current_out++ = 'N';
+				*current_out++ = 'U';
+				*current_out++ = 'L';
+				*current_out++ = 'L';
 				break;
-				case T_NIL:
-					*current_out++ = 'N';
-					*current_out++ = 'U';
-					*current_out++ = 'L';
-					*current_out++ = 'L';
-					break;
-				default:
-					subint = rb_ary_entry(*intermediate, *interm_pos);
-					*interm_pos = *interm_pos + 1;
+			default:
+
+				strlen = enc_func(comp_conv->elem, entry, NULL, &subint);
+
+				if( strlen == -1 ){
+					/* we can directly use String value in subint */
+					strlen = RSTRING_LEN(subint);
+
+					if(quote){
+						char *ptr1;
+						/* size of string assuming the worst case, that every character must be escaped. */
+						current_out = ensure_str_capa( *intermediate, strlen * 2, current_out );
+
+						/* Copy string from subint with backslash escaping */
+						for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
+							if(*ptr1 == '"' || *ptr1 == '\\'){
+								*current_out++ = '\\';
+							}
+							*current_out++ = *ptr1;
+						}
+					} else {
+						current_out = ensure_str_capa( *intermediate, strlen, current_out );
+						memcpy( current_out, RSTRING_PTR(subint), strlen );
+						current_out += strlen;
+					}
+
+				} else {
+
 					if(quote){
 						char *ptr1;
 						char *ptr2;
-						int strlen;
 						int backslashs;
+
+						/* size of string assuming the worst case, that every character must be escaped
+						 * plus two bytes for quotation.
+						 */
+						current_out = ensure_str_capa( *intermediate, 2 * strlen + 2, current_out );
+
 						*current_out++ = '"';
 
 						/* Place the unescaped string at current output position. */
@@ -197,53 +269,16 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *out, VALUE *inte
 							}
 						}
 					}else{
+						/* size of the unquoted string */
+						current_out = ensure_str_capa( *intermediate, strlen, current_out );
 						current_out += enc_func(comp_conv->elem, entry, current_out, &subint);
 					}
-			}
+				}
 		}
-		*current_out++ = '}';
-		return current_out - out;
-
-	} else {
-		int sumlen = 0;
-		int nr_elems;
-		Check_Type(value, T_ARRAY);
-		nr_elems = RARRAY_LEN(value);
-
-		if( *interm_pos < 0 ){
-			*intermediate = rb_ary_new();
-			*interm_pos = 0;
-		}
-
-		for( i=0; i<nr_elems; i++){
-			VALUE subint;
-			VALUE entry = rb_ary_entry(value, i);
-			switch(TYPE(entry)){
-				case T_ARRAY:
-					/* size of array content */
-					sumlen += write_array(comp_conv, entry, NULL, intermediate, enc_func, quote, interm_pos);
-				break;
-				case T_NIL:
-					/* size of "NULL" */
-					sumlen += 4;
-					break;
-				default:
-					if(quote){
-						/* size of string assuming the worst case, that every character must be escaped
-						 * plus two bytes for quotation.
-						 */
-						sumlen += 2 * enc_func(comp_conv->elem, entry, NULL, &subint) + 2;
-					}else{
-						/* size of the unquoted string */
-						sumlen += enc_func(comp_conv->elem, entry, NULL, &subint);
-					}
-					rb_ary_push(*intermediate, subint);
-			}
-		}
-
-		/* size of "{" plus content plus n-1 times "," plus "}" */
-		return 1 + sumlen + (nr_elems>0 ? nr_elems-1 : 0) + 1;
 	}
+	current_out = ensure_str_capa( *intermediate, 1, current_out );
+	*current_out++ = '}';
+	return current_out;
 }
 
 int
@@ -277,11 +312,16 @@ composite_elem_func(t_pg_composite_coder *comp_conv)
 static int
 pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
+	char *end_ptr;
 	t_pg_composite_coder *comp_conv = (t_pg_composite_coder *)conv;
 	t_pg_coder_enc_func enc_func = composite_elem_func(comp_conv);
-	int pos = -1;
+	*intermediate = rb_str_new(NULL, 0);
 
-	return write_array(comp_conv, value, out, intermediate, enc_func, comp_conv->needs_quotation, &pos);
+	end_ptr = write_array(comp_conv, value, RSTRING_PTR(*intermediate), intermediate, enc_func, comp_conv->needs_quotation);
+
+	rb_str_set_len( *intermediate, end_ptr - RSTRING_PTR(*intermediate) );
+
+	return -1;
 }
 
 static int
