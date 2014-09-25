@@ -116,12 +116,16 @@ class PG::Connection
 	# This prints all rows of +my_table+ to stdout:
 	#   "some,csv,data,to,copy\n"
 	#   "more,csv,data,to,copy\n"
-	def copy_data( sql )
+	def copy_data( sql, coder=nil )
 		res = exec( sql )
 
 		case res.result_status
 		when PGRES_COPY_IN
 			begin
+				if coder
+					old_coder = self.encoder_for_put_copy_data
+					self.encoder_for_put_copy_data = coder
+				end
 				yield res
 			rescue Exception => err
 				errmsg = "%s while copy data: %s" % [ err.class.name, err.message ]
@@ -131,10 +135,16 @@ class PG::Connection
 			else
 				put_copy_end
 				get_last_result
+			ensure
+				self.encoder_for_put_copy_data = old_coder if coder
 			end
 
 		when PGRES_COPY_OUT
 			begin
+				if coder
+					old_coder = self.decoder_for_get_copy_data
+					self.decoder_for_get_copy_data = coder
+				end
 				yield res
 			rescue Exception => err
 				cancel
@@ -153,6 +163,8 @@ class PG::Connection
 					raise PG::NotAllCopyDataRetrieved, "Not all COPY data retrieved"
 				end
 				res
+			ensure
+				self.decoder_for_get_copy_data = old_coder if coder
 			end
 
 		else

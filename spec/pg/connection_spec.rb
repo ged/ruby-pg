@@ -1299,11 +1299,36 @@ describe PG::Connection do
 			}.to raise_error(PG::IndeterminateDatatype)
 		end
 
+		it "should raise an error on invalid encoder to put_copy_data" do
+			expect{
+				@conn.put_copy_data [1], :invalid
+			}.to raise_error(TypeError)
+		end
+
+		it "can type cast parameters to put_copy_data with explicit encoder" do
+			tm = PG::TypeMapByColumn.new [nil]
+			row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
+
+			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+			res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+				@conn.put_copy_data [1], row_encoder
+				@conn.put_copy_data ["2"], row_encoder
+			end
+
+			res2 = @conn.copy_data( "COPY copytable FROM STDOUT", row_encoder ) do |res|
+				@conn.put_copy_data [3]
+				@conn.put_copy_data ["4"]
+			end
+
+			res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
+			expect( res.values ).to eq( [["1"], ["2"], ["3"], ["4"]] )
+		end
+
 		context "with default query type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
 				tm = PG::TypeMapByMriType.new
-				tm['T_FIXNUM'] = PG::BinaryEncoder::Int8.new oid: 20, format: 1
+				tm['T_FIXNUM'] = PG::TextEncoder::Integer.new oid: 20
 				@conn2.type_map_for_queries = tm
 
 				row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
@@ -1339,14 +1364,13 @@ describe PG::Connection do
 			end
 
 			it "can process #copy_data input queries with row encoder" do
-				pending "this is not yet implemented"
-				@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
-				res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
-					@conn.put_copy_data [1]
-					@conn.put_copy_data [2]
+				@conn2.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+				res2 = @conn2.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+					@conn2.put_copy_data [1]
+					@conn2.put_copy_data ["2"]
 				end
 
-				res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
+				res = @conn2.exec( "SELECT * FROM copytable ORDER BY col1" )
 				expect( res.values ).to eq( [["1"], ["2"]] )
 			end
 		end

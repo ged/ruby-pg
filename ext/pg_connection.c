@@ -169,6 +169,8 @@ pgconn_s_allocate( VALUE klass )
 	this->notice_processor = Qnil;
 	this->type_map_for_queries = Qnil;
 	this->type_map_for_results = Qnil;
+	this->encoder_for_put_copy_data = Qnil;
+	this->decoder_for_get_copy_data = Qnil;
 	this->trace_stream = Qnil;
 	this->external_encoding = Qnil;
 
@@ -2517,20 +2519,60 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
  *
  */
 static VALUE
-pgconn_put_copy_data(self, buffer)
-	VALUE self, buffer;
+pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 {
 	int ret;
-	VALUE error;
+	int len;
 	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection( self );
+	VALUE value;
+	VALUE buffer = Qnil;
+	VALUE encoder;
+	VALUE intermediate;
+	t_pg_coder *p_coder = NULL;
+
+	rb_scan_args( argc, argv, "11", &value, &encoder );
+
+	if( NIL_P(encoder) ){
+		if( NIL_P(this->encoder_for_put_copy_data) ){
+			buffer = value;
+		} else {
+			p_coder = DATA_PTR( this->encoder_for_put_copy_data );
+		}
+	} else if( rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
+		Data_Get_Struct( encoder, t_pg_coder, p_coder );
+	} else {
+		rb_raise( rb_eTypeError, "wrong encoder type %s (expected some kind of PG::Coder)",
+				rb_obj_classname( encoder ) );
+	}
+
+	if( p_coder ){
+		t_pg_coder_enc_func enc_func;
+
+		enc_func = pg_coder_enc_func( p_coder );
+		len = enc_func( p_coder, value, NULL, &intermediate );
+
+		if( len == -1 ){
+			/* The intermediate value is a String that can be used directly. */
+			buffer = intermediate;
+		} else {
+			buffer = rb_str_new(NULL, 0);
+			rb_str_resize( buffer, len );
+			len = enc_func( p_coder, value, RSTRING_PTR(buffer), &intermediate);
+			rb_str_set_len( buffer, len );
+		}
+	}
+
 	Check_Type(buffer, T_STRING);
 
 	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
 	if(ret == -1) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		VALUE error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	RB_GC_GUARD(intermediate);
+
 	return (ret) ? Qtrue : Qfalse;
 }
 
@@ -3820,7 +3862,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "notifies", pgconn_notifies, 0);
 
 	/******     PG::Connection INSTANCE METHODS: COPY     ******/
-	rb_define_method(rb_cPGconn, "put_copy_data", pgconn_put_copy_data, 1);
+	rb_define_method(rb_cPGconn, "put_copy_data", pgconn_put_copy_data, -1);
 	rb_define_method(rb_cPGconn, "put_copy_end", pgconn_put_copy_end, -1);
 	rb_define_method(rb_cPGconn, "get_copy_data", pgconn_get_copy_data, -1);
 
