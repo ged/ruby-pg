@@ -256,18 +256,34 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
  *   rb_str_set_len( string, out - RSTRING_PTR(string) );
  *
  */
-char *
-pg_ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
-{
-	long curr_len = end_ptr - RSTRING_PTR(str);
-	long curr_capa = rb_str_capacity( str );
-	if( curr_capa < curr_len + expand_len ){
-		rb_str_set_len( str, curr_len );
-		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
-		return RSTRING_PTR(str) + curr_len;
+#ifdef HAVE_RB_STR_MODIFY_EXPAND
+	/* Use somewhat faster version with access to string capacity on MRI */
+	char *
+	pg_ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+	{
+		long curr_len = end_ptr - RSTRING_PTR(str);
+		long curr_capa = rb_str_capacity( str );
+		if( curr_capa < curr_len + expand_len ){
+			rb_str_set_len( str, curr_len );
+			rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
+			return RSTRING_PTR(str) + curr_len;
+		}
+		return end_ptr;
 	}
-	return end_ptr;
-}
+#else
+	/* Use the more portable version */
+	char *
+	pg_ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+	{
+		long curr_len = end_ptr - RSTRING_PTR(str);
+		long curr_capa = RSTRING_LEN( str );
+		if( curr_capa < curr_len + expand_len ){
+			rb_str_resize( str, (curr_len + expand_len) * 2 - curr_capa );
+			return RSTRING_PTR(str) + curr_len;
+		}
+		return end_ptr;
+	}
+#endif
 
 
 /**************************************************************************

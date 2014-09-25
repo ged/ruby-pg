@@ -81,6 +81,7 @@ have_func 'rb_thread_call_without_gvl'
 have_func 'rb_thread_call_with_gvl'
 have_func 'rb_thread_fd_select'
 have_func 'rb_w32_wrap_io_handle'
+have_func 'rb_str_modify_expand'
 
 have_const 'PGRES_COPY_BOTH', 'libpq-fe.h'
 have_const 'PGRES_SINGLE_TUPLE', 'libpq-fe.h'
