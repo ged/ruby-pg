@@ -422,15 +422,26 @@ describe "PG::Type derivations" do
 			PG::TextEncoder::CopyRow.new type_map: tm
 		end
 
+		it "should have reasonable default values" do
+			expect( encoder.name ).to be_nil
+			expect( encoder.delimiter ).to eq( "\t" )
+		end
+
 		describe '#encode' do
 			it "should encode different types of Ruby objects" do
 				expect( encoder.encode([]) ).to eq("\n")
 				expect( encoder.encode(["a"]) ).to eq("a\n")
-				expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg"]) ).to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{\"1\",\"2\",\"3\"}\t13\tabcdefg\n")
+				expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
+					to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{\"1\",\"2\",\"3\"}\t13\tabcdefg\t\\N\n")
 			end
 
 			it "should escape special characters" do
-				expect( encoder.encode(["\0\t\n\r\\"]) ).to eq("\0#\t#\n#\r#\\\n".gsub("#", "\\"))
+				expect( encoder.encode([" \0\t\n\r\\"]) ).to eq(" \0#\t#\n#\r#\\\n".gsub("#", "\\"))
+			end
+
+			it "should escape with different delimiter" do
+				encoder.delimiter = " "
+				expect( encoder.encode([" ", "\0", "\t", "\n", "\r", "\\"]) ).to eq("#  \0 \t #\n #\r #\\\n".gsub("#", "\\"))
 			end
 		end
 	end
