@@ -267,6 +267,21 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 	RB_GC_GUARD(cfunc_obj);
 }
 
+t_pg_coder_enc_func
+pg_coder_enc_func(t_pg_coder *this)
+{
+	if( this ){
+		if( this->enc_func ){
+			return this->enc_func;
+		}else{
+			return pg_text_enc_in_ruby;
+		}
+	}else{
+		/* no element encoder defined -> use std to_str conversion */
+		return pg_coder_enc_to_str;
+	}
+}
+
 void
 init_pg_coder()
 {

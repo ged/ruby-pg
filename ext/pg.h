@@ -245,6 +245,7 @@ void init_pg_binary_decoder                            _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
+t_pg_coder_enc_func pg_coder_enc_func                  _(( t_pg_coder* ));
 int pg_coder_enc_to_str                                _(( t_pg_coder*, VALUE, char *, VALUE *));
 int pg_text_enc_in_ruby                                _(( t_pg_coder*, VALUE, char *, VALUE *));
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));

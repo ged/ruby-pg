@@ -44,8 +44,6 @@ VALUE rb_mPG_TextEncoder;
 static ID s_id_encode;
 static ID s_id_to_i;
 
-static t_pg_coder_enc_func pg_coder_enc_func(t_pg_coder *p_coder);
-
 
 VALUE
 pg_obj_to_i( VALUE value )
@@ -292,21 +290,6 @@ pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 	*intermediate = rb_funcall( conv->coder_obj, s_id_encode, 1, value );
 	StringValue( *intermediate );
 	return -1;
-}
-
-static t_pg_coder_enc_func
-pg_coder_enc_func(t_pg_coder *p_coder)
-{
-	if( p_coder ){
-		if( p_coder->enc_func ){
-			return p_coder->enc_func;
-		}else{
-			return pg_text_enc_in_ruby;
-		}
-	}else{
-		/* no element encoder defined -> use std to_str conversion */
-		return pg_coder_enc_to_str;
-	}
 }
 
 static int

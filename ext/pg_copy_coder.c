@@ -92,21 +92,6 @@ pg_copycoder_type_map_get(VALUE self)
 }
 
 
-static t_pg_coder_enc_func
-copy_elem_func(t_pg_coder *elem_coder)
-{
-	if( elem_coder ){
-		if( elem_coder->enc_func ){
-			return elem_coder->enc_func;
-		}else{
-			return pg_text_enc_in_ruby;
-		}
-	}else{
-		/* no element encoder defined -> use std to_str conversion */
-		return pg_coder_enc_to_str;
-	}
-}
-
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -152,7 +137,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				break;
 			default:
 				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
-				enc_func = copy_elem_func(p_elem_coder);
+				enc_func = pg_coder_enc_func(p_elem_coder);
 
 				/* 1st pass for retiving the required memory space */
 				strlen = enc_func(p_elem_coder, entry, NULL, &subint);
