@@ -1339,6 +1339,7 @@ describe PG::Connection do
 			end
 
 			it "can process #copy_data input queries with row encoder" do
+				pending "this is not yet implemented"
 				@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
 				res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 					@conn.put_copy_data [1]
@@ -1357,8 +1358,8 @@ describe PG::Connection do
 				tm.add_coder PG::TextDecoder::Integer.new oid: 23, format: 0
 				@conn2.type_map_for_results = tm
 
-				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
-				@conn2.decoder_for_get_copy_data = row_decoder
+# 				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
+# 				@conn2.decoder_for_get_copy_data = row_decoder
 			end
 			after :each do
 				@conn2.close
@@ -1389,6 +1390,7 @@ describe PG::Connection do
 			end
 
 			it "can process #copy_data output queries with row decoder" do
+				pending "this is not yet implemented"
 				rows = []
 				res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
 					while row=@conn.get_copy_data
