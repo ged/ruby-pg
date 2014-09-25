@@ -961,10 +961,10 @@ struct query_params_data {
 	 * Filled by alloc_query_params()
 	 */
 
-	/* Holds the pointer of allocated memory, if function parameters dont't
+	/* Wraps the pointer of allocated memory, if function parameters dont't
 	 * fit in the memory_pool below.
 	 */
-	char *heap_pool;
+	VALUE heap_pool;
 
 	/* Pointer to the value string pointers (either within memory_pool or heap_pool).
 	 * The value strings itself are either directly within RString memory or,
@@ -985,19 +985,50 @@ struct query_params_data {
 	 */
 	VALUE gc_array;
 
-	/* Single linked list of allocated memory chunks for type casted params.
+	/* Wraps a single linked list of allocated memory chunks for type casted params.
 	 * Used when the memory_pool is to small.
 	 */
-	struct linked_typecast_data *typecast_heap_chain;
+	VALUE typecast_heap_chain;
 
 	/* This memory pool is used to place above query function parameters on it. */
 	char memory_pool[QUERYDATA_BUFFER_SIZE];
 };
 
-static VALUE
-alloc_query_params1(VALUE _paramsData)
+static void
+free_typecast_heap_chain(struct linked_typecast_data *chain_entry)
 {
-	struct query_params_data *paramsData = (struct query_params_data *)_paramsData;
+	while(chain_entry){
+		struct linked_typecast_data *next = chain_entry->next;
+		xfree(chain_entry);
+		chain_entry = next;
+	}
+}
+
+static char *
+alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
+{
+	/* Allocate a new memory chunk from heap */
+	struct linked_typecast_data *allocated =
+		(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len);
+
+	/* Did we already wrap a memory chain per T_DATA object? */
+	if( NIL_P( *typecast_heap_chain ) ){
+		/* Leave free'ing of the buffer chain to the GC, when paramsData has left the stack */
+		*typecast_heap_chain = Data_Wrap_Struct( rb_cObject, NULL, free_typecast_heap_chain, allocated );
+		allocated->next = NULL;
+	} else {
+		/* Append to the chain */
+		allocated->next = DATA_PTR( *typecast_heap_chain );
+		DATA_PTR( *typecast_heap_chain ) = allocated;
+	}
+
+	return &allocated->data[0];
+}
+
+
+static int
+alloc_query_params1(struct query_params_data *paramsData)
+{
 	VALUE param_value;
 	int param_type, param_format;
 	VALUE typemap;
@@ -1026,7 +1057,9 @@ alloc_query_params1(VALUE _paramsData)
 
 	if( sizeof(paramsData->memory_pool) < required_pool_size ){
 		/* Allocate one combined memory pool for all possible function parameters */
-		paramsData->heap_pool = memory_pool = (char*)xmalloc( required_pool_size );
+		memory_pool = (char*)xmalloc( required_pool_size );
+		/* Leave free'ing of the buffer to the GC, when paramsData has left the stack */
+		paramsData->heap_pool = Data_Wrap_Struct( rb_cObject, NULL, -1, memory_pool );
 		required_pool_size = 0;
 	}else{
 		/* Use stack memory for function parameters */
@@ -1077,13 +1110,7 @@ alloc_query_params1(VALUE _paramsData)
 					} else {
 						/* Is the stack memory pool too small to take the type casted value? */
 						if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
-							/* Allocate a new memory chunk from heap */
-							struct linked_typecast_data *allocated =
-								(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len + 1);
-
-							allocated->next = paramsData->typecast_heap_chain;
-							paramsData->typecast_heap_chain = allocated;
-							typecast_buf = &allocated->data[0];
+							typecast_buf = alloc_typecast_buf( &paramsData->typecast_heap_chain, len + 1 );
 						}
 
 						/* 2nd pass for writing the data to prepared buffer */
@@ -1140,23 +1167,13 @@ alloc_query_params1(VALUE _paramsData)
 		}
 	}
 
-
-	RB_GC_GUARD(typemap);
-
-	return (VALUE)nParams;
+	return nParams;
 }
 
 static void
 free_query_params(struct query_params_data *paramsData)
 {
-	struct linked_typecast_data *chain_entry = paramsData->typecast_heap_chain;
-
-	xfree(paramsData->heap_pool);
-	while(chain_entry){
-		struct linked_typecast_data *next = chain_entry->next;
-		xfree(chain_entry);
-		chain_entry = next;
-	}
+	/* currently nothing to free */
 }
 
 static const t_typemap pgconn_default_typemap_for_query = {
@@ -1167,7 +1184,6 @@ static int
 alloc_query_params(struct query_params_data *paramsData)
 {
 	int nParams;
-	int error_raised;
 	Check_Type(paramsData->params, T_ARRAY);
 
 	if( NIL_P(paramsData->typemap) ){
@@ -1177,17 +1193,11 @@ alloc_query_params(struct query_params_data *paramsData)
 		paramsData->typemap = p_typemap->fit_to_query( paramsData->typemap, paramsData->params );
 	}
 
-	paramsData->heap_pool = NULL;
-	paramsData->typecast_heap_chain = NULL;
-
+	paramsData->heap_pool = Qnil;
+	paramsData->typecast_heap_chain = Qnil;
 	paramsData->gc_array = rb_ary_new();
-	RB_GC_GUARD(paramsData->gc_array);
 
-	nParams = (int) rb_protect(alloc_query_params1, (VALUE)paramsData, &error_raised);
-	if( error_raised ){
-		free_query_params(paramsData);
-		rb_jump_tag(error_raised);
-	}
+	nParams = alloc_query_params1(paramsData);
 	return nParams;
 }
 
