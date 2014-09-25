@@ -137,7 +137,7 @@ pg_coder_encode(VALUE self, VALUE value)
 	}
 
 	res = rb_str_new(NULL, 0);
-	rb_str_modify_expand( res, len );
+	rb_str_resize( res, len );
 	len2 = type_data->enc_func( type_data, value, RSTRING_PTR(res), &intermediate);
 	if( len < len2 ){
 		rb_bug("%s: result length of first encoder run (%i) is less than second run (%i)",
