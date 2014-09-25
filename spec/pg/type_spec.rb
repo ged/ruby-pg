@@ -21,7 +21,7 @@ describe "PG::Type derivations" do
 	let!(:intenc_incrementer) do
 		Class.new(PG::SimpleEncoder) do
 			def encode(value)
-				(value+1).to_s
+				(value.to_i + 1).to_s
 			end
 		end.new
 	end
@@ -406,6 +406,31 @@ describe "PG::Type derivations" do
 				expect( t.needs_quotation? ).to eq( true )
 				expect( t.delimiter ).to eq( ',' )
 				expect( t.elements_type ).to be_nil
+			end
+		end
+	end
+
+	describe PG::CopyCoder do
+		let!(:tm) do
+			tm = PG::TypeMapByMriType.new
+			tm['T_FIXNUM'] = textenc_int
+			tm['T_FLOAT'] = intenc_incrementer
+			tm['T_ARRAY'] = PG::TextEncoder::Array.new elements_type: textenc_string
+			tm
+		end
+		let!(:encoder) do
+			PG::TextEncoder::CopyRow.new type_map: tm
+		end
+
+		describe '#encode' do
+			it "should encode different types of Ruby objects" do
+				expect( encoder.encode([]) ).to eq("\n")
+				expect( encoder.encode(["a"]) ).to eq("a\n")
+				expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg"]) ).to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{\"1\",\"2\",\"3\"}\t13\tabcdefg\n")
+			end
+
+			it "should escape special characters" do
+				expect( encoder.encode(["\0\t\n\r\\"]) ).to eq("\0#\t#\n#\r#\\\n".gsub("#", "\\"))
 			end
 		end
 	end

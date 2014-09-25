@@ -107,18 +107,6 @@ copy_elem_func(t_pg_coder *elem_coder)
 	}
 }
 
-static char *
-ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
-{
-	long curr_len = end_ptr - RSTRING_PTR(str);
-	long curr_capa = rb_str_capacity( str );
-	if( curr_capa < curr_len + expand_len ){
-		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
-		return RSTRING_PTR(str) + curr_len;
-	}
-	return end_ptr;
-}
-
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -152,13 +140,13 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 		entry = rb_ary_entry(value, i);
 
 		if( i > 0 ){
-			current_out = ensure_str_capa( *intermediate, 1, current_out );
+			current_out = pg_ensure_str_capa( *intermediate, 1, current_out );
 			*current_out++ = this->delimiter;
 		}
 
 		switch(TYPE(entry)){
 			case T_NIL:
-				current_out = ensure_str_capa( *intermediate, 2, current_out );
+				current_out = pg_ensure_str_capa( *intermediate, 2, current_out );
 				*current_out++ = '\\';
 				*current_out++ = 'N';
 				break;
@@ -174,7 +162,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					strlen = RSTRING_LEN(subint);
 
 					/* size of string assuming the worst case, that every character must be escaped. */
-					current_out = ensure_str_capa( *intermediate, strlen * 2, current_out );
+					current_out = pg_ensure_str_capa( *intermediate, strlen * 2, current_out );
 
 					/* Copy string from subint with backslash escaping */
 					for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
@@ -187,7 +175,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				} else {
 					/* 2nd pass for writing the data to prepared buffer */
 					/* size of string assuming the worst case, that every character must be escaped. */
-					current_out = ensure_str_capa( *intermediate, strlen * 2, current_out );
+					current_out = pg_ensure_str_capa( *intermediate, strlen * 2, current_out );
 
 					/* Place the unescaped string at current output position. */
 					strlen = enc_func(p_elem_coder, entry, current_out, &subint);
@@ -218,7 +206,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				}
 		}
 	}
-	current_out = ensure_str_capa( *intermediate, 1, current_out );
+	current_out = pg_ensure_str_capa( *intermediate, 1, current_out );
 	*current_out++ = '\n';
 
 	rb_str_set_len( *intermediate, current_out - RSTRING_PTR(*intermediate) );

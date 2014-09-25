@@ -168,19 +168,6 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static char *
-ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
-{
-	long curr_len = end_ptr - RSTRING_PTR(str);
-	long curr_capa = rb_str_capacity( str );
-	if( curr_capa < curr_len + expand_len ){
-		rb_str_set_len( str, curr_len );
-		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
-		return RSTRING_PTR(str) + curr_len;
-	}
-	return end_ptr;
-}
-
-static char *
 quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, char quote_char, char escape_char)
 {
 	int strlen;
@@ -196,7 +183,7 @@ quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, 
 		if(quote_char){
 			char *ptr1;
 			/* size of string assuming the worst case, that every character must be escaped. */
-			current_out = ensure_str_capa( string, strlen * 2 + 2, current_out );
+			current_out = pg_ensure_str_capa( string, strlen * 2 + 2, current_out );
 
 			*current_out++ = quote_char;
 
@@ -209,7 +196,7 @@ quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, 
 			}
 			*current_out++ = quote_char;
 		} else {
-			current_out = ensure_str_capa( string, strlen, current_out );
+			current_out = pg_ensure_str_capa( string, strlen, current_out );
 			memcpy( current_out, RSTRING_PTR(subint), strlen );
 			current_out += strlen;
 		}
@@ -224,7 +211,7 @@ quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, 
 			/* size of string assuming the worst case, that every character must be escaped
 				* plus two bytes for quotation.
 				*/
-			current_out = ensure_str_capa( string, 2 * strlen + 2, current_out );
+			current_out = pg_ensure_str_capa( string, 2 * strlen + 2, current_out );
 
 			*current_out++ = quote_char;
 
@@ -255,7 +242,7 @@ quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, 
 			}
 		}else{
 			/* size of the unquoted string */
-			current_out = ensure_str_capa( string, strlen, current_out );
+			current_out = pg_ensure_str_capa( string, strlen, current_out );
 			current_out += enc_func(p_coder, value, current_out, &subint);
 		}
 	}
@@ -268,14 +255,14 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VAL
 	int i;
 
 	/* size of "{}" */
-	current_out = ensure_str_capa( string, 2, current_out );
+	current_out = pg_ensure_str_capa( string, 2, current_out );
 	*current_out++ = '{';
 
 	for( i=0; i<RARRAY_LEN(value); i++){
 		VALUE entry = rb_ary_entry(value, i);
 
 		if( i > 0 ){
-			current_out = ensure_str_capa( string, 1, current_out );
+			current_out = pg_ensure_str_capa( string, 1, current_out );
 			*current_out++ = comp_conv->delimiter;
 		}
 
@@ -284,7 +271,7 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VAL
 				current_out = write_array(comp_conv, entry, current_out, string, quote);
 			break;
 			case T_NIL:
-				current_out = ensure_str_capa( string, 4, current_out );
+				current_out = pg_ensure_str_capa( string, 4, current_out );
 				*current_out++ = 'N';
 				*current_out++ = 'U';
 				*current_out++ = 'L';
@@ -294,7 +281,7 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VAL
 				current_out = quote_string( comp_conv->elem, entry, string, current_out, quote ? '"' : 0, '\\' );
 		}
 	}
-	current_out = ensure_str_capa( string, 1, current_out );
+	current_out = pg_ensure_str_capa( string, 1, current_out );
 	*current_out++ = '}';
 	return current_out;
 }
@@ -349,7 +336,7 @@ pg_text_enc_array_identifier(t_pg_composite_coder *comp_conv, VALUE value, VALUE
 
 		out = quote_string(comp_conv->elem, entry, string, out, comp_conv->needs_quotation ? '"' : 0, '"');
 		if( i < nr_elems-1 ){
-			out = ensure_str_capa( string, 1, out );
+			out = pg_ensure_str_capa( string, 1, out );
 			*out++ = '.';
 		}
 	}

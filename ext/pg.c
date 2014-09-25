@@ -231,6 +231,45 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
 #endif /* M17N_SUPPORTED */
 
 
+/*
+ * Ensures that the given string has enough capacity to take expand_len
+ * more data bytes. The new data part of the String is not initialized.
+ *
+ * current_out must be a pointer within the data part of the String object.
+ * This pointer is returned and possibly adjusted, because the location of the data
+ * part of the String can change through this function.
+ *
+ * Before the String is used with other string functions or returned to Ruby space,
+ * the string length has to be set with rb_str_set_len().
+ *
+ * Usage example:
+ *
+ *   VALUE string;
+ *   char *current_out;
+ *   string = rb_str_new(NULL, 0);
+ *   current_out = RSTRING_PTR(string);
+ *   while( data_is_going_to_be_processed ){
+ *     current_out = ensure_str_capa( string, 2, current_out );
+ *     *current_out++ = databyte1;
+ *     *current_out++ = databyte2;
+ *   }
+ *   rb_str_set_len( string, out - RSTRING_PTR(string) );
+ *
+ */
+char *
+pg_ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+{
+	long curr_len = end_ptr - RSTRING_PTR(str);
+	long curr_capa = rb_str_capacity( str );
+	if( curr_capa < curr_len + expand_len ){
+		rb_str_set_len( str, curr_len );
+		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
+		return RSTRING_PTR(str) + curr_len;
+	}
+	return end_ptr;
+}
+
+
 /**************************************************************************
  * Module Methods
  **************************************************************************/
