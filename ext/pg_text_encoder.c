@@ -59,18 +59,18 @@ pg_obj_to_i( VALUE value )
 }
 
 int
-pg_coder_enc_to_str(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_coder_enc_to_str(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
 	*intermediate = rb_obj_as_string(value);
 	return -1;
 }
 
 static int
-pg_text_enc_integer(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
 		if(TYPE(*intermediate) == T_STRING){
-			return pg_coder_enc_to_str(conv, value, out, intermediate);
+			return pg_coder_enc_to_str(this, value, out, intermediate);
 		}else{
 			char *start = out;
 			int len;
@@ -143,13 +143,13 @@ pg_text_enc_integer(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 					if( ll < 100000000000000 ){
 						len = ll < 10000000000000 ? 13 : 14;
 					}else{
-						return pg_coder_enc_to_str(conv, *intermediate, NULL, intermediate);
+						return pg_coder_enc_to_str(this, *intermediate, NULL, intermediate);
 					}
 				}
 			}
 			return sll < 0 ? len+1 : len;
 		}else{
-			return pg_coder_enc_to_str(conv, *intermediate, NULL, intermediate);
+			return pg_coder_enc_to_str(this, *intermediate, NULL, intermediate);
 		}
 	}
 }
@@ -166,13 +166,13 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static char *
-quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, char quote_char, char escape_char)
+quote_string(t_pg_coder *this, VALUE value, VALUE string, char *current_out, char quote_char, char escape_char)
 {
 	int strlen;
 	VALUE subint;
-	t_pg_coder_enc_func enc_func = pg_coder_enc_func(p_coder);
+	t_pg_coder_enc_func enc_func = pg_coder_enc_func(this);
 
-	strlen = enc_func(p_coder, value, NULL, &subint);
+	strlen = enc_func(this, value, NULL, &subint);
 
 	if( strlen == -1 ){
 		/* we can directly use String value in subint */
@@ -214,7 +214,7 @@ quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, 
 			*current_out++ = quote_char;
 
 			/* Place the unescaped string at current output position. */
-			strlen = enc_func(p_coder, value, current_out, &subint);
+			strlen = enc_func(this, value, current_out, &subint);
 			ptr1 = current_out;
 			ptr2 = current_out + strlen;
 
@@ -241,14 +241,14 @@ quote_string(t_pg_coder *p_coder, VALUE value, VALUE string, char *current_out, 
 		}else{
 			/* size of the unquoted string */
 			current_out = pg_ensure_str_capa( string, strlen, current_out );
-			current_out += enc_func(p_coder, value, current_out, &subint);
+			current_out += enc_func(this, value, current_out, &subint);
 		}
 	}
 	return current_out;
 }
 
 static char *
-write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VALUE string, int quote)
+write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE string, int quote)
 {
 	int i;
 
@@ -261,12 +261,12 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VAL
 
 		if( i > 0 ){
 			current_out = pg_ensure_str_capa( string, 1, current_out );
-			*current_out++ = comp_conv->delimiter;
+			*current_out++ = this->delimiter;
 		}
 
 		switch(TYPE(entry)){
 			case T_ARRAY:
-				current_out = write_array(comp_conv, entry, current_out, string, quote);
+				current_out = write_array(this, entry, current_out, string, quote);
 			break;
 			case T_NIL:
 				current_out = pg_ensure_str_capa( string, 4, current_out );
@@ -276,7 +276,7 @@ write_array(t_pg_composite_coder *comp_conv, VALUE value, char *current_out, VAL
 				*current_out++ = 'L';
 				break;
 			default:
-				current_out = quote_string( comp_conv->elem, entry, string, current_out, quote ? '"' : 0, '\\' );
+				current_out = quote_string( this->elem, entry, string, current_out, quote ? '"' : 0, '\\' );
 		}
 	}
 	current_out = pg_ensure_str_capa( string, 1, current_out );
@@ -296,10 +296,10 @@ static int
 pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	char *end_ptr;
-	t_pg_composite_coder *comp_conv = (t_pg_composite_coder *)conv;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	*intermediate = rb_str_new(NULL, 0);
 
-	end_ptr = write_array(comp_conv, value, RSTRING_PTR(*intermediate), *intermediate, comp_conv->needs_quotation);
+	end_ptr = write_array(this, value, RSTRING_PTR(*intermediate), *intermediate, this->needs_quotation);
 
 	rb_str_set_len( *intermediate, end_ptr - RSTRING_PTR(*intermediate) );
 
@@ -307,7 +307,7 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 }
 
 static char *
-pg_text_enc_array_identifier(t_pg_composite_coder *comp_conv, VALUE value, VALUE string, char *out)
+pg_text_enc_array_identifier(t_pg_composite_coder *this, VALUE value, VALUE string, char *out)
 {
 	int i;
 	int nr_elems;
@@ -317,7 +317,7 @@ pg_text_enc_array_identifier(t_pg_composite_coder *comp_conv, VALUE value, VALUE
 	for( i=0; i<nr_elems; i++){
 		VALUE entry = rb_ary_entry(value, i);
 
-		out = quote_string(comp_conv->elem, entry, string, out, comp_conv->needs_quotation ? '"' : 0, '"');
+		out = quote_string(this->elem, entry, string, out, this->needs_quotation ? '"' : 0, '"');
 		if( i < nr_elems-1 ){
 			out = pg_ensure_str_capa( string, 1, out );
 			*out++ = '.';
@@ -329,15 +329,15 @@ pg_text_enc_array_identifier(t_pg_composite_coder *comp_conv, VALUE value, VALUE
 static int
 pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	t_pg_composite_coder *comp_conv = (t_pg_composite_coder *)conv;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 
 	*intermediate = rb_str_new(NULL, 0);
 	out = RSTRING_PTR(*intermediate);
 
 	if( TYPE(value) == T_ARRAY){
-		out = pg_text_enc_array_identifier(comp_conv, value, *intermediate, out);
+		out = pg_text_enc_array_identifier(this, value, *intermediate, out);
 	} else {
-		out = quote_string(comp_conv->elem, value, *intermediate, out, comp_conv->needs_quotation ? '"' : 0, '"');
+		out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation ? '"' : 0, '"');
 	}
 	rb_str_set_len( *intermediate, out - RSTRING_PTR(*intermediate) );
 	return -1;
@@ -346,11 +346,11 @@ pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 static int
 pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	t_pg_composite_coder *comp_conv = (t_pg_composite_coder *)conv;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 
 	*intermediate = rb_str_new(NULL, 0);
 	out = RSTRING_PTR(*intermediate);
-	out = quote_string(comp_conv->elem, value, *intermediate, out, comp_conv->needs_quotation ? '\'' : 0, '\'');
+	out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation ? '\'' : 0, '\'');
 	rb_str_set_len( *intermediate, out - RSTRING_PTR(*intermediate) );
 	return -1;
 }
