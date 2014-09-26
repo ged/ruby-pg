@@ -30,13 +30,6 @@ typedef struct {
 #define CACHE_LOOKUP(this, form, oid) ( &this->format[(form)].cache_row[(oid) & 0xff] )
 
 static t_pg_coder *
-pg_tmbo_typecast_query_param(VALUE self, VALUE param_value, int field)
-{
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", RSTRING_PTR(rb_inspect(self)) );
-	return NULL;
-}
-
-static t_pg_coder *
 pg_tmbo_lookup_oid(t_tmbo *this, int format, Oid oid)
 {
 	t_pg_coder *conv;
@@ -117,13 +110,6 @@ pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typ
 }
 
 static VALUE
-pg_tmbo_fit_to_query( VALUE self, VALUE params )
-{
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", RSTRING_PTR(rb_inspect(self)) );
-	return self;
-}
-
-static VALUE
 pg_tmbo_fit_to_result( VALUE self, VALUE result )
 {
 	t_tmbo *this = DATA_PTR( self );
@@ -160,9 +146,11 @@ pg_tmbo_s_allocate( VALUE klass )
 	self = Data_Make_Struct( klass, t_tmbo, pg_tmbo_mark, -1, this );
 
 	this->typemap.fit_to_result = pg_tmbo_fit_to_result;
-	this->typemap.fit_to_query = pg_tmbo_fit_to_query;
+	this->typemap.fit_to_query = pg_typemap_fit_to_query;
+	this->typemap.fit_to_copy_get = pg_typemap_fit_to_copy_get;
 	this->typemap.typecast_result_value = pg_tmbo_result_value;
-	this->typemap.typecast_query_param = pg_tmbo_typecast_query_param;
+	this->typemap.typecast_query_param = pg_typemap_typecast_query_param;
+	this->typemap.typecast_copy_get = pg_typemap_typecast_copy_get;
 	this->max_rows_for_online_lookup = 10;
 
 	for( i=0; i<2; i++){

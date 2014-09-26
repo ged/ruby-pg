@@ -10,32 +10,46 @@ VALUE rb_cTypeMap;
 static ID s_id_fit_to_query;
 static ID s_id_fit_to_result;
 
-static VALUE
+VALUE
 pg_typemap_fit_to_result( VALUE self, VALUE result )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", rb_obj_classname(self) );
 	return Qnil;
 }
 
-static VALUE
+VALUE
 pg_typemap_fit_to_query( VALUE self, VALUE params )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
 	return Qnil;
 }
 
-static VALUE
-pg_typemap_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
+int
+pg_typemap_fit_to_copy_get( VALUE self )
 {
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", rb_obj_classname(self) );
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map copy_get_data results", rb_obj_classname(self) );
 	return Qnil;
 }
 
-static t_pg_coder *
+VALUE
+pg_typemap_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
+{
+	rb_raise( rb_eNotImpError, "type map is not suitable to map result values" );
+	return Qnil;
+}
+
+t_pg_coder *
 pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
 	return NULL;
+}
+
+VALUE
+pg_typemap_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format, int enc_idx )
+{
+	rb_raise( rb_eNotImpError, "type map is not suitable to map copy_get_data results" );
+	return Qnil;
 }
 
 static VALUE
@@ -47,8 +61,10 @@ pg_typemap_s_allocate( VALUE klass )
 	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
 	this->fit_to_result = pg_typemap_fit_to_result;
 	this->fit_to_query = pg_typemap_fit_to_query;
+	this->fit_to_copy_get = pg_typemap_fit_to_copy_get;
 	this->typecast_result_value = pg_typemap_result_value;
 	this->typecast_query_param = pg_typemap_typecast_query_param;
+	this->typecast_copy_get = pg_typemap_typecast_copy_get;
 
 	return self;
 }

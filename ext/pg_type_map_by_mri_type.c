@@ -87,22 +87,8 @@ pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
 }
 
 static VALUE
-pg_tmbmt_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
-{
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", RSTRING_PTR(rb_inspect(self)) );
-	return Qnil;
-}
-
-static VALUE
 pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 {
-	return self;
-}
-
-static VALUE
-pg_tmbmt_fit_to_result( VALUE self, VALUE result )
-{
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", RSTRING_PTR(rb_inspect(self)) );
 	return self;
 }
 
@@ -127,10 +113,12 @@ pg_tmbmt_s_allocate( VALUE klass )
 	VALUE self;
 
 	self = Data_Make_Struct( klass, t_tmbmt, pg_tmbmt_mark, -1, this );
-	this->typemap.fit_to_result = pg_tmbmt_fit_to_result;
+	this->typemap.fit_to_result = pg_typemap_fit_to_result;
 	this->typemap.fit_to_query = pg_tmbmt_fit_to_query;
-	this->typemap.typecast_result_value = pg_tmbmt_result_value;
+	this->typemap.fit_to_copy_get = pg_typemap_fit_to_copy_get;
+	this->typemap.typecast_result_value = pg_typemap_result_value;
 	this->typemap.typecast_query_param = pg_tmbmt_typecast_query_param;
+	this->typemap.typecast_copy_get = pg_typemap_typecast_copy_get;
 
 	FOR_EACH_MRI_TYPE( INIT_VARIABLES );
 

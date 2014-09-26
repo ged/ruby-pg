@@ -425,48 +425,67 @@ describe "PG::Type derivations" do
 	end
 
 	describe PG::CopyCoder do
-		let!(:tm) do
-			tm = PG::TypeMapByMriType.new
-			tm['T_FIXNUM'] = textenc_int
-			tm['T_FLOAT'] = intenc_incrementer
-			tm['T_ARRAY'] = PG::TextEncoder::Array.new elements_type: textenc_string
-			tm
-		end
-		let!(:encoder) do
-			PG::TextEncoder::CopyRow.new type_map: tm
-		end
-
-		it "should have reasonable default values" do
-			expect( encoder.name ).to be_nil
-			expect( encoder.delimiter ).to eq( "\t" )
-		end
-
-		it "copies all attributes with #dup" do
-			encoder.name = "test"
-			encoder.delimiter = "#"
-			encoder.type_map = PG::TypeMapByColumn.new []
-			encoder2 = encoder.dup
-			expect( encoder.object_id ).to_not eq( encoder2.object_id )
-			expect( encoder2.name ).to eq( "test" )
-			expect( encoder2.delimiter ).to eq( "#" )
-			expect( encoder2.type_map ).to be_a_kind_of( PG::TypeMapByColumn )
-		end
-
-		describe '#encode' do
-			it "should encode different types of Ruby objects" do
-				expect( encoder.encode([]) ).to eq("\n")
-				expect( encoder.encode(["a"]) ).to eq("a\n")
-				expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
-					to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{\"1\",\"2\",\"3\"}\t13\tabcdefg\t\\N\n")
+		describe PG::TextEncoder::CopyRow do
+			let!(:tm) do
+				tm = PG::TypeMapByMriType.new
+				tm['T_FIXNUM'] = textenc_int
+				tm['T_FLOAT'] = intenc_incrementer
+				tm['T_ARRAY'] = PG::TextEncoder::Array.new elements_type: textenc_string
+				tm
+			end
+			let!(:encoder) do
+				PG::TextEncoder::CopyRow.new type_map: tm
 			end
 
-			it "should escape special characters" do
-				expect( encoder.encode([" \0\t\n\r\\"]) ).to eq(" \0#\t#\n#\r#\\\n".gsub("#", "\\"))
+			it "should have reasonable default values" do
+				expect( encoder.name ).to be_nil
+				expect( encoder.delimiter ).to eq( "\t" )
+				expect( encoder.null_string ).to eq( "\\N" )
 			end
 
-			it "should escape with different delimiter" do
-				encoder.delimiter = " "
-				expect( encoder.encode([" ", "\0", "\t", "\n", "\r", "\\"]) ).to eq("#  \0 \t #\n #\r #\\\n".gsub("#", "\\"))
+			it "copies all attributes with #dup" do
+				encoder.name = "test"
+				encoder.delimiter = "#"
+				encoder.type_map = PG::TypeMapByColumn.new []
+				encoder2 = encoder.dup
+				expect( encoder.object_id ).to_not eq( encoder2.object_id )
+				expect( encoder2.name ).to eq( "test" )
+				expect( encoder2.delimiter ).to eq( "#" )
+				expect( encoder2.type_map ).to be_a_kind_of( PG::TypeMapByColumn )
+			end
+
+			describe '#encode' do
+				it "should encode different types of Ruby objects" do
+					expect( encoder.encode([]) ).to eq("\n")
+					expect( encoder.encode(["a"]) ).to eq("a\n")
+					expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
+						to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{\"1\",\"2\",\"3\"}\t13\tabcdefg\t\\N\n")
+				end
+
+				it "should escape special characters" do
+					expect( encoder.encode([" \0\t\n\r\\"]) ).to eq(" \0#\t#\n#\r#\\\n".gsub("#", "\\"))
+				end
+
+				it "should escape with different delimiter" do
+					encoder.delimiter = " "
+					encoder.null_string = "NULL"
+					expect( encoder.encode([nil, " ", "\0", "\t", "\n", "\r", "\\"]) ).to eq("NULL #  \0 \t #\n #\r #\\\n".gsub("#", "\\"))
+				end
+			end
+		end
+
+		describe PG::TextDecoder::CopyRow do
+			let!(:tm) do
+				PG::TypeMapByColumn.new [textdec_int, textdec_string, intdec_incrementer, nil]
+			end
+			let!(:decoder) do
+				PG::TextDecoder::CopyRow.new type_map: tm
+			end
+
+			describe '#decode' do
+				it "should decode different types of Ruby objects" do
+					expect( decoder.decode("123\t \0#\t#\n#\r#\\ \t234\t#\x01#\002\n".gsub("#", "\\"))).to eq( [123, " \0\t\n\r\\ ", 235, "\x01\x02"] )
+				end
 			end
 		end
 	end

@@ -38,6 +38,13 @@ pg_tmbc_fit_to_query( VALUE self, VALUE params )
 	return self;
 }
 
+static int
+pg_tmbc_fit_to_copy_get( VALUE self )
+{
+	t_tmbc *this = DATA_PTR( self );
+	return this->nfields;
+}
+
 
 VALUE
 pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
@@ -75,11 +82,42 @@ pg_tmbc_typecast_query_param(VALUE self, VALUE param_value, int field)
 	return this->convs[field].cconv;
 }
 
+static VALUE
+pg_tmbc_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format, int enc_idx )
+{
+	t_tmbc *this = (t_tmbc *) p_typemap;
+	t_pg_coder *p_coder;
+	t_pg_coder_dec_func dec_func;
+
+	if ( fieldno >= this->nfields || fieldno < 0 ) {
+		rb_raise( rb_eArgError, "number of copy fields (%d) exceeds number of mapped columns (%d)",
+				fieldno, this->nfields );
+	}
+
+	p_coder = this->convs[fieldno].cconv;
+
+	dec_func = pg_coder_dec_func( p_coder, format );
+
+	/* Is it a pure String conversion? Then we can directly send field_str to the user. */
+	if( format == 0 && dec_func == pg_text_dec_string ){
+		PG_ENCODING_SET_NOCHECK( field_str, enc_idx );
+		return field_str;
+	}
+	if( format == 1 && dec_func == pg_bin_dec_bytea ){
+		PG_ENCODING_SET_NOCHECK( field_str, rb_ascii8bit_encindex() );
+		return field_str;
+	}
+
+	return dec_func( p_coder, RSTRING_PTR(field_str), RSTRING_LEN(field_str), 0, fieldno, enc_idx );
+}
+
 const t_typemap pg_tmbc_default_typemap = {
 	fit_to_result: pg_tmbc_fit_to_result,
 	fit_to_query: pg_tmbc_fit_to_query,
+	fit_to_copy_get: pg_tmbc_fit_to_copy_get,
 	typecast_result_value: pg_tmbc_result_value,
-	typecast_query_param: pg_tmbc_typecast_query_param
+	typecast_query_param: pg_tmbc_typecast_query_param,
+	typecast_copy_get: pg_tmbc_typecast_copy_get
 };
 
 static void

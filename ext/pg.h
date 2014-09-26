@@ -152,8 +152,10 @@ typedef int (* t_pg_coder_enc_func)(t_pg_coder *, VALUE, char *, VALUE *);
 typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, char *, int, int, int, int);
 typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
+typedef int (* t_pg_fit_to_copy_get)(VALUE);
 typedef VALUE (* t_pg_typecast_result)(VALUE, PGresult *, int, int, t_typemap *);
 typedef t_pg_coder *(* t_pg_typecast_query_param)(VALUE, VALUE, int);
+typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 
 struct pg_coder {
 	t_pg_coder_enc_func enc_func;
@@ -173,8 +175,10 @@ typedef struct {
 struct pg_typemap {
 	t_pg_fit_to_result fit_to_result;
 	t_pg_fit_to_query fit_to_query;
+	t_pg_fit_to_copy_get fit_to_copy_get;
 	t_pg_typecast_result typecast_result_value;
 	t_pg_typecast_query_param typecast_query_param;
+	t_pg_typecast_copy_get typecast_copy_get;
 };
 
 typedef struct {
@@ -254,6 +258,13 @@ VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
 char *pg_ensure_str_capa                               _(( VALUE, long, char * ));
+
+VALUE pg_typemap_fit_to_result                         _(( VALUE, VALUE ));
+VALUE pg_typemap_fit_to_query                          _(( VALUE, VALUE ));
+int pg_typemap_fit_to_copy_get                         _(( VALUE ));
+VALUE pg_typemap_result_value                          _(( VALUE, PGresult *, int, int, t_typemap * ));
+t_pg_coder *pg_typemap_typecast_query_param            _(( VALUE, VALUE, int ));
+VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));
