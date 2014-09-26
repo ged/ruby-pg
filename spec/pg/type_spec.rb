@@ -427,6 +427,17 @@ describe "PG::Type derivations" do
 			expect( encoder.delimiter ).to eq( "\t" )
 		end
 
+		it "copies all attributes with #dup" do
+			encoder.name = "test"
+			encoder.delimiter = "#"
+			encoder.type_map = PG::TypeMapByColumn.new []
+			encoder2 = encoder.dup
+			expect( encoder.object_id ).to_not eq( encoder2.object_id )
+			expect( encoder2.name ).to eq( "test" )
+			expect( encoder2.delimiter ).to eq( "#" )
+			expect( encoder2.type_map ).to be_a_kind_of( PG::TypeMapByColumn )
+		end
+
 		describe '#encode' do
 			it "should encode different types of Ruby objects" do
 				expect( encoder.encode([]) ).to eq("\n")

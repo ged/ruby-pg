@@ -58,5 +58,14 @@ module PG
 			str
 		end
 	end
+
+	class CopyCoder < Coder
+		def to_h
+			super.merge!({
+				type_map: type_map,
+				delimiter: delimiter,
+			})
+		end
+	end
 end # module PG
 
