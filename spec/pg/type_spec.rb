@@ -13,6 +13,7 @@ describe "PG::Type derivations" do
 	let!(:textdec_string) { PG::TextDecoder::String.new }
 	let!(:textenc_timestamp) { PG::TextEncoder::TimestampWithoutTimeZone.new }
 	let!(:textdec_timestamp) { PG::TextDecoder::TimestampWithoutTimeZone.new }
+	let!(:textdec_bytea) { PG::TextDecoder::Bytea.new }
 	let!(:binaryenc_int2) { PG::BinaryEncoder::Int2.new }
 	let!(:binaryenc_int4) { PG::BinaryEncoder::Int4.new }
 	let!(:binaryenc_int8) { PG::BinaryEncoder::Int8.new }
@@ -74,6 +75,11 @@ describe "PG::Type derivations" do
 					expect( textdec_int.decode((-2 ** bits).to_s) ).to eq( -2 ** bits )
 					expect( textdec_int.decode((-2 ** bits + 1).to_s) ).to eq( -2 ** bits + 1 )
 				end
+			end
+
+			it 'decodes bytea to a binary string' do
+				expect( textdec_bytea.decode("\\x00010203EF") ).to eq( "\x00\x01\x02\x03\xef".b )
+				expect( textdec_bytea.decode("\\377\\000") ).to eq( "\xff\0".b )
 			end
 
 			it "should raise when decode method is called with wrong args" do
@@ -171,6 +177,7 @@ describe "PG::Type derivations" do
 			let!(:textdec_timestamp_array) { PG::TextDecoder::Array.new elements_type: textdec_timestamp, needs_quotation: false }
 			let!(:textenc_string_array_with_delimiter) { PG::TextEncoder::Array.new elements_type: textenc_string, delimiter: ';' }
 			let!(:textdec_string_array_with_delimiter) { PG::TextDecoder::Array.new elements_type: textdec_string, delimiter: ';' }
+			let!(:textdec_bytea_array) { PG::TextDecoder::Array.new elements_type: textdec_bytea }
 
 			#
 			# Array parser specs are thankfully borrowed from here:
@@ -228,6 +235,13 @@ describe "PG::Type derivations" do
 							expect( textdec_string_array_with_delimiter.decode(%[{1;2;3}]) ).to eq( ['1','2','3'] )
 						end
 					end
+
+					context 'bytea' do
+						it 'returns an array of binary strings' do
+							expect( textdec_bytea_array.decode(%[{"\\\\x00010203EF","2,3",\\377}]) ).to eq( ["\x00\x01\x02\x03\xef".b,"2,3".b,"\xff".b] )
+						end
+					end
+
 				end
 
 				context 'two dimensional arrays' do
