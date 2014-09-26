@@ -249,11 +249,11 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
  *   string = rb_str_new(NULL, 0);
  *   current_out = RSTRING_PTR(string);
  *   while( data_is_going_to_be_processed ){
- *     current_out = ensure_str_capa( string, 2, current_out );
+ *     current_out = pg_ensure_str_capa( string, 2, current_out );
  *     *current_out++ = databyte1;
  *     *current_out++ = databyte2;
  *   }
- *   rb_str_set_len( string, out - RSTRING_PTR(string) );
+ *   rb_str_set_len( string, current_out - RSTRING_PTR(string) );
  *
  */
 #ifdef HAVE_RB_STR_MODIFY_EXPAND
