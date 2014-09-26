@@ -12,6 +12,7 @@ VALUE rb_cPG_CopyDecoder;
 typedef struct {
 	t_pg_coder comp;
 	VALUE typemap;
+	VALUE null_string;
 	char delimiter;
 } t_pg_copycoder;
 
@@ -37,6 +38,7 @@ pg_copycoder_encoder_allocate( VALUE klass )
 	pg_coder_init_encoder( self );
 	this->typemap = Qnil;
 	this->delimiter = '\t';
+	this->null_string = rb_str_new_cstr("\\N");
 	return self;
 }
 
@@ -48,6 +50,7 @@ pg_copycoder_decoder_allocate( VALUE klass )
 	pg_coder_init_decoder( self );
 	this->typemap = Qnil;
 	this->delimiter = '\t';
+	this->null_string = rb_str_new_cstr("\\N");
 	return self;
 }
 
@@ -67,6 +70,22 @@ pg_copycoder_delimiter_get(VALUE self)
 {
 	t_pg_copycoder *this = DATA_PTR(self);
 	return rb_str_new(&this->delimiter, 1);
+}
+
+static VALUE
+pg_copycoder_null_string_set(VALUE self, VALUE null_string)
+{
+	t_pg_copycoder *this = DATA_PTR(self);
+	StringValue(null_string);
+	this->null_string = null_string;
+	return null_string;
+}
+
+static VALUE
+pg_copycoder_null_string_get(VALUE self)
+{
+	t_pg_copycoder *this = DATA_PTR(self);
+	return this->null_string;
 }
 
 /*
@@ -137,9 +156,9 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 
 		switch(TYPE(entry)){
 			case T_NIL:
-				current_out = pg_ensure_str_capa( *intermediate, 2, current_out );
-				*current_out++ = '\\';
-				*current_out++ = 'N';
+				current_out = pg_ensure_str_capa( *intermediate, RSTRING_LEN(this->null_string), current_out );
+				memcpy( current_out, RSTRING_PTR(this->null_string), RSTRING_LEN(this->null_string) );
+				current_out += RSTRING_LEN(this->null_string);
 				break;
 			default:
 				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
@@ -214,6 +233,8 @@ init_pg_copycoder()
 	rb_define_method( rb_cPG_CopyCoder, "type_map", pg_copycoder_type_map_get, 0 );
 	rb_define_method( rb_cPG_CopyCoder, "delimiter=", pg_copycoder_delimiter_set, 1 );
 	rb_define_method( rb_cPG_CopyCoder, "delimiter", pg_copycoder_delimiter_get, 0 );
+	rb_define_method( rb_cPG_CopyCoder, "null_string=", pg_copycoder_null_string_set, 1 );
+	rb_define_method( rb_cPG_CopyCoder, "null_string", pg_copycoder_null_string_get, 0 );
 
 	rb_cPG_CopyEncoder = rb_define_class_under( rb_mPG, "CopyEncoder", rb_cPG_CopyCoder );
 	rb_define_alloc_func( rb_cPG_CopyEncoder, pg_copycoder_encoder_allocate );
