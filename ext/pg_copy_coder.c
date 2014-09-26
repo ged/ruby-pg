@@ -23,11 +23,17 @@ typedef struct {
  *
  */
 
+static void
+pg_copycoder_mark( t_pg_copycoder *this )
+{
+	rb_gc_mark(this->typemap);
+}
+
 static VALUE
 pg_copycoder_encoder_allocate( VALUE klass )
 {
 	t_pg_copycoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, NULL, -1, this );
+	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, pg_copycoder_mark, -1, this );
 	pg_coder_init_encoder( self );
 	this->typemap = Qnil;
 	this->delimiter = '\t';
@@ -38,7 +44,7 @@ static VALUE
 pg_copycoder_decoder_allocate( VALUE klass )
 {
 	t_pg_copycoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, NULL, -1, this );
+	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, pg_copycoder_mark, -1, this );
 	pg_coder_init_decoder( self );
 	this->typemap = Qnil;
 	this->delimiter = '\t';
