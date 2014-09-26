@@ -267,6 +267,15 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 	RB_GC_GUARD(cfunc_obj);
 }
 
+
+static int
+pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	*intermediate = rb_funcall( conv->coder_obj, s_id_encode, 1, value );
+	StringValue( *intermediate );
+	return -1;
+}
+
 t_pg_coder_enc_func
 pg_coder_enc_func(t_pg_coder *this)
 {
@@ -281,6 +290,36 @@ pg_coder_enc_func(t_pg_coder *this)
 		return pg_coder_enc_to_str;
 	}
 }
+
+static VALUE
+pg_text_dec_in_ruby(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+{
+	VALUE string = pg_text_dec_string(this, val, len, tuple, field, enc_idx);
+	return rb_funcall( this->coder_obj, s_id_decode, 3, string, INT2NUM(tuple), INT2NUM(field) );
+}
+
+static VALUE
+pg_bin_dec_in_ruby(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+{
+	VALUE string = pg_bin_dec_bytea(this, val, len, tuple, field, enc_idx);
+	return rb_funcall( this->coder_obj, s_id_decode, 3, string, INT2NUM(tuple), INT2NUM(field) );
+}
+
+t_pg_coder_dec_func
+pg_coder_dec_func(t_pg_coder *this, int binary)
+{
+	if( this ){
+		if( this->dec_func ){
+			return this->dec_func;
+		}else{
+			return binary ? pg_bin_dec_in_ruby : pg_text_dec_in_ruby;
+		}
+	}else{
+		/* no element decoder defined -> use std String conversion */
+		return binary ? pg_bin_dec_bytea : pg_text_dec_string;
+	}
+}
+
 
 void
 init_pg_coder()

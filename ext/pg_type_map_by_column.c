@@ -42,11 +42,11 @@ pg_tmbc_fit_to_query( VALUE self, VALUE params )
 VALUE
 pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
 {
-	VALUE ret;
 	char * val;
 	int len;
 	t_tmbc *this = (t_tmbc *) p_typemap;
-	t_pg_coder *conv = NULL;
+	t_pg_coder *p_coder = NULL;
+	t_pg_coder_dec_func dec_func;
 
 	if (PQgetisnull(result, tuple, field)) {
 		return Qnil;
@@ -56,24 +56,15 @@ pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typem
 	len = PQgetlength( result, tuple, field );
 
 	if( this ){
-		conv = this->convs[field].cconv;
+		p_coder = this->convs[field].cconv;
 
-		if( conv && conv->dec_func ){
-			return conv->dec_func(conv, val, len, tuple, field, ENCODING_GET(self));
+		if( p_coder && p_coder->dec_func ){
+			return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(self));
 		}
 	}
 
-	if ( 0 == PQfformat(result, field) ) {
-		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(self));
-	} else {
-		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(self));
-	}
-
-	if( conv ){
-		ret = rb_funcall( conv->coder_obj, s_id_decode, 3, ret, INT2NUM(tuple), INT2NUM(field) );
-	}
-
-	return ret;
+	dec_func = pg_coder_dec_func( p_coder, PQfformat(result, field) );
+	return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(self) );
 }
 
 static t_pg_coder *

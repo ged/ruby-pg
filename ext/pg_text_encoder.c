@@ -284,14 +284,6 @@ write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE st
 	return current_out;
 }
 
-int
-pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
-{
-	*intermediate = rb_funcall( conv->coder_obj, s_id_encode, 1, value );
-	StringValue( *intermediate );
-	return -1;
-}
-
 static int
 pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {

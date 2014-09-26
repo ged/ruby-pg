@@ -210,32 +210,10 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 }
 
 static VALUE
-pg_text_dec_in_ruby(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
-{
-	VALUE string = pg_text_dec_string(this, val, len, tuple, field, enc_idx);
-	return rb_funcall( this->coder_obj, s_id_decode, 3, string, INT2NUM(tuple), INT2NUM(field) );
-}
-
-static t_pg_coder_dec_func
-composite_elem_func(t_pg_composite_coder *this)
-{
-	if( this->elem ){
-		if( this->elem->dec_func ){
-			return this->elem->dec_func;
-		}else{
-			return pg_text_dec_in_ruby;
-		}
-	}else{
-		/* no element decoder defined -> use std String conversion */
-		return pg_text_dec_string;
-	}
-}
-
-static VALUE
 pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-	t_pg_coder_dec_func dec_func = composite_elem_func(this);
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
 	/* create a buffer of the same length, as that will be the worst case */
 	char *word = xmalloc(len + 1);
 	int index = 1;
@@ -249,7 +227,7 @@ static VALUE
 pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-	t_pg_coder_dec_func dec_func = composite_elem_func(this);
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
 
 	/* Return value: array */
 	VALUE array;
