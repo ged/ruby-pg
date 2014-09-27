@@ -64,6 +64,7 @@ module PG
 			super.merge!({
 				type_map: type_map,
 				delimiter: delimiter,
+				null_string: null_string,
 			})
 		end
 	end

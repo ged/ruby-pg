@@ -446,11 +446,13 @@ describe "PG::Type derivations" do
 			it "copies all attributes with #dup" do
 				encoder.name = "test"
 				encoder.delimiter = "#"
+				encoder.null_string = "NULL"
 				encoder.type_map = PG::TypeMapByColumn.new []
 				encoder2 = encoder.dup
 				expect( encoder.object_id ).to_not eq( encoder2.object_id )
 				expect( encoder2.name ).to eq( "test" )
 				expect( encoder2.delimiter ).to eq( "#" )
+				expect( encoder2.null_string ).to eq( "NULL" )
 				expect( encoder2.type_map ).to be_a_kind_of( PG::TypeMapByColumn )
 			end
 

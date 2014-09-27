@@ -31,6 +31,7 @@ static void
 pg_copycoder_mark( t_pg_copycoder *this )
 {
 	rb_gc_mark(this->typemap);
+	rb_gc_mark(this->null_string);
 }
 
 static VALUE
