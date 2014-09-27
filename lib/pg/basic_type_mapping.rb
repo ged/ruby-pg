@@ -20,7 +20,7 @@ module PG::BasicTypeRegistry
 			coder_map = {}
 
 			_ranges, nodes = result.partition { |row| row['typinput'] == 'range_in' }
-			leaves, nodes = nodes.partition { |row| row['typelem'] == '0' }
+			leaves, nodes = nodes.partition { |row| row['typelem'].to_i == 0 }
 			arrays, nodes = nodes.partition { |row| row['typinput'] == 'array_in' }
 
 			# populate the enum types
