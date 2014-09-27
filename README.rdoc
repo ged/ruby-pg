@@ -108,7 +108,7 @@ of this class. They can be chosen and configured according to the particular
 needs for type casting.
 
 A type map can be assigned per connection or per query respectively per
-result set.
+result set. Type maps can also be used for COPY in and out data streaming.
 
 
 == Contributing
