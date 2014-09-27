@@ -19,12 +19,12 @@ module PG::BasicTypeRegistry
 		def initialize(result, coders_by_name, format, arraycoder)
 			coder_map = {}
 
-			ranges, nodes = result.partition { |row| row['typinput'] == 'range_in' }
+			_ranges, nodes = result.partition { |row| row['typinput'] == 'range_in' }
 			leaves, nodes = nodes.partition { |row| row['typelem'] == '0' }
 			arrays, nodes = nodes.partition { |row| row['typinput'] == 'array_in' }
 
 			# populate the enum types
-			enums, leaves = leaves.partition { |row| row['typinput'] == 'enum_in' }
+			_enums, leaves = leaves.partition { |row| row['typinput'] == 'enum_in' }
 	# 		enums.each do |row|
 	# 			coder_map[row['oid'].to_i] = OID::Enum.new
 	# 		end
@@ -38,7 +38,7 @@ module PG::BasicTypeRegistry
 				coder_map[coder.oid] = coder
 			end
 
-			records_by_oid = result.group_by { |row| row['oid'] }
+			_records_by_oid = result.group_by { |row| row['oid'] }
 
 			# populate composite types
 	# 		nodes.each do |row|
