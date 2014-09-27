@@ -262,7 +262,23 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
-char *pg_ensure_str_capa                               _(( VALUE, long, char * ));
+char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
+
+#define PG_RB_STR_ENSURE_CAPA( str, expand_len, curr_ptr, end_ptr ) \
+	do { \
+		if( (curr_ptr) + (expand_len) >= (end_ptr) ) \
+			(curr_ptr) = pg_rb_str_ensure_capa( (str), (expand_len), (curr_ptr), &(end_ptr) ); \
+	} while(0);
+
+#define PG_RB_STR_NEW( str, curr_ptr, end_ptr ) ( \
+		(str) = rb_str_new( NULL, 0 ), \
+		(curr_ptr) = (end_ptr) = RSTRING_PTR(str) \
+	)
+
+#define PG_RB_TAINTED_STR_NEW( str, curr_ptr, end_ptr ) ( \
+		(str) = rb_tainted_str_new( NULL, 0 ), \
+		(curr_ptr) = (end_ptr) = RSTRING_PTR(str) \
+	)
 
 VALUE pg_typemap_fit_to_result                         _(( VALUE, VALUE ));
 VALUE pg_typemap_fit_to_query                          _(( VALUE, VALUE ));

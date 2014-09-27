@@ -239,17 +239,20 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
  * This pointer is returned and possibly adjusted, because the location of the data
  * part of the String can change through this function.
  *
- * Before the String is used with other string functions or returned to Ruby space,
+ * PG_RB_STR_ENSURE_CAPA can be used to do fast inline checks of the remaining capacity.
+ * end_capa it is then set to the first byte after the currently reserved memory,
+ * if not NULL.
+ *
+ * Before the String can be used with other string functions or returned to Ruby space,
  * the string length has to be set with rb_str_set_len().
  *
  * Usage example:
  *
  *   VALUE string;
- *   char *current_out;
- *   string = rb_str_new(NULL, 0);
- *   current_out = RSTRING_PTR(string);
+ *   char *current_out, *end_capa;
+ *   PG_RB_STR_NEW( string, current_out, end_capa );
  *   while( data_is_going_to_be_processed ){
- *     current_out = pg_ensure_str_capa( string, 2, current_out );
+ *     PG_RB_STR_ENSURE_CAPA( string, 2 current_out, end_capa );
  *     *current_out++ = databyte1;
  *     *current_out++ = databyte2;
  *   }
@@ -259,29 +262,33 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
 #ifdef HAVE_RB_STR_MODIFY_EXPAND
 	/* Use somewhat faster version with access to string capacity on MRI */
 	char *
-	pg_ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+	pg_rb_str_ensure_capa( VALUE str, long expand_len, char *curr_ptr, char **end_ptr )
 	{
-		long curr_len = end_ptr - RSTRING_PTR(str);
+		long curr_len = curr_ptr - RSTRING_PTR(str);
 		long curr_capa = rb_str_capacity( str );
 		if( curr_capa < curr_len + expand_len ){
 			rb_str_set_len( str, curr_len );
 			rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
-			return RSTRING_PTR(str) + curr_len;
+			curr_ptr = RSTRING_PTR(str) + curr_len;
 		}
-		return end_ptr;
+		if( end_ptr )
+			*end_ptr = RSTRING_PTR(str) + rb_str_capacity( str );
+		return curr_ptr;
 	}
 #else
 	/* Use the more portable version */
 	char *
-	pg_ensure_str_capa( VALUE str, long expand_len, char *end_ptr )
+	pg_rb_str_ensure_capa( VALUE str, long expand_len, char *curr_ptr, char **end_ptr )
 	{
-		long curr_len = end_ptr - RSTRING_PTR(str);
+		long curr_len = curr_ptr - RSTRING_PTR(str);
 		long curr_capa = RSTRING_LEN( str );
 		if( curr_capa < curr_len + expand_len ){
 			rb_str_resize( str, (curr_len + expand_len) * 2 - curr_capa );
-			return RSTRING_PTR(str) + curr_len;
+			curr_ptr = RSTRING_PTR(str) + curr_len;
 		}
-		return end_ptr;
+		if( end_ptr )
+			*end_ptr = RSTRING_PTR(str) + RSTRING_LEN(str);
+		return curr_ptr;
 	}
 #endif
 

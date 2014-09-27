@@ -131,6 +131,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	int i;
 	t_typemap *p_typemap;
 	char *current_out;
+	char *end_capa_ptr;
 
 	if( NIL_P(this->typemap) ){
 		Data_Get_Struct( pg_default_typemap, t_typemap, p_typemap);
@@ -142,8 +143,8 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 		p_typemap = DATA_PTR( typemap );
 	}
 
-	*intermediate = rb_str_new(NULL, 0);
-	current_out = RSTRING_PTR(*intermediate);
+	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
+	PG_RB_STR_NEW( *intermediate, current_out, end_capa_ptr );
 
 	for( i=0; i<RARRAY_LEN(value); i++){
 		char *ptr1;
@@ -156,13 +157,13 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 		entry = rb_ary_entry(value, i);
 
 		if( i > 0 ){
-			current_out = pg_ensure_str_capa( *intermediate, 1, current_out );
+			PG_RB_STR_ENSURE_CAPA( *intermediate, 1, current_out, end_capa_ptr );
 			*current_out++ = this->delimiter;
 		}
 
 		switch(TYPE(entry)){
 			case T_NIL:
-				current_out = pg_ensure_str_capa( *intermediate, RSTRING_LEN(this->null_string), current_out );
+				PG_RB_STR_ENSURE_CAPA( *intermediate, RSTRING_LEN(this->null_string), current_out, end_capa_ptr );
 				memcpy( current_out, RSTRING_PTR(this->null_string), RSTRING_LEN(this->null_string) );
 				current_out += RSTRING_LEN(this->null_string);
 				break;
@@ -178,7 +179,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					strlen = RSTRING_LEN(subint);
 
 					/* size of string assuming the worst case, that every character must be escaped. */
-					current_out = pg_ensure_str_capa( *intermediate, strlen * 2, current_out );
+					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2, current_out, end_capa_ptr );
 
 					/* Copy string from subint with backslash escaping */
 					for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
@@ -191,7 +192,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				} else {
 					/* 2nd pass for writing the data to prepared buffer */
 					/* size of string assuming the worst case, that every character must be escaped. */
-					current_out = pg_ensure_str_capa( *intermediate, strlen * 2, current_out );
+					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2, current_out, end_capa_ptr );
 
 					/* Place the unescaped string at current output position. */
 					strlen = enc_func(p_elem_coder, entry, current_out, &subint);
@@ -222,7 +223,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				}
 		}
 	}
-	current_out = pg_ensure_str_capa( *intermediate, 1, current_out );
+	PG_RB_STR_ENSURE_CAPA( *intermediate, 1, current_out, end_capa_ptr );
 	*current_out++ = '\n';
 
 	rb_str_set_len( *intermediate, current_out - RSTRING_PTR(*intermediate) );
@@ -276,6 +277,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	char *output_ptr;
 	char *cur_ptr;
 	char *line_end_ptr;
+	char *end_capa_ptr;
 	t_typemap *p_typemap;
 
 	if( NIL_P(this->typemap) ){
@@ -288,8 +290,8 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	/* The received input string will probably have this->nfields fields. */
 	array = rb_ary_new2(expected_fields);
 
-	field_str = rb_tainted_str_new(NULL, 0);
-	output_ptr = RSTRING_PTR(field_str);
+	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
+	PG_RB_TAINTED_STR_NEW( field_str, output_ptr, end_capa_ptr );
 
 	/* set pointer variables for loop */
 	cur_ptr = input_line;
@@ -426,7 +428,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 				}
 			}
 
-			output_ptr = pg_ensure_str_capa( field_str, 1, output_ptr );
+			PG_RB_STR_ENSURE_CAPA( field_str, 1, output_ptr, end_capa_ptr );
 			/* Add c to output string */
 			*output_ptr++ = c;
 		}
