@@ -231,14 +231,57 @@ end
 #   # Retrieve and cast the result value. Value format is 0 (text) and OID is 20. Therefore typecasting
 #   # is done by PG::TextDecoder::Integer internally for all value retrieval methods.
 #   res.values  # => [[5]]
+#
+# PG::TypeMapByOid#fit_to_result(result, false) can be used to generate
+# a result independent PG::TypeMapByColumn type map, which can subsequently be used
+# to cast #get_copy_data fields. See also PG::BasicTypeMapBasedOnResult .
+#
 class PG::BasicTypeMapForResults < PG::TypeMapByOid
 	include PG::BasicTypeRegistry
 
 	def initialize(connection)
 		@coder_maps = build_coder_maps(connection)
 
-		# Populate TypeMapByOid hash with coders
+		# Populate TypeMapByOid hash with decoders
 		@coder_maps.map{|f| f[:decoder].coders }.flatten.each do |coder|
+			add_coder(coder)
+		end
+	end
+end
+
+# Simple set of rules for type casting common PostgreSQL types from Ruby
+# to PostgreSQL.
+#
+# OIDs of supported type casts are not hard-coded in the sources, but are retrieved from the
+# PostgreSQL's pg_type table in PG::BasicTypeMapBasedOnResult.new .
+#
+# This class works equal to PG::BasicTypeMapForResults, but does not define decoders for
+# the given result OIDs, but encoders. So it can be used to type cast field values based on
+# the type OID retrieved by a separate SQL query.
+#
+# PG::TypeMapByOid#fit_to_result(result, false) can be used to generate a result independent
+# PG::TypeMapByColumn type map, which can subsequently be used to cast query bind parameters
+# or #put_copy_data fields.
+#
+# Example:
+#   conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[])" )
+#
+#   # Retrieve table OIDs per empty result set.
+#   res = conn.exec( "SELECT * FROM copytable LIMIT 0" )
+#   tm = basic_type_mapping.fit_to_result( res, false )
+#   row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
+#
+#   conn.copy_data( "COPY copytable FROM STDIN", row_encoder ) do |res|
+#     conn.put_copy_data ['a', 123, [5,4,3]]
+#   end
+class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
+	include PG::BasicTypeRegistry
+
+	def initialize(connection)
+		@coder_maps = build_coder_maps(connection)
+
+		# Populate TypeMapByOid hash with encoders
+		@coder_maps.map{|f| f[:encoder].coders }.flatten.each do |coder|
 			add_coder(coder)
 		end
 	end
