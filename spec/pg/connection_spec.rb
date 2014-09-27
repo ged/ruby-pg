@@ -229,6 +229,8 @@ describe PG::Connection do
 	end
 
 	it "can stop a thread that runs a blocking query with async_exec" do
+		pending "this does not work on Rubinius" if RUBY_ENGINE=='rbx'
+
 		start = Time.now
 		t = Thread.new do
 			@conn.async_exec( 'select pg_sleep(10)' )
