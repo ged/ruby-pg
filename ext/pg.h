@@ -36,7 +36,10 @@
 #	endif
 
 
-# ifdef RUBINIUS
+# if !defined(ENCODING_SET_INLINED)
+/* Rubinius doesn't define ENCODING_SET_INLINED, so we fall back to the more
+ * portable version.
+ */
 #  define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
 		rb_enc_set_index((obj), (i)); \
