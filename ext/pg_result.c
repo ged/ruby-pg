@@ -982,6 +982,10 @@ pgresult_fields(VALUE self)
  *
  * Set the TypeMap that is used for type casts of result values to ruby objects.
  *
+ * All value retrieval methods will respect the type map and will do the
+ * type casts from PostgreSQL's wire format to Ruby objects on the fly,
+ * according to the rules and decoders defined in the given typemap.
+ *
  * +typemap+ can be:
  * * a kind of PG::TypeMap
  * * +nil+ - to type cast all result values to String.

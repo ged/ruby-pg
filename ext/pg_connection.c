@@ -1171,8 +1171,8 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
 
 /*
  * call-seq:
- *    conn.exec_params(sql, params[, result_format ] ) -> PG::Result
- *    conn.exec_params(sql, params[, result_format ] ) {|pg_result| block }
+ *    conn.exec_params(sql, params[, result_format[, type_map]] ) -> PG::Result
+ *    conn.exec_params(sql, params[, result_format[, type_map]] ) {|pg_result| block }
  *
  * Sends SQL query request specified by +sql+ to PostgreSQL using placeholders
  * for parameters.
@@ -1201,6 +1201,12 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
  *
  * If the optional code block is given, it will be passed <i>result</i> as an argument,
  * and the PG::Result object will  automatically be cleared when the block terminates.
@@ -1307,8 +1313,8 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PG::Result
- *    conn.exec_prepared(statement_name [, params, result_format ] ) {|pg_result| block }
+ *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
+ *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
  *
  * Execute prepared named statement specified by _statement_name_.
  * Returns a PG::Result instance on success.
@@ -1329,6 +1335,12 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
  *
  * If the optional code block is given, it will be passed <i>result</i> as an argument,
  * and the PG::Result object will  automatically be cleared when the block terminates.
@@ -1708,7 +1720,7 @@ pgconn_set_single_row_mode(VALUE self)
 
 /*
  * call-seq:
- *    conn.send_query(sql [, params, result_format ] ) -> nil
+ *    conn.send_query(sql [, params, result_format[, type_map ]] ) -> nil
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL for
  * asynchronous processing, and immediately returns.
@@ -1736,6 +1748,13 @@ pgconn_set_single_row_mode(VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
  */
 static VALUE
 pgconn_send_query(int argc, VALUE *argv, VALUE self)
@@ -1846,7 +1865,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.send_query_prepared( statement_name [, params, result_format ] )
+ *    conn.send_query_prepared( statement_name [, params, result_format[, type_map ]] )
  *      -> nil
  *
  * Execute prepared named statement specified by _statement_name_
@@ -1868,6 +1887,13 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
  */
 static VALUE
 pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
@@ -2456,12 +2482,17 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.put_copy_data( buffer ) -> Boolean
+ *    conn.put_copy_data( buffer [, encoder] ) -> Boolean
  *
  * Transmits _buffer_ as copy data to the server.
  * Returns true if the data was sent, false if it was
  * not sent (false is only possible if the connection
  * is in nonblocking mode, and this command would block).
+ *
+ * encoder can be a PG::Coder derivation (typically PG::TestEncoder::CopyRow).
+ * This encodes the received data fields from an Array of Strings. Optionally
+ * the encoder can type cast the fields form various Ruby types in one step,
+ * if PG::TestEncoder::CopyRow#type_map is set accordingly.
  *
  * Raises an exception if an error occurs.
  *
@@ -2566,11 +2597,16 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.get_copy_data( [ async = false ] ) -> String
+ *    conn.get_copy_data( [ async = false [, decoder = nil ]] ) -> String
  *
  * Return a string containing one row of data, +nil+
  * if the copy is done, or +false+ if the call would
  * block (only possible if _async_ is true).
+ *
+ * decoder can be a PG::Coder derivation (typically PG::TestDecoder::CopyRow).
+ * This decodes the received data fields as Array of Strings. Optionally
+ * the decoder can type cast the fields to various Ruby types in one step,
+ * if PG::TestDecoder::CopyRow#type_map is set accordingly.
  *
  * See also #copy_data.
  *
@@ -3530,7 +3566,7 @@ pgconn_set_default_encoding( VALUE self )
  * call-seq:
  *    res.type_map_for_queries = typemap
  *
- * Set the TypeMap that is used for type casts of query params.
+ * Set the default TypeMap that is used for type casts of query bind parameters.
  *
  * +typemap+ can be:
  * * a kind of PG::TypeMap
@@ -3558,7 +3594,8 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
  * call-seq:
  *    res.type_map_for_queries -> TypeMap
  *
- * Returns the TypeMap that is currently set for type casts of query params.
+ * Returns the default TypeMap that is currently set for type casts of query
+ * bind parameters.
  *
  * Returns either:
  * * a kind of PG::TypeMap or
@@ -3577,7 +3614,7 @@ pgconn_type_map_for_queries_get(VALUE self)
  * call-seq:
  *    res.type_map_for_results = typemap
  *
- * Set the TypeMap that is used for type casts of result values.
+ * Set the default TypeMap that is used for type casts of result values.
  *
  * +typemap+ can be:
  * * a kind of PG::TypeMap
@@ -3605,7 +3642,7 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
  * call-seq:
  *    res.type_map_for_results -> TypeMap
  *
- * Returns the TypeMap that is currently set for type casts of result values.
+ * Returns the default TypeMap that is currently set for type casts of result values.
  *
  * Returns either:
  * * a kind of PG::TypeMap or
@@ -3625,11 +3662,11 @@ pgconn_type_map_for_results_get(VALUE self)
  * call-seq:
  *    res.encoder_for_put_copy_data = encoder
  *
- * Set the Coder that is used for type casting of parameters
+ * Set the default coder that is used for type casting of parameters
  * to #put_copy_data .
  *
  * +encoder+ can be:
- * * a kind of PG::CopyEncoder
+ * * a kind of PG::Coder
  * * +nil+ - disable type encoding, data must be a String.
  *
  */
@@ -3639,8 +3676,8 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if( typemap != Qnil ){
-		if ( !rb_obj_is_kind_of(typemap, rb_cPG_CopyEncoder) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::CopyEncoder)",
+		if ( !rb_obj_is_kind_of(typemap, rb_cPG_Coder) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
 					rb_obj_classname( typemap ) );
 		}
 		Check_Type(typemap, T_DATA);
@@ -3652,13 +3689,13 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
 
 /*
  * call-seq:
- *    res.encoder_for_put_copy_data -> PG::CopyEncoder
+ *    res.encoder_for_put_copy_data -> PG::Coder
  *
- * Returns the CopyEncoder that is currently set for type casting of parameters
+ * Returns the default coder object that is currently set for type casting of parameters
  * to #put_copy_data .
  *
  * Returns either:
- * * a kind of PG::CopyEncoder
+ * * a kind of PG::Coder
  * * +nil+ - type encoding is disabled, returned data will be a String.
  *
  */
@@ -3674,11 +3711,11 @@ pgconn_encoder_for_put_copy_data_get(VALUE self)
  * call-seq:
  *    res.decoder_for_get_copy_data = decoder
  *
- * Set the Coder that is used for type casting of received data
+ * Set the default coder that is used for type casting of received data
  * by #get_copy_data .
  *
  * +decoder+ can be:
- * * a kind of PG::CopyDecoder
+ * * a kind of PG::Coder
  * * +nil+ - disable type decoding, returned data will be a String.
  *
  */
@@ -3688,8 +3725,8 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE typemap)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if( typemap != Qnil ){
-		if ( !rb_obj_is_kind_of(typemap, rb_cPG_CopyDecoder) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::CopyDecoder)",
+		if ( !rb_obj_is_kind_of(typemap, rb_cPG_Coder) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
 					rb_obj_classname( typemap ) );
 		}
 		Check_Type(typemap, T_DATA);
@@ -3701,13 +3738,13 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE typemap)
 
 /*
  * call-seq:
- *    res.decoder_for_get_copy_data -> PG::CopyDecoder
+ *    res.decoder_for_get_copy_data -> PG::Coder
  *
- * Returns the CopyDecoder that is currently set for type casting of received
+ * Returns the default coder object that is currently set for type casting of received
  * data by #get_copy_data .
  *
  * Returns either:
- * * a kind of PG::CopyDecoder
+ * * a kind of PG::Coder
  * * +nil+ - type encoding is disabled, returned data will be a String.
  *
  */
