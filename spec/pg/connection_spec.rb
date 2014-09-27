@@ -1382,8 +1382,8 @@ describe PG::Connection do
 				tm.add_coder PG::TextDecoder::Integer.new oid: 23, format: 0
 				@conn2.type_map_for_results = tm
 
-# 				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
-# 				@conn2.decoder_for_get_copy_data = row_decoder
+				row_decoder = PG::TextDecoder::CopyRow.new
+				@conn2.decoder_for_get_copy_data = row_decoder
 			end
 			after :each do
 				@conn2.close
@@ -1413,15 +1413,31 @@ describe PG::Connection do
 				end
 			end
 
-			it "can process #copy_data output queries with row decoder" do
-				pending "this is not yet implemented"
+			it "can process #copy_data output with row decoder" do
 				rows = []
-				res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+				res2 = @conn2.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+					while row=@conn2.get_copy_data
+						rows << row
+					end
+				end
+				expect( rows ).to eq( [["1"], ["2"]] )
+			end
+
+			it "can type cast #copy_data output with explicit decoder" do
+				tm = PG::TypeMapByColumn.new [PG::TextDecoder::Integer.new]
+				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
+				rows = []
+				@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT", row_decoder ) do |res|
 					while row=@conn.get_copy_data
 						rows << row
 					end
 				end
-				expect( rows ).to eq( [[1], [2]] )
+				@conn.copy_data( "COPY (SELECT 3 UNION ALL SELECT 4) TO STDOUT" ) do |res|
+					while row=@conn.get_copy_data( false, row_decoder )
+						rows << row
+					end
+				end
+				expect( rows ).to eq( [[1], [2], [3], [4]] )
 			end
 		end
 	end

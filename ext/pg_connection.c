@@ -2522,6 +2522,7 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 		rb_exc_raise(error);
 	}
 	RB_GC_GUARD(intermediate);
+	RB_GC_GUARD(buffer);
 
 	return (ret) ? Qtrue : Qfalse;
 }
@@ -2579,18 +2580,28 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 {
 	VALUE async_in;
 	VALUE error;
-	VALUE result_str;
+	VALUE result;
 	int ret;
-	int async;
 	char *buffer;
+	VALUE decoder;
+	t_pg_coder *p_coder = NULL;
 	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection( self );
 
-	if (rb_scan_args(argc, argv, "01", &async_in) == 0)
-		async = 0;
-	else
-		async = (async_in == Qfalse || async_in == Qnil) ? 0 : 1;
+	rb_scan_args(argc, argv, "02", &async_in, &decoder);
 
-	ret = gvl_PQgetCopyData(conn, &buffer, async);
+	if( NIL_P(decoder) ){
+		if( !NIL_P(this->decoder_for_get_copy_data) ){
+			p_coder = DATA_PTR( this->decoder_for_get_copy_data );
+		}
+	} else if( rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
+		Data_Get_Struct( decoder, t_pg_coder, p_coder );
+	} else {
+		rb_raise( rb_eTypeError, "wrong decoder type %s (expected some kind of PG::Coder)",
+				rb_obj_classname( decoder ) );
+	}
+
+	ret = gvl_PQgetCopyData(conn, &buffer, RTEST(async_in));
 	if(ret == -2) { /* error */
 		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
@@ -2602,9 +2613,16 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 	if(ret == 0) { /* would block */
 		return Qfalse;
 	}
-	result_str = rb_tainted_str_new(buffer, ret);
+
+	if( p_coder ){
+		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, p_coder->format );
+		result =  dec_func( p_coder, buffer, ret, 0, 0, ENCODING_GET(self) );
+	} else {
+		result = rb_tainted_str_new(buffer, ret);
+	}
+
 	PQfreemem(buffer);
-	return result_str;
+	return result;
 }
 
 /*
