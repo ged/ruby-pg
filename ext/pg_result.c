@@ -1029,40 +1029,13 @@ pgresult_type_map_get(VALUE self)
 	return this->typemap;
 }
 
-static VALUE
-pgresult_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
-{
-	VALUE ret;
-	char * val;
-	int len;
-
-	if (PQgetisnull(result, tuple, field)) {
-		return Qnil;
-	}
-
-	val = PQgetvalue( result, tuple, field );
-	len = PQgetlength( result, tuple, field );
-
-	if ( 0 == PQfformat(result, field) ) {
-		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(self));
-	} else {
-		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(self));
-	}
-
-	return ret;
-}
-
-static const t_typemap pgresult_default_typemap = {
-	typecast_result_value: pgresult_value
-};
-
 static t_typemap *
 pgresult_get_typemap(VALUE self)
 {
 	t_pg_result *this = pgresult_get_struct(self);
 
 	if( this->typemap == Qnil ){
-		return (t_typemap *)&pgresult_default_typemap;
+		return DATA_PTR( pg_default_typemap );
 	} else {
 		/* The type of @type_map is already checked when the
 		 * value is assigned. */

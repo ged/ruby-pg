@@ -11,7 +11,6 @@
 
 
 VALUE rb_cPGconn;
-static VALUE sym_type, sym_value, sym_format;
 static ID s_id_encode;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
@@ -979,8 +978,6 @@ struct query_params_data {
 	int *formats;
 	/* Pointer to the OID types (either within memory_pool or heap_pool) */
 	Oid *types;
-	/* Pointer to the coder objects used for the query (either within memory_pool or heap_pool) */
-	t_pg_coder **p_coders;
 
 	/* This array takes the string values for the timeframe of the query,
 	 * if param value convertion is required
@@ -1032,8 +1029,6 @@ static int
 alloc_query_params1(struct query_params_data *paramsData)
 {
 	VALUE param_value;
-	int param_type, param_format;
-	VALUE typemap;
 	t_typemap *p_typemap;
 	int nParams;
 	int i=0;
@@ -1041,11 +1036,7 @@ alloc_query_params1(struct query_params_data *paramsData)
 	unsigned int required_pool_size;
 	char *memory_pool;
 
-	typemap = paramsData->typemap;
-	if( typemap )
-		Data_Get_Struct( typemap, t_typemap, p_typemap);
-	else
-		p_typemap = NULL;
+	Data_Get_Struct( paramsData->typemap, t_typemap, p_typemap);
 
 	nParams = (int)RARRAY_LEN(paramsData->params);
 
@@ -1053,8 +1044,6 @@ alloc_query_params1(struct query_params_data *paramsData)
 			sizeof(char *) +
 			sizeof(int) +
 			sizeof(int) +
-			sizeof(VALUE) +
-			sizeof(t_pg_coder *) +
 			(paramsData->with_types ? sizeof(Oid) : 0));
 
 	if( sizeof(paramsData->memory_pool) < required_pool_size ){
@@ -1072,100 +1061,64 @@ alloc_query_params1(struct query_params_data *paramsData)
 	paramsData->lengths = (int *)((char*)paramsData->values + sizeof(char *) * nParams);
 	paramsData->formats = (int *)((char*)paramsData->lengths + sizeof(int) * nParams);
 	paramsData->types = (Oid *)((char*)paramsData->formats + sizeof(int) * nParams);
-	paramsData->p_coders = (t_pg_coder **)((char*)paramsData->types + (paramsData->with_types ? sizeof(Oid) : 0) * nParams);
 
 	{
-		char *typecast_buf = (char*)paramsData->p_coders + sizeof(t_pg_coder *) * nParams;
+		char *typecast_buf = paramsData->memory_pool + required_pool_size;
 
 		for ( i = 0; i < nParams; i++ ) {
 			param_value = rb_ary_entry(paramsData->params, i);
-			param_type = 0;
-			param_format = 0;
+
+			paramsData->formats[i] = 0;
+			if( paramsData->with_types )
+				paramsData->types[i] = 0;
 
 			/* Let the given typemap select a coder for this param */
-			if( p_typemap )
-				conv = p_typemap->typecast_query_param(typemap, param_value, i);
-			else
-				conv = NULL;
-
-			paramsData->p_coders[i] = conv;
+			conv = p_typemap->typecast_query_param(paramsData->typemap, param_value, i,
+					&paramsData->formats[i],
+					paramsData->with_types ? &paramsData->types[i] : NULL);
 
 			if( NIL_P(param_value) ){
 				paramsData->values[i] = NULL;
 				paramsData->lengths[i] = 0;
-				if( conv )
-					param_type = conv->oid;
-			} else if( conv ) {
-				if( conv->enc_func ){
-					/* C-based converter */
-					VALUE intermediate;
+			} else {
+				t_pg_coder_enc_func enc_func = pg_coder_enc_func( conv );
+				VALUE intermediate;
 
-					/* 1st pass for retiving the required memory space */
-					int len = conv->enc_func(conv, param_value, NULL, &intermediate);
+				/* 1st pass for retiving the required memory space */
+				int len = enc_func(conv, param_value, NULL, &intermediate);
 
-					if( len == -1 ){
-						/* The intermediate value is a String that can be used directly. */
+				if( len == -1 ){
+					/* The intermediate value is a String that can be used directly. */
+
+					/* In case a new string object was generated, make sure it doesn't get freed by the GC */
+					if( intermediate != param_value )
 						rb_ary_push(paramsData->gc_array, intermediate);
-						paramsData->values[i] = RSTRING_PTR(intermediate);
-						paramsData->lengths[i] = RSTRING_LENINT(intermediate);
-
-					} else {
-						/* Is the stack memory pool too small to take the type casted value? */
-						if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
-							typecast_buf = alloc_typecast_buf( &paramsData->typecast_heap_chain, len + 1 );
-						}
-
-						/* 2nd pass for writing the data to prepared buffer */
-						len = conv->enc_func(conv, param_value, typecast_buf, &intermediate);
-						paramsData->values[i] = typecast_buf;
-						if( conv->format == 0 ){
-							/* text format strings must be zero terminated and lengths are ignored */
-							typecast_buf[len] = 0;
-							typecast_buf += len + 1;
-							required_pool_size += len + 1;
-						} else {
-							paramsData->lengths[i] = len;
-							typecast_buf += len;
-							required_pool_size += len;
-						}
-					}
-
-					RB_GC_GUARD(intermediate);
+					paramsData->values[i] = RSTRING_PTR(intermediate);
+					paramsData->lengths[i] = RSTRING_LENINT(intermediate);
 
 				} else {
-					/* Ruby-based converter */
-					param_value = rb_funcall( conv->coder_obj, s_id_encode, 1, param_value );
-					rb_ary_push(paramsData->gc_array, param_value);
-					paramsData->values[i] = RSTRING_PTR(param_value);
-					paramsData->lengths[i] = RSTRING_LENINT(param_value);
+					/* Is the stack memory pool too small to take the type casted value? */
+					if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
+						typecast_buf = alloc_typecast_buf( &paramsData->typecast_heap_chain, len + 1 );
+					}
+
+					/* 2nd pass for writing the data to prepared buffer */
+					len = enc_func(conv, param_value, typecast_buf, &intermediate);
+					paramsData->values[i] = typecast_buf;
+					if( paramsData->formats[i] == 0 ){
+						/* text format strings must be zero terminated and lengths are ignored */
+						typecast_buf[len] = 0;
+						typecast_buf += len + 1;
+						required_pool_size += len + 1;
+					} else {
+						paramsData->lengths[i] = len;
+						typecast_buf += len;
+						required_pool_size += len;
+					}
 				}
 
-				param_type = conv->oid;
-				param_format = conv->format;
-			} else {
-				VALUE param_str_value;
-				if (TYPE(param_value) == T_HASH) {
-					VALUE format_value = rb_hash_aref(param_value, sym_format);
-					VALUE type_value = paramsData->with_types ? rb_hash_aref(param_value, sym_type) : Qnil;
-
-					param_type = NIL_P(type_value) ? 0 : NUM2UINT(type_value);
-					param_format = NIL_P(format_value) ? 0 : NUM2INT(format_value);
-					param_value = rb_hash_aref(param_value, sym_value);
-				}
-
-				param_str_value = rb_obj_as_string(param_value);
-				/* in case a new string object was generated, make sure it doesn't get freed by the GC */
-				if( param_str_value != param_value )
-					rb_ary_push(paramsData->gc_array, param_str_value);
-				paramsData->values[i] = RSTRING_PTR(param_str_value);
-				paramsData->lengths[i] = RSTRING_LENINT(param_str_value);
+				RB_GC_GUARD(intermediate);
 			}
-
-			if( paramsData->with_types ){
-				paramsData->types[i] = param_type;
-			}
-
-			paramsData->formats[i] = param_format;
 		}
 	}
 
@@ -1178,10 +1131,6 @@ free_query_params(struct query_params_data *paramsData)
 	/* currently nothing to free */
 }
 
-static const t_typemap pgconn_default_typemap_for_query = {
-	typecast_query_param: NULL
-};
-
 static int
 alloc_query_params(struct query_params_data *paramsData)
 {
@@ -1189,7 +1138,8 @@ alloc_query_params(struct query_params_data *paramsData)
 	Check_Type(paramsData->params, T_ARRAY);
 
 	if( NIL_P(paramsData->typemap) ){
-		paramsData->typemap = 0;
+		/* We don't need to call fit_to_query for pg_default_typemap. It does nothing. */
+		paramsData->typemap = pg_default_typemap;
 	} else {
 		t_typemap *p_typemap = DATA_PTR( paramsData->typemap );
 		paramsData->typemap = p_typemap->fit_to_query( paramsData->typemap, paramsData->params );
@@ -3755,9 +3705,6 @@ pgconn_decoder_for_get_copy_data_get(VALUE self)
 void
 init_pg_connection()
 {
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
 	s_id_encode = rb_intern("encode");
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );

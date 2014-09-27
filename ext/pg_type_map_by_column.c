@@ -75,11 +75,19 @@ pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typem
 }
 
 static t_pg_coder *
-pg_tmbc_typecast_query_param(VALUE self, VALUE param_value, int field)
+pg_tmbc_typecast_query_param(VALUE self, VALUE param_value, int field, int *p_format, Oid *p_type)
 {
 	t_tmbc *this = (t_tmbc *)DATA_PTR(self);
 
-	return this->convs[field].cconv;
+	/* Number of fields were already checked in pg_tmbc_fit_to_query() */
+	t_pg_coder *p_coder = this->convs[field].cconv;
+
+	if( p_format && p_coder )
+		*p_format = p_coder->format;
+	if( p_type && p_coder )
+		*p_type = p_coder->oid;
+
+	return p_coder;
 }
 
 static VALUE

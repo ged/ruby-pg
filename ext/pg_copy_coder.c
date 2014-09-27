@@ -133,7 +133,9 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	char *current_out;
 
 	if( NIL_P(this->typemap) ){
-		rb_raise( rb_eTypeError, "no type_map defined" );
+		Data_Get_Struct( pg_default_typemap, t_typemap, p_typemap);
+		/* We don't need to call fit_to_query for pg_default_typemap. It does nothing. */
+		typemap = pg_default_typemap;
 	} else {
 		p_typemap = DATA_PTR( this->typemap );
 		typemap = p_typemap->fit_to_query( this->typemap, value );
@@ -165,7 +167,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				current_out += RSTRING_LEN(this->null_string);
 				break;
 			default:
-				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
+				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i, NULL, NULL);
 				enc_func = pg_coder_enc_func(p_elem_coder);
 
 				/* 1st pass for retiving the required memory space */
@@ -253,6 +255,9 @@ GetDecimalFromHex(char hex)
  * into to a ruby String. This object is reused for non string columns.
  * For String columns the field value is directly used as return value and no
  * reuse of the memory is done.
+ *
+ * The parser is thankfully borrowed from the PostgreSQL sources:
+ * src/backend/commands/copy.c
  */
 static VALUE
 pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, int _field, int enc_idx)
@@ -274,11 +279,11 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	t_typemap *p_typemap;
 
 	if( NIL_P(this->typemap) ){
-		rb_raise( rb_eTypeError, "no type_map defined" );
+		Data_Get_Struct( pg_default_typemap, t_typemap, p_typemap);
 	} else {
 		p_typemap = DATA_PTR( this->typemap );
-		expected_fields = p_typemap->fit_to_copy_get( this->typemap );
 	}
+	expected_fields = p_typemap->fit_to_copy_get( this->typemap );
 
 	/* The received input string will probably have this->nfields fields. */
 	array = rb_ary_new2(expected_fields);

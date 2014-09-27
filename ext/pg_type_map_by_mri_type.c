@@ -47,22 +47,22 @@ typedef struct {
 
 #define CASE_AND_GET(type) \
 	case type: \
-		conv = this->coders.coder_##type; \
+		p_coder = this->coders.coder_##type; \
 		ask_for_coder = this->coders.ask_##type; \
 		break;
 
 static t_pg_coder *
-pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
+pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field, int *p_format, Oid *p_type)
 {
 	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
-	t_pg_coder *conv;
+	t_pg_coder *p_coder;
 	VALUE ask_for_coder;
 
 	switch(TYPE(param_value)){
 			FOR_EACH_MRI_TYPE( CASE_AND_GET )
 		default:
 			/* unknown MRI type */
-			conv = NULL;
+			p_coder = NULL;
 			ask_for_coder = Qnil;
 	}
 
@@ -77,13 +77,19 @@ pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
 		}
 
 		if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-			Data_Get_Struct(obj, t_pg_coder, conv);
+			Data_Get_Struct(obj, t_pg_coder, p_coder);
 		}else{
 			rb_raise(rb_eTypeError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
 						field+1, rb_obj_classname( obj ));
 		}
 	}
-	return conv;
+
+	if( p_format && p_coder )
+		*p_format = p_coder->format;
+	if( p_type && p_coder )
+		*p_type = p_coder->oid;
+
+	return p_coder;
 }
 
 static VALUE
