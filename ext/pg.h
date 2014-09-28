@@ -55,9 +55,9 @@
 #	define RSTRING_PTR(x) RSTRING((x))->ptr
 #endif /* RSTRING_PTR */
 
-#ifndef StringValuePtr
-#	define StringValuePtr(x) STR2CSTR(x)
-#endif /* StringValuePtr */
+#ifndef StringValueCStr
+#	define StringValueCStr(x) STR2CSTR(x)
+#endif /* StringValueCStr */
 
 #ifdef RUBY_18_COMPAT
 #	define rb_io_stdio_file GetWriteFile
