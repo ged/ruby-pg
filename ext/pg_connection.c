@@ -222,7 +222,7 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	VALUE error;
 
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
-	conn = gvl_PQconnectdb(StringValuePtr(conninfo));
+	conn = gvl_PQconnectdb(StringValueCStr(conninfo));
 
 	if(conn == NULL)
 		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
@@ -276,7 +276,7 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	 */
 	rb_conn  = pgconn_s_allocate( klass );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	conn     = gvl_PQconnectStart( StringValuePtr(conninfo) );
+	conn     = gvl_PQconnectStart( StringValueCStr(conninfo) );
 
 	if( conn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
@@ -322,7 +322,7 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 	VALUE conninfo;
 
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	ping     = PQping( StringValuePtr(conninfo) );
+	ping     = PQping( StringValueCStr(conninfo) );
 
 	return INT2FIX((int)ping);
 }
@@ -387,7 +387,7 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 	Check_Type(password, T_STRING);
 	Check_Type(username, T_STRING);
 
-	encrypted = PQencryptPassword(StringValuePtr(password), StringValuePtr(username));
+	encrypted = PQencryptPassword(StringValueCStr(password), StringValueCStr(username));
 	rval = rb_str_new2( encrypted );
 	PQfreemem( encrypted );
 
@@ -694,7 +694,7 @@ pgconn_transaction_status(VALUE self)
 static VALUE
 pgconn_parameter_status(VALUE self, VALUE param_name)
 {
-	const char *ret = PQparameterStatus(pg_get_pgconn(self), StringValuePtr(param_name));
+	const char *ret = PQparameterStatus(pg_get_pgconn(self), StringValueCStr(param_name));
 	if(ret == NULL)
 		return Qnil;
 	else
@@ -901,7 +901,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	if ( argc == 1 ) {
 		Check_Type(argv[0], T_STRING);
 
-		result = gvl_PQexec(conn, StringValuePtr(argv[0]));
+		result = gvl_PQexec(conn, StringValueCStr(argv[0]));
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
@@ -1038,7 +1038,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 			Check_Type(param_value, T_STRING);
 			/* make sure param_value doesn't get freed by the GC */
 			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
+			paramValues[i] = StringValueCStr(param_value);
 			paramLengths[i] = (int)RSTRING_LEN(param_value);
 		}
 
@@ -1048,7 +1048,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = gvl_PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
+	result = gvl_PQexecParams(conn, StringValueCStr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -1117,7 +1117,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2INT(param);
 		}
 	}
-	result = gvl_PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQprepare(conn, StringValueCStr(name), StringValueCStr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1226,7 +1226,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 			Check_Type(param_value, T_STRING);
 			/* make sure param_value doesn't get freed by the GC */
 			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
+			paramValues[i] = StringValueCStr(param_value);
 			paramLengths[i] = (int)RSTRING_LEN(param_value);
 		}
 
@@ -1236,7 +1236,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = gvl_PQexecPrepared(conn, StringValuePtr(name), nParams,
+	result = gvl_PQexecPrepared(conn, StringValueCStr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
@@ -1274,7 +1274,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 	}
 	else {
 		Check_Type(stmt_name, T_STRING);
-		stmt = StringValuePtr(stmt_name);
+		stmt = StringValueCStr(stmt_name);
 	}
 	result = gvl_PQdescribePrepared(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
@@ -1302,7 +1302,7 @@ pgconn_describe_portal(self, stmt_name)
 	}
 	else {
 		Check_Type(stmt_name, T_STRING);
-		stmt = StringValuePtr(stmt_name);
+		stmt = StringValueCStr(stmt_name);
 	}
 	result = gvl_PQdescribePortal(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
@@ -1464,7 +1464,7 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 	UNUSED( self );
 
 	Check_Type(str, T_STRING);
-	from = (unsigned char*)StringValuePtr(str);
+	from = (unsigned char*)StringValueCStr(str);
 
 	to = PQunescapeBytea(from, &to_len);
 
@@ -1661,7 +1661,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 
 	/* If called with no parameters, use PQsendQuery */
 	if(NIL_P(params)) {
-		if(gvl_PQsendQuery(conn,StringValuePtr(command)) == 0) {
+		if(gvl_PQsendQuery(conn,StringValueCStr(command)) == 0) {
 			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
@@ -1724,7 +1724,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			Check_Type(param_value, T_STRING);
 			/* make sure param_value doesn't get freed by the GC */
 			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
+			paramValues[i] = StringValueCStr(param_value);
 			paramLengths[i] = (int)RSTRING_LEN(param_value);
 		}
 
@@ -1734,7 +1734,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = gvl_PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes,
+	result = gvl_PQsendQueryParams(conn, StringValueCStr(command), nParams, paramTypes,
 		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
 
 	rb_gc_unregister_address(&gc_array);
@@ -1801,7 +1801,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2INT(param);
 		}
 	}
-	result = gvl_PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQsendPrepare(conn, StringValueCStr(name), StringValueCStr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1909,7 +1909,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 			Check_Type(param_value, T_STRING);
 			/* make sure param_value doesn't get freed by the GC */
 			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
+			paramValues[i] = StringValueCStr(param_value);
 			paramLengths[i] = (int)RSTRING_LEN(param_value);
 		}
 
@@ -1919,7 +1919,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 			paramFormats[i] = NUM2INT(param_format);
 	}
 
-	result = gvl_PQsendQueryPrepared(conn, StringValuePtr(name), nParams,
+	result = gvl_PQsendQueryPrepared(conn, StringValueCStr(name), nParams,
 		(const char * const *)paramValues, paramLengths, paramFormats,
 		resultFormat);
 
@@ -1950,7 +1950,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePrepared(conn,StringValuePtr(stmt_name)) == 0) {
+	if(gvl_PQsendDescribePrepared(conn,StringValueCStr(stmt_name)) == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
@@ -1972,7 +1972,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePortal(conn,StringValuePtr(portal)) == 0) {
+	if(gvl_PQsendDescribePortal(conn,StringValueCStr(portal)) == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
@@ -2548,7 +2548,7 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 	if (rb_scan_args(argc, argv, "01", &str) == 0)
 		error_message = NULL;
 	else
-		error_message = StringValuePtr(str);
+		error_message = StringValueCStr(str);
 
 	ret = gvl_PQputCopyEnd(conn, error_message);
 	if(ret == -1) {
@@ -2854,8 +2854,8 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 
 	Check_Type(str, T_STRING);
 
-	if ( (PQsetClientEncoding(conn, StringValuePtr(str))) == -1 ) {
-		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValuePtr(str));
+	if ( (PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
+		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValueCStr(str));
 	}
 
 	return Qnil;
@@ -2930,7 +2930,7 @@ static VALUE
 pgconn_s_quote_ident(VALUE self, VALUE in_str)
 {
 	VALUE ret;
-	char *str = StringValuePtr(in_str);
+	char *str = StringValueCStr(in_str);
 	/* result size at most NAMEDATALEN*2 plus surrounding
 	 * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
@@ -3158,7 +3158,7 @@ pgconn_loimport(VALUE self, VALUE filename)
 
 	Check_Type(filename, T_STRING);
 
-	lo_oid = lo_import(conn, StringValuePtr(filename));
+	lo_oid = lo_import(conn, StringValueCStr(filename));
 	if (lo_oid == 0) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
@@ -3183,7 +3183,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 		rb_raise(rb_ePGerror, "invalid large object oid %d",oid);
 	}
 
-	if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
+	if (lo_export(conn, oid, StringValueCStr(filename)) < 0) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
 	return Qnil;
@@ -3239,7 +3239,7 @@ pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 	if( RSTRING_LEN(buffer) < 0) {
 		rb_raise(rb_ePGerror, "write buffer zero string");
 	}
-	if((n = lo_write(conn, fd, StringValuePtr(buffer),
+	if((n = lo_write(conn, fd, StringValueCStr(buffer),
 				RSTRING_LEN(buffer))) < 0) {
 		rb_raise(rb_ePGerror, "lo_write failed: %s", PQerrorMessage(conn));
 	}
@@ -3681,4 +3681,3 @@ init_pg_connection()
 #endif /* M17N_SUPPORTED */
 
 }
-
