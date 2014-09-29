@@ -290,7 +290,8 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	/* The received input string will probably have this->nfields fields. */
 	array = rb_ary_new2(expected_fields);
 
-	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
+	/* Allocate a new string with embedded capacity and realloc later with
+	 * exponential growing size when needed. */
 	PG_RB_TAINTED_STR_NEW( field_str, output_ptr, end_capa_ptr );
 
 	/* set pointer variables for loop */
@@ -453,9 +454,10 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 			if( field_value == field_str ){
 				/* Our output string will be send to the user, so we can not reuse
 				 * it for the next field. */
-				field_str = rb_str_new(NULL, 0);
+				PG_RB_TAINTED_STR_NEW( field_str, output_ptr, end_capa_ptr );
 			}
 		}
+		/* Reset the pointer to the start of the output/buffer string. */
 		output_ptr = RSTRING_PTR(field_str);
 
 		fieldno++;
