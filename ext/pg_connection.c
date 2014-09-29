@@ -35,6 +35,9 @@ void pgconn_set_internal_encoding_index( VALUE );
  * Global functions
  */
 
+/*
+ * Fetch the PG::Connection object data pointer.
+ */
 t_pg_connection *
 pg_get_connection( VALUE self )
 {
@@ -45,12 +48,29 @@ pg_get_connection( VALUE self )
 }
 
 /*
- * Fetch the data pointer and check it for sanity.
+ * Fetch the PG::Connection object data pointer and check it's
+ * PGconn data pointer for sanity.
+ */
+t_pg_connection *
+pg_get_connection_safe( VALUE self )
+{
+	t_pg_connection *this;
+	Data_Get_Struct( self, t_pg_connection, this);
+
+	if ( !this->pgconn )
+		rb_raise( rb_eConnectionBad, "connection is closed" );
+
+	return this;
+}
+
+/*
+ * Fetch the PGconn data pointer and check it for sanity.
  */
 PGconn *
 pg_get_pgconn( VALUE self )
 {
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this;
+	Data_Get_Struct( self, t_pg_connection, this);
 
 	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
@@ -469,10 +489,10 @@ pgconn_connect_poll(VALUE self)
 static VALUE
 pgconn_finish( VALUE self )
 {
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	pgconn_close_socket_io( self );
-	PQfinish( pg_get_pgconn(self) );
+	PQfinish( this->pgconn );
 	this->pgconn = NULL;
 	return Qnil;
 }
@@ -813,11 +833,11 @@ pgconn_socket_io(VALUE self)
 	int sd;
 	int ruby_sd;
 	ID id_autoclose = rb_intern("autoclose=");
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 	VALUE socket_io = this->socket_io;
 
 	if ( !RTEST(socket_io) ) {
-		if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
+		if( (sd = PQsocket(this->pgconn)) < 0)
 			rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 		#ifdef _WIN32
@@ -2504,8 +2524,7 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 {
 	int ret;
 	int len;
-	PGconn *conn = pg_get_pgconn(self);
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 	VALUE value;
 	VALUE buffer = Qnil;
 	VALUE encoder;
@@ -2546,9 +2565,9 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 
 	Check_Type(buffer, T_STRING);
 
-	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
+	ret = gvl_PQputCopyData(this->pgconn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
 	if(ret == -1) {
-		VALUE error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		VALUE error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2621,8 +2640,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 	char *buffer;
 	VALUE decoder;
 	t_pg_coder *p_coder = NULL;
-	PGconn *conn = pg_get_pgconn(self);
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	rb_scan_args(argc, argv, "02", &async_in, &decoder);
 
@@ -2637,9 +2655,9 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 				rb_obj_classname( decoder ) );
 	}
 
-	ret = gvl_PQgetCopyData(conn, &buffer, RTEST(async_in));
+	ret = gvl_PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
 	if(ret == -2) { /* error */
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2695,6 +2713,7 @@ pgconn_trace(VALUE self, VALUE stream)
 	FILE *new_fp;
 	int old_fd, new_fd;
 	VALUE new_file;
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	if(rb_respond_to(stream,rb_intern("fileno")) == Qfalse)
 		rb_raise(rb_eArgError, "stream does not respond to method: fileno");
@@ -2717,9 +2736,9 @@ pgconn_trace(VALUE self, VALUE stream)
 		rb_raise(rb_eArgError, "stream is not writable");
 
 	new_file = rb_funcall(rb_cIO, rb_intern("new"), 1, INT2NUM(new_fd));
-	pg_get_connection( self )->trace_stream = new_file;
+	this->trace_stream = new_file;
 
-	PQtrace(pg_get_pgconn(self), new_fp);
+	PQtrace(this->pgconn, new_fp);
 	return Qnil;
 }
 
@@ -2732,9 +2751,9 @@ pgconn_trace(VALUE self, VALUE stream)
 static VALUE
 pgconn_untrace(VALUE self)
 {
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 
-	PQuntrace(pg_get_pgconn(self));
+	PQuntrace(this->pgconn);
 	rb_funcall(this->trace_stream, rb_intern("close"), 0);
 	this->trace_stream = Qnil;
 	return Qnil;
@@ -2793,8 +2812,7 @@ static VALUE
 pgconn_set_notice_receiver(VALUE self)
 {
 	VALUE proc, old_proc;
-	t_pg_connection *this = pg_get_connection( self );
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	/* If default_notice_receiver is unset, assume that the current
 	 * notice receiver is the default, and save it to a global variable.
@@ -2802,16 +2820,16 @@ pgconn_set_notice_receiver(VALUE self)
 	 * always the same, so won't vary among connections.
 	 */
 	if(default_notice_receiver == NULL)
-		default_notice_receiver = PQsetNoticeReceiver(conn, NULL, NULL);
+		default_notice_receiver = PQsetNoticeReceiver(this->pgconn, NULL, NULL);
 
 	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeReceiver(conn, gvl_notice_receiver_proxy, (void *)self);
+		PQsetNoticeReceiver(this->pgconn, gvl_notice_receiver_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
-		PQsetNoticeReceiver(conn, default_notice_receiver, NULL);
+		PQsetNoticeReceiver(this->pgconn, default_notice_receiver, NULL);
 	}
 
 	this->notice_receiver = proc;
@@ -2854,8 +2872,7 @@ static VALUE
 pgconn_set_notice_processor(VALUE self)
 {
 	VALUE proc, old_proc;
-	t_pg_connection *this = pg_get_connection( self );
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	/* If default_notice_processor is unset, assume that the current
 	 * notice processor is the default, and save it to a global variable.
@@ -2863,16 +2880,16 @@ pgconn_set_notice_processor(VALUE self)
 	 * always the same, so won't vary among connections.
 	 */
 	if(default_notice_processor == NULL)
-		default_notice_processor = PQsetNoticeProcessor(conn, NULL, NULL);
+		default_notice_processor = PQsetNoticeProcessor(this->pgconn, NULL, NULL);
 
 	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeProcessor(conn, gvl_notice_processor_proxy, (void *)self);
+		PQsetNoticeProcessor(this->pgconn, gvl_notice_processor_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
-		PQsetNoticeProcessor(conn, default_notice_processor, NULL);
+		PQsetNoticeProcessor(this->pgconn, default_notice_processor, NULL);
 	}
 
 	this->notice_receiver = proc;
@@ -3514,15 +3531,14 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 static VALUE
 pgconn_external_encoding(VALUE self)
 {
-	t_pg_connection *this = pg_get_connection( self );
-	PGconn *conn = pg_get_pgconn( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 	rb_encoding *enc = NULL;
 	const char *pg_encname = NULL;
 
 	/* Use cached value if found */
 	if ( RTEST(this->external_encoding) ) return this->external_encoding;
 
-	pg_encname = PQparameterStatus( conn, "server_encoding" );
+	pg_encname = PQparameterStatus( this->pgconn, "server_encoding" );
 	enc = pg_get_pg_encname_as_rb_encoding( pg_encname );
 	this->external_encoding = rb_enc_from_encoding( enc );
 
