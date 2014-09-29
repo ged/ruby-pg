@@ -150,6 +150,8 @@ pgconn_gc_mark( t_pg_connection *this )
 	rb_gc_mark( this->type_map_for_results );
 	rb_gc_mark( this->trace_stream );
 	rb_gc_mark( this->external_encoding );
+	rb_gc_mark( this->encoder_for_put_copy_data );
+	rb_gc_mark( this->decoder_for_get_copy_data );
 }
 
 
