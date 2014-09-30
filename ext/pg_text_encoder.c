@@ -359,6 +359,81 @@ pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *inte
 	return -1;
 }
 
+static int
+pg_text_enc_to_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	int strlen;
+	VALUE subint;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_enc_func enc_func = pg_coder_enc_func(this->elem);
+
+	if(out){
+		/* Second encoder pass, if required */
+		strlen = enc_func(this->elem, value, out, intermediate);
+		base64_encode( out, out, strlen );
+
+		return BASE64_ENCODED_SIZE(strlen);
+	} else {
+		/* First encoder pass */
+		strlen = enc_func(this->elem, value, NULL, &subint);
+
+		if( strlen == -1 ){
+			/* Encoded string is returned in subint */
+			VALUE out_str;
+
+			strlen = RSTRING_LENINT(subint);
+			out_str = rb_str_resize(rb_str_new(NULL, 0), BASE64_ENCODED_SIZE(strlen));
+
+			base64_encode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
+			*intermediate = out_str;
+
+			return -1;
+		} else {
+			*intermediate = subint;
+
+			return BASE64_ENCODED_SIZE(strlen);
+		}
+	}
+}
+
+static int
+pg_text_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	int strlen;
+	VALUE subint;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_enc_func enc_func = pg_coder_enc_func(this->elem);
+
+	if(out){
+		/* Second encoder pass, if required */
+		strlen = enc_func(this->elem, value, out, intermediate);
+		strlen = base64_decode( out, out, strlen );
+
+		return strlen;
+	} else {
+		/* First encoder pass */
+		strlen = enc_func(this->elem, value, NULL, &subint);
+
+		if( strlen == -1 ){
+			/* Encoded string is returned in subint */
+			VALUE out_str;
+
+			strlen = RSTRING_LENINT(subint);
+			out_str = rb_str_resize(rb_str_new(NULL, 0), BASE64_DECODED_SIZE(strlen));
+
+			strlen = base64_decode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
+			rb_str_set_len( out_str, strlen );
+			*intermediate = out_str;
+
+			return -1;
+		} else {
+			*intermediate = subint;
+
+			return BASE64_DECODED_SIZE(strlen);
+		}
+	}
+}
+
 
 void
 init_pg_text_encoder()
@@ -379,4 +454,6 @@ init_pg_text_encoder()
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 	pg_define_coder( "QuotedLiteral", pg_text_enc_quoted_literal, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "ToBase64", pg_text_enc_to_base64, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "FromBase64", pg_text_enc_from_base64, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 }

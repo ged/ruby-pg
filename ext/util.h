@@ -33,4 +33,10 @@ uint16_t pg_be16toh(uint16_t x);
 uint32_t pg_be32toh(uint32_t x);
 uint64_t pg_be64toh(uint64_t x);
 
+#define BASE64_ENCODED_SIZE(strlen) (((strlen) + 2) / 3 * 4)
+#define BASE64_DECODED_SIZE(base64len) (((base64len) + 3) / 4 * 3)
+
+void base64_encode( char *out, char *in, int len);
+int base64_decode( char *out, char *in, unsigned int len);
+
 #endif /* end __utils_h */

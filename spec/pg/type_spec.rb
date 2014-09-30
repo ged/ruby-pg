@@ -422,6 +422,93 @@ describe "PG::Type derivations" do
 				expect( t.elements_type ).to be_nil
 			end
 		end
+
+		it "should encode Strings as base64 in TextEncoder" do
+			e = PG::TextEncoder::ToBase64.new
+			expect( e.encode("") ).to eq("")
+			expect( e.encode("x") ).to eq("eA==")
+			expect( e.encode("xx") ).to eq("eHg=")
+			expect( e.encode("xxx") ).to eq("eHh4")
+			expect( e.encode("xxxx") ).to eq("eHh4eA==")
+			expect( e.encode("xxxxx") ).to eq("eHh4eHg=")
+			expect( e.encode("\0\n\t") ).to eq("AAoJ")
+		end
+
+		it "should encode Strings as base64 in TextDecoder" do
+			e = PG::TextDecoder::ToBase64.new
+			expect( e.decode("x") ).to eq("eA==")
+		end
+
+		it "should encode Integers as base64" do
+			# Not really useful, but ensures that two-pass element and composite element encoders work.
+			e = PG::TextEncoder::ToBase64.new( elements_type: PG::TextEncoder::Array.new( elements_type: PG::TextEncoder::Integer.new, needs_quotation: false ))
+			expect( e.encode([1]) ).to eq(["{1}"].pack("m").chomp)
+			expect( e.encode([12]) ).to eq(["{12}"].pack("m").chomp)
+			expect( e.encode([123]) ).to eq(["{123}"].pack("m").chomp)
+			expect( e.encode([1234]) ).to eq(["{1234}"].pack("m").chomp)
+			expect( e.encode([12345]) ).to eq(["{12345}"].pack("m").chomp)
+			expect( e.encode([123456]) ).to eq(["{123456}"].pack("m").chomp)
+			expect( e.encode([1234567]) ).to eq(["{1234567}"].pack("m").chomp)
+		end
+
+		it "should decode base64 to Strings in TextDecoder" do
+			e = PG::TextDecoder::FromBase64.new
+			expect( e.decode("") ).to eq("")
+			expect( e.decode("eA==") ).to eq("x")
+			expect( e.decode("eHg=") ).to eq("xx")
+			expect( e.decode("eHh4") ).to eq("xxx")
+			expect( e.decode("eHh4eA==") ).to eq("xxxx")
+			expect( e.decode("eHh4eHg=") ).to eq("xxxxx")
+			expect( e.decode("AAoJ") ).to eq("\0\n\t")
+		end
+
+		it "should decode base64 in TextEncoder" do
+			e = PG::TextEncoder::FromBase64.new
+			expect( e.encode("eA==") ).to eq("x")
+
+			e = PG::TextEncoder::FromBase64.new( elements_type: PG::TextEncoder::Integer.new )
+			expect( e.encode(124) ).to eq("124".unpack("m")[0])
+		end
+
+		it "should decode base64 to Integers" do
+			# Not really useful, but ensures that composite element encoders work.
+			e = PG::TextDecoder::FromBase64.new( elements_type: PG::TextDecoder::Array.new( elements_type: PG::TextDecoder::Integer.new ))
+			expect( e.decode(["{1}"].pack("m")) ).to eq([1])
+			expect( e.decode(["{12}"].pack("m")) ).to eq([12])
+			expect( e.decode(["{123}"].pack("m")) ).to eq([123])
+			expect( e.decode(["{1234}"].pack("m")) ).to eq([1234])
+			expect( e.decode(["{12345}"].pack("m")) ).to eq([12345])
+			expect( e.decode(["{123456}"].pack("m")) ).to eq([123456])
+			expect( e.decode(["{1234567}"].pack("m")) ).to eq([1234567])
+			expect( e.decode(["{12345678}"].pack("m")) ).to eq([12345678])
+
+			e = PG::TextDecoder::FromBase64.new( elements_type: PG::BinaryDecoder::Integer.new )
+			expect( e.decode("ALxhTg==") ).to eq(12345678)
+		end
+
+		it "should decode base64 with garbage" do
+			e = PG::TextDecoder::FromBase64.new format: 1
+			expect( e.decode("=") ).to eq("=".unpack("m")[0])
+			expect( e.decode("==") ).to eq("==".unpack("m")[0])
+			expect( e.decode("===") ).to eq("===".unpack("m")[0])
+			expect( e.decode("====") ).to eq("====".unpack("m")[0])
+			expect( e.decode("a=") ).to eq("a=".unpack("m")[0])
+			expect( e.decode("a==") ).to eq("a==".unpack("m")[0])
+			expect( e.decode("a===") ).to eq("a===".unpack("m")[0])
+			expect( e.decode("a====") ).to eq("a====".unpack("m")[0])
+			expect( e.decode("aa=") ).to eq("aa=".unpack("m")[0])
+			expect( e.decode("aa==") ).to eq("aa==".unpack("m")[0])
+			expect( e.decode("aa===") ).to eq("aa===".unpack("m")[0])
+			expect( e.decode("aa====") ).to eq("aa====".unpack("m")[0])
+			expect( e.decode("aaa=") ).to eq("aaa=".unpack("m")[0])
+			expect( e.decode("aaa==") ).to eq("aaa==".unpack("m")[0])
+			expect( e.decode("aaa===") ).to eq("aaa===".unpack("m")[0])
+			expect( e.decode("aaa====") ).to eq("aaa====".unpack("m")[0])
+			expect( e.decode("=aa") ).to eq("=aa".unpack("m")[0])
+			expect( e.decode("=aa=") ).to eq("==aa".unpack("m")[0])
+			expect( e.decode("=aa==") ).to eq("==aa=".unpack("m")[0])
+			expect( e.decode("=aa===") ).to eq("==aa==".unpack("m")[0])
+		end
 	end
 
 	describe PG::CopyCoder do

@@ -282,6 +282,45 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 	return array;
 }
 
+static VALUE
+pg_text_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
+	int encoded_len = BASE64_ENCODED_SIZE(len);
+	VALUE out_value;
+
+	/* create a buffer of the encoded length */
+	char *p_encoded = xmalloc(encoded_len + 1);
+
+	base64_encode( p_encoded, val, len );
+	p_encoded[encoded_len] = 0;
+
+	out_value = dec_func(this->elem, p_encoded, encoded_len, tuple, field, enc_idx);
+	free(p_encoded);
+
+	return out_value;
+}
+
+static VALUE
+pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
+	int decoded_len;
+	VALUE out_value;
+
+	/* create a buffer of the decoded length */
+	char *p_decoded = xmalloc(BASE64_DECODED_SIZE(len) + 1);
+
+	decoded_len = base64_decode( p_decoded, val, len );
+	p_decoded[decoded_len] = 0;
+
+	out_value = dec_func(this->elem, p_decoded, decoded_len, tuple, field, enc_idx);
+	free(p_decoded);
+
+	return out_value;
+}
 
 void
 init_pg_text_decoder()
@@ -298,6 +337,6 @@ init_pg_text_decoder()
 
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
-
-// 	pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
+	pg_define_coder( "ToBase64", pg_text_dec_to_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
+	pg_define_coder( "FromBase64", pg_text_dec_from_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 }
