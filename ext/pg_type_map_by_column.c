@@ -47,31 +47,32 @@ pg_tmbc_fit_to_copy_get( VALUE self )
 
 
 VALUE
-pg_tmbc_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
+pg_tmbc_result_value(VALUE result, int tuple, int field)
 {
 	char * val;
 	int len;
-	t_tmbc *this = (t_tmbc *) p_typemap;
 	t_pg_coder *p_coder = NULL;
 	t_pg_coder_dec_func dec_func;
+	t_pg_result *p_result = pgresult_get_this(result);
+	t_tmbc *this = (t_tmbc *) p_result->p_typemap;
 
-	if (PQgetisnull(result, tuple, field)) {
+	if (PQgetisnull(p_result->pgresult, tuple, field)) {
 		return Qnil;
 	}
 
-	val = PQgetvalue( result, tuple, field );
-	len = PQgetlength( result, tuple, field );
+	val = PQgetvalue( p_result->pgresult, tuple, field );
+	len = PQgetlength( p_result->pgresult, tuple, field );
 
 	if( this ){
 		p_coder = this->convs[field].cconv;
 
 		if( p_coder && p_coder->dec_func ){
-			return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(self));
+			return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(result));
 		}
 	}
 
-	dec_func = pg_coder_dec_func( p_coder, PQfformat(result, field) );
-	return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(self) );
+	dec_func = pg_coder_dec_func( p_coder, PQfformat(p_result->pgresult, field) );
+	return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(result) );
 }
 
 static t_pg_coder *

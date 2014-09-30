@@ -9,26 +9,11 @@
 
 VALUE rb_cPGresult;
 
-typedef struct {
-	PGresult *pgresult;
-
-	/* The connection object used to build this result */
-	VALUE connection;
-
-	/* The TypeMap used to type cast result values */
-	VALUE typemap;
-
-	/* 0 = PGresult is cleared by PG::Result#clear or by the GC
-	 * 1 = PGresult is cleared internally by libpq
-	 */
-	int autoclear;
-} t_pg_result;
-
 static void pgresult_gc_free( t_pg_result * );
-static t_typemap *pgresult_get_typemap( VALUE );
 static VALUE pgresult_type_map_set( VALUE, VALUE );
 static VALUE pgresult_s_allocate( VALUE );
-static t_pg_result *pgresult_get_struct( VALUE );
+static t_pg_result *pgresult_get_this( VALUE );
+static t_pg_result *pgresult_get_this_safe( VALUE );
 
 
 
@@ -43,7 +28,7 @@ VALUE
 pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
 	VALUE self = pgresult_s_allocate( rb_cPGresult );
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 	t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
@@ -53,14 +38,14 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 	if( result ){
 		VALUE typemap = p_conn->type_map_for_results;
 
-		if( typemap != Qnil ){
+		if( !NIL_P(typemap) ){
 			t_typemap *p_typemap;
 
 			/* Type check is done when assigned to PG::Connection. */
 			p_typemap = DATA_PTR(typemap);
 
 			typemap = p_typemap->fit_to_result( typemap, self );
-			p_typemap = DATA_PTR( typemap );
+			this->p_typemap = DATA_PTR( typemap );
 		}
 
 		this->typemap = typemap;
@@ -73,7 +58,7 @@ VALUE
 pg_new_result_autoclear(PGresult *result, VALUE rb_pgconn)
 {
 	VALUE self = pg_new_result(result, rb_pgconn);
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 	this->autoclear = 1;
 	return self;
 }
@@ -87,7 +72,7 @@ pg_new_result_autoclear(PGresult *result, VALUE rb_pgconn)
 VALUE
 pg_result_check( VALUE self )
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 	VALUE error, exception, klass;
 	PGconn *conn = pg_get_pgconn(this->connection);
 	char * sqlstate;
@@ -155,7 +140,7 @@ pg_result_check( VALUE self )
 VALUE
 pg_result_clear(VALUE self)
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 	if( !this->autoclear )
 		PQclear(pgresult_get(self));
 	this->pgresult = NULL;
@@ -171,7 +156,7 @@ pg_result_clear(VALUE self)
 VALUE
 pgresult_cleared_p( VALUE self )
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 	return this->pgresult ? Qfalse : Qtrue;
 }
 
@@ -186,7 +171,7 @@ pgresult_cleared_p( VALUE self )
 VALUE
 pgresult_autoclear_p( VALUE self )
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 	return this->autoclear ? Qtrue : Qfalse;
 }
 
@@ -217,14 +202,15 @@ pgresult_gc_free( t_pg_result *this )
 }
 
 /*
- * Fetch the data pointer for the result object
+ * Fetch the PG::Result object data pointer and check it's
+ * PGresult data pointer for sanity.
  */
 static t_pg_result *
-pgresult_get_struct( VALUE self )
+pgresult_get_this_safe( VALUE self )
 {
-	t_pg_result *this;
-	Data_Get_Struct( self, t_pg_result, this);
+	t_pg_result *this = pgresult_get_this(self);
 
+	if (this->pgresult == NULL) rb_raise(rb_ePGerror, "result has been cleared");
 	return this;
 }
 
@@ -234,7 +220,7 @@ pgresult_get_struct( VALUE self )
 PGresult*
 pgresult_get(VALUE self)
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 
 	if (this->pgresult == NULL) rb_raise(rb_ePGerror, "result has been cleared");
 	return this->pgresult;
@@ -255,6 +241,7 @@ pgresult_s_allocate( VALUE klass )
 	this->pgresult = NULL;
 	this->connection = Qnil;
 	this->typemap = Qnil;
+	this->p_typemap = DATA_PTR( pg_default_typemap );
 	this->autoclear = 0;
 
 	return self;
@@ -636,19 +623,17 @@ pgresult_fsize(VALUE self, VALUE index)
 static VALUE
 pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 {
-	PGresult *result;
+	t_pg_result *this = pgresult_get_this_safe(self);
 	int i = NUM2INT(tup_num);
 	int j = NUM2INT(field_num);
-	t_typemap *p_typemap = pgresult_get_typemap(self);
 
-	result = pgresult_get(self);
-	if(i < 0 || i >= PQntuples(result)) {
+	if(i < 0 || i >= PQntuples(this->pgresult)) {
 		rb_raise(rb_eArgError,"invalid tuple number %d", i);
 	}
-	if(j < 0 || j >= PQnfields(result)) {
+	if(j < 0 || j >= PQnfields(this->pgresult)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
 	}
-	return p_typemap->typecast_result_value(self, result, i, j, p_typemap);
+	return this->p_typemap->typecast_result_value(self, i, j);
 }
 
 /*
@@ -795,21 +780,20 @@ pgresult_oid_value(VALUE self)
 static VALUE
 pgresult_aref(VALUE self, VALUE index)
 {
-	PGresult *result = pgresult_get(self);
+	t_pg_result *this = pgresult_get_this_safe(self);
 	int tuple_num = NUM2INT(index);
 	int field_num;
 	VALUE fname;
 	VALUE tuple;
-	t_typemap *p_typemap = pgresult_get_typemap(self);
 
-	if ( tuple_num < 0 || tuple_num >= PQntuples(result) )
+	if ( tuple_num < 0 || tuple_num >= PQntuples(this->pgresult) )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
 
 	tuple = rb_hash_new();
-	for ( field_num = 0; field_num < PQnfields(result); field_num++ ) {
-		fname = rb_tainted_str_new2( PQfname(result,field_num) );
+	for ( field_num = 0; field_num < PQnfields(this->pgresult); field_num++ ) {
+		fname = rb_tainted_str_new2( PQfname(this->pgresult,field_num) );
 		PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
-		rb_hash_aset( tuple, fname, p_typemap->typecast_result_value(self, result, tuple_num, field_num, p_typemap) );
+		rb_hash_aset( tuple, fname, this->p_typemap->typecast_result_value(self, tuple_num, field_num) );
 	}
 	return tuple;
 }
@@ -823,19 +807,18 @@ pgresult_aref(VALUE self, VALUE index)
 static VALUE
 pgresult_each_row(VALUE self)
 {
-	PGresult* result = (PGresult*) pgresult_get(self);
+	t_pg_result *this = pgresult_get_this_safe(self);
 	int row;
 	int field;
-	int num_rows = PQntuples(result);
-	int num_fields = PQnfields(result);
-	t_typemap *p_typemap = pgresult_get_typemap(self);
+	int num_rows = PQntuples(this->pgresult);
+	int num_fields = PQnfields(this->pgresult);
 
 	for ( row = 0; row < num_rows; row++ ) {
 		VALUE new_row = rb_ary_new2(num_fields);
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, p_typemap->typecast_result_value(self, result, row, field, p_typemap) );
+			rb_ary_store( new_row, field, this->p_typemap->typecast_result_value(self, row, field) );
 		}
 		rb_yield( new_row );
 	}
@@ -852,12 +835,11 @@ pgresult_each_row(VALUE self)
 static VALUE
 pgresult_values(VALUE self)
 {
-	PGresult* result = (PGresult*) pgresult_get(self);
+	t_pg_result *this = pgresult_get_this_safe(self);
 	int row;
 	int field;
-	int num_rows = PQntuples(result);
-	int num_fields = PQnfields(result);
-	t_typemap *p_typemap = pgresult_get_typemap(self);
+	int num_rows = PQntuples(this->pgresult);
+	int num_fields = PQnfields(this->pgresult);
 	VALUE results = rb_ary_new2( num_rows );
 
 	for ( row = 0; row < num_rows; row++ ) {
@@ -865,7 +847,7 @@ pgresult_values(VALUE self)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, p_typemap->typecast_result_value(self, result, row, field, p_typemap) );
+			rb_ary_store( new_row, field, this->p_typemap->typecast_result_value(self, row, field) );
 		}
 		rb_ary_store( results, row, new_row );
 	}
@@ -880,17 +862,16 @@ pgresult_values(VALUE self)
 static VALUE
 make_column_result_array( VALUE self, int col )
 {
-	PGresult *result = pgresult_get( self );
-	int rows = PQntuples( result );
+	t_pg_result *this = pgresult_get_this_safe(self);
+	int rows = PQntuples( this->pgresult );
 	int i;
-	t_typemap *p_typemap = pgresult_get_typemap(self);
 	VALUE results = rb_ary_new2( rows );
 
-	if ( col >= PQnfields(result) )
+	if ( col >= PQnfields(this->pgresult) )
 		rb_raise( rb_eIndexError, "no column %d in result", col );
 
 	for ( i=0; i < rows; i++ ) {
-		VALUE val = p_typemap->typecast_result_value(self, result, i, col, p_typemap);
+		VALUE val = this->p_typemap->typecast_result_value(self, i, col);
 		rb_ary_store( results, i, val );
 	}
 
@@ -994,9 +975,11 @@ pgresult_fields(VALUE self)
 static VALUE
 pgresult_type_map_set(VALUE self, VALUE typemap)
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 
-	if( typemap != Qnil ){
+	if( NIL_P(typemap) ){
+		this->p_typemap = DATA_PTR( pg_default_typemap );
+	} else {
 		t_typemap *p_typemap;
 
 		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
@@ -1006,7 +989,7 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 		Data_Get_Struct(typemap, t_typemap, p_typemap);
 
 		typemap = p_typemap->fit_to_result( typemap, self );
-		p_typemap = DATA_PTR( typemap );
+		this->p_typemap = DATA_PTR( typemap );
 	}
 
 	this->typemap = typemap;
@@ -1028,23 +1011,9 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 static VALUE
 pgresult_type_map_get(VALUE self)
 {
-	t_pg_result *this = pgresult_get_struct(self);
+	t_pg_result *this = pgresult_get_this(self);
 
 	return this->typemap;
-}
-
-static t_typemap *
-pgresult_get_typemap(VALUE self)
-{
-	t_pg_result *this = pgresult_get_struct(self);
-
-	if( this->typemap == Qnil ){
-		return DATA_PTR( pg_default_typemap );
-	} else {
-		/* The type of @type_map is already checked when the
-		 * value is assigned. */
-		return DATA_PTR( this->typemap );
-	}
 }
 
 
