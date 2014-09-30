@@ -130,18 +130,18 @@ describe 'Basic type mapping' do
 			it "should do datetime without time zone type conversions" do
 				[0].each do |format|
 					res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
-																		CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
+																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
 					expect( res.getvalue(0,0) ).to eq( Time.new(2013, 12, 31, 23, 58, 59) )
-					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123))
+					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(1913, 12, 31, 23, 58, 59.123))
 				end
 			end
 
 			it "should do datetime with time zone type conversions" do
 				[0].each do |format|
 					res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITH TIME ZONE),
-																		CAST('2013-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE)", [], format )
+																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE)", [], format )
 					expect( res.getvalue(0,0) ).to eq( Time.new(2013, 12, 31, 23, 58, 59, "+02:00") )
-					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(2013, 12, 31, 23, 58, 59.123, "-03:00"))
+					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(1913, 12, 31, 23, 58, 59.123, "-03:00"))
 				end
 			end
 
