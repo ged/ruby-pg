@@ -84,29 +84,30 @@ pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
 }
 
 static VALUE
-pg_tmbo_result_value(VALUE self, PGresult *pgresult, int tuple, int field, t_typemap *p_typemap)
+pg_tmbo_result_value(VALUE result, int tuple, int field)
 {
 	char * val;
 	int len;
 	int format;
-	t_tmbo *this = (t_tmbo *) p_typemap;
 	t_pg_coder *p_coder;
 	t_pg_coder_dec_func dec_func;
+	t_pg_result *p_result = pgresult_get_this(result);
+	t_tmbo *this = (t_tmbo*) p_result->p_typemap;
 
-	if (PQgetisnull(pgresult, tuple, field)) {
+	if (PQgetisnull(p_result->pgresult, tuple, field)) {
 		return Qnil;
 	}
 
-	val = PQgetvalue( pgresult, tuple, field );
-	len = PQgetlength( pgresult, tuple, field );
-	format = PQfformat( pgresult, field );
+	val = PQgetvalue( p_result->pgresult, tuple, field );
+	len = PQgetlength( p_result->pgresult, tuple, field );
+	format = PQfformat( p_result->pgresult, field );
 
 	if( format < 0 || format > 1 )
 		rb_raise(rb_eArgError, "result field %d has unsupported format code %d", field+1, format);
 
-	p_coder = pg_tmbo_lookup_oid( this, format, PQftype(pgresult, field) );
+	p_coder = pg_tmbo_lookup_oid( this, format, PQftype(p_result->pgresult, field) );
 	dec_func = pg_coder_dec_func( p_coder, format );
-	return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(self) );
+	return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(result) );
 }
 
 static VALUE

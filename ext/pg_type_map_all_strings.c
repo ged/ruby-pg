@@ -19,23 +19,24 @@ pg_tmas_fit_to_result( VALUE self, VALUE result )
 }
 
 static VALUE
-pg_tmas_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
+pg_tmas_result_value(VALUE result, int tuple, int field)
 {
 	VALUE ret;
 	char * val;
 	int len;
+	t_pg_result *p_result = pgresult_get_this(result);
 
-	if (PQgetisnull(result, tuple, field)) {
+	if (PQgetisnull(p_result->pgresult, tuple, field)) {
 		return Qnil;
 	}
 
-	val = PQgetvalue( result, tuple, field );
-	len = PQgetlength( result, tuple, field );
+	val = PQgetvalue( p_result->pgresult, tuple, field );
+	len = PQgetlength( p_result->pgresult, tuple, field );
 
-	if ( 0 == PQfformat(result, field) ) {
-		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(self));
+	if ( 0 == PQfformat(p_result->pgresult, field) ) {
+		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(result));
 	} else {
-		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(self));
+		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(result));
 	}
 
 	return ret;

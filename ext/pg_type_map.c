@@ -32,7 +32,7 @@ pg_typemap_fit_to_copy_get( VALUE self )
 }
 
 VALUE
-pg_typemap_result_value(VALUE self, PGresult *result, int tuple, int field, t_typemap *p_typemap)
+pg_typemap_result_value(VALUE self, int tuple, int field)
 {
 	rb_raise( rb_eNotImpError, "type map is not suitable to map result values" );
 	return Qnil;

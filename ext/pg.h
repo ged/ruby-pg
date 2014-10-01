@@ -125,6 +125,7 @@ __declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
+/* The data behind each PG::Connection object */
 typedef struct {
 	PGconn *pgconn;
 
@@ -151,12 +152,35 @@ typedef struct {
 
 typedef struct pg_coder t_pg_coder;
 typedef struct pg_typemap t_typemap;
+
+/* The data behind each PG::Result object */
+typedef struct {
+	PGresult *pgresult;
+
+	/* The connection object used to build this result */
+	VALUE connection;
+
+	/* The TypeMap used to type cast result values */
+	VALUE typemap;
+
+	/* Pointer to the typemap object data. This is assumed to be
+	 * always valid.
+	 */
+	t_typemap *p_typemap;
+
+	/* 0 = PGresult is cleared by PG::Result#clear or by the GC
+	 * 1 = PGresult is cleared internally by libpq
+	 */
+	int autoclear;
+} t_pg_result;
+
+
 typedef int (* t_pg_coder_enc_func)(t_pg_coder *, VALUE, char *, VALUE *);
 typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, char *, int, int, int, int);
 typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
 typedef int (* t_pg_fit_to_copy_get)(VALUE);
-typedef VALUE (* t_pg_typecast_result)(VALUE, PGresult *, int, int, t_typemap *);
+typedef VALUE (* t_pg_typecast_result)(VALUE, int, int);
 typedef t_pg_coder *(* t_pg_typecast_query_param)(VALUE, VALUE, int, int *, Oid *);
 typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 
@@ -286,7 +310,7 @@ char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, 
 VALUE pg_typemap_fit_to_result                         _(( VALUE, VALUE ));
 VALUE pg_typemap_fit_to_query                          _(( VALUE, VALUE ));
 int pg_typemap_fit_to_copy_get                         _(( VALUE ));
-VALUE pg_typemap_result_value                          _(( VALUE, PGresult *, int, int, t_typemap * ));
+VALUE pg_typemap_result_value                          _(( VALUE, int, int ));
 t_pg_coder *pg_typemap_typecast_query_param            _(( VALUE, VALUE, int, int *, Oid * ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
 
@@ -298,6 +322,16 @@ VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));
 PGresult* pgresult_get                                 _(( VALUE ));
 VALUE pg_result_check                                  _(( VALUE ));
 VALUE pg_result_clear                                  _(( VALUE ));
+
+/*
+ * Fetch the data pointer for the result object
+ */
+static inline t_pg_result *
+pgresult_get_this( VALUE self )
+{
+	return DATA_PTR(self);
+}
+
 
 #ifdef M17N_SUPPORTED
 rb_encoding * pg_get_pg_encoding_as_rb_encoding        _(( int ));
