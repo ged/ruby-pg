@@ -467,7 +467,7 @@ describe "PG::Type derivations" do
 			expect( e.encode("eA==") ).to eq("x")
 
 			e = PG::TextEncoder::FromBase64.new( elements_type: PG::TextEncoder::Integer.new )
-			expect( e.encode(124) ).to eq("124".unpack("m")[0])
+			expect( e.encode(124) ).to eq("124=".unpack("m")[0])
 		end
 
 		it "should decode base64 to Integers" do
@@ -504,10 +504,10 @@ describe "PG::Type derivations" do
 			expect( e.decode("aaa==") ).to eq("aaa==".unpack("m")[0])
 			expect( e.decode("aaa===") ).to eq("aaa===".unpack("m")[0])
 			expect( e.decode("aaa====") ).to eq("aaa====".unpack("m")[0])
-			expect( e.decode("=aa") ).to eq("=aa".unpack("m")[0])
-			expect( e.decode("=aa=") ).to eq("==aa".unpack("m")[0])
-			expect( e.decode("=aa==") ).to eq("==aa=".unpack("m")[0])
-			expect( e.decode("=aa===") ).to eq("==aa==".unpack("m")[0])
+			expect( e.decode("=aa") ).to eq("=aa=".unpack("m")[0])
+			expect( e.decode("=aa=") ).to eq("=aa=".unpack("m")[0])
+			expect( e.decode("=aa==") ).to eq("=aa==".unpack("m")[0])
+			expect( e.decode("=aa===") ).to eq("=aa===".unpack("m")[0])
 		end
 	end
 
