@@ -288,16 +288,23 @@ pg_text_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
 	int encoded_len = BASE64_ENCODED_SIZE(len);
-	VALUE out_value;
+	VALUE out_value = rb_tainted_str_new(NULL, 0);
 
 	/* create a buffer of the encoded length */
-	char *p_encoded = xmalloc(encoded_len + 1);
+	rb_str_resize(out_value, encoded_len);
 
-	base64_encode( p_encoded, val, len );
-	p_encoded[encoded_len] = 0;
+	base64_encode( RSTRING_PTR(out_value), val, len );
 
-	out_value = dec_func(this->elem, p_encoded, encoded_len, tuple, field, enc_idx);
-	free(p_encoded);
+	/* Is it a pure String conversion? Then we can directly send out_value to the user. */
+	if( this->comp.format == 0 && dec_func == pg_text_dec_string ){
+		PG_ENCODING_SET_NOCHECK( out_value, enc_idx );
+		return out_value;
+	}
+	if( this->comp.format == 1 && dec_func == pg_bin_dec_bytea ){
+		PG_ENCODING_SET_NOCHECK( out_value, rb_ascii8bit_encindex() );
+		return out_value;
+	}
+	out_value = dec_func(this->elem, RSTRING_PTR(out_value), encoded_len, tuple, field, enc_idx);
 
 	return out_value;
 }
@@ -308,16 +315,24 @@ pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int fie
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
 	int decoded_len;
-	VALUE out_value;
+	VALUE out_value = rb_tainted_str_new(NULL, 0);
 
-	/* create a buffer of the decoded length */
-	char *p_decoded = xmalloc(BASE64_DECODED_SIZE(len) + 1);
+	/* create a buffer of the expected decoded length */
+	rb_str_resize(out_value, BASE64_DECODED_SIZE(len));
 
-	decoded_len = base64_decode( p_decoded, val, len );
-	p_decoded[decoded_len] = 0;
+	decoded_len = base64_decode( RSTRING_PTR(out_value), val, len );
+	rb_str_set_len(out_value, decoded_len);
 
-	out_value = dec_func(this->elem, p_decoded, decoded_len, tuple, field, enc_idx);
-	free(p_decoded);
+	/* Is it a pure String conversion? Then we can directly send out_value to the user. */
+	if( this->comp.format == 0 && dec_func == pg_text_dec_string ){
+		PG_ENCODING_SET_NOCHECK( out_value, enc_idx );
+		return out_value;
+	}
+	if( this->comp.format == 1 && dec_func == pg_bin_dec_bytea ){
+		PG_ENCODING_SET_NOCHECK( out_value, rb_ascii8bit_encindex() );
+		return out_value;
+	}
+	out_value = dec_func(this->elem, RSTRING_PTR(out_value), decoded_len, tuple, field, enc_idx);
 
 	return out_value;
 }
