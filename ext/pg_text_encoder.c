@@ -382,7 +382,7 @@ pg_text_enc_to_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedi
 			VALUE out_str;
 
 			strlen = RSTRING_LENINT(subint);
-			out_str = rb_str_resize(rb_str_new(NULL, 0), BASE64_ENCODED_SIZE(strlen));
+			out_str = rb_str_new(NULL, BASE64_ENCODED_SIZE(strlen));
 
 			base64_encode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
 			*intermediate = out_str;
@@ -419,7 +419,7 @@ pg_text_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *interme
 			VALUE out_str;
 
 			strlen = RSTRING_LENINT(subint);
-			out_str = rb_str_resize(rb_str_new(NULL, 0), BASE64_DECODED_SIZE(strlen));
+			out_str = rb_str_new(NULL, BASE64_DECODED_SIZE(strlen));
 
 			strlen = base64_decode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
 			rb_str_set_len( out_str, strlen );

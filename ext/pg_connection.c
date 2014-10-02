@@ -2558,8 +2558,7 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 			/* The intermediate value is a String that can be used directly. */
 			buffer = intermediate;
 		} else {
-			buffer = rb_str_new(NULL, 0);
-			rb_str_resize( buffer, len );
+			buffer = rb_str_new(NULL, len);
 			len = enc_func( p_coder, value, RSTRING_PTR(buffer), &intermediate);
 			rb_str_set_len( buffer, len );
 		}

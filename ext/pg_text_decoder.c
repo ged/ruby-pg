@@ -288,10 +288,8 @@ pg_text_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
 	int encoded_len = BASE64_ENCODED_SIZE(len);
-	VALUE out_value = rb_tainted_str_new(NULL, 0);
-
 	/* create a buffer of the encoded length */
-	rb_str_resize(out_value, encoded_len);
+	VALUE out_value = rb_tainted_str_new(NULL, encoded_len);
 
 	base64_encode( RSTRING_PTR(out_value), val, len );
 
@@ -315,10 +313,8 @@ pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int fie
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
 	int decoded_len;
-	VALUE out_value = rb_tainted_str_new(NULL, 0);
-
 	/* create a buffer of the expected decoded length */
-	rb_str_resize(out_value, BASE64_DECODED_SIZE(len));
+	VALUE out_value = rb_tainted_str_new(NULL, BASE64_DECODED_SIZE(len));
 
 	decoded_len = base64_decode( RSTRING_PTR(out_value), val, len );
 	rb_str_set_len(out_value, decoded_len);

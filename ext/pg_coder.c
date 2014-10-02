@@ -137,8 +137,7 @@ pg_coder_encode(VALUE self, VALUE value)
 		return intermediate;
 	}
 
-	res = rb_str_new(NULL, 0);
-	rb_str_resize( res, len );
+	res = rb_str_new(NULL, len);
 	len2 = this->enc_func( this, value, RSTRING_PTR(res), &intermediate);
 	if( len < len2 ){
 		rb_bug("%s: result length of first encoder run (%i) is less than second run (%i)",
