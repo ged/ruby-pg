@@ -103,59 +103,47 @@ static const unsigned char base64_decode_table[] =
 int
 base64_decode( char *out, char *in, unsigned int len)
 {
+	unsigned char a, b, c, d;
 	unsigned char *in_ptr = (unsigned char *)in;
 	unsigned char *out_ptr = (unsigned char *)out;
 	unsigned char *iend_ptr = (unsigned char *)in + len;
 
-	if( len <= 0 ){
-		goto end;
-	}
-
 	for(;;){
-		unsigned char byte0;
-		unsigned char byte1;
-		unsigned char byte2;
-		unsigned char byte3;
-
-		do {
-			byte0 = base64_decode_table[*in_ptr++];
-			if( in_ptr == iend_ptr ){
-				goto end;
+		if( in_ptr+3 < iend_ptr &&
+				(a=base64_decode_table[in_ptr[0]]) != 0xff &&
+				(b=base64_decode_table[in_ptr[1]]) != 0xff &&
+				(c=base64_decode_table[in_ptr[2]]) != 0xff &&
+				(d=base64_decode_table[in_ptr[3]]) != 0xff )
+		{
+			in_ptr += 4;
+			*out_ptr++ = (a << 2) | (b >> 4);
+			*out_ptr++ = (b << 4) | (c >> 2);
+			*out_ptr++ = (c << 6) | d;
+		} else if (in_ptr < iend_ptr){
+			a = b = c = d = 0xff;
+			while ((a = base64_decode_table[*in_ptr++]) == 0xff && in_ptr < iend_ptr) {}
+			if (in_ptr < iend_ptr){
+				while ((b = base64_decode_table[*in_ptr++]) == 0xff && in_ptr < iend_ptr) {}
+				if (in_ptr < iend_ptr){
+					while ((c = base64_decode_table[*in_ptr++]) == 0xff && in_ptr < iend_ptr) {}
+					if (in_ptr < iend_ptr){
+						while ((d = base64_decode_table[*in_ptr++]) == 0xff && in_ptr < iend_ptr) {}
+					}
+				}
 			}
-		} while( byte0 & 0x80 );
-		do {
-			byte1 = base64_decode_table[*in_ptr++];
-			if( in_ptr == iend_ptr ){
-				if( byte1 & 0x80 ) goto end;
-				*out_ptr++ = (byte0 << 2) | (byte1 >> 4);
-				goto end;
+			if (a != 0xff && b != 0xff) {
+				*out_ptr++ = (a << 2) | (b >> 4);
+				if (c != 0xff) {
+					*out_ptr++ = (b << 4) | (c >> 2);
+					if (d != 0xff)
+						*out_ptr++ = (c << 6) | d;
+				}
 			}
-		} while( byte1 & 0x80 );
-		do {
-			byte2 = base64_decode_table[*in_ptr++];
-			if( in_ptr == iend_ptr ){
-				*out_ptr++ = (byte0 << 2) | (byte1 >> 4);
-				if( byte2 & 0x80 ) goto end;
-				*out_ptr++ = (byte1 << 4) | (byte2 >> 2);
-				goto end;
-			}
-		} while( byte2 & 0x80 );
-		do {
-			byte3 = base64_decode_table[*in_ptr++];
-			if( in_ptr == iend_ptr ){
-				*out_ptr++ = (byte0 << 2) | (byte1 >> 4);
-				*out_ptr++ = (byte1 << 4) | (byte2 >> 2);
-				if( byte3 & 0x80 ) goto end;
-				*out_ptr++ = (byte2 << 6) | byte3;
-				goto end;
-			}
-		} while( byte3 & 0x80 );
-
-		*out_ptr++ = (byte0 << 2) | (byte1 >> 4);
-		*out_ptr++ = (byte1 << 4) | (byte2 >> 2);
-		*out_ptr++ = (byte2 << 6) | byte3;
+		} else {
+			break;
+		}
 	}
-	end:
+
 
 	return (char*)out_ptr - out;
 }
