@@ -434,8 +434,8 @@ describe "PG::Type derivations" do
 			expect( e.encode("\0\n\t") ).to eq("AAoJ")
 		end
 
-		it "should encode Strings as base64 in TextDecoder" do
-			e = PG::TextDecoder::ToBase64.new
+		it "should encode Strings as base64 in BinaryDecoder" do
+			e = PG::BinaryDecoder::ToBase64.new
 			expect( e.decode("x") ).to eq("eA==")
 		end
 
@@ -462,11 +462,11 @@ describe "PG::Type derivations" do
 			expect( e.decode("AAoJ") ).to eq("\0\n\t")
 		end
 
-		it "should decode base64 in TextEncoder" do
-			e = PG::TextEncoder::FromBase64.new
+		it "should decode base64 in BinaryEncoder" do
+			e = PG::BinaryEncoder::FromBase64.new
 			expect( e.encode("eA==") ).to eq("x")
 
-			e = PG::TextEncoder::FromBase64.new( elements_type: PG::TextEncoder::Integer.new )
+			e = PG::BinaryEncoder::FromBase64.new( elements_type: PG::TextEncoder::Integer.new )
 			expect( e.encode(124) ).to eq("124=".unpack("m")[0])
 		end
 

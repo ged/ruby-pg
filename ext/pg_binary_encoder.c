@@ -58,6 +58,44 @@ pg_bin_enc_int8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	return 8;
 }
 
+static int
+pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	int strlen;
+	VALUE subint;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_enc_func enc_func = pg_coder_enc_func(this->elem);
+
+	if(out){
+		/* Second encoder pass, if required */
+		strlen = enc_func(this->elem, value, out, intermediate);
+		strlen = base64_decode( out, out, strlen );
+
+		return strlen;
+	} else {
+		/* First encoder pass */
+		strlen = enc_func(this->elem, value, NULL, &subint);
+
+		if( strlen == -1 ){
+			/* Encoded string is returned in subint */
+			VALUE out_str;
+
+			strlen = RSTRING_LENINT(subint);
+			out_str = rb_str_new(NULL, BASE64_DECODED_SIZE(strlen));
+
+			strlen = base64_decode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
+			rb_str_set_len( out_str, strlen );
+			*intermediate = out_str;
+
+			return -1;
+		} else {
+			*intermediate = subint;
+
+			return BASE64_DECODED_SIZE(strlen);
+		}
+	}
+}
+
 void
 init_pg_binary_encoder()
 {
@@ -69,4 +107,6 @@ init_pg_binary_encoder()
 	pg_define_coder( "Int8", pg_bin_enc_int8, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	pg_define_coder( "String", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	pg_define_coder( "Bytea", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
+
+	pg_define_coder( "FromBase64", pg_bin_enc_from_base64, rb_cPG_CompositeEncoder, rb_mPG_BinaryEncoder );
 }

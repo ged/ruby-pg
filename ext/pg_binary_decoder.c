@@ -70,6 +70,31 @@ pg_bin_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 	return ret;
 }
 
+static VALUE
+pg_bin_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
+	int encoded_len = BASE64_ENCODED_SIZE(len);
+	/* create a buffer of the encoded length */
+	VALUE out_value = rb_tainted_str_new(NULL, encoded_len);
+
+	base64_encode( RSTRING_PTR(out_value), val, len );
+
+	/* Is it a pure String conversion? Then we can directly send out_value to the user. */
+	if( this->comp.format == 0 && dec_func == pg_text_dec_string ){
+		PG_ENCODING_SET_NOCHECK( out_value, enc_idx );
+		return out_value;
+	}
+	if( this->comp.format == 1 && dec_func == pg_bin_dec_bytea ){
+		PG_ENCODING_SET_NOCHECK( out_value, rb_ascii8bit_encindex() );
+		return out_value;
+	}
+	out_value = dec_func(this->elem, RSTRING_PTR(out_value), encoded_len, tuple, field, enc_idx);
+
+	return out_value;
+}
+
 void
 init_pg_binary_decoder()
 {
@@ -80,4 +105,6 @@ init_pg_binary_decoder()
 	pg_define_coder( "Float", pg_bin_dec_float, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 	pg_define_coder( "Bytea", pg_bin_dec_bytea, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+
+	pg_define_coder( "ToBase64", pg_bin_dec_to_base64, rb_cPG_CompositeDecoder, rb_mPG_BinaryDecoder );
 }
