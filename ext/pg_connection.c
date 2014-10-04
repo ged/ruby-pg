@@ -12,6 +12,7 @@
 
 VALUE rb_cPGconn;
 static ID s_id_encode;
+static VALUE sym_type, sym_format, sym_value;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
@@ -1095,9 +1096,28 @@ alloc_query_params1(struct query_params_data *paramsData)
 				paramsData->types[i] = 0;
 
 			/* Let the given typemap select a coder for this param */
-			conv = p_typemap->typecast_query_param(paramsData->typemap, param_value, i,
-					&paramsData->formats[i],
-					paramsData->with_types ? &paramsData->types[i] : NULL);
+			conv = p_typemap->typecast_query_param(paramsData->typemap, param_value, i);
+
+			/* Using a coder object for the param_value? Then set it's format code and oid. */
+			if( conv ){
+				paramsData->formats[i] = conv->format;
+				if( paramsData->with_types )
+					paramsData->types[i] = conv->oid;
+			} else {
+					/* No coder, but got we a hash form for the query param?
+					 * Then take format code and oid from there. */
+				if (TYPE(param_value) == T_HASH) {
+					VALUE format_value = rb_hash_aref(param_value, sym_format);
+					if( !NIL_P(format_value) )
+						paramsData->formats[i] = NUM2INT(format_value);
+					if( paramsData->with_types ){
+						VALUE type_value = rb_hash_aref(param_value, sym_type);
+						if( !NIL_P(type_value) )
+							paramsData->types[i] = NUM2UINT(type_value);
+					}
+					param_value = rb_hash_aref(param_value, sym_value);
+				}
+			}
 
 			if( NIL_P(param_value) ){
 				paramsData->values[i] = NULL;
@@ -3778,6 +3798,9 @@ void
 init_pg_connection()
 {
 	s_id_encode = rb_intern("encode");
+	sym_type = ID2SYM(rb_intern("type"));
+	sym_format = ID2SYM(rb_intern("format"));
+	sym_value = ID2SYM(rb_intern("value"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);

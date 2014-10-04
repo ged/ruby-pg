@@ -43,7 +43,6 @@
 VALUE rb_mPG_TextEncoder;
 static ID s_id_encode;
 static ID s_id_to_i;
-static VALUE sym_value;
 
 
 VALUE
@@ -57,17 +56,6 @@ pg_obj_to_i( VALUE value )
 		default:
 			return rb_funcall(value, s_id_to_i, 0);
 	}
-}
-
-int
-pg_coder_enc_to_str_with_hash(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
-{
-	if (TYPE(value) == T_HASH) {
-		value = rb_hash_aref(value, sym_value);
-	}
-
-	*intermediate = rb_obj_as_string(value);
-	return -1;
 }
 
 int
@@ -402,7 +390,6 @@ init_pg_text_encoder()
 {
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
-	sym_value = ID2SYM(rb_intern("value"));
 
 	/* This module encapsulates all encoder classes for text format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
@@ -411,7 +398,6 @@ init_pg_text_encoder()
 	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	pg_define_coder( "String", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
-	pg_define_coder( "StringWithHash", pg_coder_enc_to_str_with_hash, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );

@@ -10,7 +10,6 @@
 
 VALUE rb_cTypeMapAllStrings;
 VALUE pg_default_typemap;
-static VALUE sym_type, sym_format;
 
 static VALUE
 pg_tmas_fit_to_result( VALUE self, VALUE result )
@@ -49,20 +48,8 @@ pg_tmas_fit_to_query( VALUE self, VALUE params )
 }
 
 static t_pg_coder *
-pg_tmas_typecast_query_param(VALUE self, VALUE param_value, int field, int *p_format, Oid *p_type)
+pg_tmas_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
-	if (TYPE(param_value) == T_HASH) {
-		if( p_format ){
-			VALUE format_value = rb_hash_aref(param_value, sym_format);
-			if( !NIL_P(format_value) )
-				*p_format = NUM2INT(format_value);
-		}
-		if( p_type ){
-			VALUE type_value = rb_hash_aref(param_value, sym_type);
-			if( !NIL_P(type_value) )
-				*p_type = NUM2UINT(type_value);
-		}
-	}
 	return NULL;
 }
 
@@ -106,9 +93,6 @@ pg_tmas_s_allocate( VALUE klass )
 void
 init_pg_type_map_all_strings()
 {
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_format = ID2SYM(rb_intern("format"));
-
 	rb_cTypeMapAllStrings = rb_define_class_under( rb_mPG, "TypeMapAllStrings", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapAllStrings, pg_tmas_s_allocate );
 

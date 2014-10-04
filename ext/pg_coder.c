@@ -292,7 +292,7 @@ pg_coder_enc_func(t_pg_coder *this)
 		}
 	}else{
 		/* no element encoder defined -> use std to_str conversion */
-		return pg_coder_enc_to_str_with_hash;
+		return pg_coder_enc_to_str;
 	}
 }
 

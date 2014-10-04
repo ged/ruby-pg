@@ -168,7 +168,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				current_out += RSTRING_LEN(this->null_string);
 				break;
 			default:
-				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i, NULL, NULL);
+				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
 				enc_func = pg_coder_enc_func(p_elem_coder);
 
 				/* 1st pass for retiving the required memory space */

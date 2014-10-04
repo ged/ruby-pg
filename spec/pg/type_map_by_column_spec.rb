@@ -69,6 +69,26 @@ describe PG::TypeMapByColumn do
 		] )
 	end
 
+
+	it "should allow hash form parameters for default encoder" do
+		col_map = PG::TypeMapByColumn.new( [nil, nil] )
+		hash_param_bin = { value: ["00ff"].pack("H*"), type: 17, format: 1 }
+		hash_param_nil = { value: nil, type: 17, format: 1 }
+		res = @conn.exec_params( "SELECT $1, $2",
+					[ hash_param_bin, hash_param_nil ], 0, col_map )
+		expect( res.values ).to eq( [["\\x00ff", nil]] )
+		expect( result_typenames(res) ).to eq( ['bytea', 'bytea'] )
+	end
+
+	it "should convert hash form parameters to string when using string encoders" do
+		col_map = PG::TypeMapByColumn.new( [textenc_string, textenc_string] )
+		hash_param_bin = { value: ["00ff"].pack("H*"), type: 17, format: 1 }
+		hash_param_nil = { value: nil, type: 17, format: 1 }
+		res = @conn.exec_params( "SELECT $1::text, $2::text",
+					[ hash_param_bin, hash_param_nil ], 0, col_map )
+		expect( res.values ).to eq( [["{:value=>\"\\x00\\xFF\", :type=>17, :format=>1}", "{:value=>nil, :type=>17, :format=>1}"]] )
+	end
+
 	it "shouldn't allow param mappings with different number of fields" do
 		expect{
 			@conn.exec_params( "SELECT $1", [ 123 ], 0, PG::TypeMapByColumn.new([]) )

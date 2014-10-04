@@ -39,7 +39,7 @@ pg_typemap_result_value(VALUE self, int tuple, int field)
 }
 
 t_pg_coder *
-pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field, int *p_format, Oid *p_type)
+pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
 	return NULL;

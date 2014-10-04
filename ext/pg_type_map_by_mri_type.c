@@ -52,7 +52,7 @@ typedef struct {
 		break;
 
 static t_pg_coder *
-pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field, int *p_format, Oid *p_type)
+pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
 {
 	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
 	t_pg_coder *p_coder;
@@ -83,11 +83,6 @@ pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field, int *p_f
 						field+1, rb_obj_classname( obj ));
 		}
 	}
-
-	if( p_format && p_coder )
-		*p_format = p_coder->format;
-	if( p_type && p_coder )
-		*p_type = p_coder->oid;
 
 	return p_coder;
 }

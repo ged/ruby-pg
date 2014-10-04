@@ -181,7 +181,7 @@ typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
 typedef int (* t_pg_fit_to_copy_get)(VALUE);
 typedef VALUE (* t_pg_typecast_result)(VALUE, int, int);
-typedef t_pg_coder *(* t_pg_typecast_query_param)(VALUE, VALUE, int, int *, Oid *);
+typedef t_pg_coder *(* t_pg_typecast_query_param)(VALUE, VALUE, int);
 typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 
 struct pg_coder {
@@ -281,7 +281,6 @@ VALUE lookup_error_class                               _(( const char * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
 int pg_coder_enc_to_str                                _(( t_pg_coder*, VALUE, char *, VALUE *));
-int pg_coder_enc_to_str_with_hash                      _(( t_pg_coder*, VALUE, char *, VALUE *));
 t_pg_coder_enc_func pg_coder_enc_func                  _(( t_pg_coder* ));
 t_pg_coder_dec_func pg_coder_dec_func                  _(( t_pg_coder*, int ));
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
@@ -311,7 +310,7 @@ VALUE pg_typemap_fit_to_result                         _(( VALUE, VALUE ));
 VALUE pg_typemap_fit_to_query                          _(( VALUE, VALUE ));
 int pg_typemap_fit_to_copy_get                         _(( VALUE ));
 VALUE pg_typemap_result_value                          _(( VALUE, int, int ));
-t_pg_coder *pg_typemap_typecast_query_param            _(( VALUE, VALUE, int, int *, Oid * ));
+t_pg_coder *pg_typemap_typecast_query_param            _(( VALUE, VALUE, int ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
