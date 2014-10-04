@@ -6,29 +6,32 @@
 
 /*
  *
- * Type casts for encoding Ruby objects to PostgreSQL string representation.
+ * Type casts for encoding Ruby objects to PostgreSQL string representations.
  *
- * Encoder classes are defined with pg_define_coder(). This assigns an encoder function to
- * the coder. The encoder function can decide between two different options to return the
- * encoded data. It can either return it as a Ruby String object or the expected length of
- * the encoded data. In the second option the encoder function is called a second time, when
- * the requested memory space was made available by the calling function, to do the actual
- * conversion.
+ * Encoder classes are defined with pg_define_coder(). This creates a new coder class and
+ * assigns an encoder function. The encoder function can decide between two different options
+ * to return the encoded data. It can either return it as a Ruby String object or write the
+ * encoded data to a memory space provided by the caller. In the second case, the encoder
+ * function is called twice, once for deciding the encoding option and returning the expected
+ * data length, and a second time when the requested memory space was made available by the
+ * calling function, to do the actual conversion and writing. Parameter intermediate can be
+ * used to store data between these two calls.
  *
  * Signature of all type cast encoders is:
- *    int encoder_function(t_pg_coder *coder, VALUE value, char *out, VALUE *intermediate)
+ *    int encoder_function(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
  *
  * Params:
- *   coder - The data part of the coder object that belongs to the encoder function.
+ *   this  - The data part of the coder object that belongs to the encoder function.
  *   value - The Ruby object to cast.
  *   out   - NULL for the first call,
  *           pointer to a buffer with the requested size for the second call.
- *   intermediate - pointer to a VALUE that might be set by the encoding function to some
+ *   intermediate - Pointer to a VALUE that might be set by the encoding function to some
  *           value in the first call that can be retrieved later in the second call.
+ *           This VALUE is not yet initialized by the caller.
  *
  * Returns:
  *   >= 0  - If out==NULL the encoder function must return the expected output buffer size.
- *           This can be larger than the size of the second call.
+ *           This can be larger than the size of the second call, but may not be smaller.
  *           If out!=NULL the encoder function must return the actually used output buffer size
  *           without a termination character.
  *   -1    - The encoder function can alternatively return -1 to indicate that no second call

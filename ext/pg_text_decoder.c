@@ -1,6 +1,30 @@
 /*
- * pg_column_map.c - PG::ColumnMap class extension
+ * pg_text_decoder.c - PG::TextDecoder module
  * $Id$
+ *
+ */
+
+/*
+ *
+ * Type casts for decoding PostgreSQL string representations to Ruby objects.
+ *
+ * Decoder classes are defined with pg_define_coder(). This creates a new coder class and
+ * assigns a decoder function.
+ *
+ * Signature of all type cast decoders is:
+ *    VALUE decoder_function(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+ *
+ * Params:
+ *   this     - The data part of the coder object that belongs to the decoder function.
+ *   val, len - The text or binary data to decode. The caller ensures, that the data is
+ *              zero terminated ( that is val[len] = 0 ). The memory should be used read
+ *              only by the callee.
+ *   tuple    - Row of the value within the result set.
+ *   field    - Column of the value within the result set.
+ *   enc_idx  - Index of the Encoding that any output String should get assigned.
+ *
+ * Returns:
+ *   The type casted Ruby object.
  *
  */
 
