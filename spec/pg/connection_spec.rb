@@ -330,6 +330,15 @@ describe PG::Connection do
 		expect( res.values ).to eq( [ ['Wally'], ['Sally'] ] )
 	end
 
+	it "supports hash form parameters for #exec_params" do
+		hash_param_bin = { value: ["00ff"].pack("H*"), type: 17, format: 1 }
+		hash_param_nil = { value: nil, type: 17, format: 1 }
+		res = @conn.exec_params( "SELECT $1, $2",
+					[ hash_param_bin, hash_param_nil ] )
+		expect( res.values ).to eq( [["\\x00ff", nil]] )
+		expect( result_typenames(res) ).to eq( ['bytea', 'bytea'] )
+	end
+
 	it "should work with arbitrary number of params" do
 		begin
 			3.step( 12, 0.2 ) do |exp|
