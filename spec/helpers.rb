@@ -261,6 +261,13 @@ module PG::TestingHelpers
 		end
 	end
 
+
+	# Retrieve the names of the column types of a given result set.
+	def result_typenames(res)
+		@conn.exec( "SELECT " + res.nfields.times.map{|i| "format_type($#{i*2+1},$#{i*2+2})"}.join(","),
+				res.nfields.times.map{|i| [res.ftype(i), res.fmod(i)] }.flatten ).
+				values[0]
+	end
 end
 
 
