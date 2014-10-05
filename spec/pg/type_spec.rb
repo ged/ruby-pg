@@ -130,6 +130,12 @@ describe "PG::Type derivations" do
 				expect( textenc_int.encode("  123-xyz  ") ).to eq( "123" )
 			end
 
+			it "should encode special floats equally to Float#to_s" do
+				expect( textenc_float.encode(Float::INFINITY) ).to eq( Float::INFINITY.to_s )
+				expect( textenc_float.encode(-Float::INFINITY) ).to eq( (-Float::INFINITY).to_s )
+				expect( textenc_float.encode(-Float::NAN) ).to eq( Float::NAN.to_s )
+			end
+
 			it "should encode with ruby encoder" do
 				expect( intenc_incrementer.encode(3) ).to eq( "4" )
 			end

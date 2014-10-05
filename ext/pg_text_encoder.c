@@ -161,9 +161,22 @@ static int
 pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
-		return sprintf( out, "%.16E", NUM2DBL(value));
+		double dvalue = NUM2DBL(value);
+		/* Cast to the same strings as value.to_s . */
+		if( isinf(dvalue) ){
+			if( dvalue < 0 ){
+				memcpy( out, "-Infinity", 9);
+				return 9;
+			} else {
+				memcpy( out, "Infinity", 8);
+				return 8;
+			}
+		} else if (isnan(dvalue)) {
+			memcpy( out, "NaN", 3);
+			return 3;
+		}
+		return sprintf( out, "%.16E", dvalue);
 	}else{
-		*intermediate = value;
 		return 23;
 	}
 }
