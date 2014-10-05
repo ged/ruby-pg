@@ -36,6 +36,13 @@ VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
 
 
+/*
+ * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL boolean type
+ * to Ruby true or false values.
+ *
+ */
 static VALUE
 pg_text_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -45,6 +52,14 @@ pg_text_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, 
 	return *val == 't' ? Qtrue : Qfalse;
 }
 
+/*
+ * Document-class: PG::TextDecoder::String < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL text output to
+ * to Ruby String object. The output value will have the character encoding
+ * set with PG::Connection#internal_encoding= .
+ *
+ */
 VALUE
 pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -53,6 +68,13 @@ pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, i
 	return ret;
 }
 
+/*
+ * Document-class: PG::TextDecoder::Integer < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL integer types
+ * to Ruby Integer objects.
+ *
+ */
 static VALUE
 pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -110,12 +132,26 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
 	return rb_cstr2inum(val, 10);
 }
 
+/*
+ * Document-class: PG::TextDecoder::Float < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL float4 and float8 types
+ * to Ruby Float objects.
+ *
+ */
 static VALUE
 pg_text_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_float_new(strtod(val, NULL));
 }
 
+/*
+ * Document-class: PG::TextDecoder::Bytea < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL bytea type
+ * to binary String objects.
+ *
+ */
 static VALUE
 pg_text_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -233,6 +269,15 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 	return array;
 }
 
+/*
+ * Document-class: PG::TextDecoder::Array < PG::CompositeDecoder
+ *
+ * This is the decoder class for PostgreSQL array types.
+ *
+ * All values are decoded according to the #elements_type
+ * accessor. Sub-arrays are decoded recursively.
+ *
+ */
 static VALUE
 pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -247,6 +292,16 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
 	return return_value;
 }
 
+/*
+ * Document-class: PG::TextDecoder::Identifier < PG::CompositeDecoder
+ *
+ * This is the decoder class for PostgreSQL identifiers.
+ *
+ * Returns an Array of identifiers:
+ *   PG::TextDecoder::Identifier.new.decode('schema."table"."column"')
+ *      => ["schema", "table", "column"]
+ *
+ */
 static VALUE
 pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -306,6 +361,14 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 	return array;
 }
 
+/*
+ * Document-class: PG::TextDecoder::FromBase64 < PG::CompositeDecoder
+ *
+ * This is a decoder class for conversion of base64 encoded data
+ * to it's binary representation. It outputs a binary Ruby String
+ * or some other Ruby object, if a #elements_type decoder was defined.
+ *
+ */
 static VALUE
 pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -337,15 +400,25 @@ init_pg_text_decoder()
 {
 	s_id_decode = rb_intern("decode");
 
+	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
 
+	/* Make RDoc aware of the decoder classes... */
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Boolean", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Boolean", pg_text_dec_boolean, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Integer", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Integer", pg_text_dec_integer, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Float", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Float", pg_text_dec_float, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "String", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Bytea", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Bytea", pg_text_dec_bytea, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Array", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Identifier", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "FromBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "FromBase64", pg_text_dec_from_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 }

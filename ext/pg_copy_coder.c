@@ -20,13 +20,6 @@ typedef struct {
 } t_pg_copycoder;
 
 
-/*
- * Document-class: PG::CopyCoder
- *
- * This is the base class for all type cast classes for COPY data,
- *
- */
-
 static void
 pg_copycoder_mark( t_pg_copycoder *this )
 {
@@ -58,6 +51,14 @@ pg_copycoder_decoder_allocate( VALUE klass )
 	return self;
 }
 
+/*
+ * call-seq:
+ *    coder.delimiter = String
+ *
+ * Specifies the character that separates columns within each row (line) of the file.
+ * The default is a tab character in text format, a comma in CSV format.
+ * This must be a single one-byte character. This option is ignored when using binary format.
+ */
 static VALUE
 pg_copycoder_delimiter_set(VALUE self, VALUE delimiter)
 {
@@ -69,6 +70,12 @@ pg_copycoder_delimiter_set(VALUE self, VALUE delimiter)
 	return delimiter;
 }
 
+/*
+ * call-seq:
+ *    coder.delimiter -> String
+ *
+ * The character that separates columns within each row (line) of the file.
+ */
 static VALUE
 pg_copycoder_delimiter_get(VALUE self)
 {
@@ -76,6 +83,12 @@ pg_copycoder_delimiter_get(VALUE self)
 	return rb_str_new(&this->delimiter, 1);
 }
 
+/*
+ * Specifies the string that represents a null value. The default is \\N (backslash-N)
+ * in text format, and an unquoted empty string in CSV format. You might prefer an
+ * empty string even in text format for cases where you don't want to distinguish nulls
+ * from empty strings. This option is ignored when using binary format.
+ */
 static VALUE
 pg_copycoder_null_string_set(VALUE self, VALUE null_string)
 {
@@ -85,6 +98,9 @@ pg_copycoder_null_string_set(VALUE self, VALUE null_string)
 	return null_string;
 }
 
+/*
+ * The string that represents a null value.
+ */
 static VALUE
 pg_copycoder_null_string_get(VALUE self)
 {
@@ -93,6 +109,13 @@ pg_copycoder_null_string_get(VALUE self)
 }
 
 /*
+ * call-seq:
+ *    coder.type_map = map
+ *
+ * +map+ can be:
+ * * a kind of PG::TypeMap
+ * * +nil+ - use PG::TextEncoder::String respectively PG::TextDecoder::String
+ *   for encoding/decoding of all columns.
  *
  */
 static VALUE
@@ -110,6 +133,12 @@ pg_copycoder_type_map_set(VALUE self, VALUE type_map)
 }
 
 /*
+ * call-seq:
+ *    coder.type_map -> PG::TypeMap
+ *
+ * Returns either:
+ * * a kind of PG::TypeMap
+ * * +nil+ - use String coder only.
  *
  */
 static VALUE
@@ -121,6 +150,20 @@ pg_copycoder_type_map_get(VALUE self)
 }
 
 
+/*
+ * Document-class: PG::TextEncoder::CopyRow < PG::CopyEncoder
+ *
+ * This class encodes one row of arbitrary columns for transmission as COPY data in text format.
+ * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
+ * for description of the format.
+ *
+ * It is intended to be used in conjunction with PG::Connection#copy_data .
+ *
+ * The columns are expected as Array of values. The single values are encoded as defined
+ * in the assigned #type_map. If no type_map was assigned, all values are converted to
+ * Strings by PG::TextEncoder::String.
+ *
+ */
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -248,6 +291,20 @@ GetDecimalFromHex(char hex)
 		return -1;
 }
 
+/*
+ * Document-class: PG::TextDecoder::CopyRow < PG::CopyDecoder
+ *
+ * This class decodes one row of arbitrary columns received as COPY data in text format.
+ * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
+ * for description of the format.
+ *
+ * It is intended to be used in conjunction with PG::Connection#copy_data .
+ *
+ * The columns are retrieved as Array of values. The single values are decoded as defined
+ * in the assigned #type_map. If no type_map was assigned, all values are converted to
+ * Strings by PG::TextDecoder::String.
+ *
+ */
 /*
  * Parse the current line into separate attributes (fields),
  * performing de-escaping as needed.
@@ -473,6 +530,10 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 void
 init_pg_copycoder()
 {
+	/* Document-class: PG::CopyCoder < PG::Coder
+	 *
+	 * This is the base class for all type cast classes for COPY data,
+	 */
 	rb_cPG_CopyCoder = rb_define_class_under( rb_mPG, "CopyCoder", rb_cPG_Coder );
 	rb_define_method( rb_cPG_CopyCoder, "type_map=", pg_copycoder_type_map_set, 1 );
 	rb_define_method( rb_cPG_CopyCoder, "type_map", pg_copycoder_type_map_get, 0 );
@@ -481,11 +542,16 @@ init_pg_copycoder()
 	rb_define_method( rb_cPG_CopyCoder, "null_string=", pg_copycoder_null_string_set, 1 );
 	rb_define_method( rb_cPG_CopyCoder, "null_string", pg_copycoder_null_string_get, 0 );
 
+	/* Document-class: PG::CopyEncoder < PG::CopyCoder */
 	rb_cPG_CopyEncoder = rb_define_class_under( rb_mPG, "CopyEncoder", rb_cPG_CopyCoder );
 	rb_define_alloc_func( rb_cPG_CopyEncoder, pg_copycoder_encoder_allocate );
+	/* Document-class: PG::CopyDecoder < PG::CopyCoder */
 	rb_cPG_CopyDecoder = rb_define_class_under( rb_mPG, "CopyDecoder", rb_cPG_CopyCoder );
 	rb_define_alloc_func( rb_cPG_CopyDecoder, pg_copycoder_decoder_allocate );
 
+	/* Make RDoc aware of the encoder classes... */
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "CopyRow", rb_cPG_CopyEncoder ); */
 	pg_define_coder( "CopyRow", pg_text_enc_copy_row, rb_cPG_CopyEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "CopyRow", rb_cPG_CopyDecoder ); */
 	pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
 }

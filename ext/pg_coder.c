@@ -16,26 +16,11 @@ static ID s_id_encode;
 static ID s_id_decode;
 static ID s_id_CFUNC;
 
-/*
- * Document-class: PG::Coder
- *
- * This is the base class for all type cast encoder and decoder classes.
- *
- */
-
 static VALUE
 pg_coder_allocate( VALUE klass )
 {
 	rb_raise( rb_eTypeError, "PG::Coder cannot be instantiated directly");
 }
-
-/*
- * Document-class: PG::CompositeCoder
- *
- * This is the base class for all type cast classes of PostgreSQL types,
- * that are made up of some sub type.
- *
- */
 
 void
 pg_coder_init_encoder( VALUE self )
@@ -117,6 +102,14 @@ pg_composite_decoder_allocate( VALUE klass )
 	return self;
 }
 
+/*
+ * call-seq:
+ *    coder.encode( value )
+ *
+ * Encodes the given Ruby object into string representation, without
+ * sending data to/from the database server.
+ *
+ */
 static VALUE
 pg_coder_encode(VALUE self, VALUE value)
 {
@@ -151,6 +144,14 @@ pg_coder_encode(VALUE self, VALUE value)
 	return res;
 }
 
+/*
+ * call-seq:
+ *    coder.decode( string, tuple=nil, field=nil )
+ *
+ * Decodes the given string representation into a Ruby object, without
+ * sending data to/from the database server.
+ *
+ */
 static VALUE
 pg_coder_decode(int argc, VALUE *argv, VALUE self)
 {
@@ -178,6 +179,15 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	return res;
 }
 
+/*
+ * call-seq:
+ *    coder.oid = Integer
+ *
+ * Specifies the type OID that is sent alongside with an encoded
+ * query parameter value.
+ *
+ * The default is +0+.
+ */
 static VALUE
 pg_coder_oid_set(VALUE self, VALUE oid)
 {
@@ -186,6 +196,13 @@ pg_coder_oid_set(VALUE self, VALUE oid)
 	return oid;
 }
 
+/*
+ * call-seq:
+ *    coder.oid -> Integer
+ *
+ * The type OID that is sent alongside with an encoded
+ * query parameter value.
+ */
 static VALUE
 pg_coder_oid_get(VALUE self)
 {
@@ -193,6 +210,15 @@ pg_coder_oid_get(VALUE self)
 	return UINT2NUM(this->oid);
 }
 
+/*
+ * call-seq:
+ *    coder.format = Integer
+ *
+ * Specifies the format code that is sent alongside with an encoded
+ * query parameter value.
+ *
+ * The default is +0+.
+ */
 static VALUE
 pg_coder_format_set(VALUE self, VALUE format)
 {
@@ -201,6 +227,13 @@ pg_coder_format_set(VALUE self, VALUE format)
 	return format;
 }
 
+/*
+ * call-seq:
+ *    coder.format -> Integer
+ *
+ * The format code that is sent alongside with an encoded
+ * query parameter value.
+ */
 static VALUE
 pg_coder_format_get(VALUE self)
 {
@@ -208,6 +241,16 @@ pg_coder_format_get(VALUE self)
 	return INT2NUM(this->format);
 }
 
+/*
+ * call-seq:
+ *    coder.needs_quotation = Boolean
+ *
+ * Specifies whether the assigned #elements_type requires quotation marks to
+ * be transferred safely. Encoding with #needs_quotation=false is somewhat
+ * faster.
+ *
+ * The default is +true+. This option is ignored for decoding of values.
+ */
 static VALUE
 pg_coder_needs_quotation_set(VALUE self, VALUE needs_quotation)
 {
@@ -216,6 +259,13 @@ pg_coder_needs_quotation_set(VALUE self, VALUE needs_quotation)
 	return needs_quotation;
 }
 
+/*
+ * call-seq:
+ *    coder.needs_quotation -> Boolean
+ *
+ * Specifies whether the assigned #elements_type requires quotation marks to
+ * be transferred safely.
+ */
 static VALUE
 pg_coder_needs_quotation_get(VALUE self)
 {
@@ -223,6 +273,14 @@ pg_coder_needs_quotation_get(VALUE self)
 	return this->needs_quotation ? Qtrue : Qfalse;
 }
 
+/*
+ * call-seq:
+ *    coder.delimiter = String
+ *
+ * Specifies the character that separates values within the composite type.
+ * The default is a comma.
+ * This must be a single one-byte character.
+ */
 static VALUE
 pg_coder_delimiter_set(VALUE self, VALUE delimiter)
 {
@@ -234,6 +292,12 @@ pg_coder_delimiter_set(VALUE self, VALUE delimiter)
 	return delimiter;
 }
 
+/*
+ * call-seq:
+ *    coder.delimiter -> String
+ *
+ * The character that separates values within the composite type.
+ */
 static VALUE
 pg_coder_delimiter_get(VALUE self)
 {
@@ -242,7 +306,13 @@ pg_coder_delimiter_get(VALUE self)
 }
 
 /*
+ * call-seq:
+ *    coder.elements_type = coder
  *
+ * Specifies the PG::Coder object that is used to encode or decode
+ * the single elementes of this composite type.
+ *
+ * If set to +nil+ all values are encoded and decoded as String objects.
  */
 static VALUE
 pg_coder_elements_type_set(VALUE self, VALUE elem_type)
@@ -333,23 +403,40 @@ init_pg_coder()
 	s_id_decode = rb_intern("decode");
 	s_id_CFUNC = rb_intern("CFUNC");
 
+	/* Document-class: PG::Coder < Object
+	 *
+	 * This is the base class for all type cast encoder and decoder classes.
+	 */
 	rb_cPG_Coder = rb_define_class_under( rb_mPG, "Coder", rb_cObject );
 	rb_define_alloc_func( rb_cPG_Coder, pg_coder_allocate );
 	rb_define_method( rb_cPG_Coder, "oid=", pg_coder_oid_set, 1 );
 	rb_define_method( rb_cPG_Coder, "oid", pg_coder_oid_get, 0 );
 	rb_define_method( rb_cPG_Coder, "format=", pg_coder_format_set, 1 );
 	rb_define_method( rb_cPG_Coder, "format", pg_coder_format_get, 0 );
+	/*
+	 * Name of the coder or the corresponding data type.
+	 *
+	 * This accessor is only used in PG::Coder#inspect .
+	 */
 	rb_define_attr(   rb_cPG_Coder, "name", 1, 1 );
 	rb_define_method( rb_cPG_Coder, "encode", pg_coder_encode, 1 );
 	rb_define_method( rb_cPG_Coder, "decode", pg_coder_decode, -1 );
 
+	/* Document-class: PG::SimpleCoder < PG::Coder */
 	rb_cPG_SimpleCoder = rb_define_class_under( rb_mPG, "SimpleCoder", rb_cPG_Coder );
 
+	/* Document-class: PG::SimpleEncoder < PG::SimpleCoder */
 	rb_cPG_SimpleEncoder = rb_define_class_under( rb_mPG, "SimpleEncoder", rb_cPG_SimpleCoder );
 	rb_define_alloc_func( rb_cPG_SimpleEncoder, pg_simple_encoder_allocate );
+	/* Document-class: PG::SimpleDecoder < PG::SimpleCoder */
 	rb_cPG_SimpleDecoder = rb_define_class_under( rb_mPG, "SimpleDecoder", rb_cPG_SimpleCoder );
 	rb_define_alloc_func( rb_cPG_SimpleDecoder, pg_simple_decoder_allocate );
 
+	/* Document-class: PG::CompositeCoder < PG::Coder
+	 *
+	 * This is the base class for all type cast classes of PostgreSQL types,
+	 * that are made up of some sub type.
+	 */
 	rb_cPG_CompositeCoder = rb_define_class_under( rb_mPG, "CompositeCoder", rb_cPG_Coder );
 	rb_define_method( rb_cPG_CompositeCoder, "elements_type=", pg_coder_elements_type_set, 1 );
 	rb_define_attr( rb_cPG_CompositeCoder, "elements_type", 1, 0 );
@@ -358,8 +445,10 @@ init_pg_coder()
 	rb_define_method( rb_cPG_CompositeCoder, "delimiter=", pg_coder_delimiter_set, 1 );
 	rb_define_method( rb_cPG_CompositeCoder, "delimiter", pg_coder_delimiter_get, 0 );
 
+	/* Document-class: PG::CompositeEncoder < PG::CompositeCoder */
 	rb_cPG_CompositeEncoder = rb_define_class_under( rb_mPG, "CompositeEncoder", rb_cPG_CompositeCoder );
 	rb_define_alloc_func( rb_cPG_CompositeEncoder, pg_composite_encoder_allocate );
+	/* Document-class: PG::CompositeDecoder < PG::CompositeCoder */
 	rb_cPG_CompositeDecoder = rb_define_class_under( rb_mPG, "CompositeDecoder", rb_cPG_CompositeCoder );
 	rb_define_alloc_func( rb_cPG_CompositeDecoder, pg_composite_decoder_allocate );
 }

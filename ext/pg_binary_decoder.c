@@ -11,6 +11,13 @@
 VALUE rb_mPG_BinaryDecoder;
 
 
+/*
+ * Document-class: PG::BinaryDecoder::Boolean < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary bool type
+ * to Ruby true or false objects.
+ *
+ */
 static VALUE
 pg_bin_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -20,6 +27,13 @@ pg_bin_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, i
 	return *val == 0 ? Qfalse : Qtrue;
 }
 
+/*
+ * Document-class: PG::BinaryDecoder::Integer < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary int2, int4 and int8 types
+ * to Ruby Integer objects.
+ *
+ */
 static VALUE
 pg_bin_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -35,6 +49,13 @@ pg_bin_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, i
 	}
 }
 
+/*
+ * Document-class: PG::BinaryDecoder::Float < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary float4 and float8 types
+ * to Ruby Float objects.
+ *
+ */
 static VALUE
 pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -61,6 +82,14 @@ pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 	}
 }
 
+/*
+ * Document-class: PG::BinaryDecoder::Bytea < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary data (bytea)
+ * to binary Ruby String objects or some other Ruby object, if a #elements_type
+ * decoder was defined.
+ *
+ */
 VALUE
 pg_bin_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -70,6 +99,12 @@ pg_bin_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 	return ret;
 }
 
+/*
+ * Document-class: PG::BinaryDecoder::ToBase64 < PG::CompositeDecoder
+ *
+ * This is a decoder class for conversion of binary (bytea) to base64 data.
+ *
+ */
 static VALUE
 pg_bin_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
@@ -95,16 +130,33 @@ pg_bin_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field,
 	return out_value;
 }
 
+/*
+ * Document-class: PG::BinaryDecoder::String < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL text output to
+ * to Ruby String object. The output value will have the character encoding
+ * set with PG::Connection#internal_encoding= .
+ *
+ */
+
 void
 init_pg_binary_decoder()
 {
+	/* This module encapsulates all decoder classes with binary input format */
 	rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" );
 
+	/* Make RDoc aware of the decoder classes... */
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Boolean", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Boolean", pg_bin_dec_boolean, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Integer", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Integer", pg_bin_dec_integer, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Float", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Float", pg_bin_dec_float, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "String", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Bytea", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Bytea", pg_bin_dec_bytea, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "ToBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "ToBase64", pg_bin_dec_to_base64, rb_cPG_CompositeDecoder, rb_mPG_BinaryDecoder );
 }

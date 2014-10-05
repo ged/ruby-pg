@@ -3,6 +3,7 @@
 module PG
 
 	class Coder
+		# Create a new coder object based on the attribute Hash.
 		def initialize(params={})
 			params.each do |key, val|
 				send("#{key}=", val)
@@ -13,6 +14,7 @@ module PG
 			self.class.new(to_h)
 		end
 
+		# Returns coder attributes as Hash.
 		def to_h
 			{
 				oid: oid,

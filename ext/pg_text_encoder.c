@@ -61,6 +61,22 @@ pg_obj_to_i( VALUE value )
 	}
 }
 
+/*
+ * Document-class: PG::TextEncoder::Boolean < PG::SimpleEncoder
+ *
+ * This is the encoder class for the PostgreSQL bool type.
+ *
+ */
+
+
+/*
+ * Document-class: PG::TextEncoder::String < PG::SimpleEncoder
+ *
+ * This is the encoder class for the PostgreSQL text types.
+ *
+ * Non-String values are expected to have method +to_str+ defined.
+ *
+ */
 int
 pg_coder_enc_to_str(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
@@ -68,6 +84,15 @@ pg_coder_enc_to_str(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 	return -1;
 }
 
+
+/*
+ * Document-class: PG::TextEncoder::Integer < PG::SimpleEncoder
+ *
+ * This is the encoder class for the PostgreSQL int types.
+ *
+ * Non-Number values are expected to have method +to_i+ defined.
+ *
+ */
 static int
 pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
@@ -157,6 +182,13 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 	}
 }
 
+
+/*
+ * Document-class: PG::TextEncoder::Float < PG::SimpleEncoder
+ *
+ * This is the encoder class for the PostgreSQL float types.
+ *
+ */
 static int
 pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -300,6 +332,16 @@ write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE st
 	return current_out;
 }
 
+
+/*
+ * Document-class: PG::TextEncoder::Array < PG::CompositeEncoder
+ *
+ * This is the encoder class for PostgreSQL array types.
+ *
+ * All values are encoded according to the #elements_type
+ * accessor. Sub-arrays are encoded recursively.
+ *
+ */
 static int
 pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -334,6 +376,16 @@ pg_text_enc_array_identifier(t_pg_composite_coder *this, VALUE value, VALUE stri
 	return out;
 }
 
+/*
+ * Document-class: PG::TextEncoder::Identifier < PG::CompositeEncoder
+ *
+ * This is the encoder class for PostgreSQL identifiers.
+ *
+ * An Array value can be used for "schema.table.column" type identifiers:
+ *   PG::TextEncoder::Identifier.new.encode(['schema', 'table', 'column'])
+ *      => "schema"."table"."column"
+ *
+ */
 static int
 pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -351,6 +403,16 @@ pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 	return -1;
 }
 
+
+
+/*
+ * Document-class: PG::TextEncoder::QuotedLiteral < PG::CompositeEncoder
+ *
+ * This is the encoder class for PostgreSQL literals.
+ *
+ * A literal is quoted and escaped by the +'+ character.
+ *
+ */
 static int
 pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -363,6 +425,12 @@ pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *inte
 	return -1;
 }
 
+/*
+ * Document-class: PG::TextEncoder::ToBase64 < PG::CompositeEncoder
+ *
+ * This is an encoder class for conversion of binary to base64 data.
+ *
+ */
 static int
 pg_text_enc_to_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
@@ -407,16 +475,25 @@ init_pg_text_encoder()
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
 
-	/* This module encapsulates all encoder classes for text format */
+	/* This module encapsulates all encoder classes with text output format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
+	/* Make RDoc aware of the encoder classes... */
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Boolean", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Boolean", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Integer", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Float", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "String", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "String", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Array", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Identifier", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "QuotedLiteral", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "QuotedLiteral", pg_text_enc_quoted_literal, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "ToBase64", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "ToBase64", pg_text_enc_to_base64, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 }
