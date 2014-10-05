@@ -130,27 +130,39 @@ describe 'Basic type mapping' do
 			it "should do datetime without time zone type conversions" do
 				[0].each do |format|
 					res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
-																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
+																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE),
+																		CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
+																		CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
 					expect( res.getvalue(0,0) ).to eq( Time.new(2013, 12, 31, 23, 58, 59) )
 					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(1913, 12, 31, 23, 58, 59.123))
+					expect( res.getvalue(0,2) ).to eq( 'infinity' )
+					expect( res.getvalue(0,3) ).to eq( '-infinity' )
 				end
 			end
 
 			it "should do datetime with time zone type conversions" do
 				[0].each do |format|
 					res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITH TIME ZONE),
-																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE)", [], format )
+																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE),
+																		CAST('infinity' AS TIMESTAMP WITH TIME ZONE),
+																		CAST('-infinity' AS TIMESTAMP WITH TIME ZONE)", [], format )
 					expect( res.getvalue(0,0) ).to eq( Time.new(2013, 12, 31, 23, 58, 59, "+02:00") )
 					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.new(1913, 12, 31, 23, 58, 59.123, "-03:00"))
+					expect( res.getvalue(0,2) ).to eq( 'infinity' )
+					expect( res.getvalue(0,3) ).to eq( '-infinity' )
 				end
 			end
 
 			it "should do date type conversions" do
 				[0].each do |format|
 					res = @conn.exec( "SELECT CAST('2113-12-31' AS DATE),
-																		CAST('1913-12-31' AS DATE)", [], format )
+																		CAST('1913-12-31' AS DATE),
+																		CAST('infinity' AS DATE),
+																		CAST('-infinity' AS DATE)", [], format )
 					expect( res.getvalue(0,0) ).to eq( Time.new(2113, 12, 31) )
 					expect( res.getvalue(0,1) ).to eq( Time.new(1913, 12, 31) )
+					expect( res.getvalue(0,2) ).to eq( 'infinity' )
+					expect( res.getvalue(0,3) ).to eq( '-infinity' )
 				end
 			end
 

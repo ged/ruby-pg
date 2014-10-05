@@ -9,7 +9,7 @@ module PG
 				if string =~ ISO_DATE
 					Time.new $1.to_i, $2.to_i, $3.to_i
 				else
-					raise ArgumentError, sprintf("unexpected time format for tuple %d field %d: %s", tuple, field, string)
+					string
 				end
 			end
 		end
@@ -21,7 +21,7 @@ module PG
 				if string =~ ISO_DATETIME_WITHOUT_TIMEZONE
 					Time.new $1.to_i, $2.to_i, $3.to_i, $4.to_i, $5.to_i, "#{$6}#{$7}".to_r
 				else
-					raise ArgumentError, sprintf("unexpected time format for tuple %d field %d: %s", tuple, field, string)
+					string
 				end
 			end
 		end
@@ -33,7 +33,7 @@ module PG
 				if string =~ ISO_DATETIME_WITH_TIMEZONE
 					Time.new $1.to_i, $2.to_i, $3.to_i, $4.to_i, $5.to_i, "#{$6}#{$7}".to_r, "#{$8}:00"
 				else
-					raise ArgumentError, sprintf("unexpected time format for tuple %d field %d: %s", tuple, field, string)
+					string
 				end
 			end
 		end
