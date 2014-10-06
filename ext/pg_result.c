@@ -459,9 +459,9 @@ pgresult_fnumber(VALUE self, VALUE name)
 
 	Check_Type(name, T_STRING);
 
-	n = PQfnumber(pgresult_get(self), StringValuePtr(name));
+	n = PQfnumber(pgresult_get(self), StringValueCStr(name));
 	if (n == -1) {
-		rb_raise(rb_eArgError,"Unknown field: %s", StringValuePtr(name));
+		rb_raise(rb_eArgError,"Unknown field: %s", StringValueCStr(name));
 	}
 	return INT2FIX(n);
 }
@@ -906,7 +906,7 @@ static VALUE
 pgresult_field_values( VALUE self, VALUE field )
 {
 	PGresult *result = pgresult_get( self );
-	const char *fieldname = StringValuePtr( field );
+	const char *fieldname = StringValueCStr( field );
 	int fnum = PQfnumber( result, fieldname );
 
 	if ( fnum < 0 )

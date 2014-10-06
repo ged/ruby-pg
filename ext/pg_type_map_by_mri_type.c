@@ -151,7 +151,8 @@ pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 	if(0){}
 	FOR_EACH_MRI_TYPE( COMPARE_AND_ASSIGN )
 	else{
-		rb_raise(rb_eArgError, "unknown mri_type %s", RSTRING_PTR(rb_inspect( mri_type )));
+		VALUE mri_type_inspect = rb_inspect( mri_type );
+		rb_raise(rb_eArgError, "unknown mri_type %s", StringValueCStr(mri_type_inspect));
 	}
 
 	return self;
@@ -169,12 +170,13 @@ pg_tmbmt_aref( VALUE self, VALUE mri_type )
 	t_tmbmt *this = DATA_PTR( self );
 	char *p_mri_type;
 
-	p_mri_type = StringValuePtr(mri_type);
+	p_mri_type = StringValueCStr(mri_type);
 
 	if(0){}
 	FOR_EACH_MRI_TYPE( COMPARE_AND_GET )
 	else{
-		rb_raise(rb_eArgError, "unknown mri_type %s", RSTRING_PTR(rb_inspect( mri_type )));
+		VALUE mri_type_inspect = rb_inspect( mri_type );
+		rb_raise(rb_eArgError, "unknown mri_type %s", StringValueCStr(mri_type_inspect));
 	}
 
 	return coder;
