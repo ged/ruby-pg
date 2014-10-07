@@ -151,6 +151,17 @@ pg_tmbc_allocate()
 	return pg_tmbc_s_allocate(rb_cTypeMapByColumn);
 }
 
+/*
+ * call-seq:
+ *    PG::TypeMapByColumn.new( coders )
+ *
+ * Builds a new type map and assigns a list of coders for the given column.
+ * +coders+ must be an Array of PG::Coder objects or +nil+ values.
+ * The length of the Array corresponds to
+ * the number of columns or bind parameters this type map is usable for.
+ *
+ * A +nil+ value will cast the given field to a String object.
+ */
 static VALUE
 pg_tmbc_init(VALUE self, VALUE conv_ary)
 {
@@ -187,6 +198,13 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	return self;
 }
 
+/*
+ * call-seq:
+ *    typemap.coders -> Array
+ *
+ * Array of PG::Coder objects. The length of the Array corresponds to
+ * the number of columns or bind parameters this type map is usable for.
+ */
 static VALUE
 pg_tmbc_coders(VALUE self)
 {
@@ -212,6 +230,23 @@ init_pg_type_map_by_column()
 	s_id_decode = rb_intern("decode");
 	s_id_encode = rb_intern("encode");
 
+	/*
+	 * Document-class: PG::TypeMapByColumn < PG::TypeMap
+	 *
+	 * This type map casts values by a coder assigned per field/column.
+	 *
+	 * Each PG:TypeMapByColumn has a fixed list of either encoders or decoders,
+	 * that is defined at #new . A type map with encoders is usable for type casting
+	 * query bind parameters and COPY data for PG::Connection#put_copy_data .
+	 * A type map with decoders is usable for type casting of result values and
+	 * COPY data from PG::Connection#get_copy_data .
+	 *
+	 * PG::TypeMapByColumns are in particular useful in conjunction with prepared statements,
+	 * since they can be cached alongside with the statement handle.
+	 *
+	 * This type map strategy is also used internally by PG::TypeMapByOid, when the
+	 * number of rows of a result set exceeds a given limit.
+	 */
 	rb_cTypeMapByColumn = rb_define_class_under( rb_mPG, "TypeMapByColumn", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByColumn, pg_tmbc_s_allocate );
 	rb_define_method( rb_cTypeMapByColumn, "initialize", pg_tmbc_init, 1 );

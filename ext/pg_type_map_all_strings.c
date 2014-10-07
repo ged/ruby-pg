@@ -93,6 +93,18 @@ pg_tmas_s_allocate( VALUE klass )
 void
 init_pg_type_map_all_strings()
 {
+	/*
+	 * Document-class: PG::TypeMapAllStrings < PG::TypeMap
+	 *
+	 * This type map casts all values received from the database server to Strings
+	 * and sends all values to the server after conversion to String by +#to_str+ .
+	 *
+	 * It is suitable for type casting query bind parameters, result values and
+	 * COPY IN/OUT data.
+	 *
+	 * This is the default type map. It is used when type_map is not set or set to +nil+.
+	 *
+	 */
 	rb_cTypeMapAllStrings = rb_define_class_under( rb_mPG, "TypeMapAllStrings", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapAllStrings, pg_tmas_s_allocate );
 

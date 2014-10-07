@@ -98,6 +98,14 @@ init_pg_type_map()
 	s_id_fit_to_query = rb_intern("fit_to_query");
 	s_id_fit_to_result = rb_intern("fit_to_result");
 
+	/*
+	 * Document-class: PG::TypeMap < Object
+	 *
+	 * This is the base class for type maps.
+	 * See derived classes for implementations of different type cast strategies
+	 * ( PG::TypeMapByColumn, PG::TypeMapByOid ).
+	 *
+	 */
 	rb_cTypeMap = rb_define_class_under( rb_mPG, "TypeMap", rb_cObject );
 	rb_define_alloc_func( rb_cTypeMap, pg_typemap_s_allocate );
 	rb_define_method( rb_cTypeMap, "fit_to_result", pg_typemap_fit_to_result_ext, 1 );

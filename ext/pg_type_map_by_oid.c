@@ -161,6 +161,18 @@ pg_tmbo_s_allocate( VALUE klass )
 	return self;
 }
 
+/*
+ * call-seq:
+ *    typemap.add_coder( coder )
+ *
+ * Assigns a new PG::Coder object to the type map. The decoder
+ * is registered for type casts based on it's PG::Coder#oid and
+ * PG::Coder#format attributes.
+ *
+ * Later changes of the oid or format code within the coder object
+ * will have no effect to the type map.
+ *
+ */
 static VALUE
 pg_tmbo_add_coder( VALUE self, VALUE coder )
 {
@@ -189,6 +201,15 @@ pg_tmbo_add_coder( VALUE self, VALUE coder )
 	return self;
 }
 
+/*
+ * call-seq:
+ *    typemap.rm_coder( format, oid )
+ *
+ * Removes a PG::Coder object from the type map based on the given
+ * oid and format codes.
+ *
+ * Returns the removed coder object.
+ */
 static VALUE
 pg_tmbo_rm_coder( VALUE self, VALUE format, VALUE oid )
 {
@@ -211,6 +232,12 @@ pg_tmbo_rm_coder( VALUE self, VALUE format, VALUE oid )
 	return coder;
 }
 
+/*
+ * call-seq:
+ *    typemap.coders -> Array
+ *
+ * Array of all assigned PG::Coder objects.
+ */
 static VALUE
 pg_tmbo_coders( VALUE self )
 {
@@ -221,6 +248,15 @@ pg_tmbo_coders( VALUE self )
 			rb_funcall(this->format[1].oid_to_coder, rb_intern("values"), 0));
 }
 
+/*
+ * call-seq:
+ *    typemap.max_rows_for_online_lookup = number
+ *
+ * Threshold for doing Hash lookups versus creation of a dedicated PG::TypeMapByColumn.
+ * The type map will do Hash lookups for each result value, if the number of rows
+ * is below or equal +number+.
+ *
+ */
 static VALUE
 pg_tmbo_max_rows_for_online_lookup_set( VALUE self, VALUE value )
 {
@@ -229,6 +265,10 @@ pg_tmbo_max_rows_for_online_lookup_set( VALUE self, VALUE value )
 	return value;
 }
 
+/*
+ * call-seq:
+ *    typemap.max_rows_for_online_lookup -> Integer
+ */
 static VALUE
 pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
 {
@@ -236,9 +276,15 @@ pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
 	return INT2NUM(this->max_rows_for_online_lookup);
 }
 
-/* This is an extended version of PG::TypeMap#fit_to_result that
- * allows explicit selection of online lookup or building of a new
- * PG::TypeMapByColumn.
+/*
+ * call-seq:
+ *    typemap.fit_to_result( result, online_lookup = nil )
+ *
+ * This is an extended version of PG::TypeMap#fit_to_result that
+ * allows explicit selection of online lookup ( online_lookup=true )
+ * or building of a new PG::TypeMapByColumn ( online_lookup=false ).
+ *
+ *
  */
 static VALUE
 pg_tmbo_fit_to_result_ext( int argc, VALUE *argv, VALUE self )
@@ -275,6 +321,15 @@ init_pg_type_map_by_oid()
 {
 	s_id_decode = rb_intern("decode");
 
+	/*
+	 * Document-class: PG::TypeMapByOid < PG::TypeMap
+	 *
+	 * This type map casts values based on the type OID of the given column
+	 * in the result set.
+	 *
+	 * This type map is only suitable to cast values from PG::Result objects.
+	 * Therefore only decoders might be assigned by the #add_coder method.
+	 */
 	rb_cTypeMapByOid = rb_define_class_under( rb_mPG, "TypeMapByOid", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByOid, pg_tmbo_s_allocate );
 	rb_define_method( rb_cTypeMapByOid, "add_coder", pg_tmbo_add_coder, 1 );

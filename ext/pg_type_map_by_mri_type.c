@@ -140,6 +140,40 @@ pg_tmbmt_s_allocate( VALUE klass )
 		} \
 	}
 
+/*
+ * call-seq:
+ *    typemap.[mri_type] = coder
+ *
+ * Assigns a new PG::Coder object to the type map. The decoder
+ * is registered for type casts of the given +mri_type+ .
+ *
+ * +coder+ can be one of the following:
+ * * +nil+        - Values are encoded by +#to_str+
+ * * a PG::Coder  - Values are encoded by the given encoder
+ * * a Symbol     - The method of this type map (or a derivation) that is called for each value to sent.
+ *   It must return a PG::Coder.
+ * * a Proc       - The Proc object is called for each value. It must return a PG::Coder.
+ *
+ * +mri_type+ must be one of the following strings:
+ * * +T_FIXNUM+
+ * * +T_TRUE+
+ * * +T_FALSE+
+ * * +T_FLOAT+
+ * * +T_BIGNUM+
+ * * +T_COMPLEX+
+ * * +T_RATIONAL+
+ * * +T_ARRAY+
+ * * +T_STRING+
+ * * +T_SYMBOL+
+ * * +T_OBJECT+
+ * * +T_CLASS+
+ * * +T_MODULE+
+ * * +T_REGEXP+
+ * * +T_HASH+
+ * * +T_STRUCT+
+ * * +T_FILE+
+ * * +T_DATA+
+ */
 static VALUE
 pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 {
@@ -163,6 +197,14 @@ pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 		coder = this->coders.coder_##type ? this->coders.coder_##type->coder_obj : this->coders.ask_##type; \
 	}
 
+/*
+ * call-seq:
+ *    typemap.[mri_type] -> coder
+ *
+ * Returns the encoder object for the given +mri_type+
+ *
+ * See #[]= for allowed +mri_type+ .
+ */
 static VALUE
 pg_tmbmt_aref( VALUE self, VALUE mri_type )
 {
@@ -186,6 +228,12 @@ pg_tmbmt_aref( VALUE self, VALUE mri_type )
 	rb_hash_aset( hash_coders, rb_obj_freeze(rb_str_new2(#type)), this->coders.coder_##type ? this->coders.coder_##type->coder_obj : this->coders.ask_##type );
 
 
+/*
+ * call-seq:
+ *    typemap.coders -> Hash
+ *
+ * Returns all mri types and their assigned encoder object.
+ */
 static VALUE
 pg_tmbmt_coders( VALUE self )
 {
@@ -200,6 +248,16 @@ pg_tmbmt_coders( VALUE self )
 void
 init_pg_type_map_by_mri_type()
 {
+	/*
+	 * Document-class: PG::TypeMapByMriType < PG::TypeMap
+	 *
+	 * This type map casts values based on the Ruby object type code of the given value
+	 * to be sent.
+	 *
+	 * This type map is usable for type casting query bind parameters and COPY data
+	 * for PG::Connection#put_copy_data . Therefore only encoders might be assigned by
+	 * the #[]= method.
+	 */
 	rb_cTypeMapByMriType = rb_define_class_under( rb_mPG, "TypeMapByMriType", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByMriType, pg_tmbmt_s_allocate );
 	rb_define_method( rb_cTypeMapByMriType, "[]=", pg_tmbmt_aset, 2 );
