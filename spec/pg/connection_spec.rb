@@ -242,7 +242,7 @@ describe PG::Connection do
 		expect( (Time.now - start) ).to be < 10
 	end
 
-	it "should work together with signal handlers" do
+	it "should work together with signal handlers", :unix do
 		signal_received = false
 		trap 'USR1' do
 			signal_received = true

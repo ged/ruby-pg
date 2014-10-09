@@ -335,7 +335,7 @@ describe "PG::Type derivations" do
 						expect( textenc_int_array.encode(['1',['2'],'3']) ).to eq( %[{1,{2},3}] )
 					end
 					it 'encodes an array of float8 with sub arrays' do
-						expect( textenc_float_array.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1.0001*E+03,{-2.2*E-03,{3.3*E+00,-4.4*E+02}},{NULL,6.6*E+00},-7.7*E+00}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
+						expect( textenc_float_array.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1.0001*E+*03,{-2.2*E-*03,{3.3*E+*00,-4.4*E+*02}},{NULL,6.6*E+*00},-7.7*E+*00}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
 					end
 				end
 				context 'two dimensional arrays' do
