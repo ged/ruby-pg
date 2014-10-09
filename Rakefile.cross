@@ -227,7 +227,7 @@ class CrossLibrary < OpenStruct
 
 
 		#desc 'compile libpg.a'
-		task :static_libpq => postgresql_lib
+		task :libpq => postgresql_lib
 
 		# copy libpq.dll to lib dir
 		dest_libpq = "lib/#{for_platform}/#{postgresql_lib.basename}"
@@ -257,10 +257,7 @@ else
 end
 
 desc 'cross compile pg for win32'
-task :cross do
-	ENV['CROSS_COMPILING'] = 'yes'
-end
-task :cross => [ :mingw32, :static_libpq ]
+task :cross => [ :mingw32, :libpq ]
 
 task :mingw32 do
 	# Use Rake::ExtensionCompiler helpers to find the proper host
