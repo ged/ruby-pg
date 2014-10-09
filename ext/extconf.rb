@@ -15,35 +15,34 @@ if pgdir = with_config( 'pg' )
 	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
-if ENV['CROSS_COMPILING']
-	$LDFLAGS << " -L#{CONFIG['libdir']}"
-
-	# Link against all required libraries for static build, if they are available
-	have_library( 'crypt32', 'CertOpenStore' ) && append_library( $libs, 'crypt32' )
-	have_library( 'gdi32', 'CreateDC' ) && append_library( $libs, 'gdi32' )
-	have_library( 'secur32' ) && append_library( $libs, 'secur32' )
-	have_library( 'ws2_32', 'WSASocket') && append_library( $libs, 'ws2_32' )
-	have_library( 'crypto', 'BIO_new' ) && append_library( $libs, 'crypto' )
-	have_library( 'ssl', 'SSL_new' ) && append_library( $libs, 'ssl' )
-end
-
-if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_executable('pg_config') )
-	$stderr.puts "Using config values from %s" % [ pgconfig ]
-	incdir = `"#{pgconfig}" --includedir`.chomp
-	libdir = `"#{pgconfig}" --libdir`.chomp
-	dir_config 'pg', incdir, libdir
-
-	# Try to use runtime path linker option, even if RbConfig doesn't know about it.
-	# The rpath option is usually set implicit by dir_config(), but so far not
-	# on MacOS-X.
-	if RbConfig::CONFIG["RPATHFLAG"].to_s.empty? && try_link('int main() {return 0;}', " -Wl,-rpath,#{libdir}")
-		$LDFLAGS << " -Wl,-rpath,#{libdir}"
-	end
-else
-	$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
-		" --with-pg-config=/path/to/pg_config"
+if enable_config("windows-cross")
+	# Avoid dependency to external libgcc.dll on x86-mingw32
+	$LDFLAGS << " -static-libgcc"
+	# Don't use pg_config for cross build, but --with-pg-* path options
 	dir_config 'pg'
+
+else
+	# Native build
+
+	if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_executable('pg_config') )
+		$stderr.puts "Using config values from %s" % [ pgconfig ]
+		incdir = `"#{pgconfig}" --includedir`.chomp
+		libdir = `"#{pgconfig}" --libdir`.chomp
+		dir_config 'pg', incdir, libdir
+
+		# Try to use runtime path linker option, even if RbConfig doesn't know about it.
+		# The rpath option is usually set implicit by dir_config(), but so far not
+		# on MacOS-X.
+		if RbConfig::CONFIG["RPATHFLAG"].to_s.empty? && try_link('int main() {return 0;}', " -Wl,-rpath,#{libdir}")
+			$LDFLAGS << " -Wl,-rpath,#{libdir}"
+		end
+	else
+		$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
+			" --with-pg-config=/path/to/pg_config"
+		dir_config 'pg'
+	end
 end
+
 
 find_header( 'libpq-fe.h' ) or abort "Can't find the 'libpq-fe.h header"
 find_header( 'libpq/libpq-fs.h' ) or abort "Can't find the 'libpq/libpq-fs.h header"

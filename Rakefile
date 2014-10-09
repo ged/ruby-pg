@@ -123,10 +123,11 @@ Rake::ExtensionTask.new do |ext|
 	ext.cross_config_options += CrossLibraries.map do |lib|
 		{
 			lib.for_platform => [
-				"--with-pg-include=#{lib.static_postgresql_libdir}",
-				"--with-opt-include=#{lib.static_postgresql_incdir}",
+				"--enable-windows-cross",
+				"--with-pg-include=#{lib.static_postgresql_incdir}",
 				"--with-pg-lib=#{lib.static_postgresql_libdir}",
-				"--with-opt-lib=#{lib.static_openssl_builddir}",
+				# libpq-fe.h resides in src/interfaces/libpq/ before make install
+				"--with-opt-include=#{lib.static_postgresql_libdir}",
 			]
 		}
 	end
