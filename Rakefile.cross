@@ -64,7 +64,7 @@ class CrossLibrary < OpenStruct
 		self.postgresql_global_makefile = static_postgresql_srcdir + 'Makefile.global'
 		self.postgresql_shlib_makefile  = static_postgresql_srcdir + 'Makefile.shlib'
 		self.postgresql_shlib_mf_orig   = static_postgresql_srcdir + 'Makefile.shlib.orig'
-		self.postgresql_lib             = static_postgresql_libdir + 'libpq.a'
+		self.postgresql_lib             = static_postgresql_libdir + 'libpq.dll'
 		self.postgresql_patches         = Rake::FileList[ (MISCDIR + "postgresql-#{postgresql_version}.*.patch").to_s ]
 
 		# Use rake-compilers config.yml to determine the toolchain that was used
@@ -136,7 +136,7 @@ class CrossLibrary < OpenStruct
 
 		# generate the makefile in a clean build location
 		file openssl_makefile => static_openssl_builddir do |t|
-			Dir.chdir( static_openssl_builddir ) do
+			chdir( static_openssl_builddir ) do
 				cmd = cmd_prelude.dup
 				cmd << "./Configure" << openssl_config
 
@@ -148,7 +148,7 @@ class CrossLibrary < OpenStruct
 		task :openssl_libs => [ libssleay32, libeay32 ]
 
 		task :compile_static_openssl => openssl_makefile do |t|
-			Dir.chdir( static_openssl_builddir ) do
+			chdir( static_openssl_builddir ) do
 				cmd = cmd_prelude.dup
 				cmd << 'make' << "-j#{NUM_CPUS}" << 'build_libs'
 
@@ -201,7 +201,7 @@ class CrossLibrary < OpenStruct
 				'--without-zlib',
 			]
 
-			Dir.chdir( static_postgresql_builddir ) do
+			chdir( static_postgresql_builddir ) do
 				configure_path = static_postgresql_builddir + 'configure'
 				cmd = [ configure_path.to_s, *options ]
 				cmd << "CFLAGS=-L#{static_openssl_builddir}"
@@ -215,21 +215,32 @@ class CrossLibrary < OpenStruct
 		end
 
 
-		# make libpq.a
+		# make libpq.dll
 		task postgresql_lib => [ postgresql_global_makefile ] do |t|
-			Dir.chdir( postgresql_lib.dirname ) do
+			chdir( postgresql_lib.dirname ) do
 				sh 'make',
 					"-j#{NUM_CPUS}",
 					postgresql_lib.basename.to_s,
-					'PORTNAME=win32',
-					'SHLIB_LINK=-lssleay32 -leay32 -lcrypt32 -lgdi32 -lsecur32 -lwsock32 -lws2_32',
-					'haslibarule=no'
+					'SHLIB_LINK=-lssleay32 -leay32 -lcrypt32 -lgdi32 -lsecur32 -lwsock32 -lws2_32'
 			end
 		end
 
 
-		#desc 'compile static libpg.a'
+		#desc 'compile libpg.a'
 		task :static_libpq => postgresql_lib
+
+		# copy libpq.dll to lib dir
+		dest_libpq = "lib/#{for_platform}/#{postgresql_lib.basename}"
+		directory File.dirname(dest_libpq)
+		file dest_libpq => [postgresql_lib, File.dirname(dest_libpq)] do
+			cp postgresql_lib, dest_libpq
+		end
+
+		stage_libpq = "tmp/#{for_platform}/stage/#{dest_libpq}"
+		directory File.dirname(stage_libpq)
+		file stage_libpq => [postgresql_lib, File.dirname(stage_libpq)] do |t|
+			cp postgresql_lib, stage_libpq
+		end
 	end
 end
 
@@ -258,4 +269,15 @@ task :mingw32 do
 		warn "Please refer to your distribution/package manager documentation about installation."
 		fail
 	end
+end
+
+# To reduce the gem file size strip mingw32 dlls before packaging
+ENV['RUBY_CC_VERSION'].to_s.split(':').each do |ruby_version|
+  task "tmp/i386-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so" do |t|
+    sh "i686-w64-mingw32-strip -S tmp/i386-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so"
+  end
+
+  task "tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so" do |t|
+    sh "x86_64-w64-mingw32-strip -S tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so"
+  end
 end
