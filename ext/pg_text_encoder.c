@@ -161,15 +161,15 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 					}
 				}
 			}else{
-				if( ll < 1000000000000 ){
-					if( ll < 10000000000 ){
-						len = ll < 1000000000 ? 9 : 10;
+				if( ll < 1000000000000LL ){
+					if( ll < 10000000000LL ){
+						len = ll < 1000000000LL ? 9 : 10;
 					}else{
-						len = ll < 100000000000 ? 11 : 12;
+						len = ll < 100000000000LL ? 11 : 12;
 					}
 				}else{
-					if( ll < 100000000000000 ){
-						len = ll < 10000000000000 ? 13 : 14;
+					if( ll < 100000000000000LL ){
+						len = ll < 10000000000000LL ? 13 : 14;
 					}else{
 						return pg_coder_enc_to_str(this, *intermediate, NULL, intermediate);
 					}

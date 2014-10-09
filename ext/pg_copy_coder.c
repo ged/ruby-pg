@@ -492,7 +492,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 		}
 
 		if (!found_delim && cur_ptr < line_end_ptr)
-			rb_raise( rb_eArgError, "trailing data after linefeed at position: %ld", cur_ptr - input_line + 1 );
+			rb_raise( rb_eArgError, "trailing data after linefeed at position: %ld", (long)(cur_ptr - input_line) + 1 );
 
 
 		/* Check whether raw input matched null marker */

@@ -121,7 +121,6 @@
 
 #if defined(_WIN32)
 #	include <fcntl.h>
-__declspec(dllexport)
 typedef long suseconds_t;
 #endif
 
