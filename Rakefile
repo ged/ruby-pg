@@ -120,16 +120,23 @@ Rake::ExtensionTask.new do |ext|
 	ext.cross_compile  = true
 	ext.cross_platform = CrossLibraries.map &:for_platform
 
-  ext.cross_config_options += CrossLibraries.map do |lib|
-    {
-      lib.for_platform => [
-        "--with-pg-include=#{lib.static_postgresql_libdir}",
-        "--with-opt-include=#{lib.static_postgresql_incdir}",
-        "--with-pg-lib=#{lib.static_postgresql_libdir}",
-        "--with-opt-lib=#{lib.static_openssl_builddir}",
-      ]
-    }
-  end
+	ext.cross_config_options += CrossLibraries.map do |lib|
+		{
+			lib.for_platform => [
+				"--enable-windows-cross",
+				"--with-pg-include=#{lib.static_postgresql_incdir}",
+				"--with-pg-lib=#{lib.static_postgresql_libdir}",
+				# libpq-fe.h resides in src/interfaces/libpq/ before make install
+				"--with-opt-include=#{lib.static_postgresql_libdir}",
+			]
+		}
+	end
+
+	# Add libpq.dll to windows binary gemspec
+	ext.cross_compiling do |spec|
+		# mingw32-platform strings differ (RUBY_PLATFORM=i386-mingw32 vs. x86-mingw32 for rubygems)
+		spec.files << "lib/#{spec.platform.to_s.gsub(/^x86-/, "i386-")}/libpq.dll"
+	end
 end
 
 

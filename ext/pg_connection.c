@@ -623,6 +623,7 @@ pgconn_options(VALUE self)
 }
 
 
+#ifdef HAVE_PQCONNINFO
 /*
  * call-seq:
  *    conn.conninfo   -> hash
@@ -641,7 +642,7 @@ pgconn_conninfo( VALUE self )
 
 	return array;
 }
-
+#endif
 
 
 /*
@@ -1028,7 +1029,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 		if(param_type == Qnil)
 			paramTypes[i] = 0;
 		else
-			paramTypes[i] = NUM2INT(param_type);
+			paramTypes[i] = NUM2UINT(param_type);
 
 		if(param_value == Qnil) {
 			paramValues[i] = NULL;
@@ -1110,11 +1111,10 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 		paramTypes = ALLOC_N(Oid, nParams);
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
-			Check_Type(param, T_FIXNUM);
 			if(param == Qnil)
 				paramTypes[i] = 0;
 			else
-				paramTypes[i] = NUM2INT(param);
+				paramTypes[i] = NUM2UINT(param);
 		}
 	}
 	result = gvl_PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
@@ -1703,7 +1703,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			param_format = rb_hash_aref(param, sym_format);
 		}
 		else {
-			param_type = INT2NUM(0);
+			param_type = UINT2NUM(0);
 			if(param == Qnil)
 				param_value = param;
 			else
@@ -1714,7 +1714,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		if(param_type == Qnil)
 			paramTypes[i] = 0;
 		else
-			paramTypes[i] = NUM2INT(param_type);
+			paramTypes[i] = NUM2UINT(param_type);
 
 		if(param_value == Qnil) {
 			paramValues[i] = NULL;
@@ -1794,11 +1794,10 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 		paramTypes = ALLOC_N(Oid, nParams);
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
-			Check_Type(param, T_FIXNUM);
 			if(param == Qnil)
 				paramTypes[i] = 0;
 			else
-				paramTypes[i] = NUM2INT(param);
+				paramTypes[i] = NUM2UINT(param);
 		}
 	}
 	result = gvl_PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
@@ -3117,7 +3116,7 @@ pgconn_locreat(int argc, VALUE *argv, VALUE self)
 	if (lo_oid == 0)
 		rb_raise(rb_ePGerror, "lo_creat failed");
 
-	return INT2FIX(lo_oid);
+	return UINT2NUM(lo_oid);
 }
 
 /*
@@ -3132,13 +3131,13 @@ pgconn_locreate(VALUE self, VALUE in_lo_oid)
 {
 	Oid ret, lo_oid;
 	PGconn *conn = pg_get_pgconn(self);
-	lo_oid = NUM2INT(in_lo_oid);
+	lo_oid = NUM2UINT(in_lo_oid);
 
 	ret = lo_create(conn, lo_oid);
 	if (ret == InvalidOid)
 		rb_raise(rb_ePGerror, "lo_create failed");
 
-	return INT2FIX(ret);
+	return UINT2NUM(ret);
 }
 
 /*
@@ -3162,7 +3161,7 @@ pgconn_loimport(VALUE self, VALUE filename)
 	if (lo_oid == 0) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
-	return INT2FIX(lo_oid);
+	return UINT2NUM(lo_oid);
 }
 
 /*
@@ -3175,13 +3174,10 @@ static VALUE
 pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	int oid;
+	Oid oid;
 	Check_Type(filename, T_STRING);
 
-	oid = NUM2INT(lo_oid);
-	if (oid < 0) {
-		rb_raise(rb_ePGerror, "invalid large object oid %d",oid);
-	}
+	oid = NUM2UINT(lo_oid);
 
 	if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
@@ -3208,7 +3204,7 @@ pgconn_loopen(int argc, VALUE *argv, VALUE self)
 	PGconn *conn = pg_get_pgconn(self);
 
 	rb_scan_args(argc, argv, "11", &selfid, &nmode);
-	lo_oid = NUM2INT(selfid);
+	lo_oid = NUM2UINT(selfid);
 	if(NIL_P(nmode))
 		mode = INV_READ;
 	else
@@ -3375,10 +3371,7 @@ static VALUE
 pgconn_lounlink(VALUE self, VALUE in_oid)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	int oid = NUM2INT(in_oid);
-
-	if (oid < 0)
-		rb_raise(rb_ePGerror, "invalid oid %d",oid);
+	Oid oid = NUM2UINT(in_oid);
 
 	if(lo_unlink(conn,oid) < 0)
 		rb_raise(rb_ePGerror,"lo_unlink failed");
@@ -3558,7 +3551,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "host", pgconn_host, 0);
 	rb_define_method(rb_cPGconn, "port", pgconn_port, 0);
 	rb_define_method(rb_cPGconn, "tty", pgconn_tty, 0);
+#ifdef HAVE_PQCONNINFO
 	rb_define_method(rb_cPGconn, "conninfo", pgconn_conninfo, 0);
+#endif
 	rb_define_method(rb_cPGconn, "options", pgconn_options, 0);
 	rb_define_method(rb_cPGconn, "status", pgconn_status, 0);
 	rb_define_method(rb_cPGconn, "transaction_status", pgconn_transaction_status, 0);

@@ -324,6 +324,15 @@ describe PG::Connection do
 		expect( res.values ).to eq( [ ['Wally'], ['Sally'] ] )
 	end
 
+	it "supports hash form parameters for #exec_params" do
+		hash_param_bin = { value: ["00ff"].pack("H*"), type: 17, format: 1 }
+		hash_param_nil = { value: nil, type: 17, format: 1 }
+		res = @conn.exec_params( "SELECT $1, $2",
+					[ hash_param_bin, hash_param_nil ] )
+		expect( res.values ).to eq( [["\\x00ff", nil]] )
+		expect( result_typenames(res) ).to eq( ['bytea', 'bytea'] )
+	end
+
 
 	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
@@ -590,22 +599,35 @@ describe PG::Connection do
 		expect( described_class.encrypt_password("postgres", "postgres") ).to match( /\S+/ )
 	end
 
+	it "can return the default connection options" do
+		expect( described_class.conndefaults ).to be_a( Array )
+		expect( described_class.conndefaults ).to all( be_a(Hash) )
+		expect( described_class.conndefaults[0] ).to include( :keyword, :label, :dispchar, :dispsize )
+		expect( @conn.conndefaults ).to eq( described_class.conndefaults )
+	end
 
-	it "can return the connection's connection options" do
+	it "can return the default connection options as a Hash" do
+		expect( described_class.conndefaults_hash ).to be_a( Hash )
+		expect( described_class.conndefaults_hash ).to include( :user, :password, :dbname, :host, :port )
+		expect( described_class.conndefaults_hash[:port] ).to eq( '54321' )
+		expect( @conn.conndefaults_hash ).to eq( described_class.conndefaults_hash )
+	end
+
+	it "can return the connection's connection options", :postgresql_93 do
 		expect( @conn.conninfo ).to be_a( Array )
 		expect( @conn.conninfo ).to all( be_a(Hash) )
 		expect( @conn.conninfo[0] ).to include( :keyword, :label, :dispchar, :dispsize )
 	end
 
 
-	it "can return the connection's connection options as a Hash" do
+	it "can return the connection's connection options as a Hash", :postgresql_93 do
 		expect( @conn.conninfo_hash ).to be_a( Hash )
 		expect( @conn.conninfo_hash ).to include( :user, :password, :connect_timeout, :dbname, :host )
 		expect( @conn.conninfo_hash[:dbname] ).to eq( 'test' )
 	end
 
 
-	it "honors the connect_timeout connection parameter" do
+	it "honors the connect_timeout connection parameter", :postgresql_93 do
 		conn = PG.connect( port: @port, dbname: 'test', connect_timeout: 11 )
 		begin
 			expect( conn.conninfo_hash[:connect_timeout] ).to eq( "11" )
