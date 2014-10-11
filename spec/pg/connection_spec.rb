@@ -229,6 +229,8 @@ describe PG::Connection do
 	end
 
 	it "can stop a thread that runs a blocking query with async_exec" do
+		pending "this does not work on Rubinius" if RUBY_ENGINE=='rbx'
+
 		start = Time.now
 		t = Thread.new do
 			@conn.async_exec( 'select pg_sleep(10)' )
@@ -240,7 +242,7 @@ describe PG::Connection do
 		expect( (Time.now - start) ).to be < 10
 	end
 
-	it "should work together with signal handlers" do
+	it "should work together with signal handlers", :unix do
 		signal_received = false
 		trap 'USR1' do
 			signal_received = true
@@ -271,15 +273,19 @@ describe PG::Connection do
 		res = nil
 		@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
 
-		expect {
-			res = @conn.transaction do
-				@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
-				raise "Oh noes! All pie is gone!"
-			end
-		}.to raise_exception( RuntimeError, /all pie is gone/i )
+		begin
+			expect {
+				res = @conn.transaction do
+					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
+					raise "Oh noes! All pie is gone!"
+				end
+			}.to raise_exception( RuntimeError, /all pie is gone/i )
 
-		res = @conn.exec( "SELECT * FROM pie" )
-		expect( res.ntuples ).to eq( 0 )
+			res = @conn.exec( "SELECT * FROM pie" )
+			expect( res.ntuples ).to eq( 0 )
+		ensure
+			@conn.exec( "DROP TABLE pie" )
+		end
 	end
 
 	it "returns the block result from Connection#transaction" do
@@ -333,6 +339,20 @@ describe PG::Connection do
 		expect( result_typenames(res) ).to eq( ['bytea', 'bytea'] )
 	end
 
+	it "should work with arbitrary number of params" do
+		begin
+			3.step( 12, 0.2 ) do |exp|
+				num_params = (2 ** exp).to_i
+				sql = num_params.times.map{|n| "$#{n+1}::INT" }.join(",")
+				params = num_params.times.to_a
+				res = @conn.exec_params( "SELECT #{sql}", params )
+				expect( res.nfields ).to eq( num_params )
+				expect( res.values ).to eq( [num_params.times.map(&:to_s)] )
+			end
+		rescue PG::ProgramLimitExceeded
+			# Stop silently if the server complains about too many params
+		end
+	end
 
 	it "can wait for NOTIFY events" do
 		@conn.exec( 'ROLLBACK' )
@@ -487,7 +507,7 @@ describe PG::Connection do
 		expect( @conn ).to still_be_usable
 	end
 
-	it "can handle server errors in #copy_data for output" do
+	it "can handle server errors in #copy_data for output", :postgresql_90 do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
 			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
@@ -1119,6 +1139,7 @@ describe PG::Connection do
 					res = conn.exec( "SELECT foo FROM defaultinternaltest" )
 					expect( res[0]['foo'].encoding ).to eq( Encoding::UTF_8 )
 				ensure
+					conn.exec( "DROP TABLE defaultinternaltest" )
 					conn.finish if conn
 					Encoding.default_internal = prev_encoding
 				end
@@ -1159,6 +1180,21 @@ describe PG::Connection do
 			end
 
 			conn.finish if conn
+		end
+
+		it "handles clearing result in or after set_notice_receiver", :postgresql_90 do
+			r = nil
+			@conn.set_notice_receiver do |result|
+				r = result
+				expect( r.cleared? ).to eq(false)
+			end
+			@conn.exec "do $$ BEGIN RAISE NOTICE 'foo'; END; $$ LANGUAGE plpgsql;"
+			sleep 0.2
+			expect( r ).to be_a( PG::Result )
+			expect( r.cleared? ).to eq(true)
+			expect( r.autoclear? ).to eq(true)
+			r.clear
+			@conn.set_notice_receiver
 		end
 
 		it "receives properly encoded messages in the notice callbacks", :postgresql_90 do
@@ -1246,6 +1282,167 @@ describe PG::Connection do
 			expect( t ).to be_alive()
 			serv.close
 			t.join
+		end
+	end
+
+	describe "type casting" do
+		it "should raise an error on invalid param mapping" do
+			expect{
+				@conn.exec_params( "SELECT 1", [], nil, :invalid )
+			}.to raise_error(TypeError)
+		end
+
+		it "should return nil if no type mapping is set" do
+			expect( @conn.type_map_for_queries ).to be_nil
+			expect( @conn.type_map_for_results ).to be_nil
+		end
+
+		it "shouldn't type map params unless requested" do
+			expect{
+				@conn.exec_params( "SELECT $1", [5] )
+			}.to raise_error(PG::IndeterminateDatatype)
+		end
+
+		it "should raise an error on invalid encoder to put_copy_data" do
+			expect{
+				@conn.put_copy_data [1], :invalid
+			}.to raise_error(TypeError)
+		end
+
+		it "can type cast parameters to put_copy_data with explicit encoder" do
+			tm = PG::TypeMapByColumn.new [nil]
+			row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
+
+			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+			res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+				@conn.put_copy_data [1], row_encoder
+				@conn.put_copy_data ["2"], row_encoder
+			end
+
+			res2 = @conn.copy_data( "COPY copytable FROM STDOUT", row_encoder ) do |res|
+				@conn.put_copy_data [3]
+				@conn.put_copy_data ["4"]
+			end
+
+			res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
+			expect( res.values ).to eq( [["1"], ["2"], ["3"], ["4"]] )
+		end
+
+		context "with default query type map" do
+			before :each do
+				@conn2 = described_class.new(@conninfo)
+				tm = PG::TypeMapByMriType.new
+				tm['T_FIXNUM'] = PG::TextEncoder::Integer.new oid: 20
+				@conn2.type_map_for_queries = tm
+
+				row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
+				@conn2.encoder_for_put_copy_data = row_encoder
+			end
+			after :each do
+				@conn2.close
+			end
+
+			it "should respect a type mapping for params and it's OID and format code" do
+				res = @conn2.exec_params( "SELECT $1", [5] )
+				expect( res.values ).to eq( [["5"]] )
+				expect( res.ftype(0) ).to eq( 20 )
+			end
+
+			it "should return the current type mapping" do
+				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::TypeMapByMriType)
+			end
+
+			it "should work with arbitrary number of params in conjunction with type casting" do
+				begin
+					3.step( 12, 0.2 ) do |exp|
+						num_params = (2 ** exp).to_i
+						sql = num_params.times.map{|n| "$#{n+1}" }.join(",")
+						params = num_params.times.to_a
+						res = @conn2.exec_params( "SELECT #{sql}", params )
+						expect( res.nfields ).to eq( num_params )
+						expect( res.values ).to eq( [num_params.times.map(&:to_s)] )
+					end
+				rescue PG::ProgramLimitExceeded
+					# Stop silently as soon the server complains about too many params
+				end
+			end
+
+			it "can process #copy_data input queries with row encoder" do
+				@conn2.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+				res2 = @conn2.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+					@conn2.put_copy_data [1]
+					@conn2.put_copy_data ["2"]
+				end
+
+				res = @conn2.exec( "SELECT * FROM copytable ORDER BY col1" )
+				expect( res.values ).to eq( [["1"], ["2"]] )
+			end
+		end
+
+		context "with default result type map" do
+			before :each do
+				@conn2 = described_class.new(@conninfo)
+				tm = PG::TypeMapByOid.new
+				tm.add_coder PG::TextDecoder::Integer.new oid: 23, format: 0
+				@conn2.type_map_for_results = tm
+
+				row_decoder = PG::TextDecoder::CopyRow.new
+				@conn2.decoder_for_get_copy_data = row_decoder
+			end
+			after :each do
+				@conn2.close
+			end
+
+			it "should respect a type mapping for result" do
+				res = @conn2.exec_params( "SELECT $1::INT", ["5"] )
+				expect( res.values ).to eq( [[5]] )
+			end
+
+			it "should return the current type mapping" do
+				expect( @conn2.type_map_for_results ).to be_kind_of(PG::TypeMapByOid)
+			end
+
+			it "should work with arbitrary number of params in conjunction with type casting" do
+				begin
+					3.step( 12, 0.2 ) do |exp|
+						num_params = (2 ** exp).to_i
+						sql = num_params.times.map{|n| "$#{n+1}::INT" }.join(",")
+						params = num_params.times.to_a
+						res = @conn2.exec_params( "SELECT #{sql}", params )
+						expect( res.nfields ).to eq( num_params )
+						expect( res.values ).to eq( [num_params.times.to_a] )
+					end
+				rescue PG::ProgramLimitExceeded
+					# Stop silently as soon the server complains about too many params
+				end
+			end
+
+			it "can process #copy_data output with row decoder" do
+				rows = []
+				res2 = @conn2.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+					while row=@conn2.get_copy_data
+						rows << row
+					end
+				end
+				expect( rows ).to eq( [["1"], ["2"]] )
+			end
+
+			it "can type cast #copy_data output with explicit decoder" do
+				tm = PG::TypeMapByColumn.new [PG::TextDecoder::Integer.new]
+				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
+				rows = []
+				@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT", row_decoder ) do |res|
+					while row=@conn.get_copy_data
+						rows << row
+					end
+				end
+				@conn.copy_data( "COPY (SELECT 3 UNION ALL SELECT 4) TO STDOUT" ) do |res|
+					while row=@conn.get_copy_data( false, row_decoder )
+						rows << row
+					end
+				end
+				expect( rows ).to eq( [[1], [2], [3], [4]] )
+			end
 		end
 	end
 end

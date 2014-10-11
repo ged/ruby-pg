@@ -6,16 +6,21 @@
 
 #include "pg.h"
 
+/* Number of bytes that are reserved on the stack for query params. */
+#define QUERYDATA_BUFFER_SIZE 4000
+
 
 VALUE rb_cPGconn;
+static ID s_id_encode;
+static VALUE sym_type, sym_format, sym_value;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
 
-static PGconn *pgconn_check( VALUE );
 static VALUE pgconn_finish( VALUE );
 #ifdef M17N_SUPPORTED
 static VALUE pgconn_set_default_encoding( VALUE self );
+void pgconn_set_internal_encoding_index( VALUE );
 #endif
 
 #ifndef HAVE_RB_THREAD_FD_SELECT
@@ -32,19 +37,47 @@ static VALUE pgconn_set_default_encoding( VALUE self );
  */
 
 /*
- * Fetch the data pointer and check it for sanity.
+ * Fetch the PG::Connection object data pointer.
+ */
+t_pg_connection *
+pg_get_connection( VALUE self )
+{
+	t_pg_connection *this;
+	Data_Get_Struct( self, t_pg_connection, this);
+
+	return this;
+}
+
+/*
+ * Fetch the PG::Connection object data pointer and check it's
+ * PGconn data pointer for sanity.
+ */
+t_pg_connection *
+pg_get_connection_safe( VALUE self )
+{
+	t_pg_connection *this;
+	Data_Get_Struct( self, t_pg_connection, this);
+
+	if ( !this->pgconn )
+		rb_raise( rb_eConnectionBad, "connection is closed" );
+
+	return this;
+}
+
+/*
+ * Fetch the PGconn data pointer and check it for sanity.
  */
 PGconn *
 pg_get_pgconn( VALUE self )
 {
-	PGconn *conn = pgconn_check( self );
+	t_pg_connection *this;
+	Data_Get_Struct( self, t_pg_connection, this);
 
-	if ( !conn )
+	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
 
-	return conn;
+	return this->pgconn;
 }
-
 
 
 
@@ -54,7 +87,8 @@ pg_get_pgconn( VALUE self )
 void
 pgconn_close_socket_io( VALUE self )
 {
-	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+	t_pg_connection *this = pg_get_connection( self );
+	VALUE socket_io = this->socket_io;
 
 	if ( RTEST(socket_io) ) {
 #if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
@@ -66,7 +100,7 @@ pgconn_close_socket_io( VALUE self )
 		rb_funcall( socket_io, rb_intern("close"), 0 );
 	}
 
-	rb_iv_set( self, "@socket_io", Qnil );
+	this->socket_io = Qnil;
 }
 
 
@@ -105,23 +139,20 @@ pgconn_make_conninfo_array( const PQconninfoOption *options )
 
 
 /*
- * Allocation/
+ * GC Mark function
  */
-
-/*
- * Object validity checker. Returns the data pointer.
- */
-static PGconn *
-pgconn_check( VALUE self ) {
-
-	Check_Type( self, T_DATA );
-
-    if ( !rb_obj_is_kind_of(self, rb_cPGconn) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected PG::Connection)",
-				  rb_obj_classname( self ) );
-    }
-
-	return DATA_PTR( self );
+static void
+pgconn_gc_mark( t_pg_connection *this )
+{
+	rb_gc_mark( this->socket_io );
+	rb_gc_mark( this->notice_receiver );
+	rb_gc_mark( this->notice_processor );
+	rb_gc_mark( this->type_map_for_queries );
+	rb_gc_mark( this->type_map_for_results );
+	rb_gc_mark( this->trace_stream );
+	rb_gc_mark( this->external_encoding );
+	rb_gc_mark( this->encoder_for_put_copy_data );
+	rb_gc_mark( this->decoder_for_get_copy_data );
 }
 
 
@@ -129,10 +160,12 @@ pgconn_check( VALUE self ) {
  * GC Free function
  */
 static void
-pgconn_gc_free( PGconn *conn )
+pgconn_gc_free( t_pg_connection *this )
 {
-	if (conn != NULL)
-		PQfinish( conn );
+	if (this->pgconn != NULL)
+		PQfinish( this->pgconn );
+
+	xfree(this);
 }
 
 
@@ -149,10 +182,20 @@ pgconn_gc_free( PGconn *conn )
 static VALUE
 pgconn_s_allocate( VALUE klass )
 {
-	VALUE self = Data_Wrap_Struct( klass, NULL, pgconn_gc_free, NULL );
-	rb_iv_set( self, "@socket_io", Qnil );
-	rb_iv_set( self, "@notice_receiver", Qnil);
-	rb_iv_set( self, "@notice_processor", Qnil);
+	t_pg_connection *this;
+	VALUE self = Data_Make_Struct( klass, t_pg_connection, pgconn_gc_mark, pgconn_gc_free, this );
+
+	this->pgconn = NULL;
+	this->socket_io = Qnil;
+	this->notice_receiver = Qnil;
+	this->notice_processor = Qnil;
+	this->type_map_for_queries = Qnil;
+	this->type_map_for_results = Qnil;
+	this->encoder_for_put_copy_data = Qnil;
+	this->decoder_for_get_copy_data = Qnil;
+	this->trace_stream = Qnil;
+	this->external_encoding = Qnil;
+
 	return self;
 }
 
@@ -217,21 +260,19 @@ pgconn_s_allocate( VALUE klass )
 static VALUE
 pgconn_init(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = NULL;
+	t_pg_connection *this;
 	VALUE conninfo;
 	VALUE error;
 
+	this = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
-	conn = gvl_PQconnectdb(StringValuePtr(conninfo));
+	this->pgconn = gvl_PQconnectdb(StringValueCStr(conninfo));
 
-	if(conn == NULL)
+	if(this->pgconn == NULL)
 		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
 
-	Check_Type(self, T_DATA);
-	DATA_PTR(self) = conn;
-
-	if (PQstatus(conn) == CONNECTION_BAD) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
+	if (PQstatus(this->pgconn) == CONNECTION_BAD) {
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -265,27 +306,25 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 {
-	PGconn *conn = NULL;
 	VALUE rb_conn;
 	VALUE conninfo;
 	VALUE error;
+	t_pg_connection *this;
 
 	/*
 	 * PG::Connection.connect_start must act as both alloc() and initialize()
 	 * because it is not invoked by calling new().
 	 */
 	rb_conn  = pgconn_s_allocate( klass );
+	this = pg_get_connection( rb_conn );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	conn     = gvl_PQconnectStart( StringValuePtr(conninfo) );
+	this->pgconn = gvl_PQconnectStart( StringValueCStr(conninfo) );
 
-	if( conn == NULL )
+	if( this->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
 
-	Check_Type(rb_conn, T_DATA);
-	DATA_PTR(rb_conn) = conn;
-
-	if ( PQstatus(conn) == CONNECTION_BAD ) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
+	if ( PQstatus(this->pgconn) == CONNECTION_BAD ) {
+		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", rb_conn);
 		rb_exc_raise(error);
 	}
@@ -322,7 +361,7 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 	VALUE conninfo;
 
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	ping     = PQping( StringValuePtr(conninfo) );
+	ping     = PQping( StringValueCStr(conninfo) );
 
 	return INT2FIX((int)ping);
 }
@@ -387,7 +426,7 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 	Check_Type(password, T_STRING);
 	Check_Type(username, T_STRING);
 
-	encrypted = PQencryptPassword(StringValuePtr(password), StringValuePtr(username));
+	encrypted = PQencryptPassword(StringValueCStr(password), StringValueCStr(username));
 	rval = rb_str_new2( encrypted );
 	PQfreemem( encrypted );
 
@@ -453,9 +492,11 @@ pgconn_connect_poll(VALUE self)
 static VALUE
 pgconn_finish( VALUE self )
 {
+	t_pg_connection *this = pg_get_connection_safe( self );
+
 	pgconn_close_socket_io( self );
-	PQfinish( pg_get_pgconn(self) );
-	DATA_PTR( self ) = NULL;
+	PQfinish( this->pgconn );
+	this->pgconn = NULL;
 	return Qnil;
 }
 
@@ -469,7 +510,8 @@ pgconn_finish( VALUE self )
 static VALUE
 pgconn_finished_p( VALUE self )
 {
-	if ( DATA_PTR(self) ) return Qfalse;
+	t_pg_connection *this = pg_get_connection( self );
+	if ( this->pgconn ) return Qfalse;
 	return Qtrue;
 }
 
@@ -695,7 +737,7 @@ pgconn_transaction_status(VALUE self)
 static VALUE
 pgconn_parameter_status(VALUE self, VALUE param_name)
 {
-	const char *ret = PQparameterStatus(pg_get_pgconn(self), StringValuePtr(param_name));
+	const char *ret = PQparameterStatus(pg_get_pgconn(self), StringValueCStr(param_name));
 	if(ret == NULL)
 		return Qnil;
 	else
@@ -794,10 +836,11 @@ pgconn_socket_io(VALUE self)
 	int sd;
 	int ruby_sd;
 	ID id_autoclose = rb_intern("autoclose=");
-	VALUE socket_io = rb_iv_get( self, "@socket_io" );
+	t_pg_connection *this = pg_get_connection_safe( self );
+	VALUE socket_io = this->socket_io;
 
 	if ( !RTEST(socket_io) ) {
-		if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
+		if( (sd = PQsocket(this->pgconn)) < 0)
 			rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 		#ifdef _WIN32
@@ -813,7 +856,7 @@ pgconn_socket_io(VALUE self)
 			rb_funcall( socket_io, id_autoclose, 1, Qfalse );
 		}
 
-		rb_iv_set( self, "@socket_io", socket_io );
+		this->socket_io = socket_io;
 	}
 
 	return socket_io;
@@ -902,7 +945,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	if ( argc == 1 ) {
 		Check_Type(argv[0], T_STRING);
 
-		result = gvl_PQexec(conn, StringValuePtr(argv[0]));
+		result = gvl_PQexec(conn, StringValueCStr(argv[0]));
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
@@ -919,10 +962,262 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 }
 
 
+struct linked_typecast_data {
+	struct linked_typecast_data *next;
+	char data[0];
+};
+
+/* This struct is allocated on the stack for all query execution functions. */
+struct query_params_data {
+
+	/*
+	 * Filled by caller
+	 */
+
+	/* Is the query function to execute one with types array? */
+	int with_types;
+	/* Array of query params from user space */
+	VALUE params;
+	/* The typemap given from user space */
+	VALUE typemap;
+
+	/*
+	 * Filled by alloc_query_params()
+	 */
+
+	/* Wraps the pointer of allocated memory, if function parameters dont't
+	 * fit in the memory_pool below.
+	 */
+	VALUE heap_pool;
+
+	/* Pointer to the value string pointers (either within memory_pool or heap_pool).
+	 * The value strings itself are either directly within RString memory or,
+	 * in case of type casted values, within memory_pool or typecast_heap_chain.
+	 */
+	char **values;
+	/* Pointer to the param lengths (either within memory_pool or heap_pool) */
+	int *lengths;
+	/* Pointer to the format codes (either within memory_pool or heap_pool) */
+	int *formats;
+	/* Pointer to the OID types (either within memory_pool or heap_pool) */
+	Oid *types;
+
+	/* This array takes the string values for the timeframe of the query,
+	 * if param value convertion is required
+	 */
+	VALUE gc_array;
+
+	/* Wraps a single linked list of allocated memory chunks for type casted params.
+	 * Used when the memory_pool is to small.
+	 */
+	VALUE typecast_heap_chain;
+
+	/* This memory pool is used to place above query function parameters on it. */
+	char memory_pool[QUERYDATA_BUFFER_SIZE];
+};
+
+static void
+free_typecast_heap_chain(struct linked_typecast_data *chain_entry)
+{
+	while(chain_entry){
+		struct linked_typecast_data *next = chain_entry->next;
+		xfree(chain_entry);
+		chain_entry = next;
+	}
+}
+
+static char *
+alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
+{
+	/* Allocate a new memory chunk from heap */
+	struct linked_typecast_data *allocated =
+		(struct linked_typecast_data *)xmalloc(sizeof(struct linked_typecast_data) + len);
+
+	/* Did we already wrap a memory chain per T_DATA object? */
+	if( NIL_P( *typecast_heap_chain ) ){
+		/* Leave free'ing of the buffer chain to the GC, when paramsData has left the stack */
+		*typecast_heap_chain = Data_Wrap_Struct( rb_cObject, NULL, free_typecast_heap_chain, allocated );
+		allocated->next = NULL;
+	} else {
+		/* Append to the chain */
+		allocated->next = DATA_PTR( *typecast_heap_chain );
+		DATA_PTR( *typecast_heap_chain ) = allocated;
+	}
+
+	return &allocated->data[0];
+}
+
+
+static int
+alloc_query_params1(struct query_params_data *paramsData)
+{
+	VALUE param_value;
+	t_typemap *p_typemap;
+	int nParams;
+	int i=0;
+	t_pg_coder *conv;
+	unsigned int required_pool_size;
+	char *memory_pool;
+
+	Data_Get_Struct( paramsData->typemap, t_typemap, p_typemap);
+
+	nParams = (int)RARRAY_LEN(paramsData->params);
+
+	required_pool_size = nParams * (
+			sizeof(char *) +
+			sizeof(int) +
+			sizeof(int) +
+			(paramsData->with_types ? sizeof(Oid) : 0));
+
+	if( sizeof(paramsData->memory_pool) < required_pool_size ){
+		/* Allocate one combined memory pool for all possible function parameters */
+		memory_pool = (char*)xmalloc( required_pool_size );
+		/* Leave free'ing of the buffer to the GC, when paramsData has left the stack */
+		paramsData->heap_pool = Data_Wrap_Struct( rb_cObject, NULL, -1, memory_pool );
+		required_pool_size = 0;
+	}else{
+		/* Use stack memory for function parameters */
+		memory_pool = paramsData->memory_pool;
+	}
+
+	paramsData->values = (char **)memory_pool;
+	paramsData->lengths = (int *)((char*)paramsData->values + sizeof(char *) * nParams);
+	paramsData->formats = (int *)((char*)paramsData->lengths + sizeof(int) * nParams);
+	paramsData->types = (Oid *)((char*)paramsData->formats + sizeof(int) * nParams);
+
+	{
+		char *typecast_buf = paramsData->memory_pool + required_pool_size;
+
+		for ( i = 0; i < nParams; i++ ) {
+			param_value = rb_ary_entry(paramsData->params, i);
+
+			paramsData->formats[i] = 0;
+			if( paramsData->with_types )
+				paramsData->types[i] = 0;
+
+			/* Let the given typemap select a coder for this param */
+			conv = p_typemap->typecast_query_param(paramsData->typemap, param_value, i);
+
+			/* Using a coder object for the param_value? Then set it's format code and oid. */
+			if( conv ){
+				paramsData->formats[i] = conv->format;
+				if( paramsData->with_types )
+					paramsData->types[i] = conv->oid;
+			} else {
+					/* No coder, but got we a hash form for the query param?
+					 * Then take format code and oid from there. */
+				if (TYPE(param_value) == T_HASH) {
+					VALUE format_value = rb_hash_aref(param_value, sym_format);
+					if( !NIL_P(format_value) )
+						paramsData->formats[i] = NUM2INT(format_value);
+					if( paramsData->with_types ){
+						VALUE type_value = rb_hash_aref(param_value, sym_type);
+						if( !NIL_P(type_value) )
+							paramsData->types[i] = NUM2UINT(type_value);
+					}
+					param_value = rb_hash_aref(param_value, sym_value);
+				}
+			}
+
+			if( NIL_P(param_value) ){
+				paramsData->values[i] = NULL;
+				paramsData->lengths[i] = 0;
+			} else {
+				t_pg_coder_enc_func enc_func = pg_coder_enc_func( conv );
+				VALUE intermediate;
+
+				/* 1st pass for retiving the required memory space */
+				int len = enc_func(conv, param_value, NULL, &intermediate);
+
+				if( len == -1 ){
+					/* The intermediate value is a String that can be used directly. */
+
+					/* Ensure that the String object is zero terminated as expected by libpq. */
+					if( paramsData->formats[i] == 0 )
+						StringValueCStr(intermediate);
+					/* In case a new string object was generated, make sure it doesn't get freed by the GC */
+					if( intermediate != param_value )
+						rb_ary_push(paramsData->gc_array, intermediate);
+					paramsData->values[i] = RSTRING_PTR(intermediate);
+					paramsData->lengths[i] = RSTRING_LENINT(intermediate);
+
+				} else {
+					/* Is the stack memory pool too small to take the type casted value? */
+					if( sizeof(paramsData->memory_pool) < required_pool_size + len + 1){
+						typecast_buf = alloc_typecast_buf( &paramsData->typecast_heap_chain, len + 1 );
+					}
+
+					/* 2nd pass for writing the data to prepared buffer */
+					len = enc_func(conv, param_value, typecast_buf, &intermediate);
+					paramsData->values[i] = typecast_buf;
+					if( paramsData->formats[i] == 0 ){
+						/* text format strings must be zero terminated and lengths are ignored */
+						typecast_buf[len] = 0;
+						typecast_buf += len + 1;
+						required_pool_size += len + 1;
+					} else {
+						paramsData->lengths[i] = len;
+						typecast_buf += len;
+						required_pool_size += len;
+					}
+				}
+
+				RB_GC_GUARD(intermediate);
+			}
+		}
+	}
+
+	return nParams;
+}
+
+static void
+free_query_params(struct query_params_data *paramsData)
+{
+	/* currently nothing to free */
+}
+
+static int
+alloc_query_params(struct query_params_data *paramsData)
+{
+	int nParams;
+	Check_Type(paramsData->params, T_ARRAY);
+
+	if( NIL_P(paramsData->typemap) ){
+		/* We don't need to call fit_to_query for pg_default_typemap. It does nothing. */
+		paramsData->typemap = pg_default_typemap;
+	} else {
+		t_typemap *p_typemap = DATA_PTR( paramsData->typemap );
+		paramsData->typemap = p_typemap->fit_to_query( paramsData->typemap, paramsData->params );
+	}
+
+	paramsData->heap_pool = Qnil;
+	paramsData->typecast_heap_chain = Qnil;
+	paramsData->gc_array = rb_ary_new();
+
+	nParams = alloc_query_params1(paramsData);
+	return nParams;
+}
+
+void
+pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
+{
+	if(NIL_P(paramsData->typemap)){
+		/* Use default typemap for queries. It's type is checked when assigned. */
+		paramsData->typemap = pg_get_connection(self)->type_map_for_queries;
+	}else{
+		/* Check type of method param */
+		if ( !rb_obj_is_kind_of(paramsData->typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( paramsData->typemap ) );
+		}
+		Check_Type( paramsData->typemap, T_DATA );
+	}
+}
+
 /*
  * call-seq:
- *    conn.exec_params(sql, params[, result_format ] ) -> PG::Result
- *    conn.exec_params(sql, params[, result_format ] ) {|pg_result| block }
+ *    conn.exec_params(sql, params[, result_format[, type_map]] ) -> PG::Result
+ *    conn.exec_params(sql, params[, result_format[, type_map]] ) {|pg_result| block }
  *
  * Sends SQL query request specified by +sql+ to PostgreSQL using placeholders
  * for parameters.
@@ -952,6 +1247,12 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
  *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
  * If the optional code block is given, it will be passed <i>result</i> as an argument,
  * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec</code> returns the value of the block.
@@ -962,102 +1263,30 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	PGconn *conn = pg_get_pgconn(self);
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
-	VALUE command, params, in_res_fmt;
-	VALUE param, param_type, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_type, sym_value, sym_format;
-	VALUE gc_array;
-	int i=0;
+	VALUE command, in_res_fmt;
 	int nParams;
-	Oid *paramTypes;
-	char ** paramValues;
-	int *paramLengths;
-	int *paramFormats;
 	int resultFormat;
+	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
+	paramsData.with_types = 1;
 
 	/*
 	 * Handle the edge-case where the caller is coming from #exec, but passed an explict +nil+
 	 * for the second parameter.
 	 */
-	if ( NIL_P(params) ) {
+	if ( NIL_P(paramsData.params) ) {
 		return pgconn_exec( 1, argv, self );
-		}
-
-	Check_Type(params, T_ARRAY);
-
-	if ( NIL_P(in_res_fmt) ) {
-		resultFormat = 0;
 	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( &paramsData );
 
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramTypes = ALLOC_N(Oid, nParams);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
+	result = gvl_PQexecParams(conn, StringValueCStr(command), nParams, paramsData.types,
+		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
-	for ( i = 0; i < nParams; i++ ) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_type = rb_hash_aref(param, sym_type);
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			param_type = Qnil;
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = Qnil;
-		}
-
-		if(param_type == Qnil)
-			paramTypes[i] = 0;
-		else
-			paramTypes[i] = NUM2UINT(param_type);
-
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
-
-	result = gvl_PQexecParams(conn, StringValuePtr(command), nParams, paramTypes,
-		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
-
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramTypes);
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( &paramsData );
 
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
@@ -1117,7 +1346,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2UINT(param);
 		}
 	}
-	result = gvl_PQprepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQprepare(conn, StringValueCStr(name), StringValueCStr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1129,8 +1358,8 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.exec_prepared(statement_name [, params, result_format ] ) -> PG::Result
- *    conn.exec_prepared(statement_name [, params, result_format ] ) {|pg_result| block }
+ *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
+ *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
  *
  * Execute prepared named statement specified by _statement_name_.
  * Returns a PG::Result instance on success.
@@ -1152,6 +1381,12 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
  *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
  * If the optional code block is given, it will be passed <i>result</i> as an argument,
  * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
@@ -1162,89 +1397,28 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	PGconn *conn = pg_get_pgconn(self);
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
-	VALUE name, params, in_res_fmt;
-	VALUE param, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_value, sym_format;
-	VALUE gc_array;
-	int i = 0;
+	VALUE name, in_res_fmt;
 	int nParams;
-	char ** paramValues;
-	int *paramLengths;
-	int *paramFormats;
 	int resultFormat;
+	struct query_params_data paramsData;
 
-
-	rb_scan_args(argc, argv, "12", &name, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.typemap);
+	paramsData.with_types = 0;
 	Check_Type(name, T_STRING);
 
-	if(NIL_P(params)) {
-		params = rb_ary_new2(0);
-		resultFormat = 0;
+	if(NIL_P(paramsData.params)) {
+		paramsData.params = rb_ary_new2(0);
 	}
-	else {
-		Check_Type(params, T_ARRAY);
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 
-	if(NIL_P(in_res_fmt)) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( &paramsData );
 
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
-		}
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
-
-	result = gvl_PQexecPrepared(conn, StringValuePtr(name), nParams,
-		(const char * const *)paramValues, paramLengths, paramFormats,
+	result = gvl_PQexecPrepared(conn, StringValueCStr(name), nParams,
+		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( &paramsData );
 
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
@@ -1274,7 +1448,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 	}
 	else {
 		Check_Type(stmt_name, T_STRING);
-		stmt = StringValuePtr(stmt_name);
+		stmt = StringValueCStr(stmt_name);
 	}
 	result = gvl_PQdescribePrepared(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
@@ -1302,7 +1476,7 @@ pgconn_describe_portal(self, stmt_name)
 	}
 	else {
 		Check_Type(stmt_name, T_STRING);
-		stmt = StringValuePtr(stmt_name);
+		stmt = StringValueCStr(stmt_name);
 	}
 	result = gvl_PQdescribePortal(conn, stmt);
 	rb_pgresult = pg_new_result(result, self);
@@ -1364,9 +1538,6 @@ pgconn_s_escape(VALUE self, VALUE string)
 	size_t size;
 	int error;
 	VALUE result;
-#ifdef M17N_SUPPORTED
-	rb_encoding* enc;
-#endif
 
 	Check_Type(string, T_STRING);
 
@@ -1379,20 +1550,12 @@ pgconn_s_escape(VALUE self, VALUE string)
 			rb_raise(rb_ePGerror, "%s", PQerrorMessage(pg_get_pgconn(self)));
 		}
 	} else {
-		size = PQescapeString(escaped, RSTRING_PTR(string), (int)RSTRING_LEN(string));
+		size = PQescapeString(escaped, RSTRING_PTR(string), RSTRING_LENINT(string));
 	}
 	result = rb_str_new(escaped, size);
 	xfree(escaped);
 	OBJ_INFECT(result, string);
-
-#ifdef M17N_SUPPORTED
-	if ( rb_obj_class(self) == rb_cPGconn ) {
-		enc = pg_conn_enc_get( pg_get_pgconn(self) );
-	} else {
-		enc = rb_enc_get(string);
-	}
-	rb_enc_associate(result, enc);
-#endif
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : string ));
 
 	return result;
 }
@@ -1464,7 +1627,7 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 	UNUSED( self );
 
 	Check_Type(str, T_STRING);
-	from = (unsigned char*)StringValuePtr(str);
+	from = (unsigned char*)StringValueCStr(str);
 
 	to = PQunescapeBytea(from, &to_len);
 
@@ -1502,10 +1665,7 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	OBJ_INFECT(result, string);
-
-#ifdef M17N_SUPPORTED
-	rb_enc_associate(result, pg_conn_enc_get( pg_get_pgconn(self) ));
-#endif
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET(self));
 
 	return result;
 }
@@ -1542,10 +1702,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	OBJ_INFECT(result, string);
-
-#ifdef M17N_SUPPORTED
-	rb_enc_associate(result, pg_conn_enc_get( pg_get_pgconn(self) ));
-#endif
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET(self));
 
 	return result;
 }
@@ -1608,7 +1765,7 @@ pgconn_set_single_row_mode(VALUE self)
 
 /*
  * call-seq:
- *    conn.send_query(sql [, params, result_format ] ) -> nil
+ *    conn.send_query(sql [, params, result_format[, type_map ]] ) -> nil
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL for
  * asynchronous processing, and immediately returns.
@@ -1636,32 +1793,32 @@ pgconn_set_single_row_mode(VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
  */
 static VALUE
 pgconn_send_query(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int result;
-	VALUE command, params, in_res_fmt;
-	VALUE param, param_type, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_type, sym_value, sym_format;
-	VALUE gc_array;
+	VALUE command, in_res_fmt;
 	VALUE error;
-	int i=0;
 	int nParams;
-	Oid *paramTypes;
-	char ** paramValues;
-	int *paramLengths;
-	int *paramFormats;
 	int resultFormat;
+	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "12", &command, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
+	paramsData.with_types = 1;
 	Check_Type(command, T_STRING);
 
 	/* If called with no parameters, use PQsendQuery */
-	if(NIL_P(params)) {
-		if(gvl_PQsendQuery(conn,StringValuePtr(command)) == 0) {
+	if(NIL_P(paramsData.params)) {
+		if(gvl_PQsendQuery(conn,StringValueCStr(command)) == 0) {
 			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
@@ -1672,77 +1829,15 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	/* If called with parameters, and optionally result_format,
 	 * use PQsendQueryParams
 	 */
-	Check_Type(params, T_ARRAY);
 
-	if(NIL_P(in_res_fmt)) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( &paramsData );
 
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-	sym_type = ID2SYM(rb_intern("type"));
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramTypes = ALLOC_N(Oid, nParams);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_type = rb_hash_aref(param, sym_type);
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			param_type = UINT2NUM(0);
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
-		}
+	result = gvl_PQsendQueryParams(conn, StringValueCStr(command), nParams, paramsData.types,
+		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
-		if(param_type == Qnil)
-			paramTypes[i] = 0;
-		else
-			paramTypes[i] = NUM2UINT(param_type);
-
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
-
-	result = gvl_PQsendQueryParams(conn, StringValuePtr(command), nParams, paramTypes,
-		(const char * const *)paramValues, paramLengths, paramFormats, resultFormat);
-
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramTypes);
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( &paramsData );
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
@@ -1800,7 +1895,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2UINT(param);
 		}
 	}
-	result = gvl_PQsendPrepare(conn, StringValuePtr(name), StringValuePtr(command),
+	result = gvl_PQsendPrepare(conn, StringValueCStr(name), StringValueCStr(command),
 			nParams, paramTypes);
 
 	xfree(paramTypes);
@@ -1815,7 +1910,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.send_query_prepared( statement_name [, params, result_format ] )
+ *    conn.send_query_prepared( statement_name [, params, result_format[, type_map ]] )
  *      -> nil
  *
  * Execute prepared named statement specified by _statement_name_
@@ -1837,96 +1932,43 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  *
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
+ *
+ * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params form various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
  */
 static VALUE
 pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int result;
-	VALUE name, params, in_res_fmt;
-	VALUE param, param_value, param_format;
-	VALUE param_value_tmp;
-	VALUE sym_value, sym_format;
-	VALUE gc_array;
+	VALUE name, in_res_fmt;
 	VALUE error;
-	int i = 0;
 	int nParams;
-	char ** paramValues;
-	int *paramLengths;
-	int *paramFormats;
 	int resultFormat;
+	struct query_params_data paramsData;
 
-	rb_scan_args(argc, argv, "12", &name, &params, &in_res_fmt);
+	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.typemap);
+	paramsData.with_types = 0;
 	Check_Type(name, T_STRING);
 
-	if(NIL_P(params)) {
-		params = rb_ary_new2(0);
+	if(NIL_P(paramsData.params)) {
+		paramsData.params = rb_ary_new2(0);
 		resultFormat = 0;
 	}
-	else {
-		Check_Type(params, T_ARRAY);
-	}
+	pgconn_query_assign_typemap( self, &paramsData );
 
-	if(NIL_P(in_res_fmt)) {
-		resultFormat = 0;
-	}
-	else {
-		resultFormat = NUM2INT(in_res_fmt);
-	}
+	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
+	nParams = alloc_query_params( &paramsData );
 
-	gc_array = rb_ary_new();
-	rb_gc_register_address(&gc_array);
-	sym_value = ID2SYM(rb_intern("value"));
-	sym_format = ID2SYM(rb_intern("format"));
-	nParams = (int)RARRAY_LEN(params);
-	paramValues = ALLOC_N(char *, nParams);
-	paramLengths = ALLOC_N(int, nParams);
-	paramFormats = ALLOC_N(int, nParams);
-	for(i = 0; i < nParams; i++) {
-		param = rb_ary_entry(params, i);
-		if (TYPE(param) == T_HASH) {
-			param_value_tmp = rb_hash_aref(param, sym_value);
-			if(param_value_tmp == Qnil)
-				param_value = param_value_tmp;
-			else
-				param_value = rb_obj_as_string(param_value_tmp);
-			param_format = rb_hash_aref(param, sym_format);
-		}
-		else {
-			if(param == Qnil)
-				param_value = param;
-			else
-				param_value = rb_obj_as_string(param);
-			param_format = INT2NUM(0);
-		}
-
-		if(param_value == Qnil) {
-			paramValues[i] = NULL;
-			paramLengths[i] = 0;
-		}
-		else {
-			Check_Type(param_value, T_STRING);
-			/* make sure param_value doesn't get freed by the GC */
-			rb_ary_push(gc_array, param_value);
-			paramValues[i] = StringValuePtr(param_value);
-			paramLengths[i] = (int)RSTRING_LEN(param_value);
-		}
-
-		if(param_format == Qnil)
-			paramFormats[i] = 0;
-		else
-			paramFormats[i] = NUM2INT(param_format);
-	}
-
-	result = gvl_PQsendQueryPrepared(conn, StringValuePtr(name), nParams,
-		(const char * const *)paramValues, paramLengths, paramFormats,
+	result = gvl_PQsendQueryPrepared(conn, StringValueCStr(name), nParams,
+		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
-	rb_gc_unregister_address(&gc_array);
-
-	xfree(paramValues);
-	xfree(paramLengths);
-	xfree(paramFormats);
+	free_query_params( &paramsData );
 
 	if(result == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
@@ -1949,7 +1991,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePrepared(conn,StringValuePtr(stmt_name)) == 0) {
+	if(gvl_PQsendDescribePrepared(conn,StringValueCStr(stmt_name)) == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
@@ -1971,7 +2013,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePortal(conn,StringValuePtr(portal)) == 0) {
+	if(gvl_PQsendDescribePortal(conn,StringValueCStr(portal)) == 0) {
 		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
@@ -2196,10 +2238,8 @@ pgconn_notifies(VALUE self)
 	relname = rb_tainted_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
 	extra = rb_tainted_str_new2(notification->extra);
-#ifdef M17N_SUPPORTED
-	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
-	ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
-#endif
+	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
+	PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
 
 	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
@@ -2468,16 +2508,12 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	if ( !pnotification ) return Qnil;
 
 	relname = rb_tainted_str_new2( pnotification->relname );
-#ifdef M17N_SUPPORTED
-	ENCODING_SET( relname, rb_enc_to_index(pg_conn_enc_get( conn )) );
-#endif
+	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
 	be_pid = INT2NUM( pnotification->be_pid );
 #ifdef HAVE_ST_NOTIFY_EXTRA
 	if ( *pnotification->extra ) {
 		extra = rb_tainted_str_new2( pnotification->extra );
-#ifdef M17N_SUPPORTED
-		ENCODING_SET( extra, rb_enc_to_index(pg_conn_enc_get( conn )) );
-#endif
+		PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
 	}
 #endif
 	PQfreemem( pnotification );
@@ -2491,12 +2527,17 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.put_copy_data( buffer ) -> Boolean
+ *    conn.put_copy_data( buffer [, encoder] ) -> Boolean
  *
  * Transmits _buffer_ as copy data to the server.
  * Returns true if the data was sent, false if it was
  * not sent (false is only possible if the connection
  * is in nonblocking mode, and this command would block).
+ *
+ * encoder can be a PG::Coder derivation (typically PG::TestEncoder::CopyRow).
+ * This encodes the received data fields from an Array of Strings. Optionally
+ * the encoder can type cast the fields form various Ruby types in one step,
+ * if PG::TestEncoder::CopyRow#type_map is set accordingly.
  *
  * Raises an exception if an error occurs.
  *
@@ -2504,20 +2545,59 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
  *
  */
 static VALUE
-pgconn_put_copy_data(self, buffer)
-	VALUE self, buffer;
+pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 {
 	int ret;
-	VALUE error;
-	PGconn *conn = pg_get_pgconn(self);
+	int len;
+	t_pg_connection *this = pg_get_connection_safe( self );
+	VALUE value;
+	VALUE buffer = Qnil;
+	VALUE encoder;
+	VALUE intermediate;
+	t_pg_coder *p_coder = NULL;
+
+	rb_scan_args( argc, argv, "11", &value, &encoder );
+
+	if( NIL_P(encoder) ){
+		if( NIL_P(this->encoder_for_put_copy_data) ){
+			buffer = value;
+		} else {
+			p_coder = DATA_PTR( this->encoder_for_put_copy_data );
+		}
+	} else if( rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
+		Data_Get_Struct( encoder, t_pg_coder, p_coder );
+	} else {
+		rb_raise( rb_eTypeError, "wrong encoder type %s (expected some kind of PG::Coder)",
+				rb_obj_classname( encoder ) );
+	}
+
+	if( p_coder ){
+		t_pg_coder_enc_func enc_func;
+
+		enc_func = pg_coder_enc_func( p_coder );
+		len = enc_func( p_coder, value, NULL, &intermediate );
+
+		if( len == -1 ){
+			/* The intermediate value is a String that can be used directly. */
+			buffer = intermediate;
+		} else {
+			buffer = rb_str_new(NULL, len);
+			len = enc_func( p_coder, value, RSTRING_PTR(buffer), &intermediate);
+			rb_str_set_len( buffer, len );
+		}
+	}
+
 	Check_Type(buffer, T_STRING);
 
-	ret = gvl_PQputCopyData(conn, RSTRING_PTR(buffer), (int)RSTRING_LEN(buffer));
+	ret = gvl_PQputCopyData(this->pgconn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
 	if(ret == -1) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		VALUE error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	RB_GC_GUARD(intermediate);
+	RB_GC_GUARD(buffer);
+
 	return (ret) ? Qtrue : Qfalse;
 }
 
@@ -2547,7 +2627,7 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 	if (rb_scan_args(argc, argv, "01", &str) == 0)
 		error_message = NULL;
 	else
-		error_message = StringValuePtr(str);
+		error_message = StringValueCStr(str);
 
 	ret = gvl_PQputCopyEnd(conn, error_message);
 	if(ret == -1) {
@@ -2560,11 +2640,16 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.get_copy_data( [ async = false ] ) -> String
+ *    conn.get_copy_data( [ async = false [, decoder = nil ]] ) -> String
  *
  * Return a string containing one row of data, +nil+
  * if the copy is done, or +false+ if the call would
  * block (only possible if _async_ is true).
+ *
+ * decoder can be a PG::Coder derivation (typically PG::TestDecoder::CopyRow).
+ * This decodes the received data fields as Array of Strings. Optionally
+ * the decoder can type cast the fields to various Ruby types in one step,
+ * if PG::TestDecoder::CopyRow#type_map is set accordingly.
  *
  * See also #copy_data.
  *
@@ -2574,20 +2659,29 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 {
 	VALUE async_in;
 	VALUE error;
-	VALUE result_str;
+	VALUE result;
 	int ret;
-	int async;
 	char *buffer;
-	PGconn *conn = pg_get_pgconn(self);
+	VALUE decoder;
+	t_pg_coder *p_coder = NULL;
+	t_pg_connection *this = pg_get_connection_safe( self );
 
-	if (rb_scan_args(argc, argv, "01", &async_in) == 0)
-		async = 0;
-	else
-		async = (async_in == Qfalse || async_in == Qnil) ? 0 : 1;
+	rb_scan_args(argc, argv, "02", &async_in, &decoder);
 
-	ret = gvl_PQgetCopyData(conn, &buffer, async);
+	if( NIL_P(decoder) ){
+		if( !NIL_P(this->decoder_for_get_copy_data) ){
+			p_coder = DATA_PTR( this->decoder_for_get_copy_data );
+		}
+	} else if( rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
+		Data_Get_Struct( decoder, t_pg_coder, p_coder );
+	} else {
+		rb_raise( rb_eTypeError, "wrong decoder type %s (expected some kind of PG::Coder)",
+				rb_obj_classname( decoder ) );
+	}
+
+	ret = gvl_PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
 	if(ret == -2) { /* error */
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2597,9 +2691,16 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 	if(ret == 0) { /* would block */
 		return Qfalse;
 	}
-	result_str = rb_tainted_str_new(buffer, ret);
+
+	if( p_coder ){
+		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, p_coder->format );
+		result =  dec_func( p_coder, buffer, ret, 0, 0, ENCODING_GET(self) );
+	} else {
+		result = rb_tainted_str_new(buffer, ret);
+	}
+
 	PQfreemem(buffer);
-	return result_str;
+	return result;
 }
 
 /*
@@ -2636,6 +2737,7 @@ pgconn_trace(VALUE self, VALUE stream)
 	FILE *new_fp;
 	int old_fd, new_fd;
 	VALUE new_file;
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	if(rb_respond_to(stream,rb_intern("fileno")) == Qfalse)
 		rb_raise(rb_eArgError, "stream does not respond to method: fileno");
@@ -2658,9 +2760,9 @@ pgconn_trace(VALUE self, VALUE stream)
 		rb_raise(rb_eArgError, "stream is not writable");
 
 	new_file = rb_funcall(rb_cIO, rb_intern("new"), 1, INT2NUM(new_fd));
-	rb_iv_set(self, "@trace_stream", new_file);
+	this->trace_stream = new_file;
 
-	PQtrace(pg_get_pgconn(self), new_fp);
+	PQtrace(this->pgconn, new_fp);
 	return Qnil;
 }
 
@@ -2673,11 +2775,11 @@ pgconn_trace(VALUE self, VALUE stream)
 static VALUE
 pgconn_untrace(VALUE self)
 {
-	VALUE trace_stream;
-	PQuntrace(pg_get_pgconn(self));
-	trace_stream = rb_iv_get(self, "@trace_stream");
-	rb_funcall(trace_stream, rb_intern("close"), 0);
-	rb_iv_set(self, "@trace_stream", Qnil);
+	t_pg_connection *this = pg_get_connection_safe( self );
+
+	PQuntrace(this->pgconn);
+	rb_funcall(this->trace_stream, rb_intern("close"), 0);
+	this->trace_stream = Qnil;
 	return Qnil;
 }
 
@@ -2687,19 +2789,16 @@ pgconn_untrace(VALUE self)
  * currently-registered Ruby notice_receiver object.
  */
 void
-notice_receiver_proxy(void *arg, const PGresult *result)
+notice_receiver_proxy(void *arg, const PGresult *pgresult)
 {
-	VALUE proc;
 	VALUE self = (VALUE)arg;
+	t_pg_connection *this = pg_get_connection( self );
 
-	if ((proc = rb_iv_get(self, "@notice_receiver")) != Qnil) {
-		VALUE val = Data_Wrap_Struct(rb_cPGresult, NULL, NULL, (PGresult*)result);
-#ifdef M17N_SUPPORTED
-		PGconn *conn = pg_get_pgconn( self );
-		rb_encoding *enc = pg_conn_enc_get( conn );
-		ENCODING_SET( val, rb_enc_to_index(enc) );
-#endif
-		rb_funcall(proc, rb_intern("call"), 1, val);
+	if (this->notice_receiver != Qnil) {
+		VALUE result = pg_new_result_autoclear( (PGresult *)pgresult, self );
+
+		rb_funcall(this->notice_receiver, rb_intern("call"), 1, result);
+		pg_result_clear( result );
 	}
 	return;
 }
@@ -2737,7 +2836,7 @@ static VALUE
 pgconn_set_notice_receiver(VALUE self)
 {
 	VALUE proc, old_proc;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	/* If default_notice_receiver is unset, assume that the current
 	 * notice receiver is the default, and save it to a global variable.
@@ -2745,19 +2844,19 @@ pgconn_set_notice_receiver(VALUE self)
 	 * always the same, so won't vary among connections.
 	 */
 	if(default_notice_receiver == NULL)
-		default_notice_receiver = PQsetNoticeReceiver(conn, NULL, NULL);
+		default_notice_receiver = PQsetNoticeReceiver(this->pgconn, NULL, NULL);
 
-	old_proc = rb_iv_get(self, "@notice_receiver");
+	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeReceiver(conn, gvl_notice_receiver_proxy, (void *)self);
+		PQsetNoticeReceiver(this->pgconn, gvl_notice_receiver_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
-		PQsetNoticeReceiver(conn, default_notice_receiver, NULL);
+		PQsetNoticeReceiver(this->pgconn, default_notice_receiver, NULL);
 	}
 
-	rb_iv_set(self, "@notice_receiver", proc);
+	this->notice_receiver = proc;
 	return old_proc;
 }
 
@@ -2769,17 +2868,13 @@ pgconn_set_notice_receiver(VALUE self)
 void
 notice_processor_proxy(void *arg, const char *message)
 {
-	VALUE proc;
 	VALUE self = (VALUE)arg;
+	t_pg_connection *this = pg_get_connection( self );
 
-	if ((proc = rb_iv_get(self, "@notice_processor")) != Qnil) {
+	if (this->notice_receiver != Qnil) {
 		VALUE message_str = rb_tainted_str_new2(message);
-#ifdef M17N_SUPPORTED
-		PGconn *conn = pg_get_pgconn( self );
-		rb_encoding *enc = pg_conn_enc_get( conn );
-		ENCODING_SET( message_str, rb_enc_to_index(enc) );
-#endif
-		rb_funcall(proc, rb_intern("call"), 1, message_str);
+		PG_ENCODING_SET_NOCHECK( message_str, ENCODING_GET(self) );
+		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
 	return;
 }
@@ -2801,7 +2896,7 @@ static VALUE
 pgconn_set_notice_processor(VALUE self)
 {
 	VALUE proc, old_proc;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	/* If default_notice_processor is unset, assume that the current
 	 * notice processor is the default, and save it to a global variable.
@@ -2809,19 +2904,19 @@ pgconn_set_notice_processor(VALUE self)
 	 * always the same, so won't vary among connections.
 	 */
 	if(default_notice_processor == NULL)
-		default_notice_processor = PQsetNoticeProcessor(conn, NULL, NULL);
+		default_notice_processor = PQsetNoticeProcessor(this->pgconn, NULL, NULL);
 
-	old_proc = rb_iv_get(self, "@notice_processor");
+	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeProcessor(conn, gvl_notice_processor_proxy, (void *)self);
+		PQsetNoticeProcessor(this->pgconn, gvl_notice_processor_proxy, (void *)self);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
-		PQsetNoticeProcessor(conn, default_notice_processor, NULL);
+		PQsetNoticeProcessor(this->pgconn, default_notice_processor, NULL);
 	}
 
-	rb_iv_set(self, "@notice_processor", proc);
+	this->notice_receiver = proc;
 	return old_proc;
 }
 
@@ -2853,9 +2948,12 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 
 	Check_Type(str, T_STRING);
 
-	if ( (PQsetClientEncoding(conn, StringValuePtr(str))) == -1 ) {
-		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValuePtr(str));
+	if ( (PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
+		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValueCStr(str));
 	}
+#ifdef M17N_SUPPORTED
+	pgconn_set_internal_encoding_index( self );
+#endif
 
 	return Qnil;
 }
@@ -2934,19 +3032,15 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	 * double-quotes. */
 	char buffer[NAMEDATALEN*2+2];
 	unsigned int i=0,j=0;
-#ifdef M17N_SUPPORTED
-	rb_encoding* enc;
-#endif
+	unsigned int str_len = RSTRING_LENINT(in_str);
 
-	UNUSED( self );
-
-	if(strlen(str) >= NAMEDATALEN) {
+	if(str_len >= NAMEDATALEN) {
 		rb_raise(rb_eArgError,
 			"Input string is longer than NAMEDATALEN-1 (%d)",
 			NAMEDATALEN-1);
 	}
 	buffer[j++] = '"';
-	for(i = 0; i < strlen(str) && str[i]; i++) {
+	for(i = 0; i < str_len && str[i]; i++) {
 		if(str[i] == '"')
 			buffer[j++] = '"';
 		buffer[j++] = str[i];
@@ -2954,15 +3048,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	buffer[j++] = '"';
 	ret = rb_str_new(buffer,j);
 	OBJ_INFECT(ret, in_str);
-
-#ifdef M17N_SUPPORTED
-	if ( rb_obj_class(self) == rb_cPGconn ) {
-		enc = pg_conn_enc_get( pg_get_pgconn(self) );
-	} else {
-		enc = rb_enc_get(in_str);
-	}
-	rb_enc_associate(ret, enc);
-#endif
+	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : in_str ));
 
 	return ret;
 }
@@ -3157,7 +3243,7 @@ pgconn_loimport(VALUE self, VALUE filename)
 
 	Check_Type(filename, T_STRING);
 
-	lo_oid = lo_import(conn, StringValuePtr(filename));
+	lo_oid = lo_import(conn, StringValueCStr(filename));
 	if (lo_oid == 0) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
@@ -3179,7 +3265,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 
 	oid = NUM2UINT(lo_oid);
 
-	if (lo_export(conn, oid, StringValuePtr(filename)) < 0) {
+	if (lo_export(conn, oid, StringValueCStr(filename)) < 0) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
 	return Qnil;
@@ -3382,6 +3468,14 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 
 #ifdef M17N_SUPPORTED
 
+void
+pgconn_set_internal_encoding_index( VALUE self )
+{
+	PGconn *conn = pg_get_pgconn(self);
+	rb_encoding *enc = pg_conn_enc_get( conn );
+	PG_ENCODING_SET_NOCHECK( self, rb_enc_to_index(enc));
+}
+
 /*
  * call-seq:
  *   conn.internal_encoding -> Encoding
@@ -3422,11 +3516,12 @@ static VALUE pgconn_external_encoding(VALUE self);
 static VALUE
 pgconn_internal_encoding_set(VALUE self, VALUE enc)
 {
+	VALUE enc_inspect;
 	if (NIL_P(enc)) {
 		pgconn_set_client_encoding( self, rb_usascii_str_new_cstr("SQL_ASCII") );
 		return enc;
 	}
-	else if ( TYPE(enc) == T_STRING && strcasecmp("JOHAB", RSTRING_PTR(enc)) == 0 ) {
+	else if ( TYPE(enc) == T_STRING && strcasecmp("JOHAB", StringValueCStr(enc)) == 0 ) {
 		pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
 		return enc;
 	}
@@ -3439,10 +3534,12 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 			rb_raise( rb_eEncCompatError, "incompatible character encodings: %s and %s",
 					  rb_enc_name(rb_to_encoding(server_encoding)), name );
 		}
+		pgconn_set_internal_encoding_index( self );
 		return enc;
 	}
 
-	rb_raise( rb_ePGerror, "unknown encoding: %s", RSTRING_PTR(rb_inspect(enc)) );
+	enc_inspect = rb_inspect(enc);
+	rb_raise( rb_ePGerror, "unknown encoding: %s", StringValueCStr(enc_inspect) );
 
 	return Qnil;
 }
@@ -3459,21 +3556,18 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 static VALUE
 pgconn_external_encoding(VALUE self)
 {
-	PGconn *conn = pg_get_pgconn( self );
-	VALUE encoding = rb_iv_get( self, "@external_encoding" );
+	t_pg_connection *this = pg_get_connection_safe( self );
 	rb_encoding *enc = NULL;
 	const char *pg_encname = NULL;
 
 	/* Use cached value if found */
-	if ( RTEST(encoding) ) return encoding;
+	if ( RTEST(this->external_encoding) ) return this->external_encoding;
 
-	pg_encname = PQparameterStatus( conn, "server_encoding" );
+	pg_encname = PQparameterStatus( this->pgconn, "server_encoding" );
 	enc = pg_get_pg_encname_as_rb_encoding( pg_encname );
-	encoding = rb_enc_from_encoding( enc );
+	this->external_encoding = rb_enc_from_encoding( enc );
 
-	rb_iv_set( self, "@external_encoding", encoding );
-
-	return encoding;
+	return this->external_encoding;
 }
 
 
@@ -3498,8 +3592,10 @@ pgconn_set_default_encoding( VALUE self )
 		if ( PQsetClientEncoding(conn, encname) != 0 )
 			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
+		pgconn_set_internal_encoding_index( self );
 		return rb_enc_from_encoding( enc );
 	} else {
+		pgconn_set_internal_encoding_index( self );
 		return Qnil;
 	}
 }
@@ -3507,11 +3603,209 @@ pgconn_set_default_encoding( VALUE self )
 
 #endif /* M17N_SUPPORTED */
 
+/*
+ * call-seq:
+ *    res.type_map_for_queries = typemap
+ *
+ * Set the default TypeMap that is used for type casts of query bind parameters.
+ *
+ * +typemap+ can be:
+ * * a kind of PG::TypeMap
+ * * +nil+ - to type cast all query params by #to_str.
+ *
+ */
+static VALUE
+pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	this->type_map_for_queries = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.type_map_for_queries -> TypeMap
+ *
+ * Returns the default TypeMap that is currently set for type casts of query
+ * bind parameters.
+ *
+ * Returns either:
+ * * a kind of PG::TypeMap or
+ * * +nil+ - when no type map is set.
+ *
+ */
+static VALUE
+pgconn_type_map_for_queries_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	return this->type_map_for_queries;
+}
+
+/*
+ * call-seq:
+ *    res.type_map_for_results = typemap
+ *
+ * Set the default TypeMap that is used for type casts of result values.
+ *
+ * +typemap+ can be:
+ * * a kind of PG::TypeMap
+ * * +nil+ - to type cast all result values to String.
+ *
+ */
+static VALUE
+pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	this->type_map_for_results = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.type_map_for_results -> TypeMap
+ *
+ * Returns the default TypeMap that is currently set for type casts of result values.
+ *
+ * Returns either:
+ * * a kind of PG::TypeMap or
+ * * +nil+ - when no type map is set.
+ *
+ */
+static VALUE
+pgconn_type_map_for_results_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	return this->type_map_for_results;
+}
+
+
+/*
+ * call-seq:
+ *    res.encoder_for_put_copy_data = encoder
+ *
+ * Set the default coder that is used for type casting of parameters
+ * to #put_copy_data .
+ *
+ * +encoder+ can be:
+ * * a kind of PG::Coder
+ * * +nil+ - disable type encoding, data must be a String.
+ *
+ */
+static VALUE
+pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cPG_Coder) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	this->encoder_for_put_copy_data = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.encoder_for_put_copy_data -> PG::Coder
+ *
+ * Returns the default coder object that is currently set for type casting of parameters
+ * to #put_copy_data .
+ *
+ * Returns either:
+ * * a kind of PG::Coder
+ * * +nil+ - type encoding is disabled, returned data will be a String.
+ *
+ */
+static VALUE
+pgconn_encoder_for_put_copy_data_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	return this->encoder_for_put_copy_data;
+}
+
+/*
+ * call-seq:
+ *    res.decoder_for_get_copy_data = decoder
+ *
+ * Set the default coder that is used for type casting of received data
+ * by #get_copy_data .
+ *
+ * +decoder+ can be:
+ * * a kind of PG::Coder
+ * * +nil+ - disable type decoding, returned data will be a String.
+ *
+ */
+static VALUE
+pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE typemap)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( typemap != Qnil ){
+		if ( !rb_obj_is_kind_of(typemap, rb_cPG_Coder) ) {
+			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
+					rb_obj_classname( typemap ) );
+		}
+		Check_Type(typemap, T_DATA);
+	}
+	this->decoder_for_get_copy_data = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.decoder_for_get_copy_data -> PG::Coder
+ *
+ * Returns the default coder object that is currently set for type casting of received
+ * data by #get_copy_data .
+ *
+ * Returns either:
+ * * a kind of PG::Coder
+ * * +nil+ - type encoding is disabled, returned data will be a String.
+ *
+ */
+static VALUE
+pgconn_decoder_for_get_copy_data_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	return this->decoder_for_get_copy_data;
+}
 
 
 void
 init_pg_connection()
 {
+	s_id_encode = rb_intern("encode");
+	sym_type = ID2SYM(rb_intern("type"));
+	sym_format = ID2SYM(rb_intern("format"));
+	sym_value = ID2SYM(rb_intern("value"));
+
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
 
@@ -3614,7 +3908,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "notifies", pgconn_notifies, 0);
 
 	/******     PG::Connection INSTANCE METHODS: COPY     ******/
-	rb_define_method(rb_cPGconn, "put_copy_data", pgconn_put_copy_data, 1);
+	rb_define_method(rb_cPGconn, "put_copy_data", pgconn_put_copy_data, -1);
 	rb_define_method(rb_cPGconn, "put_copy_end", pgconn_put_copy_end, -1);
 	rb_define_method(rb_cPGconn, "get_copy_data", pgconn_get_copy_data, -1);
 
@@ -3675,5 +3969,13 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_default_encoding", pgconn_set_default_encoding, 0);
 #endif /* M17N_SUPPORTED */
 
+	rb_define_method(rb_cPGconn, "type_map_for_queries=", pgconn_type_map_for_queries_set, 1);
+	rb_define_method(rb_cPGconn, "type_map_for_queries", pgconn_type_map_for_queries_get, 0);
+	rb_define_method(rb_cPGconn, "type_map_for_results=", pgconn_type_map_for_results_set, 1);
+	rb_define_method(rb_cPGconn, "type_map_for_results", pgconn_type_map_for_results_get, 0);
+	rb_define_method(rb_cPGconn, "encoder_for_put_copy_data=", pgconn_encoder_for_put_copy_data_set, 1);
+	rb_define_method(rb_cPGconn, "encoder_for_put_copy_data", pgconn_encoder_for_put_copy_data_get, 0);
+	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data=", pgconn_decoder_for_get_copy_data_set, 1);
+	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data", pgconn_decoder_for_get_copy_data_get, 0);
 }
 

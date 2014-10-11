@@ -64,6 +64,53 @@ There's also {a Google+ group}[http://goo.gl/TFy1U] and a
 want to chat about something.
 
 
+== Type Casts
+
+Pg can optionally type cast result values and query parameters in Ruby or
+native C code. This can speed up data transfers to and from the database,
+because String allocations are reduced and conversions in (slower) Ruby code
+can be omitted.
+
+Very basic type casting can be enabled by:
+
+    conn.type_map_for_results = PG::BasicTypeMapForResults.new conn
+    # ... this works for result value mapping:
+    conn.exec("select 1, now(), '{2,3}'::int[]").values
+        # => [[1, 2014-09-21 20:51:56 +0200, [2, 3]]]
+
+    conn.type_map_for_queries = PG::BasicTypeMapForQueries.new conn
+    # ... and this for param value mapping:
+    conn.exec_params("SELECT $1::text, $2::text, $3::text", [1, 1.23, [2,3]]).values
+        # => [["1", "1.2300000000000000E+00", "{2,3}"]]
+
+But Pg's type casting is highly customizable. That's why it's divided into
+2 layers:
+
+=== Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
+
+This is the lower layer, containing encoding classes that convert Ruby
+objects for transmission to the DBMS and decoding classes to convert
+received data back to Ruby objects. The classes are namespaced according
+to their format and direction in PG::TextEncoder, PG::TextDecoder,
+PG::BinaryEncoder and PG::BinaryDecoder.
+
+It is possible to assign a type OID, format code (text or binary) and
+optionally a name to an encoder or decoder object. It's also possible
+to build composite types by assigning an element encoder/decoder.
+PG::Coder objects can be used to set up a PG::TypeMap or alternatively
+to convert single values to/from their string representation.
+
+=== PG::TypeMap and derivations (ext/pg_type_map*.c, lib/pg/type_map*.rb)
+
+A TypeMap defines which value will be converted by which encoder/decoder.
+There are different type map strategies, implemented by several derivations
+of this class. They can be chosen and configured according to the particular
+needs for type casting.
+
+A type map can be assigned per connection or per query respectively per
+result set. Type maps can also be used for COPY in and out data streaming.
+
+
 == Contributing
 
 To report bugs, suggest features, or check out the source with Mercurial,

@@ -320,4 +320,56 @@ describe PG::Result do
 			expect( error.result ).to eq( nil )
 		}
 	end
+
+	it "does not clear the result itself" do
+		r = @conn.exec "select 1"
+		expect( r.autoclear? ).to eq(false)
+		expect( r.cleared? ).to eq(false)
+		r.clear
+		expect( r.cleared? ).to eq(true)
+	end
+
+	context 'result value conversions with TypeMapByColumn' do
+		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
+		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }
+
+		it "should allow reading, assigning and diabling type conversions" do
+			res = @conn.exec( "SELECT 123" )
+			expect( res.type_map ).to be_nil
+			res.type_map = PG::TypeMapByColumn.new [textdec_int]
+			expect( res.type_map ).to be_an_instance_of(PG::TypeMapByColumn)
+			expect( res.type_map.coders ).to eq( [textdec_int] )
+			res.type_map = PG::TypeMapByColumn.new [textdec_float]
+			expect( res.type_map.coders ).to eq( [textdec_float] )
+			res.type_map = nil
+			expect( res.type_map ).to be_nil
+		end
+
+		it "should be applied to all value retrieving methods" do
+			res = @conn.exec( "SELECT 123 as f" )
+			res.type_map = PG::TypeMapByColumn.new [textdec_int]
+			expect( res.values ).to eq( [[123]] )
+			expect( res.getvalue(0,0) ).to eq( 123 )
+			expect( res[0] ).to eq( {'f' => 123 } )
+			expect( res.enum_for(:each_row).to_a ).to eq( [[123]] )
+			expect( res.enum_for(:each).to_a ).to eq( [{'f' => 123}] )
+			expect( res.column_values(0) ).to eq( [123] )
+			expect( res.field_values('f') ).to eq( [123] )
+		end
+
+		it "should be usable for several querys" do
+			colmap = PG::TypeMapByColumn.new [textdec_int]
+			res = @conn.exec( "SELECT 123" )
+			res.type_map = colmap
+			expect( res.values ).to eq( [[123]] )
+			res = @conn.exec( "SELECT 456" )
+			res.type_map = colmap
+			expect( res.values ).to eq( [[456]] )
+		end
+
+		it "shouldn't allow invalid type maps" do
+			res = @conn.exec( "SELECT 1" )
+			expect{ res.type_map = 1 }.to raise_error(TypeError)
+		end
+	end
 end

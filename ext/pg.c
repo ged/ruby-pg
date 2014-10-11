@@ -123,24 +123,6 @@ const char * const (pg_enc_pg2ruby_mapping[][2]) = {
  * A cache of mapping from PostgreSQL's encoding indices to Ruby's rb_encoding*s.
  */
 static struct st_table *enc_pg2ruby;
-static ID s_id_index;
-
-
-/*
- * Get the index of encoding +val+.
- * :FIXME: Look into replacing this with rb_enc_get_index() since 1.9.1 isn't really
- * used anymore.
- */
-int
-pg_enc_get_index(VALUE val)
-{
-	int i = ENCODING_GET_INLINED(val);
-	if (i == ENCODING_INLINE_MAX) {
-		VALUE iv = rb_ivar_get(val, s_id_index);
-		i = NUM2INT(iv);
-	}
-	return i;
-}
 
 
 /*
@@ -247,6 +229,68 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
 }
 
 #endif /* M17N_SUPPORTED */
+
+
+/*
+ * Ensures that the given string has enough capacity to take expand_len
+ * more data bytes. The new data part of the String is not initialized.
+ *
+ * current_out must be a pointer within the data part of the String object.
+ * This pointer is returned and possibly adjusted, because the location of the data
+ * part of the String can change through this function.
+ *
+ * PG_RB_STR_ENSURE_CAPA can be used to do fast inline checks of the remaining capacity.
+ * end_capa it is then set to the first byte after the currently reserved memory,
+ * if not NULL.
+ *
+ * Before the String can be used with other string functions or returned to Ruby space,
+ * the string length has to be set with rb_str_set_len().
+ *
+ * Usage example:
+ *
+ *   VALUE string;
+ *   char *current_out, *end_capa;
+ *   PG_RB_STR_NEW( string, current_out, end_capa );
+ *   while( data_is_going_to_be_processed ){
+ *     PG_RB_STR_ENSURE_CAPA( string, 2 current_out, end_capa );
+ *     *current_out++ = databyte1;
+ *     *current_out++ = databyte2;
+ *   }
+ *   rb_str_set_len( string, current_out - RSTRING_PTR(string) );
+ *
+ */
+#ifdef HAVE_RB_STR_MODIFY_EXPAND
+	/* Use somewhat faster version with access to string capacity on MRI */
+	char *
+	pg_rb_str_ensure_capa( VALUE str, long expand_len, char *curr_ptr, char **end_ptr )
+	{
+		long curr_len = curr_ptr - RSTRING_PTR(str);
+		long curr_capa = rb_str_capacity( str );
+		if( curr_capa < curr_len + expand_len ){
+			rb_str_set_len( str, curr_len );
+			rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
+			curr_ptr = RSTRING_PTR(str) + curr_len;
+		}
+		if( end_ptr )
+			*end_ptr = RSTRING_PTR(str) + rb_str_capacity( str );
+		return curr_ptr;
+	}
+#else
+	/* Use the more portable version */
+	char *
+	pg_rb_str_ensure_capa( VALUE str, long expand_len, char *curr_ptr, char **end_ptr )
+	{
+		long curr_len = curr_ptr - RSTRING_PTR(str);
+		long curr_capa = RSTRING_LEN( str );
+		if( curr_capa < curr_len + expand_len ){
+			rb_str_resize( str, (curr_len + expand_len) * 2 - curr_capa );
+			curr_ptr = RSTRING_PTR(str) + curr_len;
+		}
+		if( end_ptr )
+			*end_ptr = RSTRING_PTR(str) + RSTRING_LEN(str);
+		return curr_ptr;
+	}
+#endif
 
 
 /**************************************************************************
@@ -534,12 +578,22 @@ Init_pg_ext()
 
 #ifdef M17N_SUPPORTED
 	enc_pg2ruby = st_init_numtable();
-	s_id_index = rb_intern("@encoding");
 #endif
 
 	/* Initialize the main extension classes */
 	init_pg_connection();
 	init_pg_result();
 	init_pg_errors();
+	init_pg_type_map();
+	init_pg_type_map_all_strings();
+	init_pg_type_map_by_column();
+	init_pg_type_map_by_mri_type();
+	init_pg_type_map_by_oid();
+	init_pg_coder();
+	init_pg_text_encoder();
+	init_pg_text_decoder();
+	init_pg_binary_encoder();
+	init_pg_binary_decoder();
+	init_pg_copycoder();
 }
 
