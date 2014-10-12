@@ -70,12 +70,10 @@ pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 
 	switch( len ){
 		case 4:
-			memcpy( &swap4.f, val, sizeof(float) );
-			swap4.i = read_nbo32((char*)&swap4.i);
+			swap4.i = read_nbo32(val);
 			return rb_float_new(swap4.f);
 		case 8:
-			memcpy( &swap8.f, val, sizeof(double) );
-			swap8.i = read_nbo64((char*)&swap8.i);
+			swap8.i = read_nbo64(val);
 			return rb_float_new(swap8.f);
 		default:
 			rb_raise( rb_eTypeError, "wrong data for BinaryFloat converter in tuple %d field %d length %d", tuple, field, len);
