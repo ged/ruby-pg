@@ -39,11 +39,11 @@ pg_bin_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, i
 {
 	switch( len ){
 		case 2:
-			return INT2NUM((int16_t)be16toh(*(int16_t*)val));
+			return INT2NUM(read_nbo16(val));
 		case 4:
-			return LONG2NUM((int32_t)be32toh(*(int32_t*)val));
+			return LONG2NUM(read_nbo32(val));
 		case 8:
-			return LL2NUM((int64_t)be64toh(*(int64_t*)val));
+			return LL2NUM(read_nbo64(val));
 		default:
 			rb_raise( rb_eTypeError, "wrong data for binary integer converter in tuple %d field %d length %d", tuple, field, len);
 	}
@@ -70,12 +70,12 @@ pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 
 	switch( len ){
 		case 4:
-			swap4.f = *(float *)val;
-			swap4.i = be32toh(swap4.i);
+			memcpy( &swap4.f, val, sizeof(float) );
+			swap4.i = read_nbo32((char*)&swap4.i);
 			return rb_float_new(swap4.f);
 		case 8:
-			swap8.f = *(double *)val;
-			swap8.i = be64toh(swap8.i);
+			memcpy( &swap8.f, val, sizeof(double) );
+			swap8.i = read_nbo64((char*)&swap8.i);
 			return rb_float_new(swap8.f);
 		default:
 			rb_raise( rb_eTypeError, "wrong data for BinaryFloat converter in tuple %d field %d length %d", tuple, field, len);

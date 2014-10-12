@@ -45,7 +45,7 @@ static int
 pg_bin_enc_int2(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
-		*(int16_t*)out = htobe16(NUM2INT(*intermediate));
+		write_nbo16(NUM2INT(*intermediate), out);
 	}else{
 		*intermediate = pg_obj_to_i(value);
 	}
@@ -64,7 +64,7 @@ static int
 pg_bin_enc_int4(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
-		*(int32_t*)out = htobe32(NUM2LONG(*intermediate));
+		write_nbo32(NUM2LONG(*intermediate), out);
 	}else{
 		*intermediate = pg_obj_to_i(value);
 	}
@@ -83,7 +83,7 @@ static int
 pg_bin_enc_int8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	if(out){
-		*(int64_t*)out = htobe64(NUM2LL(*intermediate));
+		write_nbo64(NUM2LL(*intermediate), out);
 	}else{
 		*intermediate = pg_obj_to_i(value);
 	}

@@ -6,32 +6,53 @@
 #ifndef __utils_h
 #define __utils_h
 
+#define write_nbo16(l,c) ( \
+		*((unsigned char*)(c)+0)=(unsigned char)(((l)>>8)&0xff), \
+		*((unsigned char*)(c)+1)=(unsigned char)(((l)   )&0xff)\
+	)
 
-/*
- * This bit hides differences between systems on big-endian conversions.
- *
- */
-#if defined(__linux__)
-#  include <endian.h>
-#elif defined(__FreeBSD__) || defined(__NetBSD__)
-#  include <sys/endian.h>
-#elif defined(__OpenBSD__)
-#  include <sys/types.h>
-#  define be16toh(x) betoh16(x)
-#  define be32toh(x) betoh32(x)
-#  define be64toh(x) betoh64(x)
-#elif defined(_WIN32)
-#  define be16toh(x) pg_be16toh(x)
-#  define be32toh(x) pg_be32toh(x)
-#  define be64toh(x) pg_be64toh(x)
-#  define htobe16(x) pg_be16toh(x)
-#  define htobe32(x) pg_be32toh(x)
-#  define htobe64(x) pg_be64toh(x)
-#endif
+#define write_nbo32(l,c) ( \
+		*((unsigned char*)(c)+0)=(unsigned char)(((l)>>24L)&0xff), \
+		*((unsigned char*)(c)+1)=(unsigned char)(((l)>>16L)&0xff), \
+		*((unsigned char*)(c)+2)=(unsigned char)(((l)>> 8L)&0xff), \
+		*((unsigned char*)(c)+3)=(unsigned char)(((l)     )&0xff)\
+	)
 
-uint16_t pg_be16toh(uint16_t x);
-uint32_t pg_be32toh(uint32_t x);
-uint64_t pg_be64toh(uint64_t x);
+#define write_nbo64(l,c) ( \
+		*((unsigned char*)(c)+0)=(unsigned char)(((l)>>56LL)&0xff), \
+		*((unsigned char*)(c)+1)=(unsigned char)(((l)>>48LL)&0xff), \
+		*((unsigned char*)(c)+2)=(unsigned char)(((l)>>40LL)&0xff), \
+		*((unsigned char*)(c)+3)=(unsigned char)(((l)>>32LL)&0xff), \
+		*((unsigned char*)(c)+4)=(unsigned char)(((l)>>24LL)&0xff), \
+		*((unsigned char*)(c)+5)=(unsigned char)(((l)>>16LL)&0xff), \
+		*((unsigned char*)(c)+6)=(unsigned char)(((l)>> 8LL)&0xff), \
+		*((unsigned char*)(c)+7)=(unsigned char)(((l)      )&0xff)\
+	)
+
+#define read_nbo16(c) ((int16_t)( \
+		(((uint16_t)(*((unsigned char*)(c)+0)))<< 8L) | \
+		(((uint16_t)(*((unsigned char*)(c)+1)))     ) \
+	))
+
+#define read_nbo32(c) ((int32_t)( \
+		(((uint32_t)(*((unsigned char*)(c)+0)))<<24L) | \
+		(((uint32_t)(*((unsigned char*)(c)+1)))<<16L) | \
+		(((uint32_t)(*((unsigned char*)(c)+2)))<< 8L) | \
+		(((uint32_t)(*((unsigned char*)(c)+3)))     ) \
+	))
+
+#define read_nbo64(c) ((int64_t)( \
+		(((uint64_t)(*((unsigned char*)(c)+0)))<<56LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+1)))<<48LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+2)))<<40LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+3)))<<32LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+4)))<<24LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+5)))<<16LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+6)))<< 8LL) | \
+		(((uint64_t)(*((unsigned char*)(c)+7)))      ) \
+	))
+
+
 
 #define BASE64_ENCODED_SIZE(strlen) (((strlen) + 2) / 3 * 4)
 #define BASE64_DECODED_SIZE(base64len) (((base64len) + 3) / 4 * 3)
