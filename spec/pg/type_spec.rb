@@ -22,7 +22,7 @@ describe "PG::Type derivations" do
 	let!(:intenc_incrementer) do
 		Class.new(PG::SimpleEncoder) do
 			def encode(value)
-				(value.to_i + 1).to_s
+				(value.to_i + 1).to_s + " "
 			end
 		end.new
 	end
@@ -137,7 +137,7 @@ describe "PG::Type derivations" do
 			end
 
 			it "should encode with ruby encoder" do
-				expect( intenc_incrementer.encode(3) ).to eq( "4" )
+				expect( intenc_incrementer.encode(3) ).to eq( "4 " )
 			end
 
 			it "should return when ruby encoder returns non string values" do
@@ -326,7 +326,10 @@ describe "PG::Type derivations" do
 			describe '#encode' do
 				context 'three dimensional arrays' do
 					it 'encodes an array of strings and numbers with sub arrays' do
-						expect( textenc_string_array.encode(['1',['2',['3','4']],[nil,6],7.8]) ).to eq( %[{"1",{"2",{"3","4"}},{NULL,"6"},"7.8"}] )
+						expect( textenc_string_array.encode(['1',['2',['3','4']],[nil,6],7.8]) ).to eq( %[{1,{2,{3,4}},{NULL,6},7.8}] )
+					end
+					it 'encodes an array of strings with quotes' do
+						expect( textenc_string_array.encode(['',[' ',['{','}','\\',',','"','\t']]]) ).to eq( %[{"",{" ",{"{","}","\\\\",",","\\"","\\\\t"}}}] )
 					end
 					it 'encodes an array of int8 with sub arrays' do
 						expect( textenc_int_array.encode([1,[2,[3,4]],[nil,6],7]) ).to eq( %[{1,{2,{3,4}},{NULL,6},7}] )
@@ -349,20 +352,23 @@ describe "PG::Type derivations" do
 						expect( textenc_int_array.encode([]) ).to eq( '{}' )
 						expect( textenc_string_array.encode([]) ).to eq( '{}' )
 					end
+					it 'encodes an array of NULL strings w/wo quotes' do
+						expect( textenc_string_array.encode(['NUL', 'NULL', 'NULLL', 'nul', 'null', 'nulll']) ).to eq( %[{NUL,"NULL",NULLL,nul,"null",nulll}] )
+					end
 					it 'respects a different delimiter' do
-						expect( textenc_string_array_with_delimiter.encode(['a','b','c']) ).to eq( '{"a";"b";"c"}' )
+						expect( textenc_string_array_with_delimiter.encode(['a','b,','c']) ).to eq( '{a;b,;c}' )
 					end
 				end
 
 				context 'array of types with encoder in ruby space' do
 					it 'encodes with quotation' do
 						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer, needs_quotation: true
-						expect( array_type.encode([3,4]) ).to eq( %[{"4","5"}] )
+						expect( array_type.encode([3,4]) ).to eq( %[{"4 ","5 "}] )
 					end
 
 					it 'encodes without quotation' do
 						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer, needs_quotation: false
-						expect( array_type.encode([3,4]) ).to eq( %[{4,5}] )
+						expect( array_type.encode([3,4]) ).to eq( %[{4 ,5 }] )
 					end
 
 					it "should raise when ruby encoder returns non string values" do
@@ -566,7 +572,7 @@ describe "PG::Type derivations" do
 						expect( encoder.encode([]) ).to eq("\n")
 						expect( encoder.encode(["a"]) ).to eq("a\n")
 						expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
-							to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{\"1\",\"2\",\"3\"}\t13\tabcdefg\t\\N\n")
+							to eq("xyz\t123\t2456\t34567\t456789\t5678901\t{1,2,3}\t13 \tabcdefg\t\\N\n")
 					end
 
 					it "should escape special characters" do

@@ -213,8 +213,91 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	}
 }
 
+/*
+ * Case-independent comparison of two not-necessarily-null-terminated strings.
+ * At most n bytes will be examined from each string.
+ */
+static int
+pg_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+	while (n-- > 0)
+	{
+		unsigned char ch1 = (unsigned char) *s1++;
+		unsigned char ch2 = (unsigned char) *s2++;
+
+		if (ch1 != ch2){
+			if (ch1 >= 'A' && ch1 <= 'Z')
+				ch1 += 'a' - 'A';
+
+			if (ch2 >= 'A' && ch2 <= 'Z')
+				ch2 += 'a' - 'A';
+
+			if (ch1 != ch2)
+				return (int) ch1 - (int) ch2;
+		}
+		if (ch1 == 0)
+			break;
+	}
+	return 0;
+}
+
+typedef int (*t_quote_func)( void *_this, char *p_in, int strlen, char *p_out );
+
+static int
+quote_array_buffer( void *_this, char *p_in, int strlen, char *p_out ){
+	t_pg_composite_coder *this = _this;
+	char *ptr1;
+	char *ptr2;
+	int backslashs = 0;
+	int needquote;
+
+	/* count data plus backslashes; detect chars needing quotes */
+	if (strlen == 0)
+		needquote = 1;   /* force quotes for empty string */
+	else if (strlen == 4 && pg_strncasecmp(p_in, "NULL", strlen) == 0)
+		needquote = 1;   /* force quotes for literal NULL */
+	else
+		needquote = 0;
+
+	/* count required backlashs */
+	for(ptr1 = p_in; ptr1 != p_in + strlen; ptr1++) {
+		char ch = *ptr1;
+
+		if (ch == '"' || ch == '\\'){
+			needquote = 1;
+			backslashs++;
+		} else if (ch == '{' || ch == '}' || ch == this->delimiter ||
+					ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f'){
+			needquote = 1;
+		}
+	}
+
+	if( needquote ){
+		ptr1 = p_in + strlen;
+		ptr2 = p_out + strlen + backslashs + 2;
+		/* Write end quote */
+		*--ptr2 = '"';
+
+		/* Then store the escaped string on the final position, walking
+			* right to left, until all backslashs are placed. */
+		while( ptr1 != p_in ) {
+			*--ptr2 = *--ptr1;
+			if(*ptr2 == '"' || *ptr2 == '\\'){
+				*--ptr2 = '\\';
+			}
+		}
+		/* Write start quote */
+		*p_out = '"';
+		return strlen + backslashs + 2;
+	} else {
+		if( p_in != p_out )
+			memcpy( p_out, p_in, strlen );
+		return strlen;
+	}
+}
+
 static char *
-quote_string(t_pg_coder *this, VALUE value, VALUE string, char *current_out, char quote_char, char escape_char)
+quote_string(t_pg_coder *this, VALUE value, VALUE string, char *current_out, int with_quote, t_quote_func quote_buffer, void *func_data)
 {
 	int strlen;
 	VALUE subint;
@@ -224,23 +307,13 @@ quote_string(t_pg_coder *this, VALUE value, VALUE string, char *current_out, cha
 
 	if( strlen == -1 ){
 		/* we can directly use String value in subint */
-		strlen = RSTRING_LEN(subint);
+		strlen = RSTRING_LENINT(subint);
 
-		if(quote_char){
-			char *ptr1;
+		if(with_quote){
 			/* size of string assuming the worst case, that every character must be escaped. */
 			current_out = pg_rb_str_ensure_capa( string, strlen * 2 + 2, current_out, NULL );
 
-			*current_out++ = quote_char;
-
-			/* Copy string from subint with backslash escaping */
-			for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
-				if(*ptr1 == quote_char || *ptr1 == escape_char){
-					*current_out++ = escape_char;
-				}
-				*current_out++ = *ptr1;
-			}
-			*current_out++ = quote_char;
+			current_out += quote_buffer( func_data, RSTRING_PTR(subint), strlen, current_out );
 		} else {
 			current_out = pg_rb_str_ensure_capa( string, strlen, current_out, NULL );
 			memcpy( current_out, RSTRING_PTR(subint), strlen );
@@ -249,43 +322,16 @@ quote_string(t_pg_coder *this, VALUE value, VALUE string, char *current_out, cha
 
 	} else {
 
-		if(quote_char){
-			char *ptr1;
-			char *ptr2;
-			int backslashs;
-
+		if(with_quote){
 			/* size of string assuming the worst case, that every character must be escaped
-				* plus two bytes for quotation.
-				*/
+			 * plus two bytes for quotation.
+			 */
 			current_out = pg_rb_str_ensure_capa( string, 2 * strlen + 2, current_out, NULL );
-
-			*current_out++ = quote_char;
 
 			/* Place the unescaped string at current output position. */
 			strlen = enc_func(this, value, current_out, &subint);
-			ptr1 = current_out;
-			ptr2 = current_out + strlen;
 
-			/* count required backlashs */
-			for(backslashs = 0; ptr1 != ptr2; ptr1++) {
-				if(*ptr1 == quote_char || *ptr1 == escape_char){
-					backslashs++;
-				}
-			}
-
-			ptr1 = current_out + strlen;
-			ptr2 = current_out + strlen + backslashs;
-			current_out = ptr2;
-			*current_out++ = quote_char;
-
-			/* Then store the escaped string on the final position, walking
-				* right to left, until all backslashs are placed. */
-			while( ptr1 != ptr2 ) {
-				*--ptr2 = *--ptr1;
-				if(*ptr2 == quote_char || *ptr2 == escape_char){
-					*--ptr2 = escape_char;
-				}
-			}
+			current_out += quote_buffer( func_data, current_out, strlen, current_out );
 		}else{
 			/* size of the unquoted string */
 			current_out = pg_rb_str_ensure_capa( string, strlen, current_out, NULL );
@@ -324,7 +370,7 @@ write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE st
 				*current_out++ = 'L';
 				break;
 			default:
-				current_out = quote_string( this->elem, entry, string, current_out, quote ? '"' : 0, '\\' );
+				current_out = quote_string( this->elem, entry, string, current_out, quote, quote_array_buffer, this );
 		}
 	}
 	current_out = pg_rb_str_ensure_capa( string, 1, current_out, NULL );
@@ -356,18 +402,50 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	return -1;
 }
 
+static int
+quote_identifier_buffer( void *_this, char *p_in, int strlen, char *p_out ){
+	char *ptr1;
+	char *ptr2;
+	int backslashs = 0;
+
+	/* count required backlashs */
+	for(ptr1 = p_in; ptr1 != p_in + strlen; ptr1++) {
+		if (*ptr1 == '"'){
+			backslashs++;
+		}
+	}
+
+	ptr1 = p_in + strlen;
+	ptr2 = p_out + strlen + backslashs + 2;
+	/* Write end quote */
+	*--ptr2 = '"';
+
+	/* Then store the escaped string on the final position, walking
+		* right to left, until all backslashs are placed. */
+	while( ptr1 != p_in ) {
+		*--ptr2 = *--ptr1;
+		if(*ptr2 == '"'){
+			*--ptr2 = '"';
+		}
+	}
+	/* Write start quote */
+	*p_out = '"';
+	return strlen + backslashs + 2;
+}
+
 static char *
 pg_text_enc_array_identifier(t_pg_composite_coder *this, VALUE value, VALUE string, char *out)
 {
 	int i;
 	int nr_elems;
+
 	Check_Type(value, T_ARRAY);
 	nr_elems = RARRAY_LEN(value);
 
 	for( i=0; i<nr_elems; i++){
 		VALUE entry = rb_ary_entry(value, i);
 
-		out = quote_string(this->elem, entry, string, out, this->needs_quotation ? '"' : 0, '"');
+		out = quote_string(this->elem, entry, string, out, this->needs_quotation, quote_identifier_buffer, this);
 		if( i < nr_elems-1 ){
 			out = pg_rb_str_ensure_capa( string, 1, out, NULL );
 			*out++ = '.';
@@ -397,12 +475,43 @@ pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 	if( TYPE(value) == T_ARRAY){
 		out = pg_text_enc_array_identifier(this, value, *intermediate, out);
 	} else {
-		out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation ? '"' : 0, '"');
+		out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation, quote_identifier_buffer, this);
 	}
 	rb_str_set_len( *intermediate, out - RSTRING_PTR(*intermediate) );
 	return -1;
 }
 
+
+static int
+quote_literal_buffer( void *_this, char *p_in, int strlen, char *p_out ){
+	char *ptr1;
+	char *ptr2;
+	int backslashs = 0;
+
+	/* count required backlashs */
+	for(ptr1 = p_in; ptr1 != p_in + strlen; ptr1++) {
+		if (*ptr1 == '\''){
+			backslashs++;
+		}
+	}
+
+	ptr1 = p_in + strlen;
+	ptr2 = p_out + strlen + backslashs + 2;
+	/* Write end quote */
+	*--ptr2 = '\'';
+
+	/* Then store the escaped string on the final position, walking
+		* right to left, until all backslashs are placed. */
+	while( ptr1 != p_in ) {
+		*--ptr2 = *--ptr1;
+		if(*ptr2 == '\''){
+			*--ptr2 = '\'';
+		}
+	}
+	/* Write start quote */
+	*p_out = '\'';
+	return strlen + backslashs + 2;
+}
 
 
 /*
@@ -420,7 +529,7 @@ pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *inte
 
 	*intermediate = rb_str_new(NULL, 0);
 	out = RSTRING_PTR(*intermediate);
-	out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation ? '\'' : 0, '\'');
+	out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation, quote_literal_buffer, this);
 	rb_str_set_len( *intermediate, out - RSTRING_PTR(*intermediate) );
 	return -1;
 }
