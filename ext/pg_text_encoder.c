@@ -74,11 +74,11 @@ pg_obj_to_i( VALUE value )
  *
  * This is the encoder class for the PostgreSQL text types.
  *
- * Non-String values are expected to have method +to_str+ defined.
+ * Non-String values are expected to have method +to_s+ defined.
  *
  */
 int
-pg_coder_enc_to_str(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
+pg_coder_enc_to_s(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
 	*intermediate = rb_obj_as_string(value);
 	return -1;
@@ -90,7 +90,7 @@ pg_coder_enc_to_str(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
  *
  * This is the encoder class for the PostgreSQL int types.
  *
- * Non-Number values are expected to have method +to_i+ defined.
+ * Non-Integer values are expected to have method +to_i+ defined.
  *
  */
 static int
@@ -98,7 +98,7 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 {
 	if(out){
 		if(TYPE(*intermediate) == T_STRING){
-			return pg_coder_enc_to_str(this, value, out, intermediate);
+			return pg_coder_enc_to_s(this, value, out, intermediate);
 		}else{
 			char *start = out;
 			int len;
@@ -171,13 +171,13 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 					if( ll < 100000000000000LL ){
 						len = ll < 10000000000000LL ? 13 : 14;
 					}else{
-						return pg_coder_enc_to_str(this, *intermediate, NULL, intermediate);
+						return pg_coder_enc_to_s(this, *intermediate, NULL, intermediate);
 					}
 				}
 			}
 			return sll < 0 ? len+1 : len;
 		}else{
-			return pg_coder_enc_to_str(this, *intermediate, NULL, intermediate);
+			return pg_coder_enc_to_s(this, *intermediate, NULL, intermediate);
 		}
 	}
 }
@@ -589,13 +589,13 @@ init_pg_text_encoder()
 
 	/* Make RDoc aware of the encoder classes... */
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Boolean", rb_cPG_SimpleEncoder ); */
-	pg_define_coder( "Boolean", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "Boolean", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Integer", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Float", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "String", rb_cPG_SimpleEncoder ); */
-	pg_define_coder( "String", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Array", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );

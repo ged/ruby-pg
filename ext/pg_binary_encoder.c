@@ -151,9 +151,9 @@ init_pg_binary_encoder()
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Int8", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Int8", pg_bin_enc_int8, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "String", rb_cPG_SimpleEncoder ); */
-	pg_define_coder( "String", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
+	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Bytea", rb_cPG_SimpleEncoder ); */
-	pg_define_coder( "Bytea", pg_coder_enc_to_str, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
+	pg_define_coder( "Bytea", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "FromBase64", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "FromBase64", pg_bin_enc_from_base64, rb_cPG_CompositeEncoder, rb_mPG_BinaryEncoder );
