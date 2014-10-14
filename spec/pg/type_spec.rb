@@ -7,6 +7,8 @@ require 'pg'
 describe "PG::Type derivations" do
 	let!(:textenc_int) { PG::TextEncoder::Integer.new name: 'Integer', oid: 23 }
 	let!(:textdec_int) { PG::TextDecoder::Integer.new name: 'Integer', oid: 23 }
+	let!(:textenc_boolean) { PG::TextEncoder::Boolean.new }
+	let!(:textdec_boolean) { PG::TextDecoder::Boolean.new }
 	let!(:textenc_float) { PG::TextEncoder::Float.new }
 	let!(:textdec_float) { PG::TextDecoder::Float.new }
 	let!(:textenc_string) { PG::TextEncoder::String.new }
@@ -128,6 +130,18 @@ describe "PG::Type derivations" do
 			it "should encode integers from string to text format" do
 				expect( textenc_int.encode("  -123  ") ).to eq( "-123" )
 				expect( textenc_int.encode("  123-xyz  ") ).to eq( "123" )
+			end
+
+			it "should encode false and 0 to SQL FALSE value" do
+				[false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off', 'OFF'].each do |value|
+					expect( textenc_boolean.encode(value) ).to eq( "f" )
+				end
+			end
+
+			it "should encode true, 1 to SQL TRUE value" do
+				[true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON'].each do |value|
+					expect( textenc_boolean.encode(value) ).to eq( "t" )
+				end
 			end
 
 			it "should encode special floats equally to Float#to_s" do

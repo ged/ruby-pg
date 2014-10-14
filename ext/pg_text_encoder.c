@@ -46,6 +46,7 @@
 VALUE rb_mPG_TextEncoder;
 static ID s_id_encode;
 static ID s_id_to_i;
+static VALUE hash_false_values;
 
 
 VALUE
@@ -66,7 +67,39 @@ pg_obj_to_i( VALUE value )
  *
  * This is the encoder class for the PostgreSQL bool type.
  *
+ * Ruby values false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off' and 'OFF'
+ * are encoded as SQL +FALSE+ value. nil is sent as SQL +NULL+.
+ * Any other values are encoded as SQL +TRUE+ .
+ *
  */
+static int
+pg_text_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	if(out){
+		switch( TYPE(value) ){
+			case T_FALSE:
+				*out = 'f';
+				break;
+			case T_FIXNUM:
+			case T_BIGNUM:
+				if( NUM2LONG(value) == 0 ){
+					*out = 'f';
+				} else {
+					*out = 't';
+				}
+				break;
+			case T_STRING:
+				if( rb_hash_lookup(hash_false_values, value) == Qtrue ){
+					*out = 'f';
+					break;
+				}
+				/* fall through */
+			default:
+				*out = 't';
+		}
+	}
+	return 1;
+}
 
 
 /*
@@ -584,12 +617,22 @@ init_pg_text_encoder()
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
 
+	hash_false_values = rb_hash_new();
+	rb_gc_register_address( &hash_false_values );
+	rb_hash_aset( hash_false_values, rb_str_new2( "0" ), Qtrue );
+	rb_hash_aset( hash_false_values, rb_str_new2( "f" ), Qtrue );
+	rb_hash_aset( hash_false_values, rb_str_new2( "F" ), Qtrue );
+	rb_hash_aset( hash_false_values, rb_str_new2( "false" ), Qtrue );
+	rb_hash_aset( hash_false_values, rb_str_new2( "FALSE" ), Qtrue );
+	rb_hash_aset( hash_false_values, rb_str_new2( "off" ), Qtrue );
+	rb_hash_aset( hash_false_values, rb_str_new2( "OFF" ), Qtrue );
+
 	/* This module encapsulates all encoder classes with text output format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
 
 	/* Make RDoc aware of the encoder classes... */
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Boolean", rb_cPG_SimpleEncoder ); */
-	pg_define_coder( "Boolean", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	pg_define_coder( "Boolean", pg_text_enc_boolean, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Integer", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Float", rb_cPG_SimpleEncoder ); */
