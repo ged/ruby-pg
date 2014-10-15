@@ -392,19 +392,27 @@ write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE st
  * All values are encoded according to the #elements_type
  * accessor. Sub-arrays are encoded recursively.
  *
+ * This encoder expects an Array of values or sub-arrays as input.
+ * Other values are passed through as text without interpretation.
+ *
  */
 static int
 pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
 	char *end_ptr;
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-	*intermediate = rb_str_new(NULL, 0);
 
-	end_ptr = write_array(this, value, RSTRING_PTR(*intermediate), *intermediate, this->needs_quotation);
+	if( TYPE(value) == T_ARRAY){
+		*intermediate = rb_str_new(NULL, 0);
 
-	rb_str_set_len( *intermediate, end_ptr - RSTRING_PTR(*intermediate) );
+		end_ptr = write_array(this, value, RSTRING_PTR(*intermediate), *intermediate, this->needs_quotation);
 
-	return -1;
+		rb_str_set_len( *intermediate, end_ptr - RSTRING_PTR(*intermediate) );
+
+		return -1;
+	} else {
+		return pg_coder_enc_to_s( conv, value, out, intermediate );
+	}
 }
 
 static int

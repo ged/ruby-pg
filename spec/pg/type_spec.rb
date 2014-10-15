@@ -401,6 +401,11 @@ describe "PG::Type derivations" do
 					end
 				end
 
+				it "should pass through non Array inputs" do
+					expect( textenc_float_array.encode("text") ).to eq( "text" )
+					expect( textenc_float_array.encode(1234) ).to eq( "1234" )
+				end
+
 				context 'identifier quotation' do
 					it 'should quote and escape identifier' do
 						quoted_type = PG::TextEncoder::Identifier.new elements_type: textenc_string
