@@ -109,6 +109,8 @@ pg_composite_decoder_allocate( VALUE klass )
  * Encodes the given Ruby object into string representation, without
  * sending data to/from the database server.
  *
+ * A nil value is passed through.
+ *
  */
 static VALUE
 pg_coder_encode(VALUE self, VALUE value)
@@ -117,6 +119,9 @@ pg_coder_encode(VALUE self, VALUE value)
 	VALUE intermediate;
 	int len, len2;
 	t_pg_coder *this = DATA_PTR(self);
+
+	if( NIL_P(value) )
+		return Qnil;
 
 	if( !this->enc_func ){
 		rb_raise(rb_eRuntimeError, "no encoder function defined");
@@ -151,6 +156,9 @@ pg_coder_encode(VALUE self, VALUE value)
  * Decodes the given string representation into a Ruby object, without
  * sending data to/from the database server.
  *
+ * A nil value is passed through and non String values are expected to have
+ * #to_str defined.
+ *
  */
 static VALUE
 pg_coder_decode(int argc, VALUE *argv, VALUE self)
@@ -167,6 +175,9 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 		tuple = NUM2INT(argv[1]);
 		field = NUM2INT(argv[2]);
 	}
+
+	if( NIL_P(argv[0]) )
+		return Qnil;
 
 	val = StringValuePtr(argv[0]);
 	if( !this->dec_func ){
@@ -406,6 +417,14 @@ init_pg_coder()
 	/* Document-class: PG::Coder < Object
 	 *
 	 * This is the base class for all type cast encoder and decoder classes.
+	 *
+	 * It can be used for implicit type casts by a PG::TypeMap or to
+	 * convert single values to/from their string representation by #encode
+	 * and #decode.
+	 *
+	 * Ruby +nil+ values are not handled by encoders, but are always transmitted
+	 * as SQL +NULL+ value. Vice versa SQL +NULL+ values are not handled by decoders,
+	 * but are always returned as a +nil+ value.
 	 */
 	rb_cPG_Coder = rb_define_class_under( rb_mPG, "Coder", rb_cObject );
 	rb_define_alloc_func( rb_cPG_Coder, pg_coder_allocate );

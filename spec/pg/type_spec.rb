@@ -90,6 +90,11 @@ describe "PG::Type derivations" do
 				expect{ textdec_int.decode(2, 3, 4) }.to raise_error(TypeError)
 				expect( intdec_incrementer.decode(2, 3, 4) ).to eq( 3 )
 			end
+
+			it "should pass through nil values" do
+				expect( textdec_string.encode( nil )).to be_nil
+				expect( textdec_int.encode( nil )).to be_nil
+			end
 		end
 
 		describe '#encode' do
@@ -156,6 +161,11 @@ describe "PG::Type derivations" do
 
 			it "should return when ruby encoder returns non string values" do
 				expect( intenc_incrementer_with_int_result.encode(3) ).to eq( 4 )
+			end
+
+			it "should pass through nil values" do
+				expect( textenc_string.encode( nil )).to be_nil
+				expect( textenc_int.encode( nil )).to be_nil
 			end
 		end
 
