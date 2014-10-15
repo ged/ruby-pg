@@ -60,4 +60,6 @@
 void base64_encode( char *out, char *in, int len);
 int base64_decode( char *out, char *in, unsigned int len);
 
+int pg_strncasecmp(const char *s1, const char *s2, size_t n);
+
 #endif /* end __utils_h */

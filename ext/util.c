@@ -119,3 +119,31 @@ base64_decode( char *out, char *in, unsigned int len)
 	return (char*)out_ptr - out;
 }
 
+/*
+ * Case-independent comparison of two not-necessarily-null-terminated strings.
+ * At most n bytes will be examined from each string.
+ */
+int
+pg_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+	while (n-- > 0)
+	{
+		unsigned char ch1 = (unsigned char) *s1++;
+		unsigned char ch2 = (unsigned char) *s2++;
+
+		if (ch1 != ch2){
+			if (ch1 >= 'A' && ch1 <= 'Z')
+				ch1 += 'a' - 'A';
+
+			if (ch2 >= 'A' && ch2 <= 'Z')
+				ch2 += 'a' - 'A';
+
+			if (ch1 != ch2)
+				return (int) ch1 - (int) ch2;
+		}
+		if (ch1 == 0)
+			break;
+	}
+	return 0;
+}
+
