@@ -42,6 +42,7 @@ static int
 pg_tmbc_fit_to_copy_get( VALUE self )
 {
 	t_tmbc *this = DATA_PTR( self );
+
 	return this->nfields;
 }
 
@@ -63,12 +64,10 @@ pg_tmbc_result_value(VALUE result, int tuple, int field)
 	val = PQgetvalue( p_result->pgresult, tuple, field );
 	len = PQgetlength( p_result->pgresult, tuple, field );
 
-	if( this ){
-		p_coder = this->convs[field].cconv;
+	p_coder = this->convs[field].cconv;
 
-		if( p_coder && p_coder->dec_func ){
-			return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(result));
-		}
+	if( p_coder && p_coder->dec_func ){
+		return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(result));
 	}
 
 	dec_func = pg_coder_dec_func( p_coder, PQfformat(p_result->pgresult, field) );
@@ -130,7 +129,7 @@ pg_tmbc_mark( t_tmbc *this )
 	int i;
 
 	/* allocated but not initialized ? */
-	if( !this ) return;
+	if( this == (t_tmbc*)&pg_typemap_default_typemap ) return;
 
 	for( i=0; i<this->nfields; i++){
 		t_pg_coder *p_coder = this->convs[i].cconv;
@@ -139,10 +138,19 @@ pg_tmbc_mark( t_tmbc *this )
 	}
 }
 
+static void
+pg_tmbc_free( t_tmbc *this )
+{
+	/* allocated but not initialized ? */
+	if( this == (t_tmbc*)&pg_typemap_default_typemap ) return;
+	xfree( this );
+}
+
 static VALUE
 pg_tmbc_s_allocate( VALUE klass )
 {
-	return Data_Wrap_Struct( klass, pg_tmbc_mark, -1, NULL );
+	/* Use pg_typemap_default_typemap as interim struct until #initialize is called. */
+	return Data_Wrap_Struct( klass, pg_tmbc_mark, pg_tmbc_free, (t_tmbc*)&pg_typemap_default_typemap );
 }
 
 VALUE

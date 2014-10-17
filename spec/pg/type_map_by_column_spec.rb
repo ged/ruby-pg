@@ -46,6 +46,28 @@ describe PG::TypeMapByColumn do
 		expect( cm.oids ).to eq( [23, 25, 700, 123456, nil] )
 	end
 
+	it "should gracefully handle not initialized state" do
+		# PG::TypeMapByColumn is not initialized in allocate function, like other
+		# type maps, but in #initialize. So it might be not called by derived classes.
+
+		not_init = Class.new(PG::TypeMapByColumn) do
+			def initialize
+				# no super call
+			end
+		end.new
+
+		expect{ @conn.exec_params( "SELECT $1", [ 0 ], 0, not_init ) }.to raise_error(NotImplementedError)
+
+		res = @conn.exec( "SELECT 1" )
+		expect{ res.type_map = not_init }.to raise_error(NotImplementedError)
+
+		@conn.copy_data("COPY (SELECT 1) TO STDOUT") do
+			decoder = PG::TextDecoder::CopyRow.new(type_map: not_init)
+			expect{ @conn.get_copy_data(false, decoder) }.to raise_error(NotImplementedError)
+			@conn.get_copy_data
+		end
+	end
+
 
 	#
 	# Encoding Examples

@@ -27,7 +27,7 @@ pg_typemap_fit_to_query( VALUE self, VALUE params )
 int
 pg_typemap_fit_to_copy_get( VALUE self )
 {
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map copy_get_data results", rb_obj_classname(self) );
+	rb_raise( rb_eNotImpError, "type map %s is not suitable to map get_copy_data results", rb_obj_classname(self) );
 	return Qnil;
 }
 
@@ -48,9 +48,18 @@ pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field)
 VALUE
 pg_typemap_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format, int enc_idx )
 {
-	rb_raise( rb_eNotImpError, "type map is not suitable to map copy_get_data results" );
+	rb_raise( rb_eNotImpError, "type map is not suitable to map get_copy_data results" );
 	return Qnil;
 }
+
+const t_typemap pg_typemap_default_typemap = {
+	.fit_to_result = pg_typemap_fit_to_result,
+	.fit_to_query = pg_typemap_fit_to_query,
+	.fit_to_copy_get = pg_typemap_fit_to_copy_get,
+	.typecast_result_value = pg_typemap_result_value,
+	.typecast_query_param = pg_typemap_typecast_query_param,
+	.typecast_copy_get = pg_typemap_typecast_copy_get
+};
 
 static VALUE
 pg_typemap_s_allocate( VALUE klass )
@@ -59,12 +68,7 @@ pg_typemap_s_allocate( VALUE klass )
 	t_typemap *this;
 
 	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
-	this->fit_to_result = pg_typemap_fit_to_result;
-	this->fit_to_query = pg_typemap_fit_to_query;
-	this->fit_to_copy_get = pg_typemap_fit_to_copy_get;
-	this->typecast_result_value = pg_typemap_result_value;
-	this->typecast_query_param = pg_typemap_typecast_query_param;
-	this->typecast_copy_get = pg_typemap_typecast_copy_get;
+	*this = pg_typemap_default_typemap;
 
 	return self;
 }

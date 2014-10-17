@@ -246,6 +246,7 @@ extern VALUE rb_mPG_TextDecoder;
 extern VALUE rb_mPG_BinaryEncoder;
 extern VALUE rb_mPG_BinaryDecoder;
 extern const t_typemap pg_tmbc_default_typemap;
+extern const t_typemap pg_typemap_default_typemap;
 
 extern VALUE pg_default_typemap;
 
