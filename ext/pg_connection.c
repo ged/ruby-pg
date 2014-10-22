@@ -1049,7 +1049,7 @@ alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
 
 
 static int
-alloc_query_params1(struct query_params_data *paramsData)
+alloc_query_params(struct query_params_data *paramsData)
 {
 	VALUE param_value;
 	t_typemap *p_typemap;
@@ -1059,7 +1059,14 @@ alloc_query_params1(struct query_params_data *paramsData)
 	unsigned int required_pool_size;
 	char *memory_pool;
 
-	Data_Get_Struct( paramsData->typemap, t_typemap, p_typemap);
+	Check_Type(paramsData->params, T_ARRAY);
+
+	p_typemap = DATA_PTR( paramsData->typemap );
+	p_typemap->funcs.fit_to_query( paramsData->typemap, paramsData->params );
+
+	paramsData->heap_pool = Qnil;
+	paramsData->typecast_heap_chain = Qnil;
+	paramsData->gc_array = Qnil;
 
 	nParams = (int)RARRAY_LEN(paramsData->params);
 
@@ -1136,8 +1143,11 @@ alloc_query_params1(struct query_params_data *paramsData)
 					if( paramsData->formats[i] == 0 )
 						StringValueCStr(intermediate);
 					/* In case a new string object was generated, make sure it doesn't get freed by the GC */
-					if( intermediate != param_value )
+					if( intermediate != param_value ){
+						if( NIL_P(paramsData->gc_array) )
+							paramsData->gc_array = rb_ary_new();
 						rb_ary_push(paramsData->gc_array, intermediate);
+					}
 					paramsData->values[i] = RSTRING_PTR(intermediate);
 					paramsData->lengths[i] = RSTRING_LENINT(intermediate);
 
@@ -1174,24 +1184,6 @@ static void
 free_query_params(struct query_params_data *paramsData)
 {
 	/* currently nothing to free */
-}
-
-static int
-alloc_query_params(struct query_params_data *paramsData)
-{
-	int nParams;
-	t_typemap *p_typemap;
-	Check_Type(paramsData->params, T_ARRAY);
-
-	p_typemap = DATA_PTR( paramsData->typemap );
-	p_typemap->funcs.fit_to_query( paramsData->typemap, paramsData->params );
-
-	paramsData->heap_pool = Qnil;
-	paramsData->typecast_heap_chain = Qnil;
-	paramsData->gc_array = rb_ary_new();
-
-	nParams = alloc_query_params1(paramsData);
-	return nParams;
 }
 
 void
