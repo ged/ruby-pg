@@ -335,14 +335,14 @@ describe PG::Result do
 
 		it "should allow reading, assigning and diabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
-			expect( res.type_map ).to be_nil
+			expect( res.type_map ).to be_kind_of(PG::TypeMapAllStrings)
 			res.type_map = PG::TypeMapByColumn.new [textdec_int]
 			expect( res.type_map ).to be_an_instance_of(PG::TypeMapByColumn)
 			expect( res.type_map.coders ).to eq( [textdec_int] )
 			res.type_map = PG::TypeMapByColumn.new [textdec_float]
 			expect( res.type_map.coders ).to eq( [textdec_float] )
-			res.type_map = nil
-			expect( res.type_map ).to be_nil
+			res.type_map = PG::TypeMapAllStrings.new
+			expect( res.type_map ).to be_kind_of(PG::TypeMapAllStrings)
 		end
 
 		it "should be applied to all value retrieving methods" do

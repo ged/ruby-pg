@@ -7,6 +7,7 @@
 #include "pg.h"
 
 VALUE rb_cTypeMap;
+VALUE rb_mDefaultTypeMappable;
 static ID s_id_fit_to_query;
 static ID s_id_fit_to_result;
 
@@ -32,16 +33,16 @@ pg_typemap_fit_to_copy_get( VALUE self )
 }
 
 VALUE
-pg_typemap_result_value(VALUE self, int tuple, int field)
+pg_typemap_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 {
 	rb_raise( rb_eNotImpError, "type map is not suitable to map result values" );
 	return Qnil;
 }
 
 t_pg_coder *
-pg_typemap_typecast_query_param(VALUE self, VALUE param_value, int field)
+pg_typemap_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 {
-	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
+	rb_raise( rb_eNotImpError, "type map is not suitable to map query params" );
 	return NULL;
 }
 
@@ -52,7 +53,7 @@ pg_typemap_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno
 	return Qnil;
 }
 
-const t_typemap pg_typemap_default_typemap = {
+const struct pg_typemap_funcs pg_typemap_funcs = {
 	.fit_to_result = pg_typemap_fit_to_result,
 	.fit_to_query = pg_typemap_fit_to_query,
 	.fit_to_copy_get = pg_typemap_fit_to_copy_get,
@@ -68,7 +69,7 @@ pg_typemap_s_allocate( VALUE klass )
 	t_typemap *this;
 
 	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
-	*this = pg_typemap_default_typemap;
+	this->funcs = pg_typemap_funcs;
 
 	return self;
 }
@@ -83,7 +84,7 @@ pg_typemap_fit_to_result_ext( VALUE self, VALUE result )
 				rb_obj_classname( result ) );
 	}
 
-	return this->fit_to_result( self, result );
+	return this->funcs.fit_to_result( self, result );
 }
 
 static VALUE
@@ -93,7 +94,68 @@ pg_typemap_fit_to_query_ext( VALUE self, VALUE params )
 
 	Check_Type( params, T_ARRAY);
 
-	return this->fit_to_query( self, params );
+	return this->funcs.fit_to_query( self, params );
+}
+
+/*
+ * call-seq:
+ *    res.default_type_map = typemap
+ *
+ * Set the default TypeMap that is used for values that could not be
+ * casted by this type map.
+ *
+ * +typemap+ must be a kind of PG::TypeMap
+ *
+ */
+static VALUE
+pg_typemap_default_type_map_set(VALUE self, VALUE typemap)
+{
+	t_typemap *this = DATA_PTR( self );
+
+	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+				rb_obj_classname( typemap ) );
+	}
+	Check_Type(typemap, T_DATA);
+	this->default_typemap = typemap;
+
+	return typemap;
+}
+
+/*
+ * call-seq:
+ *    res.default_type_map -> TypeMap
+ *
+ * Returns the default TypeMap that is currently set for values that could not be
+ * casted by this type map.
+ *
+ * Returns a kind of PG::TypeMap.
+ *
+ */
+static VALUE
+pg_typemap_default_type_map_get(VALUE self)
+{
+	t_typemap *this = DATA_PTR( self );
+
+	return this->default_typemap;
+}
+
+/*
+ * call-seq:
+ *    res.with_default_type_map( typemap )
+ *
+ * Set the default TypeMap that is used for values that could not be
+ * casted by this type map.
+ *
+ * +typemap+ must be a kind of PG::TypeMap
+ *
+ * Returns self.
+ */
+static VALUE
+pg_typemap_with_default_type_map(VALUE self, VALUE typemap)
+{
+	pg_typemap_default_type_map_set( self, typemap );
+	return self;
 }
 
 void
@@ -114,4 +176,9 @@ init_pg_type_map()
 	rb_define_alloc_func( rb_cTypeMap, pg_typemap_s_allocate );
 	rb_define_method( rb_cTypeMap, "fit_to_result", pg_typemap_fit_to_result_ext, 1 );
 	rb_define_method( rb_cTypeMap, "fit_to_query", pg_typemap_fit_to_query_ext, 1 );
+
+	rb_mDefaultTypeMappable = rb_define_module_under( rb_cTypeMap, "DefaultTypeMappable");
+	rb_define_method( rb_mDefaultTypeMappable, "default_type_map=", pg_typemap_default_type_map_set, 1 );
+	rb_define_method( rb_mDefaultTypeMappable, "default_type_map", pg_typemap_default_type_map_get, 0 );
+	rb_define_method( rb_mDefaultTypeMappable, "with_default_type_map", pg_typemap_with_default_type_map, 1 );
 }

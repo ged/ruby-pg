@@ -9,7 +9,7 @@
 #include "pg.h"
 
 VALUE rb_cTypeMapAllStrings;
-VALUE pg_default_typemap;
+VALUE pg_typemap_all_strings;
 
 static VALUE
 pg_tmas_fit_to_result( VALUE self, VALUE result )
@@ -18,7 +18,7 @@ pg_tmas_fit_to_result( VALUE self, VALUE result )
 }
 
 static VALUE
-pg_tmas_result_value(VALUE result, int tuple, int field)
+pg_tmas_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 {
 	VALUE ret;
 	char * val;
@@ -48,7 +48,7 @@ pg_tmas_fit_to_query( VALUE self, VALUE params )
 }
 
 static t_pg_coder *
-pg_tmas_typecast_query_param(VALUE self, VALUE param_value, int field)
+pg_tmas_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 {
 	return NULL;
 }
@@ -79,12 +79,12 @@ pg_tmas_s_allocate( VALUE klass )
 
 	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
 
-	this->fit_to_result = pg_tmas_fit_to_result;
-	this->fit_to_query = pg_tmas_fit_to_query;
-	this->fit_to_copy_get = pg_tmas_fit_to_copy_get;
-	this->typecast_result_value = pg_tmas_result_value;
-	this->typecast_query_param = pg_tmas_typecast_query_param;
-	this->typecast_copy_get = pg_tmas_typecast_copy_get;
+	this->funcs.fit_to_result = pg_tmas_fit_to_result;
+	this->funcs.fit_to_query = pg_tmas_fit_to_query;
+	this->funcs.fit_to_copy_get = pg_tmas_fit_to_copy_get;
+	this->funcs.typecast_result_value = pg_tmas_result_value;
+	this->funcs.typecast_query_param = pg_tmas_typecast_query_param;
+	this->funcs.typecast_copy_get = pg_tmas_typecast_copy_get;
 
 	return self;
 }
@@ -108,6 +108,6 @@ init_pg_type_map_all_strings()
 	rb_cTypeMapAllStrings = rb_define_class_under( rb_mPG, "TypeMapAllStrings", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapAllStrings, pg_tmas_s_allocate );
 
-	pg_default_typemap = rb_funcall( rb_cTypeMapAllStrings, rb_intern("new"), 0 );
-	rb_gc_register_address( &pg_default_typemap );
+	pg_typemap_all_strings = rb_funcall( rb_cTypeMapAllStrings, rb_intern("new"), 0 );
+	rb_gc_register_address( &pg_typemap_all_strings );
 }

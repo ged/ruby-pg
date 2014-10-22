@@ -179,8 +179,8 @@ typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, char *, int, int, int, int);
 typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
 typedef int (* t_pg_fit_to_copy_get)(VALUE);
-typedef VALUE (* t_pg_typecast_result)(VALUE, int, int);
-typedef t_pg_coder *(* t_pg_typecast_query_param)(VALUE, VALUE, int);
+typedef VALUE (* t_pg_typecast_result)(t_typemap *, VALUE, int, int);
+typedef t_pg_coder *(* t_pg_typecast_query_param)(t_typemap *, VALUE, int);
 typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 
 struct pg_coder {
@@ -199,12 +199,15 @@ typedef struct {
 } t_pg_composite_coder;
 
 struct pg_typemap {
-	t_pg_fit_to_result fit_to_result;
-	t_pg_fit_to_query fit_to_query;
-	t_pg_fit_to_copy_get fit_to_copy_get;
-	t_pg_typecast_result typecast_result_value;
-	t_pg_typecast_query_param typecast_query_param;
-	t_pg_typecast_copy_get typecast_copy_get;
+	struct pg_typemap_funcs {
+		t_pg_fit_to_result fit_to_result;
+		t_pg_fit_to_query fit_to_query;
+		t_pg_fit_to_copy_get fit_to_copy_get;
+		t_pg_typecast_result typecast_result_value;
+		t_pg_typecast_query_param typecast_query_param;
+		t_pg_typecast_copy_get typecast_copy_get;
+	} funcs;
+	VALUE default_typemap;
 };
 
 typedef struct {
@@ -233,6 +236,7 @@ extern VALUE rb_cPGresult;
 extern VALUE rb_hErrors;
 extern VALUE rb_cTypeMap;
 extern VALUE rb_cTypeMapAllStrings;
+extern VALUE rb_mDefaultTypeMappable;
 extern VALUE rb_cPG_Coder;
 extern VALUE rb_cPG_SimpleEncoder;
 extern VALUE rb_cPG_SimpleDecoder;
@@ -245,10 +249,10 @@ extern VALUE rb_mPG_TextEncoder;
 extern VALUE rb_mPG_TextDecoder;
 extern VALUE rb_mPG_BinaryEncoder;
 extern VALUE rb_mPG_BinaryDecoder;
-extern const t_typemap pg_tmbc_default_typemap;
-extern const t_typemap pg_typemap_default_typemap;
+extern const struct pg_typemap_funcs pg_tmbc_funcs;
+extern const struct pg_typemap_funcs pg_typemap_funcs;
 
-extern VALUE pg_default_typemap;
+extern VALUE pg_typemap_all_strings;
 
 /***************************************************************************
  * MACROS
@@ -309,8 +313,8 @@ char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, 
 VALUE pg_typemap_fit_to_result                         _(( VALUE, VALUE ));
 VALUE pg_typemap_fit_to_query                          _(( VALUE, VALUE ));
 int pg_typemap_fit_to_copy_get                         _(( VALUE ));
-VALUE pg_typemap_result_value                          _(( VALUE, int, int ));
-t_pg_coder *pg_typemap_typecast_query_param            _(( VALUE, VALUE, int ));
+VALUE pg_typemap_result_value                          _(( t_typemap *, VALUE, int, int ));
+t_pg_coder *pg_typemap_typecast_query_param            _(( t_typemap *, VALUE, int ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));

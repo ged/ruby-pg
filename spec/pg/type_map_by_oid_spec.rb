@@ -85,6 +85,27 @@ describe PG::TypeMapByOid do
 		expect( tm2.coders ).to eq( [textdec_int, nil, textdec_float, pass_through_type] )
 	end
 
+	it "forwards result value conversions to another TypeMapByOid as #default_type_map" do
+		# One run with implicit built TypeMapByColumn and another with online lookup
+		# for each type map.
+		[[0, 0], [0, 10], [10, 0], [10, 10]].each do |max_rows1, max_rows2|
+			tm1 = PG::TypeMapByOid.new
+			tm1.add_coder PG::TextDecoder::Integer.new name: 'INT2', oid: 21
+			tm1.max_rows_for_online_lookup = max_rows1
+
+			tm2 = PG::TypeMapByOid.new
+			tm2.add_coder PG::TextDecoder::Integer.new name: 'INT4', oid: 23
+			tm2.max_rows_for_online_lookup = max_rows2
+			tm2.default_type_map = tm1
+
+			res = @conn.exec( "SELECT '1'::INT4, '2'::INT2, '3'::INT8" ).map_types!( tm2 )
+
+			expect( res.getvalue(0,0) ).to eq( 1 ) # tm2
+			expect( res.getvalue(0,1) ).to eq( 2 ) # tm1
+			expect( res.getvalue(0,2) ).to eq( "3" ) # TypeMapAllStrings
+		end
+	end
+
 	#
 	# Decoding Examples text format
 	#

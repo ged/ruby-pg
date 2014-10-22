@@ -1293,8 +1293,8 @@ describe PG::Connection do
 		end
 
 		it "should return nil if no type mapping is set" do
-			expect( @conn.type_map_for_queries ).to be_nil
-			expect( @conn.type_map_for_results ).to be_nil
+			expect( @conn.type_map_for_queries ).to be_kind_of(PG::TypeMapAllStrings)
+			expect( @conn.type_map_for_results ).to be_kind_of(PG::TypeMapAllStrings)
 		end
 
 		it "shouldn't type map params unless requested" do

@@ -29,26 +29,20 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
 	VALUE self = pgresult_s_allocate( rb_cPGresult );
 	t_pg_result *this = pgresult_get_this(self);
-	t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 
 	this->pgresult = result;
 	this->connection = rb_pgconn;
 	if( result ){
+		t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 		VALUE typemap = p_conn->type_map_for_results;
 
-		if( !NIL_P(typemap) ){
-			t_typemap *p_typemap;
+		/* Type check is done when assigned to PG::Connection. */
+		t_typemap *p_typemap = DATA_PTR(typemap);
 
-			/* Type check is done when assigned to PG::Connection. */
-			p_typemap = DATA_PTR(typemap);
-
-			typemap = p_typemap->fit_to_result( typemap, self );
-			this->p_typemap = DATA_PTR( typemap );
-		}
-
-		this->typemap = typemap;
+		this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
+		this->p_typemap = DATA_PTR( this->typemap );
 	}
 
 	return self;
@@ -240,8 +234,8 @@ pgresult_s_allocate( VALUE klass )
 
 	this->pgresult = NULL;
 	this->connection = Qnil;
-	this->typemap = Qnil;
-	this->p_typemap = DATA_PTR( pg_default_typemap );
+	this->typemap = pg_typemap_all_strings;
+	this->p_typemap = DATA_PTR( this->typemap );
 	this->autoclear = 0;
 
 	return self;
@@ -633,7 +627,7 @@ pgresult_getvalue(VALUE self, VALUE tup_num, VALUE field_num)
 	if(j < 0 || j >= PQnfields(this->pgresult)) {
 		rb_raise(rb_eArgError,"invalid field number %d", j);
 	}
-	return this->p_typemap->typecast_result_value(self, i, j);
+	return this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, i, j);
 }
 
 /*
@@ -793,7 +787,7 @@ pgresult_aref(VALUE self, VALUE index)
 	for ( field_num = 0; field_num < PQnfields(this->pgresult); field_num++ ) {
 		fname = rb_tainted_str_new2( PQfname(this->pgresult,field_num) );
 		PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
-		rb_hash_aset( tuple, fname, this->p_typemap->typecast_result_value(self, tuple_num, field_num) );
+		rb_hash_aset( tuple, fname, this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, tuple_num, field_num) );
 	}
 	return tuple;
 }
@@ -818,7 +812,7 @@ pgresult_each_row(VALUE self)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, this->p_typemap->typecast_result_value(self, row, field) );
+			rb_ary_store( new_row, field, this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field) );
 		}
 		rb_yield( new_row );
 	}
@@ -847,7 +841,7 @@ pgresult_values(VALUE self)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
-			rb_ary_store( new_row, field, this->p_typemap->typecast_result_value(self, row, field) );
+			rb_ary_store( new_row, field, this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field) );
 		}
 		rb_ary_store( results, row, new_row );
 	}
@@ -871,7 +865,7 @@ make_column_result_array( VALUE self, int col )
 		rb_raise( rb_eIndexError, "no column %d in result", col );
 
 	for ( i=0; i < rows; i++ ) {
-		VALUE val = this->p_typemap->typecast_result_value(self, i, col);
+		VALUE val = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, i, col);
 		rb_ary_store( results, i, val );
 	}
 
@@ -967,32 +961,23 @@ pgresult_fields(VALUE self)
  * type casts from PostgreSQL's wire format to Ruby objects on the fly,
  * according to the rules and decoders defined in the given typemap.
  *
- * +typemap+ can be:
- * * a kind of PG::TypeMap
- * * +nil+ - to type cast all result values to String.
+ * +typemap+ must be a kind of PG::TypeMap .
  *
  */
 static VALUE
 pgresult_type_map_set(VALUE self, VALUE typemap)
 {
 	t_pg_result *this = pgresult_get_this(self);
+	t_typemap *p_typemap;
 
-	if( NIL_P(typemap) ){
-		this->p_typemap = DATA_PTR( pg_default_typemap );
-	} else {
-		t_typemap *p_typemap;
-
-		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( typemap ) );
-		}
-		Data_Get_Struct(typemap, t_typemap, p_typemap);
-
-		typemap = p_typemap->fit_to_result( typemap, self );
-		this->p_typemap = DATA_PTR( typemap );
+	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+				rb_obj_classname( typemap ) );
 	}
+	Data_Get_Struct(typemap, t_typemap, p_typemap);
 
-	this->typemap = typemap;
+	this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
+	this->p_typemap = DATA_PTR( this->typemap );
 
 	return typemap;
 }
@@ -1002,10 +987,6 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
  *    res.type_map -> value
  *
  * Returns the TypeMap that is currently set for type casts of result values to ruby objects.
- *
- * Returns either:
- * * a kind of PG::TypeMap or
- * * +nil+ - when no type map is set.
  *
  */
 static VALUE

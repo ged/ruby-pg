@@ -105,7 +105,7 @@ to convert single values to/from their string representation.
 A TypeMap defines which value will be converted by which encoder/decoder.
 There are different type map strategies, implemented by several derivations
 of this class. They can be chosen and configured according to the particular
-needs for type casting.
+needs for type casting. The default type map is PG::TypeMapAllStrings.
 
 A type map can be assigned per connection or per query respectively per
 result set. Type maps can also be used for COPY in and out data streaming.

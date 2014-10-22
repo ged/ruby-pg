@@ -23,6 +23,9 @@ typedef struct {
 	} format[2];
 } t_tmbo;
 
+static VALUE pg_tmbo_s_allocate( VALUE klass );
+
+
 /*
  * We use the OID's minor 8 Bits as index to a 256 entry cache. This avoids full ruby hash lookups
  * for each value in most cases.
@@ -63,7 +66,8 @@ pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
 	p_colmap = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * nfields);
 	/* Set nfields to 0 at first, so that GC mark function doesn't access uninitialized memory. */
 	p_colmap->nfields = 0;
-	p_colmap->typemap = pg_tmbc_default_typemap;
+	p_colmap->typemap.funcs = pg_tmbc_funcs;
+	p_colmap->typemap.default_typemap = pg_typemap_all_strings;
 
 	colmap = pg_tmbc_allocate();
 	DATA_PTR(colmap) = p_colmap;
@@ -84,30 +88,33 @@ pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
 }
 
 static VALUE
-pg_tmbo_result_value(VALUE result, int tuple, int field)
+pg_tmbo_result_value(t_typemap *p_typemap, VALUE result, int tuple, int field)
 {
-	char * val;
-	int len;
 	int format;
 	t_pg_coder *p_coder;
-	t_pg_coder_dec_func dec_func;
 	t_pg_result *p_result = pgresult_get_this(result);
-	t_tmbo *this = (t_tmbo*) p_result->p_typemap;
+	t_tmbo *this = (t_tmbo*) p_typemap;
+	t_typemap *default_tm;
 
 	if (PQgetisnull(p_result->pgresult, tuple, field)) {
 		return Qnil;
 	}
 
-	val = PQgetvalue( p_result->pgresult, tuple, field );
-	len = PQgetlength( p_result->pgresult, tuple, field );
 	format = PQfformat( p_result->pgresult, field );
 
 	if( format < 0 || format > 1 )
 		rb_raise(rb_eArgError, "result field %d has unsupported format code %d", field+1, format);
 
 	p_coder = pg_tmbo_lookup_oid( this, format, PQftype(p_result->pgresult, field) );
-	dec_func = pg_coder_dec_func( p_coder, format );
-	return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(result) );
+	if( p_coder ){
+		char * val = PQgetvalue( p_result->pgresult, tuple, field );
+		int len = PQgetlength( p_result->pgresult, tuple, field );
+		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, format );
+		return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(result) );
+	}
+
+	default_tm = DATA_PTR( this->typemap.default_typemap );
+	return default_tm->funcs.typecast_result_value( default_tm, result, tuple, field );
 }
 
 static VALUE
@@ -116,14 +123,33 @@ pg_tmbo_fit_to_result( VALUE self, VALUE result )
 	t_tmbo *this = DATA_PTR( self );
 	PGresult *pgresult = pgresult_get( result );
 
+	/* Ensure that the default type map fits equaly. */
+	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	VALUE sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
+
 	if( PQntuples( pgresult ) <= this->max_rows_for_online_lookup ){
 		/* Do a hash lookup for each result value in pg_tmbc_result_value() */
-		return self;
+
+	/* Did the default type return the same object ? */
+		if( sub_typemap == this->typemap.default_typemap ){
+			return self;
+		} else {
+			/* The default type map built a new object, so we need to propagate it
+			 * and build a copy of this type map. */
+			VALUE new_typemap = pg_tmbo_s_allocate( rb_cTypeMapByOid );
+			t_tmbo *p_new_typemap = DATA_PTR(new_typemap);
+			*p_new_typemap = *this;
+			p_new_typemap->typemap.default_typemap = sub_typemap;
+			return new_typemap;
+		}
 	}else{
 		/* Build a new TypeMapByColumn that fits to the given result and
 		 * uses a fast array lookup.
 		 */
-		return pg_tmbo_build_type_map_for_result2( this, pgresult );
+		VALUE new_typemap = pg_tmbo_build_type_map_for_result2( this, pgresult );
+		t_tmbo *p_new_typemap = DATA_PTR(new_typemap);
+		p_new_typemap->typemap.default_typemap = sub_typemap;
+		return new_typemap;
 	}
 }
 
@@ -132,6 +158,7 @@ pg_tmbo_mark( t_tmbo *this )
 {
 	int i;
 
+	rb_gc_mark(this->typemap.default_typemap);
 	for( i=0; i<2; i++){
 		rb_gc_mark(this->format[i].oid_to_coder);
 	}
@@ -146,12 +173,13 @@ pg_tmbo_s_allocate( VALUE klass )
 
 	self = Data_Make_Struct( klass, t_tmbo, pg_tmbo_mark, -1, this );
 
-	this->typemap.fit_to_result = pg_tmbo_fit_to_result;
-	this->typemap.fit_to_query = pg_typemap_fit_to_query;
-	this->typemap.fit_to_copy_get = pg_typemap_fit_to_copy_get;
-	this->typemap.typecast_result_value = pg_tmbo_result_value;
-	this->typemap.typecast_query_param = pg_typemap_typecast_query_param;
-	this->typemap.typecast_copy_get = pg_typemap_typecast_copy_get;
+	this->typemap.funcs.fit_to_result = pg_tmbo_fit_to_result;
+	this->typemap.funcs.fit_to_query = pg_typemap_fit_to_query;
+	this->typemap.funcs.fit_to_copy_get = pg_typemap_fit_to_copy_get;
+	this->typemap.funcs.typecast_result_value = pg_tmbo_result_value;
+	this->typemap.funcs.typecast_query_param = pg_typemap_typecast_query_param;
+	this->typemap.funcs.typecast_copy_get = pg_typemap_typecast_copy_get;
+	this->typemap.default_typemap = pg_typemap_all_strings;
 	this->max_rows_for_online_lookup = 10;
 
 	for( i=0; i<2; i++){
@@ -302,7 +330,7 @@ pg_tmbo_fit_to_result_ext( int argc, VALUE *argv, VALUE self )
 
 	if( NIL_P( online_lookup ) ){
 		/* call super */
-		return this->typemap.fit_to_result(self, result);
+		return this->typemap.funcs.fit_to_result(self, result);
 	} else if( RB_TYPE_P( online_lookup, T_TRUE ) ){
 		return self;
 	} else if( RB_TYPE_P( online_lookup, T_FALSE ) ){
@@ -329,6 +357,9 @@ init_pg_type_map_by_oid()
 	 *
 	 * This type map is only suitable to cast values from PG::Result objects.
 	 * Therefore only decoders might be assigned by the #add_coder method.
+	 *
+	 * Fields with no match to any of the registered type OID / format combination
+	 * are forwarded to the #default_type_map .
 	 */
 	rb_cTypeMapByOid = rb_define_class_under( rb_mPG, "TypeMapByOid", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByOid, pg_tmbo_s_allocate );
@@ -338,4 +369,5 @@ init_pg_type_map_by_oid()
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup=", pg_tmbo_max_rows_for_online_lookup_set, 1 );
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup", pg_tmbo_max_rows_for_online_lookup_get, 0 );
 	rb_define_method( rb_cTypeMapByOid, "fit_to_result", pg_tmbo_fit_to_result_ext, -1 );
+	rb_include_module( rb_cTypeMapByOid, rb_mDefaultTypeMappable );
 }

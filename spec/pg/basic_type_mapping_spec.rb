@@ -73,7 +73,7 @@ describe 'Basic type mapping' do
 			end
 
 			after :each do
-				@conn.type_map_for_results = nil
+				@conn.type_map_for_results = PG::TypeMapAllStrings.new
 			end
 
 			it "should do boolean type conversions" do

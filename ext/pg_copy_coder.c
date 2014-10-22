@@ -33,7 +33,7 @@ pg_copycoder_encoder_allocate( VALUE klass )
 	t_pg_copycoder *this;
 	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, pg_copycoder_mark, -1, this );
 	pg_coder_init_encoder( self );
-	this->typemap = Qnil;
+	this->typemap = pg_typemap_all_strings;
 	this->delimiter = '\t';
 	this->null_string = rb_str_new_cstr("\\N");
 	return self;
@@ -45,7 +45,7 @@ pg_copycoder_decoder_allocate( VALUE klass )
 	t_pg_copycoder *this;
 	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, pg_copycoder_mark, -1, this );
 	pg_coder_init_decoder( self );
-	this->typemap = Qnil;
+	this->typemap = pg_typemap_all_strings;
 	this->delimiter = '\t';
 	this->null_string = rb_str_new_cstr("\\N");
 	return self;
@@ -112,10 +112,10 @@ pg_copycoder_null_string_get(VALUE self)
  * call-seq:
  *    coder.type_map = map
  *
- * +map+ can be:
- * * a kind of PG::TypeMap
- * * +nil+ - use PG::TextEncoder::String respectively PG::TextDecoder::String
- *   for encoding/decoding of all columns.
+ * +map+ must be a kind of PG::TypeMap .
+ *
+ * Defaults to a PG::TypeMapAllStrings , so that PG::TextEncoder::String respectively
+ * PG::TextDecoder::String is used for encoding/decoding of all columns.
  *
  */
 static VALUE
@@ -123,7 +123,7 @@ pg_copycoder_type_map_set(VALUE self, VALUE type_map)
 {
 	t_pg_copycoder *this = DATA_PTR( self );
 
-	if ( !NIL_P(type_map) && !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
+	if ( !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
 				rb_obj_classname( type_map ) );
 	}
@@ -135,10 +135,6 @@ pg_copycoder_type_map_set(VALUE self, VALUE type_map)
 /*
  * call-seq:
  *    coder.type_map -> PG::TypeMap
- *
- * Returns either:
- * * a kind of PG::TypeMap
- * * +nil+ - use String coder only.
  *
  */
 static VALUE
@@ -169,22 +165,14 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 	t_pg_coder_enc_func enc_func;
-	VALUE typemap;
 	static t_pg_coder *p_elem_coder;
 	int i;
 	t_typemap *p_typemap;
 	char *current_out;
 	char *end_capa_ptr;
 
-	if( NIL_P(this->typemap) ){
-		Data_Get_Struct( pg_default_typemap, t_typemap, p_typemap);
-		/* We don't need to call fit_to_query for pg_default_typemap. It does nothing. */
-		typemap = pg_default_typemap;
-	} else {
-		p_typemap = DATA_PTR( this->typemap );
-		typemap = p_typemap->fit_to_query( this->typemap, value );
-		p_typemap = DATA_PTR( typemap );
-	}
+	p_typemap = DATA_PTR( this->typemap );
+	p_typemap->funcs.fit_to_query( this->typemap, value );
 
 	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
 	PG_RB_STR_NEW( *intermediate, current_out, end_capa_ptr );
@@ -211,7 +199,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				current_out += RSTRING_LEN(this->null_string);
 				break;
 			default:
-				p_elem_coder = p_typemap->typecast_query_param(typemap, entry, i);
+				p_elem_coder = p_typemap->funcs.typecast_query_param(p_typemap, entry, i);
 				enc_func = pg_coder_enc_func(p_elem_coder);
 
 				/* 1st pass for retiving the required memory space */
@@ -337,12 +325,8 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	char *end_capa_ptr;
 	t_typemap *p_typemap;
 
-	if( NIL_P(this->typemap) ){
-		Data_Get_Struct( pg_default_typemap, t_typemap, p_typemap);
-	} else {
-		p_typemap = DATA_PTR( this->typemap );
-	}
-	expected_fields = p_typemap->fit_to_copy_get( this->typemap );
+	p_typemap = DATA_PTR( this->typemap );
+	expected_fields = p_typemap->funcs.fit_to_copy_get( this->typemap );
 
 	/* The received input string will probably have this->nfields fields. */
 	array = rb_ary_new2(expected_fields);
@@ -504,7 +488,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 			VALUE field_value;
 
 			rb_str_set_len( field_str, output_ptr - RSTRING_PTR(field_str) );
-			field_value = p_typemap->typecast_copy_get( p_typemap, field_str, fieldno, 0, enc_idx );
+			field_value = p_typemap->funcs.typecast_copy_get( p_typemap, field_str, fieldno, 0, enc_idx );
 
 			rb_ary_push(array, field_value);
 

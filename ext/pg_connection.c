@@ -189,8 +189,8 @@ pgconn_s_allocate( VALUE klass )
 	this->socket_io = Qnil;
 	this->notice_receiver = Qnil;
 	this->notice_processor = Qnil;
-	this->type_map_for_queries = Qnil;
-	this->type_map_for_results = Qnil;
+	this->type_map_for_queries = pg_typemap_all_strings;
+	this->type_map_for_results = pg_typemap_all_strings;
 	this->encoder_for_put_copy_data = Qnil;
 	this->decoder_for_get_copy_data = Qnil;
 	this->trace_stream = Qnil;
@@ -1096,7 +1096,7 @@ alloc_query_params1(struct query_params_data *paramsData)
 				paramsData->types[i] = 0;
 
 			/* Let the given typemap select a coder for this param */
-			conv = p_typemap->typecast_query_param(paramsData->typemap, param_value, i);
+			conv = p_typemap->funcs.typecast_query_param(p_typemap, param_value, i);
 
 			/* Using a coder object for the param_value? Then set it's format code and oid. */
 			if( conv ){
@@ -1180,15 +1180,11 @@ static int
 alloc_query_params(struct query_params_data *paramsData)
 {
 	int nParams;
+	t_typemap *p_typemap;
 	Check_Type(paramsData->params, T_ARRAY);
 
-	if( NIL_P(paramsData->typemap) ){
-		/* We don't need to call fit_to_query for pg_default_typemap. It does nothing. */
-		paramsData->typemap = pg_default_typemap;
-	} else {
-		t_typemap *p_typemap = DATA_PTR( paramsData->typemap );
-		paramsData->typemap = p_typemap->fit_to_query( paramsData->typemap, paramsData->params );
-	}
+	p_typemap = DATA_PTR( paramsData->typemap );
+	p_typemap->funcs.fit_to_query( paramsData->typemap, paramsData->params );
 
 	paramsData->heap_pool = Qnil;
 	paramsData->typecast_heap_chain = Qnil;
@@ -3609,9 +3605,7 @@ pgconn_set_default_encoding( VALUE self )
  *
  * Set the default TypeMap that is used for type casts of query bind parameters.
  *
- * +typemap+ can be:
- * * a kind of PG::TypeMap
- * * +nil+ - to type cast all query params by #to_str.
+ * +typemap+ must be a kind of PG::TypeMap .
  *
  */
 static VALUE
@@ -3619,13 +3613,11 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
-	if( typemap != Qnil ){
-		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( typemap ) );
-		}
-		Check_Type(typemap, T_DATA);
+	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+				rb_obj_classname( typemap ) );
 	}
+	Check_Type(typemap, T_DATA);
 	this->type_map_for_queries = typemap;
 
 	return typemap;
@@ -3637,10 +3629,6 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
  *
  * Returns the default TypeMap that is currently set for type casts of query
  * bind parameters.
- *
- * Returns either:
- * * a kind of PG::TypeMap or
- * * +nil+ - when no type map is set.
  *
  */
 static VALUE
@@ -3657,9 +3645,7 @@ pgconn_type_map_for_queries_get(VALUE self)
  *
  * Set the default TypeMap that is used for type casts of result values.
  *
- * +typemap+ can be:
- * * a kind of PG::TypeMap
- * * +nil+ - to type cast all result values to String.
+ * +typemap+ must be a kind of PG::TypeMap .
  *
  */
 static VALUE
@@ -3667,13 +3653,11 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
-	if( typemap != Qnil ){
-		if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( typemap ) );
-		}
-		Check_Type(typemap, T_DATA);
+	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
+		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
+				rb_obj_classname( typemap ) );
 	}
+	Check_Type(typemap, T_DATA);
 	this->type_map_for_results = typemap;
 
 	return typemap;
@@ -3684,10 +3668,6 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
  *    res.type_map_for_results -> TypeMap
  *
  * Returns the default TypeMap that is currently set for type casts of result values.
- *
- * Returns either:
- * * a kind of PG::TypeMap or
- * * +nil+ - when no type map is set.
  *
  */
 static VALUE

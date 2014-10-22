@@ -87,6 +87,20 @@ describe PG::TypeMapByMriType do
 		expect{ tm[123] = textenc_float }.to raise_error(TypeError)
 	end
 
+	it "forwards query param conversions to the #default_type_map" do
+		tm1 = PG::TypeMapByColumn.new( [textenc_int, nil, nil] )
+
+		tm2 = PG::TypeMapByMriType.new
+		tm2['T_FIXNUM'] = PG::TextEncoder::Integer.new name: 'INT2', oid: 21
+		tm2.default_type_map = tm1
+
+		res = @conn.exec_params( "SELECT $1, $2, $3::TEXT", ['1', 2, 3], 0, tm2 )
+
+		expect( res.ftype(0) ).to eq( 23 ) # tm1
+		expect( res.ftype(1) ).to eq( 21 ) # tm2
+		expect( res.getvalue(0,2) ).to eq( "3" ) # TypeMapAllStrings
+	end
+
 	#
 	# Decoding Examples
 	#

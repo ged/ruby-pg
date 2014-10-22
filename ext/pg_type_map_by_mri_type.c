@@ -35,7 +35,8 @@ static VALUE rb_cTypeMapByMriType;
 
 #define DECLARE_CODER(type) \
 	t_pg_coder *coder_##type; \
-	VALUE ask_##type;
+	VALUE ask_##type; \
+	VALUE coder_obj_##type;
 
 typedef struct {
 	t_typemap typemap;
@@ -52,9 +53,9 @@ typedef struct {
 		break;
 
 static t_pg_coder *
-pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
+pg_tmbmt_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 {
-	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
+	t_tmbmt *this = (t_tmbmt *)p_typemap;
 	t_pg_coder *p_coder;
 	VALUE ask_for_coder;
 
@@ -70,11 +71,7 @@ pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
 		/* No static Coder object, but proc/method given to ask for the Coder to use. */
 		VALUE obj;
 
-		if( TYPE(ask_for_coder) == T_SYMBOL ){
-			obj = rb_funcall(self, SYM2ID(ask_for_coder), 1, param_value);
-		}else{
-			obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
-		}
+		obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
 
 		if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
 			Data_Get_Struct(obj, t_pg_coder, p_coder);
@@ -84,28 +81,39 @@ pg_tmbmt_typecast_query_param(VALUE self, VALUE param_value, int field)
 		}
 	}
 
+	if( !p_coder ){
+		t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+		return default_tm->funcs.typecast_query_param( default_tm, param_value, field );
+	}
+
 	return p_coder;
 }
 
 static VALUE
 pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 {
+	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
+	/* Ensure that the default type map fits equaly. */
+	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 	return self;
 }
 
 #define GC_MARK_AS_USED(type) \
-	if(this->coders.coder_##type) rb_gc_mark(this->coders.coder_##type->coder_obj); \
-	rb_gc_mark( this->coders.ask_##type );
+	rb_gc_mark( this->coders.ask_##type ); \
+	rb_gc_mark( this->coders.coder_obj_##type );
 
 static void
 pg_tmbmt_mark( t_tmbmt *this )
 {
+	rb_gc_mark(this->typemap.default_typemap);
 	FOR_EACH_MRI_TYPE( GC_MARK_AS_USED );
 }
 
 #define INIT_VARIABLES(type) \
 	this->coders.coder_##type = NULL; \
-	this->coders.ask_##type = Qnil;
+	this->coders.ask_##type = Qnil; \
+	this->coders.coder_obj_##type = Qnil;
 
 static VALUE
 pg_tmbmt_s_allocate( VALUE klass )
@@ -114,12 +122,13 @@ pg_tmbmt_s_allocate( VALUE klass )
 	VALUE self;
 
 	self = Data_Make_Struct( klass, t_tmbmt, pg_tmbmt_mark, -1, this );
-	this->typemap.fit_to_result = pg_typemap_fit_to_result;
-	this->typemap.fit_to_query = pg_tmbmt_fit_to_query;
-	this->typemap.fit_to_copy_get = pg_typemap_fit_to_copy_get;
-	this->typemap.typecast_result_value = pg_typemap_result_value;
-	this->typemap.typecast_query_param = pg_tmbmt_typecast_query_param;
-	this->typemap.typecast_copy_get = pg_typemap_typecast_copy_get;
+	this->typemap.funcs.fit_to_result = pg_typemap_fit_to_result;
+	this->typemap.funcs.fit_to_query = pg_tmbmt_fit_to_query;
+	this->typemap.funcs.fit_to_copy_get = pg_typemap_fit_to_copy_get;
+	this->typemap.funcs.typecast_result_value = pg_typemap_result_value;
+	this->typemap.funcs.typecast_query_param = pg_tmbmt_typecast_query_param;
+	this->typemap.funcs.typecast_copy_get = pg_typemap_typecast_copy_get;
+	this->typemap.default_typemap = pg_typemap_all_strings;
 
 	FOR_EACH_MRI_TYPE( INIT_VARIABLES );
 
@@ -128,12 +137,16 @@ pg_tmbmt_s_allocate( VALUE klass )
 
 #define COMPARE_AND_ASSIGN(type) \
 	else if(!strcmp(p_mri_type, #type)){ \
+		this->coders.coder_obj_##type = coder; \
 		if(NIL_P(coder)){ \
 			this->coders.coder_##type = NULL; \
 			this->coders.ask_##type = Qnil; \
 		}else if(rb_obj_is_kind_of(coder, rb_cPG_Coder)){ \
 			Data_Get_Struct(coder, t_pg_coder, this->coders.coder_##type); \
 			this->coders.ask_##type = Qnil; \
+		}else if(RB_TYPE_P(coder, T_SYMBOL)){ \
+			this->coders.coder_##type = NULL; \
+			this->coders.ask_##type = rb_obj_method( self, coder ); \
 		}else{ \
 			this->coders.coder_##type = NULL; \
 			this->coders.ask_##type = coder; \
@@ -148,7 +161,7 @@ pg_tmbmt_s_allocate( VALUE klass )
  * is registered for type casts of the given +mri_type+ .
  *
  * +coder+ can be one of the following:
- * * +nil+        - Values are encoded by +#to_str+
+ * * +nil+        - Values are forwarded to the #default_type_map .
  * * a PG::Coder  - Values are encoded by the given encoder
  * * a Symbol     - The method of this type map (or a derivation) that is called for each value to sent.
  *   It must return a PG::Coder.
@@ -194,7 +207,7 @@ pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 
 #define COMPARE_AND_GET(type) \
 	else if(!strcmp(p_mri_type, #type)){ \
-		coder = this->coders.coder_##type ? this->coders.coder_##type->coder_obj : this->coders.ask_##type; \
+		coder = this->coders.coder_obj_##type; \
 	}
 
 /*
@@ -225,7 +238,7 @@ pg_tmbmt_aref( VALUE self, VALUE mri_type )
 }
 
 #define ADD_TO_HASH(type) \
-	rb_hash_aset( hash_coders, rb_obj_freeze(rb_str_new2(#type)), this->coders.coder_##type ? this->coders.coder_##type->coder_obj : this->coders.ask_##type );
+	rb_hash_aset( hash_coders, rb_obj_freeze(rb_str_new2(#type)), this->coders.coder_obj_##type );
 
 
 /*
@@ -263,4 +276,5 @@ init_pg_type_map_by_mri_type()
 	rb_define_method( rb_cTypeMapByMriType, "[]=", pg_tmbmt_aset, 2 );
 	rb_define_method( rb_cTypeMapByMriType, "[]", pg_tmbmt_aref, 1 );
 	rb_define_method( rb_cTypeMapByMriType, "coders", pg_tmbmt_coders, 0 );
+	rb_include_module( rb_cTypeMapByMriType, rb_mDefaultTypeMappable );
 }

@@ -117,6 +117,25 @@ describe PG::TypeMapByColumn do
 		}.to raise_error(ArgumentError, /mapped columns/)
 	end
 
+	it "should verify the default type map for query params as well" do
+		tm1 = PG::TypeMapByColumn.new([])
+		expect{
+			@conn.exec_params( "SELECT $1", [ 123 ], 0, PG::TypeMapByColumn.new([nil]).with_default_type_map(tm1) )
+		}.to raise_error(ArgumentError, /mapped columns/)
+	end
+
+	it "forwards query param conversions to the #default_type_map" do
+		tm1 = PG::TypeMapByMriType.new
+		tm1['T_FIXNUM'] = PG::TextEncoder::Integer.new name: 'INT2', oid: 21
+
+		tm2 = PG::TypeMapByColumn.new( [textenc_int, nil, nil] ).with_default_type_map( tm1 )
+		res = @conn.exec_params( "SELECT $1, $2, $3::TEXT", [1, 2, :abc], 0, tm2 )
+
+		expect( res.ftype(0) ).to eq( 23 ) # tm2
+		expect( res.ftype(1) ).to eq( 21 ) # tm1
+		expect( res.getvalue(0,2) ).to eq( "abc" ) # TypeMapAllStrings
+	end
+
 	#
 	# Decoding Examples
 	#
@@ -142,6 +161,52 @@ describe PG::TypeMapByColumn do
 	it "shouldn't allow result mappings with different number of fields" do
 		res = @conn.exec( "SELECT 1" )
 		expect{ res.type_map = PG::TypeMapByColumn.new([]) }.to raise_error(ArgumentError, /mapped columns/)
+	end
+
+	it "should verify the default type map for result values as well" do
+		res = @conn.exec( "SELECT 1" )
+		tm1 = PG::TypeMapByColumn.new([])
+		expect{
+			res.type_map = PG::TypeMapByColumn.new([nil]).with_default_type_map(tm1)
+		}.to raise_error(ArgumentError, /mapped columns/)
+	end
+
+	it "forwards result value conversions to a TypeMapByOid as #default_type_map" do
+		# One run with implicit built TypeMapByColumn and another with online lookup
+		[0, 10].each do |max_rows|
+			tm1 = PG::TypeMapByOid.new
+			tm1.add_coder PG::TextDecoder::Integer.new name: 'INT2', oid: 21
+			tm1.max_rows_for_online_lookup = max_rows
+
+			tm2 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] ).with_default_type_map( tm1 )
+			res = @conn.exec( "SELECT '1'::INT4, '2'::INT2, '3'::INT8" ).map_types!( tm2 )
+
+			expect( res.getvalue(0,0) ).to eq( 1 ) # tm2
+			expect( res.getvalue(0,1) ).to eq( 2 ) # tm1
+			expect( res.getvalue(0,2) ).to eq( "3" ) # TypeMapAllStrings
+		end
+	end
+
+	it "forwards get_copy_data conversions to another TypeMapByColumn as #default_type_map" do
+		tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] )
+		tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil] ).with_default_type_map( tm1 )
+		decoder = PG::TextDecoder::CopyRow.new(type_map: tm2)
+		@conn.copy_data("COPY (SELECT 1, 2, 3) TO STDOUT", decoder) do
+			expect( @conn.get_copy_data ).to eq( [1, 2, '3'] )
+			@conn.get_copy_data
+		end
+	end
+
+	it "will deny copy queries with different column count" do
+		[[2, 2], [2, 3], [3, 2]].each do |cols1, cols2|
+			tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil][0, cols1] )
+			tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil][0, cols2] ).with_default_type_map( tm1 )
+			decoder = PG::TextDecoder::CopyRow.new(type_map: tm2)
+			@conn.copy_data("COPY (SELECT 1, 2, 3) TO STDOUT", decoder) do
+				expect{ @conn.get_copy_data }.to raise_error(ArgumentError, /number of copy fields/)
+				@conn.get_copy_data
+			end
+		end
 	end
 
 	#
