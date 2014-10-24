@@ -27,13 +27,22 @@ static t_pg_result *pgresult_get_this_safe( VALUE );
 VALUE
 pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
+	int nfields = result ? PQnfields(result) : 0;
 	VALUE self = pgresult_s_allocate( rb_cPGresult );
-	t_pg_result *this = pgresult_get_this(self);
+	t_pg_result *this;
 
-	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
+	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
+	DATA_PTR(self) = this;
 
 	this->pgresult = result;
 	this->connection = rb_pgconn;
+	this->typemap = pg_typemap_all_strings;
+	this->p_typemap = DATA_PTR( this->typemap );
+	this->autoclear = 0;
+	this->nfields = -1;
+
+	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
+
 	if( result ){
 		t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 		VALUE typemap = p_conn->type_map_for_results;
@@ -68,11 +77,11 @@ pg_result_check( VALUE self )
 {
 	t_pg_result *this = pgresult_get_this(self);
 	VALUE error, exception, klass;
-	PGconn *conn = pg_get_pgconn(this->connection);
 	char * sqlstate;
 
 	if(this->pgresult == NULL)
 	{
+		PGconn *conn = pg_get_pgconn(this->connection);
 		error = rb_str_new2( PQerrorMessage(conn) );
 	}
 	else
@@ -179,8 +188,15 @@ pgresult_autoclear_p( VALUE self )
 static void
 pgresult_gc_mark( t_pg_result *this )
 {
+	int i;
+
+	if( !this ) return;
 	rb_gc_mark( this->connection );
 	rb_gc_mark( this->typemap );
+
+	for( i=0; i < this->nfields; i++ ){
+		rb_gc_mark( this->fnames[i] );
+	}
 }
 
 /*
@@ -189,6 +205,7 @@ pgresult_gc_mark( t_pg_result *this )
 static void
 pgresult_gc_free( t_pg_result *this )
 {
+	if( !this ) return;
 	if(this->pgresult != NULL && !this->autoclear)
 		PQclear(this->pgresult);
 
@@ -229,18 +246,28 @@ pgresult_get(VALUE self)
 static VALUE
 pgresult_s_allocate( VALUE klass )
 {
-	t_pg_result *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_result, pgresult_gc_mark, pgresult_gc_free, this );
-
-	this->pgresult = NULL;
-	this->connection = Qnil;
-	this->typemap = pg_typemap_all_strings;
-	this->p_typemap = DATA_PTR( this->typemap );
-	this->autoclear = 0;
+	VALUE self = Data_Wrap_Struct( klass, pgresult_gc_mark, pgresult_gc_free, NULL );
 
 	return self;
 }
 
+static void pgresult_init_fnames(VALUE self)
+{
+	t_pg_result *this = pgresult_get_this_safe(self);
+
+	if( this->nfields == -1 ){
+		int nfields;
+		int i;
+		nfields = PQnfields(this->pgresult);
+
+		for( i=0; i<nfields; i++ ){
+			VALUE fname = rb_tainted_str_new2(PQfname(this->pgresult, i));
+			PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
+			this->fnames[i] = rb_obj_freeze(fname);
+		}
+		this->nfields = nfields;
+	}
+}
 
 /********************************************************************
  *
@@ -417,16 +444,16 @@ static VALUE
 pgresult_fname(VALUE self, VALUE index)
 {
 	VALUE fname;
-	PGresult *result;
+	PGresult *result = pgresult_get(self);
 	int i = NUM2INT(index);
 
-	result = pgresult_get(self);
 	if (i < 0 || i >= PQnfields(result)) {
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
+
 	fname = rb_tainted_str_new2(PQfname(result, i));
 	PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
-	return fname;
+	return rb_obj_freeze(fname);
 }
 
 /*
@@ -783,17 +810,18 @@ pgresult_aref(VALUE self, VALUE index)
 	t_pg_result *this = pgresult_get_this_safe(self);
 	int tuple_num = NUM2INT(index);
 	int field_num;
-	VALUE fname;
 	VALUE tuple;
+
+	if( this->nfields == -1 )
+		pgresult_init_fnames( self );
 
 	if ( tuple_num < 0 || tuple_num >= PQntuples(this->pgresult) )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
 
 	tuple = rb_hash_new();
-	for ( field_num = 0; field_num < PQnfields(this->pgresult); field_num++ ) {
-		fname = rb_tainted_str_new2( PQfname(this->pgresult,field_num) );
-		PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
-		rb_hash_aset( tuple, fname, this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, tuple_num, field_num) );
+	for ( field_num = 0; field_num < this->nfields; field_num++ ) {
+		VALUE val = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, tuple_num, field_num);
+		rb_hash_aset( tuple, this->fnames[field_num], val );
 	}
 	return tuple;
 }
@@ -953,18 +981,12 @@ pgresult_each(VALUE self)
 static VALUE
 pgresult_fields(VALUE self)
 {
-	PGresult *result = pgresult_get( self );
-	int n = PQnfields( result );
-	VALUE fields = rb_ary_new2( n );
-	int i;
+	t_pg_result *this = pgresult_get_this_safe(self);
 
-	for ( i = 0; i < n; i++ ) {
-		VALUE val = rb_tainted_str_new2(PQfname(result, i));
-		PG_ENCODING_SET_NOCHECK(val, ENCODING_GET(self));
-		rb_ary_store( fields, i, val );
-	}
+	if( this->nfields == -1 )
+		pgresult_init_fnames( self );
 
-	return fields;
+	return rb_ary_new_from_values( this->nfields, this->fnames );
 }
 
 /*

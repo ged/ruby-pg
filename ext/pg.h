@@ -171,6 +171,14 @@ typedef struct {
 	 * 1 = PGresult is cleared internally by libpq
 	 */
 	int autoclear;
+
+	/* Number of fields in fnames.
+	 * Set to -1 if fnames is not yet initialized.
+	 */
+	int nfields;
+
+	/* List of field names as frozen String objects. */
+	VALUE fnames[0];
 } t_pg_result;
 
 
@@ -332,7 +340,12 @@ VALUE pg_result_clear                                  _(( VALUE ));
 static inline t_pg_result *
 pgresult_get_this( VALUE self )
 {
-	return DATA_PTR(self);
+	t_pg_result *this = DATA_PTR(self);
+
+	if( this == NULL )
+		rb_raise(rb_ePGerror, "result has been cleared");
+
+	return this;
 }
 
 
