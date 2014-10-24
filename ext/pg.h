@@ -90,6 +90,10 @@
 	typedef intptr_t native_int;
 #endif
 
+#ifndef RETURN_SIZED_ENUMERATOR
+	#define RETURN_SIZED_ENUMERATOR(obj, argc, argv, size_fn) RETURN_ENUMERATOR((obj), (argc), (argv))
+#endif
+
 #ifndef timeradd
 #define timeradd(a, b, result) \
 	do { \
