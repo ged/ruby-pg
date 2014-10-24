@@ -854,7 +854,7 @@ pgresult_each_row(VALUE self)
 		for ( field = 0; field < num_fields; field++ ) {
 			row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
 		}
-		rb_yield( rb_ary_new_from_values( num_fields, row_values ));
+		rb_yield( rb_ary_new4( num_fields, row_values ));
 	}
 
 	return Qnil;
@@ -883,7 +883,7 @@ pgresult_values(VALUE self)
 		for ( field = 0; field < num_fields; field++ ) {
 			row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
 		}
-		rb_ary_store( results, row, rb_ary_new_from_values( num_fields, row_values ) );
+		rb_ary_store( results, row, rb_ary_new4( num_fields, row_values ) );
 	}
 
 	return results;
@@ -986,7 +986,7 @@ pgresult_fields(VALUE self)
 	if( this->nfields == -1 )
 		pgresult_init_fnames( self );
 
-	return rb_ary_new_from_values( this->nfields, this->fnames );
+	return rb_ary_new4( this->nfields, this->fnames );
 }
 
 /*
