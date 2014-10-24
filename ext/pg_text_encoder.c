@@ -42,6 +42,7 @@
 #include "pg.h"
 #include "util.h"
 #include <inttypes.h>
+#include <math.h>
 
 VALUE rb_mPG_TextEncoder;
 static ID s_id_encode;
