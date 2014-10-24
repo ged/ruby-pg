@@ -21,6 +21,22 @@ describe PG::Result do
 		expect( list ).to eq [['1', '2']]
 	end
 
+	it "yields a row as an Enumerator" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		e = res.each_row
+		expect( e ).to be_a_kind_of(Enumerator)
+		expect( e.size ).to eq( 1 )
+		expect( e.to_a ).to eq [['1', '2']]
+	end
+
+	it "yields a row as an Enumerator of hashs" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		e = res.each
+		expect( e ).to be_a_kind_of(Enumerator)
+		expect( e.size ).to eq( 1 )
+		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
+	end
+
 	it "inserts nil AS NULL and return NULL as nil" do
 		res = @conn.exec("SELECT $1::int AS n", [nil])
 		expect( res[0]['n'] ).to be_nil()

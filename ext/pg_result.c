@@ -389,6 +389,12 @@ pgresult_ntuples(VALUE self)
 	return INT2FIX(PQntuples(pgresult_get(self)));
 }
 
+static VALUE
+pgresult_ntuples_for_enum(VALUE self, VALUE args, VALUE eobj)
+{
+    return pgresult_ntuples(self);
+}
+
 /*
  * call-seq:
  *    res.nfields() -> Integer
@@ -801,11 +807,17 @@ pgresult_aref(VALUE self, VALUE index)
 static VALUE
 pgresult_each_row(VALUE self)
 {
-	t_pg_result *this = pgresult_get_this_safe(self);
+	t_pg_result *this;
 	int row;
 	int field;
-	int num_rows = PQntuples(this->pgresult);
-	int num_fields = PQnfields(this->pgresult);
+	int num_rows;
+	int num_fields;
+
+	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pgresult_ntuples_for_enum);
+
+	this = pgresult_get_this_safe(self);
+	num_rows = PQntuples(this->pgresult);
+	num_fields = PQnfields(this->pgresult);
 
 	for ( row = 0; row < num_rows; row++ ) {
 		VALUE new_row = rb_ary_new2(num_fields);
@@ -919,8 +931,12 @@ pgresult_field_values( VALUE self, VALUE field )
 static VALUE
 pgresult_each(VALUE self)
 {
-	PGresult *result = pgresult_get(self);
+	PGresult *result;
 	int tuple_num;
+
+	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pgresult_ntuples_for_enum);
+
+	result = pgresult_get(self);
 
 	for(tuple_num = 0; tuple_num < PQntuples(result); tuple_num++) {
 		rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
