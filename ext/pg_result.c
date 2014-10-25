@@ -40,6 +40,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 	this->p_typemap = DATA_PTR( this->typemap );
 	this->autoclear = 0;
 	this->nfields = -1;
+	this->tuple_hash = Qnil;
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 
@@ -193,6 +194,7 @@ pgresult_gc_mark( t_pg_result *this )
 	if( !this ) return;
 	rb_gc_mark( this->connection );
 	rb_gc_mark( this->typemap );
+	rb_gc_mark( this->tuple_hash );
 
 	for( i=0; i < this->nfields; i++ ){
 		rb_gc_mark( this->fnames[i] );
@@ -810,19 +812,26 @@ pgresult_aref(VALUE self, VALUE index)
 	t_pg_result *this = pgresult_get_this_safe(self);
 	int tuple_num = NUM2INT(index);
 	int field_num;
+	int num_tuples = PQntuples(this->pgresult);
 	VALUE tuple;
 
 	if( this->nfields == -1 )
 		pgresult_init_fnames( self );
 
-	if ( tuple_num < 0 || tuple_num >= PQntuples(this->pgresult) )
+	if ( tuple_num < 0 || tuple_num >= num_tuples )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
 
-	tuple = rb_hash_new();
+	/* We reuse the Hash of the previous output for larger row counts.
+	 * This is somewhat faster than populating an empty Hash object. */
+	tuple = NIL_P(this->tuple_hash) ? rb_hash_new() : this->tuple_hash;
 	for ( field_num = 0; field_num < this->nfields; field_num++ ) {
 		VALUE val = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, tuple_num, field_num);
 		rb_hash_aset( tuple, this->fnames[field_num], val );
 	}
+	/* Store a copy of the filled hash for use at the next row. */
+	if( num_tuples > 10 )
+		this->tuple_hash = rb_hash_dup(tuple);
+
 	return tuple;
 }
 

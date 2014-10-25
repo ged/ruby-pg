@@ -176,12 +176,17 @@ typedef struct {
 	 */
 	int autoclear;
 
-	/* Number of fields in fnames.
-	 * Set to -1 if fnames is not yet initialized.
+	/* Number of fields in fnames[] .
+	 * Set to -1 if fnames[] is not yet initialized.
 	 */
 	int nfields;
 
-	/* List of field names as frozen String objects. */
+	/* Prefilled tuple Hash with fnames[] as keys. */
+	VALUE tuple_hash;
+
+	/* List of field names as frozen String objects.
+	 * Only valid if nfields != -1
+	 */
 	VALUE fnames[0];
 } t_pg_result;
 
