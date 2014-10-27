@@ -25,6 +25,7 @@ describe PG::Result do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		e = res.each_row
 		expect( e ).to be_a_kind_of(Enumerator)
+		pending "Rubinius doesn't define RETURN_SIZED_ENUMERATOR()" if RUBY_ENGINE=='rbx'
 		expect( e.size ).to eq( 1 )
 		expect( e.to_a ).to eq [['1', '2']]
 	end
@@ -33,6 +34,7 @@ describe PG::Result do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		e = res.each
 		expect( e ).to be_a_kind_of(Enumerator)
+		pending "Rubinius doesn't define RETURN_SIZED_ENUMERATOR()" if RUBY_ENGINE=='rbx'
 		expect( e.size ).to eq( 1 )
 		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
 	end
