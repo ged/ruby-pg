@@ -1,8 +1,22 @@
 == v0.18.0 [unreleased]
 
+Bugfixes:
+- Fix OID to Integer mapping (it is unsigned now). #187
+- Fix possible segfault in conjunction with notice receiver. #185
+
 Enhancements:
 
 - Add an extensible type cast system.
+- A lot of performance improvements.
+- Return frozen String objects for result field names.
+- Add PG::Result#stream_each and #stream_each_row as fast helpers for
+  the single row mode.
+- Add Enumerator variant to PG::Result#each and #each_row.
+- Add PG::Connection#conninfo.
+- Force zero termination for all text strings that are given to libpq.
+  It raises an ArgumentError if the string contains a null byte.
+- Update Windows cross build to PostgreSQL 9.3.
+
 
 == v0.17.1 [2013-12-18] Michael Granger <ged@FaerieMUD.org>
 
