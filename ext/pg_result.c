@@ -1044,6 +1044,162 @@ pgresult_type_map_get(VALUE self)
 	return this->typemap;
 }
 
+#ifdef HAVE_PQSETSINGLEROWMODE
+/*
+ * call-seq:
+ *    res.stream_each{ |tuple| ... }
+ *
+ * Invokes block for each tuple in the result set in single row mode.
+ *
+ * This is a convenience method for retrieving all result tuples
+ * as they are transferred. It is an alternative to repeated calls of
+ * PG::Connection#get_result , but given that it avoids the overhead of
+ * wrapping each row into a dedicated result object, it delivers data in nearly
+ * the same speed as with ordinary results.
+ *
+ * The result must be in status PGRES_SINGLE_TUPLE.
+ * It iterates over all tuples until the status changes to PGRES_TUPLES_OK.
+ * A PG::Error is raised for any errors from the server.
+ *
+ * Row description data does not change while the iteration. All value retrieval
+ * methods refer to only the current row. Result#ntuples returns +1+ while
+ * the iteration and +0+ after all tuples were yielded.
+ *
+ * Example:
+ *   conn.send_query( "first SQL query; second SQL query" )
+ *   conn.set_single_row_mode
+ *   conn.get_result.stream_each do |row|
+ *     # do something with the received row of the first query
+ *   end
+ *   conn.get_result.stream_each do |row|
+ *     # do something with the received row of the second query
+ *   end
+ *   conn.get_result  # => nil   (no more results)
+ */
+static VALUE
+pgresult_stream_each(VALUE self)
+{
+	t_pg_result *this;
+	int nfields;
+	PGconn *pgconn;
+	PGresult *pgresult;
+
+	RETURN_ENUMERATOR(self, 0, NULL);
+
+	this = pgresult_get_this_safe(self);
+	pgconn = pg_get_pgconn(this->connection);
+	pgresult = this->pgresult;
+	nfields = PQnfields(pgresult);
+
+	for(;;){
+		int tuple_num;
+		int ntuples = PQntuples(pgresult);
+
+		switch( PQresultStatus(pgresult) ){
+			case PGRES_TUPLES_OK:
+				if( ntuples == 0 )
+					return self;
+				rb_raise( rb_ePGerror, "PG::Result is not in single row mode");
+			case PGRES_SINGLE_TUPLE:
+				break;
+			default:
+				pg_result_check( self );
+		}
+
+		for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
+			rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
+		}
+
+		if( !this->autoclear ){
+			PQclear( pgresult );
+			this->pgresult = NULL;
+		}
+
+		pgresult = gvl_PQgetResult(pgconn);
+		if( pgresult == NULL )
+			rb_raise( rb_ePGerror, "no result received");
+
+		if( nfields != PQnfields(pgresult) )
+			rb_raise( rb_ePGerror, "number of fields must not change in single row mode");
+
+		this->pgresult = pgresult;
+	}
+
+	/* never reached */
+	return self;
+}
+
+/*
+ * call-seq:
+ *    res.stream_each_row { |row| ... }
+ *
+ * Yields each row of the result set in single row mode.
+ * The row is a list of column values.
+ *
+ * This method works equally to #stream_each , but yields an Array of
+ * values.
+ */
+static VALUE
+pgresult_stream_each_row(VALUE self)
+{
+	t_pg_result *this;
+	int row;
+	int nfields;
+	PGconn *pgconn;
+	PGresult *pgresult;
+
+	RETURN_ENUMERATOR(self, 0, NULL);
+
+	this = pgresult_get_this_safe(self);
+	pgconn = pg_get_pgconn(this->connection);
+	pgresult = this->pgresult;
+	nfields = PQnfields(pgresult);
+
+	for(;;){
+		int ntuples = PQntuples(pgresult);
+
+		switch( PQresultStatus(pgresult) ){
+			case PGRES_TUPLES_OK:
+				if( ntuples == 0 )
+					return self;
+				rb_raise( rb_ePGerror, "PG::Result is not in single row mode");
+			case PGRES_SINGLE_TUPLE:
+				break;
+			default:
+				pg_result_check( self );
+		}
+
+		for ( row = 0; row < ntuples; row++ ) {
+			VALUE row_values[nfields];
+			int field;
+
+			/* populate the row */
+			for ( field = 0; field < nfields; field++ ) {
+				row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
+			}
+			rb_yield( rb_ary_new4( nfields, row_values ));
+		}
+
+		if( !this->autoclear ){
+			PQclear( pgresult );
+			this->pgresult = NULL;
+		}
+
+		pgresult = gvl_PQgetResult(pgconn);
+		if( pgresult == NULL )
+			rb_raise( rb_ePGerror, "no result received");
+
+		if( nfields != PQnfields(pgresult) )
+			rb_raise( rb_ePGerror, "number of fields must not change in single row mode");
+
+		this->pgresult = pgresult;
+	}
+
+	/* never reached */
+	return self;
+}
+#endif
+
 
 void
 init_pg_result()
@@ -1098,6 +1254,12 @@ init_pg_result()
 
 	rb_define_method(rb_cPGresult, "type_map=", pgresult_type_map_set, 1);
 	rb_define_method(rb_cPGresult, "type_map", pgresult_type_map_get, 0);
+
+#ifdef HAVE_PQSETSINGLEROWMODE
+	/******     PG::Result INSTANCE METHODS: streaming     ******/
+	rb_define_method(rb_cPGresult, "stream_each", pgresult_stream_each, 0);
+	rb_define_method(rb_cPGresult, "stream_each_row", pgresult_stream_each_row, 0);
+#endif
 }
 
 

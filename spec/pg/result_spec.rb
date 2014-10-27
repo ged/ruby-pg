@@ -37,6 +37,54 @@ describe PG::Result do
 		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
 	end
 
+	context "result streaming", :postgresql_92 do
+		it "can iterate over all tuples in single row mode" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
+			@conn.set_single_row_mode
+			expect(
+				@conn.get_result.stream_each.to_a
+			).to eq(
+				[{'a'=>"2"}, {'a'=>"3"}, {'a'=>"4"}]
+			)
+			expect(
+				@conn.get_result.enum_for(:stream_each).to_a
+			).to eq(
+				[{'b'=>"1", 'c'=>"5"}, {'b'=>"1", 'c'=>"6"}]
+			)
+			expect( @conn.get_result ).to be_nil
+		end
+
+		it "can iterate over all rows in single row mode" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
+			@conn.set_single_row_mode
+			expect(
+				@conn.get_result.enum_for(:stream_each_row).to_a
+			).to eq(
+				[["2"], ["3"], ["4"]]
+			)
+			expect(
+				@conn.get_result.stream_each_row.to_a
+			).to eq(
+				[["1", "5"], ["1", "6"]]
+			)
+			expect( @conn.get_result ).to be_nil
+		end
+
+		it "complains when not in single row mode" do
+			@conn.send_query( "SELECT generate_series(2,4)" )
+			expect{
+				@conn.get_result.stream_each_row.to_a
+			}.to raise_error(PG::Error, /not in single row mode/)
+		end
+
+		it "raises server errors" do
+			@conn.send_query( "SELECT 0/0" )
+			expect{
+				@conn.get_result.stream_each_row.to_a
+			}.to raise_error(PG::DivisionByZero)
+		end
+	end
+
 	it "inserts nil AS NULL and return NULL as nil" do
 		res = @conn.exec("SELECT $1::int AS n", [nil])
 		expect( res[0]['n'] ).to be_nil()
