@@ -94,6 +94,11 @@
 	#define RETURN_SIZED_ENUMERATOR(obj, argc, argv, size_fn) RETURN_ENUMERATOR((obj), (argc), (argv))
 #endif
 
+#ifndef HAVE_RB_HASH_DUP
+	/* Rubinius doesn't define rb_hash_dup() */
+	#define rb_hash_dup(tuple) rb_funcall((tuple), rb_intern("dup"), 0)
+#endif
+
 #ifndef timeradd
 #define timeradd(a, b, result) \
 	do { \
