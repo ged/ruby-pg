@@ -166,7 +166,7 @@ pgresult_cleared_p( VALUE self )
 
 /*
  * call-seq:
- *    res.autoclose?      -> boolean
+ *    res.autoclear?      -> boolean
  *
  * Returns +true+ if the underlying C struct will be cleared automatically by libpq.
  * Elsewise the result is cleared by PG::Result#clear or by the GC when it's no longer in use.
