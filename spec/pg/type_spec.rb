@@ -92,8 +92,8 @@ describe "PG::Type derivations" do
 			end
 
 			it "should pass through nil values" do
-				expect( textdec_string.encode( nil )).to be_nil
-				expect( textdec_int.encode( nil )).to be_nil
+				expect( textdec_string.decode( nil )).to be_nil
+				expect( textdec_int.decode( nil )).to be_nil
 			end
 		end
 
