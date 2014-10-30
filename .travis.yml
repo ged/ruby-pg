@@ -5,7 +5,7 @@ rvm:
   - "2.1"
   - rbx
 env:
-  - "PGVERSION=9.3.5-1-linux-x64 PATH=\"/opt/PostgreSQL/9.3/bin:$PATH\""
+  - "PGVERSION=9.4.0-beta3-2-linux-x64 PATH=\"/opt/PostgreSQL/9.4/bin:$PATH\""
   - "PGVERSION=9.0.18-1-linux-x64 PATH=\"/opt/PostgreSQL/9.0/bin:$PATH\""
   - "PGCROSS=true"
 matrix:
