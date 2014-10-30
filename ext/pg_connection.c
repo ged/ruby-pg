@@ -623,6 +623,22 @@ pgconn_host(VALUE self)
 	return rb_tainted_str_new2(host);
 }
 
+#ifdef HAVE_PQHOSTADDR
+/*
+ * call-seq:
+ *    conn.hostaddr()
+ *
+ * Returns the server numeric IP address of the connection.
+ */
+static VALUE
+pgconn_hostaddr(VALUE self)
+{
+	char *hostaddr = PQhostaddr(pg_get_pgconn(self));
+	if (!hostaddr) return Qnil;
+	return rb_tainted_str_new2(hostaddr);
+}
+#endif
+
 /*
  * call-seq:
  *    conn.port()
@@ -3815,6 +3831,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "user", pgconn_user, 0);
 	rb_define_method(rb_cPGconn, "pass", pgconn_pass, 0);
 	rb_define_method(rb_cPGconn, "host", pgconn_host, 0);
+#ifdef HAVE_PQHOSTADDR
+	rb_define_method(rb_cPGconn, "hostaddr", pgconn_hostaddr, 0);
+#endif
 	rb_define_method(rb_cPGconn, "port", pgconn_port, 0);
 	rb_define_method(rb_cPGconn, "tty", pgconn_tty, 0);
 #ifdef HAVE_PQCONNINFO
