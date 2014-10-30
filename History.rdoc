@@ -12,7 +12,7 @@ Enhancements:
 - Add PG::Result#stream_each and #stream_each_row as fast helpers for
   the single row mode.
 - Add Enumerator variant to PG::Result#each and #each_row.
-- Add PG::Connection#conninfo.
+- Add PG::Connection#conninfo and #hostaddr.
 - Force zero termination for all text strings that are given to libpq.
   It raises an ArgumentError if the string contains a null byte.
 - Update Windows cross build to PostgreSQL 9.3.
