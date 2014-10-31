@@ -10,7 +10,7 @@ rescue LoadError
 
 		# Set the PATH environment variable, so that libpq.dll can be found.
 		old_path = ENV['PATH']
-		ENV['PATH'] = "#{old_path};#{File.expand_path("../#{RUBY_PLATFORM}", __FILE__)}"
+		ENV['PATH'] = "#{File.expand_path("../#{RUBY_PLATFORM}", __FILE__)};#{old_path}"
 		require "#{major_minor}/pg_ext"
 		ENV['PATH'] = old_path
 	else
