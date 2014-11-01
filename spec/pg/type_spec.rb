@@ -15,6 +15,7 @@ describe "PG::Type derivations" do
 	let!(:textdec_string) { PG::TextDecoder::String.new }
 	let!(:textenc_timestamp) { PG::TextEncoder::TimestampWithoutTimeZone.new }
 	let!(:textdec_timestamp) { PG::TextDecoder::TimestampWithoutTimeZone.new }
+	let!(:textenc_bytea) { PG::TextEncoder::Bytea.new }
 	let!(:textdec_bytea) { PG::TextDecoder::Bytea.new }
 	let!(:binaryenc_int2) { PG::BinaryEncoder::Int2.new }
 	let!(:binaryenc_int4) { PG::BinaryEncoder::Int4.new }
@@ -153,6 +154,10 @@ describe "PG::Type derivations" do
 				expect( textenc_float.encode(Float::INFINITY) ).to eq( Float::INFINITY.to_s )
 				expect( textenc_float.encode(-Float::INFINITY) ).to eq( (-Float::INFINITY).to_s )
 				expect( textenc_float.encode(-Float::NAN) ).to eq( Float::NAN.to_s )
+			end
+
+			it "encodes binary string to bytea" do
+				expect( textenc_bytea.encode("\x00\x01\x02\x03\xef".b) ).to eq( "\\x00010203ef" )
 			end
 
 			it "should encode with ruby encoder" do

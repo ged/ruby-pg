@@ -247,6 +247,46 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	}
 }
 
+static const char hextab[] = {
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+};
+
+/*
+ * Document-class: PG::TextEncoder::Bytea < PG::SimpleEncoder
+ *
+ * This is an encoder class for the PostgreSQL bytea type for server version 9.0
+ * or newer.
+ *
+ * The binary String is converted to hexadecimal representation for transmission
+ * in text format. For query bind parameters it is recommended to use
+ * PG::BinaryEncoder::Bytea instead, in order to decrease network traffic and
+ * CPU usage.
+ *
+ */
+static int
+pg_text_enc_bytea(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+{
+	if(out){
+		size_t strlen = RSTRING_LEN(*intermediate);
+		char *iptr = RSTRING_PTR(*intermediate);
+		char *eptr = iptr + strlen;
+		char *optr = out;
+		*optr++ = '\\';
+		*optr++ = 'x';
+
+		for( ; iptr < eptr; iptr++ ){
+			unsigned char c = *iptr;
+			*optr++ = hextab[c >> 4];
+			*optr++ = hextab[c & 0xf];
+		}
+		return optr - out;
+	}else{
+		*intermediate = rb_obj_as_string(value);
+		/* The output starts with "\x" and each character is converted to hex. */
+		return 2 + RSTRING_LEN(*intermediate) * 2;
+	}
+}
+
 typedef int (*t_quote_func)( void *_this, char *p_in, int strlen, char *p_out );
 
 static int
@@ -620,6 +660,8 @@ init_pg_text_encoder()
 	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "String", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Bytea", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Bytea", pg_text_enc_bytea, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Array", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
