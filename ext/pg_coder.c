@@ -12,6 +12,7 @@ VALUE rb_cPG_SimpleDecoder;
 VALUE rb_cPG_CompositeCoder;
 VALUE rb_cPG_CompositeEncoder;
 VALUE rb_cPG_CompositeDecoder;
+VALUE rb_mPG_BinaryFormatting;
 static ID s_id_encode;
 static ID s_id_decode;
 static ID s_id_CFUNC;
@@ -348,6 +349,9 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 {
 	VALUE cfunc_obj = Data_Wrap_Struct( rb_cObject, NULL, NULL, func );
 	VALUE coder_klass = rb_define_class_under( nsp, name, base_klass );
+	if( nsp==rb_mPG_BinaryEncoder || nsp==rb_mPG_BinaryDecoder )
+		rb_include_module( coder_klass, rb_mPG_BinaryFormatting );
+
 	rb_define_const( coder_klass, "CFUNC", cfunc_obj );
 
 	RB_GC_GUARD(cfunc_obj);
@@ -470,4 +474,6 @@ init_pg_coder()
 	/* Document-class: PG::CompositeDecoder < PG::CompositeCoder */
 	rb_cPG_CompositeDecoder = rb_define_class_under( rb_mPG, "CompositeDecoder", rb_cPG_CompositeCoder );
 	rb_define_alloc_func( rb_cPG_CompositeDecoder, pg_composite_decoder_allocate );
+
+	rb_mPG_BinaryFormatting = rb_define_module_under( rb_cPG_Coder, "BinaryFormatting");
 }

@@ -3,6 +3,15 @@
 module PG
 
 	class Coder
+
+		module BinaryFormatting
+			Params = { format: 1 }
+			def initialize( params={} )
+				super(params.merge(Params))
+			end
+		end
+
+
 		# Create a new coder object based on the attribute Hash.
 		def initialize(params={})
 			params.each do |key, val|

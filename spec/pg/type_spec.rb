@@ -197,6 +197,21 @@ describe "PG::Type derivations" do
 			expect( t.format ).to eq( 0 )
 			expect( t.oid ).to eq( 0 )
 			expect( t.name ).to be_nil
+
+			t = PG::BinaryEncoder::Int4.new
+			expect( t.format ).to eq( 1 )
+			expect( t.oid ).to eq( 0 )
+			expect( t.name ).to be_nil
+
+			t = PG::TextDecoder::String.new
+			expect( t.format ).to eq( 0 )
+			expect( t.oid ).to eq( 0 )
+			expect( t.name ).to be_nil
+
+			t = PG::BinaryDecoder::String.new
+			expect( t.format ).to eq( 1 )
+			expect( t.oid ).to eq( 0 )
+			expect( t.name ).to be_nil
 		end
 	end
 

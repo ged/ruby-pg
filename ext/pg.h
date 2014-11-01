@@ -271,6 +271,7 @@ extern VALUE rb_mPG_TextEncoder;
 extern VALUE rb_mPG_TextDecoder;
 extern VALUE rb_mPG_BinaryEncoder;
 extern VALUE rb_mPG_BinaryDecoder;
+extern VALUE rb_mPG_BinaryFormatting;
 extern const struct pg_typemap_funcs pg_tmbc_funcs;
 extern const struct pg_typemap_funcs pg_typemap_funcs;
 
