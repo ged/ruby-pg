@@ -258,14 +258,16 @@ static void pgresult_init_fnames(VALUE self)
 	t_pg_result *this = pgresult_get_this_safe(self);
 
 	if( this->nfields == -1 ){
-		int nfields;
 		int i;
-		nfields = PQnfields(this->pgresult);
+		int nfields = PQnfields(this->pgresult);
 
 		for( i=0; i<nfields; i++ ){
 			VALUE fname = rb_tainted_str_new2(PQfname(this->pgresult, i));
 			PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
 			this->fnames[i] = rb_obj_freeze(fname);
+			this->nfields = i + 1;
+
+			RB_GC_GUARD(fname);
 		}
 		this->nfields = nfields;
 	}
