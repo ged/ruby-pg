@@ -66,6 +66,10 @@ pg_get_connection_safe( VALUE self )
 
 /*
  * Fetch the PGconn data pointer and check it for sanity.
+ *
+ * Note: This function is used externally by the sequel_pg gem,
+ * so do changes carefully.
+ *
  */
 PGconn *
 pg_get_pgconn( VALUE self )

@@ -229,6 +229,10 @@ pgresult_get_this_safe( VALUE self )
 
 /*
  * Fetch the PGresult pointer for the result object and check validity
+ *
+ * Note: This function is used externally by the sequel_pg gem,
+ * so do changes carefully.
+ *
  */
 PGresult*
 pgresult_get(VALUE self)
