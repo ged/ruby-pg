@@ -585,12 +585,12 @@ describe "PG::Type derivations" do
 				end
 			end
 
-			context "with TypeMapByMriType" do
+			context "with TypeMapByClass" do
 				let!(:tm) do
-					tm = PG::TypeMapByMriType.new
-					tm['T_FIXNUM'] = textenc_int
-					tm['T_FLOAT'] = intenc_incrementer
-					tm['T_ARRAY'] = PG::TextEncoder::Array.new elements_type: textenc_string
+					tm = PG::TypeMapByClass.new
+					tm[Integer] = textenc_int
+					tm[Float] = intenc_incrementer
+					tm[Array] = PG::TextEncoder::Array.new elements_type: textenc_string
 					tm
 				end
 				let!(:encoder) do

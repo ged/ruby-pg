@@ -586,6 +586,7 @@ Init_pg_ext()
 	init_pg_errors();
 	init_pg_type_map();
 	init_pg_type_map_all_strings();
+	init_pg_type_map_by_class();
 	init_pg_type_map_by_column();
 	init_pg_type_map_by_mri_type();
 	init_pg_type_map_by_oid();

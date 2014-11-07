@@ -5,8 +5,6 @@
  * This type map can be used to select value encoders based on the MRI-internal
  * value type code.
  *
- * This class is planned to get replaced by a PG::TypeMapByClass implementation.
- *
  */
 
 #include "pg.h"
@@ -93,7 +91,7 @@ static VALUE
 pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 {
 	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
-	/* Ensure that the default type map fits equaly. */
+	/* Nothing to check at this typemap, but ensure that the default type map fits. */
 	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 	return self;
@@ -157,7 +155,7 @@ pg_tmbmt_s_allocate( VALUE klass )
  * call-seq:
  *    typemap.[mri_type] = coder
  *
- * Assigns a new PG::Coder object to the type map. The decoder
+ * Assigns a new PG::Coder object to the type map. The encoder
  * is registered for type casts of the given +mri_type+ .
  *
  * +coder+ can be one of the following:
@@ -270,6 +268,12 @@ init_pg_type_map_by_mri_type()
 	 * This type map is usable for type casting query bind parameters and COPY data
 	 * for PG::Connection#put_copy_data . Therefore only encoders might be assigned by
 	 * the #[]= method.
+	 *
+	 * _Note_ : This type map is not portable across Ruby implementations and is less flexible
+	 * than PG::TypeMapByClass.
+	 * It is kept only for performance comparisons, but PG::TypeMapByClass proved to be equally
+	 * fast in almost all cases.
+	 *
 	 */
 	rb_cTypeMapByMriType = rb_define_class_under( rb_mPG, "TypeMapByMriType", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapByMriType, pg_tmbmt_s_allocate );

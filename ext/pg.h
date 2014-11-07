@@ -295,6 +295,7 @@ void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_type_map                                  _(( void ));
 void init_pg_type_map_all_strings                      _(( void ));
+void init_pg_type_map_by_class                         _(( void ));
 void init_pg_type_map_by_column                        _(( void ));
 void init_pg_type_map_by_mri_type                      _(( void ));
 void init_pg_type_map_by_oid                           _(( void ));

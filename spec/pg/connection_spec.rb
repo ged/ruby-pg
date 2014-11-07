@@ -1342,8 +1342,8 @@ describe PG::Connection do
 		context "with default query type map" do
 			before :each do
 				@conn2 = described_class.new(@conninfo)
-				tm = PG::TypeMapByMriType.new
-				tm['T_FIXNUM'] = PG::TextEncoder::Integer.new oid: 20
+				tm = PG::TypeMapByClass.new
+				tm[Integer] = PG::TextEncoder::Integer.new oid: 20
 				@conn2.type_map_for_queries = tm
 
 				row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
@@ -1360,7 +1360,7 @@ describe PG::Connection do
 			end
 
 			it "should return the current type mapping" do
-				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::TypeMapByMriType)
+				expect( @conn2.type_map_for_queries ).to be_kind_of(PG::TypeMapByClass)
 			end
 
 			it "should work with arbitrary number of params in conjunction with type casting" do

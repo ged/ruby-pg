@@ -304,7 +304,7 @@ end
 #   # Execute a query. The Integer param value is typecasted internally by PG::BinaryEncoder::Int8.
 #   # The format of the parameter is set to 1 (binary) and the OID of this parameter is set to 20 (int8).
 #   res = conn.exec_params( "SELECT $1", [5] )
-class PG::BasicTypeMapForQueries < PG::TypeMapByMriType
+class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	include PG::BasicTypeRegistry
 
 	def initialize(connection)
@@ -323,7 +323,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByMriType
 	end
 
 	def populate_encoder_list
-		DEFAULT_TYPE_MAP.each do |mri_type, selector|
+		DEFAULT_TYPE_MAP.each do |klass, selector|
 			if Array === selector
 				format, name, oid_name = selector
 				coder = coder_by_name(format, :encoder, name).dup
@@ -332,9 +332,9 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByMriType
 				else
 					coder.oid = 0
 				end
-				self[mri_type] = coder
+				self[klass] = coder
 			else
-				self[mri_type] = selector
+				self[klass] = selector
 			end
 		end
 	end
@@ -351,25 +351,25 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByMriType
 		while elem.kind_of?(Array)
 			elem = elem.first
 		end
-		@array_encoders_by_klass[elem.class] || @anyarray_encoder
+		@array_encoders_by_klass[elem.class] ||
+				elem.class.ancestors.lazy.map{|ancestor| @array_encoders_by_klass[ancestor] }.find{|a| a } ||
+				@anyarray_encoder
 	end
 
 	DEFAULT_TYPE_MAP = {
-		'T_TRUE'.freeze => [1, 'bool', 'bool'],
-		'T_FALSE'.freeze => [1, 'bool', 'bool'],
+		TrueClass => [1, 'bool', 'bool'],
+		FalseClass => [1, 'bool', 'bool'],
 		# We use text format and no type OID for numbers, because setting the OID can lead
 		# to unnecessary type conversions on server side.
-		'T_FIXNUM'.freeze => [0, 'int8'],
-		'T_BIGNUM'.freeze => [0, 'int8'],
-		'T_FLOAT'.freeze => [0, 'float8'],
-		'T_ARRAY'.freeze => :get_array_type,
+		Integer => [0, 'int8'],
+		Float => [0, 'float8'],
+		Array => :get_array_type,
 	}
 
 	DEFAULT_ARRAY_TYPE_MAP = {
 		TrueClass => [0, '_bool'],
 		FalseClass => [0, '_bool'],
-		Fixnum => [0, '_int8'],
-		Bignum => [0, '_int8'],
+		Integer => [0, '_int8'],
 		String => [0, '_text'],
 		Float => [0, '_float8'],
 	}

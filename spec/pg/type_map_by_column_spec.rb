@@ -125,8 +125,8 @@ describe PG::TypeMapByColumn do
 	end
 
 	it "forwards query param conversions to the #default_type_map" do
-		tm1 = PG::TypeMapByMriType.new
-		tm1['T_FIXNUM'] = PG::TextEncoder::Integer.new name: 'INT2', oid: 21
+		tm1 = PG::TypeMapByClass.new
+		tm1[Integer] = PG::TextEncoder::Integer.new name: 'INT2', oid: 21
 
 		tm2 = PG::TypeMapByColumn.new( [textenc_int, nil, nil] ).with_default_type_map( tm1 )
 		res = @conn.exec_params( "SELECT $1, $2, $3::TEXT", [1, 2, :abc], 0, tm2 )
