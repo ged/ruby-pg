@@ -179,6 +179,10 @@ pg_tmbk_aset( VALUE self, VALUE klass, VALUE coder )
 		rb_hash_aset( this->klass_to_coder, klass, coder );
 	}
 
+	/* The cache lookup key can be a derivation of the klass.
+	 * So we can not expire the cache selectively. */
+	memset( &this->cache_row, 0, sizeof(this->cache_row) );
+
 	return coder;
 }
 

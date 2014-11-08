@@ -67,6 +67,10 @@ describe PG::TypeMapByClass do
 	it "should allow deletion of coders" do
 		tm[Integer] = nil
 		expect( tm[Integer] ).to be_nil
+		expect( tm.coders ).to eq( {
+			Float => textenc_float,
+			Symbol => pass_through_type,
+		} )
 	end
 
 	it "forwards query param conversions to the #default_type_map" do
@@ -100,6 +104,16 @@ describe PG::TypeMapByClass do
 		res = @conn.exec_params( "SELECT $1, $2, $3", [5, 1.23, :TestSymbol], 0, tm )
 		expect( res.values ).to eq([['5', '1.23', '[:TestSymbol]']])
 		expect( res.ftype(0) ).to eq(20)
+	end
+
+	it "should expire the cache after changes to the coders" do
+		res = @conn.exec_params( "SELECT $1", [5], 0, tm )
+		expect( res.ftype(0) ).to eq(20)
+
+		tm[Integer] = textenc_int
+
+		res = @conn.exec_params( "SELECT $1", [5], 0, tm )
+		expect( res.ftype(0) ).to eq(23)
 	end
 
 	it "should allow mixed type conversions with derived type map" do
