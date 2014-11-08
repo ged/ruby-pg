@@ -98,11 +98,14 @@ init_pg_type_map_all_strings()
 	 *
 	 * This type map casts all values received from the database server to Strings
 	 * and sends all values to the server after conversion to String by +#to_str+ .
+	 * That means, it is hard coded to PG::TextEncoder::String for value encoding
+	 * and to PG::TextDecoder::String for text format respectivly PG::BinaryDecoder::Bytea
+	 * for binary format received from the server.
 	 *
 	 * It is suitable for type casting query bind parameters, result values and
 	 * COPY IN/OUT data.
 	 *
-	 * This is the default type map. It is used when type_map is not set or set to +nil+.
+	 * This is the default type map for each PG::Connection .
 	 *
 	 */
 	rb_cTypeMapAllStrings = rb_define_class_under( rb_mPG, "TypeMapAllStrings", rb_cTypeMap );

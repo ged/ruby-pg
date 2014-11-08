@@ -83,9 +83,9 @@ pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 /*
  * Document-class: PG::BinaryDecoder::Bytea < PG::SimpleDecoder
  *
- * This is a decoder class for conversion of PostgreSQL binary data (bytea)
- * to binary Ruby String objects or some other Ruby object, if a #elements_type
- * decoder was defined.
+ * This decoder class delivers the data received from the server as binary String object.
+ * It is therefore suitable for conversion of PostgreSQL bytea data as well as any other
+ * data in binary format.
  *
  */
 VALUE
