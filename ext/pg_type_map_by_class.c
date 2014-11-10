@@ -50,6 +50,7 @@ pg_tmbk_lookup_klass(t_tmbk *this, VALUE klass, VALUE param_value)
 			int i;
 			VALUE ancestors = rb_funcall( klass, s_id_ancestors, 0 );
 
+			CheckType( ancestors, T_ARRAY );
 			/* Don't look at the first element, it's expected to equal klass. */
 			for( i=1; i<RARRAY_LEN(ancestors); i++ ){
 				obj = rb_hash_lookup( this->klass_to_coder, rb_ary_entry( ancestors, i) );
