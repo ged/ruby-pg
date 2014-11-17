@@ -76,7 +76,15 @@ describe PG::Result do
 			@conn.send_query( "SELECT generate_series(2,4)" )
 			expect{
 				@conn.get_result.stream_each_row.to_a
-			}.to raise_error(PG::Error, /not in single row mode/)
+			}.to raise_error(PG::InvalidResultStatus, /not in single row mode/)
+		end
+
+		it "complains when intersected with get_result" do
+			@conn.send_query( "SELECT 1" )
+			@conn.set_single_row_mode
+			expect{
+				@conn.get_result.stream_each_row.each{ @conn.get_result }
+			}.to raise_error(PG::NoResultError, /no result received/)
 		end
 
 		it "raises server errors" do

@@ -1105,7 +1105,7 @@ pgresult_stream_each(VALUE self)
 			case PGRES_TUPLES_OK:
 				if( ntuples == 0 )
 					return self;
-				rb_raise( rb_ePGerror, "PG::Result is not in single row mode");
+				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
 			case PGRES_SINGLE_TUPLE:
 				break;
 			default:
@@ -1123,10 +1123,10 @@ pgresult_stream_each(VALUE self)
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
-			rb_raise( rb_ePGerror, "no result received");
+			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");
 
 		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_ePGerror, "number of fields must not change in single row mode");
+			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields must not change in single row mode");
 
 		this->pgresult = pgresult;
 	}
@@ -1168,7 +1168,7 @@ pgresult_stream_each_row(VALUE self)
 			case PGRES_TUPLES_OK:
 				if( ntuples == 0 )
 					return self;
-				rb_raise( rb_ePGerror, "PG::Result is not in single row mode");
+				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
 			case PGRES_SINGLE_TUPLE:
 				break;
 			default:
@@ -1193,10 +1193,10 @@ pgresult_stream_each_row(VALUE self)
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
-			rb_raise( rb_ePGerror, "no result received");
+			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");
 
 		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_ePGerror, "number of fields must not change in single row mode");
+			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields must not change in single row mode");
 
 		this->pgresult = pgresult;
 	}

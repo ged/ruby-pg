@@ -10,6 +10,9 @@ VALUE rb_ePGerror;
 VALUE rb_eServerError;
 VALUE rb_eUnableToSend;
 VALUE rb_eConnectionBad;
+VALUE rb_eInvalidResultStatus;
+VALUE rb_eNoResultError;
+VALUE rb_eInvalidChangeOfResultFields;
 
 static VALUE
 define_error_class(const char *name, const char *baseclass_code)
@@ -84,6 +87,9 @@ init_pg_errors()
 	rb_eServerError = rb_define_class_under( rb_mPG, "ServerError", rb_ePGerror );
 	rb_eUnableToSend = rb_define_class_under( rb_mPG, "UnableToSend", rb_ePGerror );
 	rb_eConnectionBad = rb_define_class_under( rb_mPG, "ConnectionBad", rb_ePGerror );
+	rb_eInvalidResultStatus = rb_define_class_under( rb_mPG, "InvalidResultStatus", rb_ePGerror );
+	rb_eNoResultError = rb_define_class_under( rb_mPG, "NoResultError", rb_ePGerror );
+	rb_eInvalidChangeOfResultFields = rb_define_class_under( rb_mPG, "InvalidChangeOfResultFields", rb_ePGerror );
 
 	#include "errorcodes.def"
 }
