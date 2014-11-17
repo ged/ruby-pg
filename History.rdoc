@@ -13,6 +13,7 @@ Enhancements:
   the single row mode.
 - Add Enumerator variant to PG::Result#each and #each_row.
 - Add PG::Connection#conninfo and #hostaddr.
+- Add PG.init_openssl and PG.init_ssl methods.
 - Force zero termination for all text strings that are given to libpq.
   It raises an ArgumentError if the string contains a null byte.
 - Update Windows cross build to PostgreSQL 9.3.

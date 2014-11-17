@@ -333,6 +333,67 @@ pg_s_threadsafe_p(VALUE self)
 	return PQisthreadsafe() ? Qtrue : Qfalse;
 }
 
+static int
+pg_to_bool_int(VALUE value)
+{
+	switch( TYPE(value) ){
+		case T_FALSE:
+			return 0;
+		case T_TRUE:
+			return 1;
+		default:
+			return NUM2INT(value);
+	}
+}
+
+/*
+ * call-seq:
+ *    PG.init_openssl(do_ssl, do_crypto)  -> nil
+ *
+ * Allows applications to select which security libraries to initialize.
+ *
+ * If your application initializes libssl and/or libcrypto libraries and libpq is
+ * built with SSL support, you should call PG.init_openssl() to tell libpq that the
+ * libssl and/or libcrypto libraries have been initialized by your application,
+ * so that libpq will not also initialize those libraries. See
+ * http://h71000.www7.hp.com/doc/83final/BA554_90007/ch04.html for details on the SSL API.
+ *
+ * When do_ssl is +true+, libpq will initialize the OpenSSL library before first
+ * opening a database connection. When do_crypto is +true+, the libcrypto library
+ * will be initialized. By default (if PG.init_openssl() is not called), both libraries
+ * are initialized. When SSL support is not compiled in, this function is present but does nothing.
+ *
+ * If your application uses and initializes either OpenSSL or its underlying libcrypto library,
+ * you must call this function with +false+ for the appropriate parameter(s) before first opening
+ * a database connection. Also be sure that you have done that initialization before opening a
+ * database connection.
+ *
+ */
+static VALUE
+pg_s_init_openssl(VALUE self, VALUE do_ssl, VALUE do_crypto)
+{
+	UNUSED( self );
+	PQinitOpenSSL(pg_to_bool_int(do_ssl), pg_to_bool_int(do_crypto));
+	return Qnil;
+}
+
+
+/*
+ * call-seq:
+ *    PG.init_ssl(do_ssl)  -> nil
+ *
+ * Allows applications to select which security libraries to initialize.
+ *
+ * This function is equivalent to <tt>PG.init_openssl(do_ssl, do_ssl)</tt> . It is sufficient for
+ * applications that initialize both or neither of OpenSSL and libcrypto.
+ */
+static VALUE
+pg_s_init_ssl(VALUE self, VALUE do_ssl)
+{
+	UNUSED( self );
+	PQinitSSL(pg_to_bool_int(do_ssl));
+	return Qnil;
+}
 
 
 /**************************************************************************
@@ -354,6 +415,10 @@ Init_pg_ext()
 	rb_define_singleton_method( rb_mPG, "isthreadsafe", pg_s_threadsafe_p, 0 );
 	SINGLETON_ALIAS( rb_mPG, "is_threadsafe?", "isthreadsafe" );
 	SINGLETON_ALIAS( rb_mPG, "threadsafe?", "isthreadsafe" );
+
+  rb_define_singleton_method( rb_mPG, "init_openssl", pg_s_init_openssl, 2 );
+  rb_define_singleton_method( rb_mPG, "init_ssl", pg_s_init_ssl, 1 );
+
 
 	/******     PG::Connection CLASS CONSTANTS: Connection Status     ******/
 
