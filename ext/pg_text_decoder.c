@@ -313,8 +313,8 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 	VALUE elem;
 	int word_index = 0;
 	int index;
-	/* create a buffer of the same length, as that will be the worst case */
-	char *word = xmalloc(len + 1);
+	/* Use a buffer of the same length, as that will be the worst case */
+	char word[len + 1];
 
 	/* The current character in the input string. */
 	char c;
@@ -355,8 +355,6 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 	word[word_index] = 0;
 	elem = dec_func(conv, word, word_index, tuple, field, enc_idx);
 	rb_ary_push(array, elem);
-
-	free(word);
 
 	return array;
 }
