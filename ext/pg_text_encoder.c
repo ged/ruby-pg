@@ -49,6 +49,7 @@ static ID s_id_encode;
 static ID s_id_to_i;
 static VALUE hash_false_values;
 
+static int pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate);
 
 VALUE
 pg_obj_to_i( VALUE value )
@@ -68,38 +69,37 @@ pg_obj_to_i( VALUE value )
  *
  * This is the encoder class for the PostgreSQL bool type.
  *
- * Ruby values false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off' and 'OFF'
- * are encoded as SQL +FALSE+ value. nil is sent as SQL +NULL+.
- * Any other values are encoded as SQL +TRUE+ .
+ * Ruby value false is encoded as SQL +FALSE+ value.
+ * Ruby value true is encoded as SQL +TRUE+ value.
+ * Any other value is sent as it's string representation.
  *
  */
 static int
-pg_text_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_boolean(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
-	if(out){
-		switch( TYPE(value) ){
-			case T_FALSE:
-				*out = 'f';
-				break;
-			case T_FIXNUM:
-			case T_BIGNUM:
-				if( NUM2LONG(value) == 0 ){
-					*out = 'f';
-				} else {
-					*out = 't';
-				}
-				break;
-			case T_STRING:
-				if( rb_hash_lookup(hash_false_values, value) == Qtrue ){
-					*out = 'f';
-					break;
-				}
-				/* fall through */
-			default:
-				*out = 't';
-		}
+	switch( TYPE(value) ){
+		case T_FALSE:
+			if(out) *out = 'f';
+			return 1;
+		case T_TRUE:
+			if(out) *out = 't';
+			return 1;
+		case T_FIXNUM:
+		case T_BIGNUM:
+			if( NUM2LONG(value) == 0 ){
+				if(out) *out = '0';
+				return 1;
+			} else if( NUM2LONG(value) == 1 ){
+				if(out) *out = '1';
+				return 1;
+			} else {
+				return pg_text_enc_integer(this, value, out, intermediate);
+			}
+		default:
+			return pg_coder_enc_to_s(this, value, out, intermediate);
 	}
-	return 1;
+	/* never reached */
+	return 0;
 }
 
 
@@ -637,16 +637,6 @@ init_pg_text_encoder()
 {
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
-
-	hash_false_values = rb_hash_new();
-	rb_gc_register_address( &hash_false_values );
-	rb_hash_aset( hash_false_values, rb_str_new2( "0" ), Qtrue );
-	rb_hash_aset( hash_false_values, rb_str_new2( "f" ), Qtrue );
-	rb_hash_aset( hash_false_values, rb_str_new2( "F" ), Qtrue );
-	rb_hash_aset( hash_false_values, rb_str_new2( "false" ), Qtrue );
-	rb_hash_aset( hash_false_values, rb_str_new2( "FALSE" ), Qtrue );
-	rb_hash_aset( hash_false_values, rb_str_new2( "off" ), Qtrue );
-	rb_hash_aset( hash_false_values, rb_str_new2( "OFF" ), Qtrue );
 
 	/* This module encapsulates all encoder classes with text output format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );

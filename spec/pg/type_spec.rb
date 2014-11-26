@@ -138,15 +138,11 @@ describe "PG::Type derivations" do
 				expect( textenc_int.encode("  123-xyz  ") ).to eq( "123" )
 			end
 
-			it "should encode false and 0 to SQL FALSE value" do
-				[false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off', 'OFF'].each do |value|
-					expect( textenc_boolean.encode(value) ).to eq( "f" )
-				end
-			end
-
-			it "should encode true, 1 to SQL TRUE value" do
-				[true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON'].each do |value|
-					expect( textenc_boolean.encode(value) ).to eq( "t" )
+			it "should encode boolean values" do
+				expect( textenc_boolean.encode(false) ).to eq( "f" )
+				expect( textenc_boolean.encode(true) ).to eq( "t" )
+				["any", :other, "value", 0, 1, 2].each do |value|
+					expect( textenc_boolean.encode(value) ).to eq( value.to_s )
 				end
 			end
 
