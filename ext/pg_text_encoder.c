@@ -47,7 +47,6 @@
 VALUE rb_mPG_TextEncoder;
 static ID s_id_encode;
 static ID s_id_to_i;
-static VALUE hash_false_values;
 
 static int pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate);
 
