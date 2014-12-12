@@ -130,7 +130,7 @@ pg_tmbo_fit_to_result( VALUE self, VALUE result )
 	if( PQntuples( pgresult ) <= this->max_rows_for_online_lookup ){
 		/* Do a hash lookup for each result value in pg_tmbc_result_value() */
 
-	/* Did the default type return the same object ? */
+		/* Did the default type return the same object ? */
 		if( sub_typemap == this->typemap.default_typemap ){
 			return self;
 		} else {
@@ -306,41 +306,23 @@ pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
 
 /*
  * call-seq:
- *    typemap.fit_to_result( result, online_lookup = nil )
+ *    typemap.build_column_map( result )
  *
- * This is an extended version of PG::TypeMap#fit_to_result that
- * allows explicit selection of online lookup ( online_lookup=true )
- * or building of a new PG::TypeMapByColumn ( online_lookup=false ).
- *
+ * This builds a PG::TypeMapByColumn that fits to the given PG::Result object
+ * based on it's type OIDs.
  *
  */
 static VALUE
-pg_tmbo_fit_to_result_ext( int argc, VALUE *argv, VALUE self )
+pg_tmbo_build_column_map( VALUE self, VALUE result )
 {
 	t_tmbo *this = DATA_PTR( self );
-	VALUE result;
-	VALUE online_lookup;
-
-	rb_scan_args(argc, argv, "11", &result, &online_lookup);
 
 	if ( !rb_obj_is_kind_of(result, rb_cPGresult) ) {
 		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Result)",
 				rb_obj_classname( result ) );
 	}
 
-	if( NIL_P( online_lookup ) ){
-		/* call super */
-		return this->typemap.funcs.fit_to_result(self, result);
-	} else if( RB_TYPE_P( online_lookup, T_TRUE ) ){
-		return self;
-	} else if( RB_TYPE_P( online_lookup, T_FALSE ) ){
-		PGresult *pgresult = pgresult_get( result );
-
-		return pg_tmbo_build_type_map_for_result2( this, pgresult );
-	} else {
-		rb_raise( rb_eArgError, "argument online_lookup %s should be true, false or nil instead",
-				rb_obj_classname( result ) );
-	}
+	return pg_tmbo_build_type_map_for_result2( this, pgresult_get(result) );
 }
 
 
@@ -368,6 +350,6 @@ init_pg_type_map_by_oid()
 	rb_define_method( rb_cTypeMapByOid, "coders", pg_tmbo_coders, 0 );
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup=", pg_tmbo_max_rows_for_online_lookup_set, 1 );
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup", pg_tmbo_max_rows_for_online_lookup_get, 0 );
-	rb_define_method( rb_cTypeMapByOid, "fit_to_result", pg_tmbo_fit_to_result_ext, -1 );
+	rb_define_method( rb_cTypeMapByOid, "build_column_map", pg_tmbo_build_column_map, 1 );
 	rb_include_module( rb_cTypeMapByOid, rb_mDefaultTypeMappable );
 }

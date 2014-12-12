@@ -74,29 +74,6 @@ pg_typemap_s_allocate( VALUE klass )
 	return self;
 }
 
-static VALUE
-pg_typemap_fit_to_result_ext( VALUE self, VALUE result )
-{
-	t_typemap *this = DATA_PTR( self );
-
-	if ( !rb_obj_is_kind_of(result, rb_cPGresult) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Result)",
-				rb_obj_classname( result ) );
-	}
-
-	return this->funcs.fit_to_result( self, result );
-}
-
-static VALUE
-pg_typemap_fit_to_query_ext( VALUE self, VALUE params )
-{
-	t_typemap *this = DATA_PTR( self );
-
-	Check_Type( params, T_ARRAY);
-
-	return this->funcs.fit_to_query( self, params );
-}
-
 /*
  * call-seq:
  *    res.default_type_map = typemap
@@ -174,8 +151,6 @@ init_pg_type_map()
 	 */
 	rb_cTypeMap = rb_define_class_under( rb_mPG, "TypeMap", rb_cObject );
 	rb_define_alloc_func( rb_cTypeMap, pg_typemap_s_allocate );
-	rb_define_method( rb_cTypeMap, "fit_to_result", pg_typemap_fit_to_result_ext, 1 );
-	rb_define_method( rb_cTypeMap, "fit_to_query", pg_typemap_fit_to_query_ext, 1 );
 
 	rb_mDefaultTypeMappable = rb_define_module_under( rb_cTypeMap, "DefaultTypeMappable");
 	rb_define_method( rb_mDefaultTypeMappable, "default_type_map=", pg_typemap_default_type_map_set, 1 );

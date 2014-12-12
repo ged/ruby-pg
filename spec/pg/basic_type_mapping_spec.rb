@@ -195,7 +195,7 @@ describe 'Basic type mapping' do
 
 				# Retrieve table OIDs per empty result.
 				res = @conn.exec( "SELECT * FROM copytable LIMIT 0" )
-				tm = basic_type_mapping.fit_to_result( res, false )
+				tm = basic_type_mapping.build_column_map( res )
 				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
 
 				rows = []
@@ -221,7 +221,7 @@ describe 'Basic type mapping' do
 
 				# Retrieve table OIDs per empty result.
 				res = @conn.exec( "SELECT * FROM copytable LIMIT 0" )
-				tm = basic_type_mapping.fit_to_result( res, false )
+				tm = basic_type_mapping.build_column_map( res )
 
 				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3)", ['a', 123, [5,4,3]], 0, tm )
 				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3)", ['b', 234, [2,3]], 0, tm )
@@ -236,7 +236,7 @@ describe 'Basic type mapping' do
 
 				# Retrieve table OIDs per empty result set.
 				res = @conn.exec( "SELECT * FROM copytable LIMIT 0" )
-				tm = basic_type_mapping.fit_to_result( res, false )
+				tm = basic_type_mapping.build_column_map( res )
 				row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
 
 				@conn.copy_data( "COPY copytable FROM STDIN", row_encoder ) do |res|

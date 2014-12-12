@@ -259,7 +259,7 @@ end
 # the given result OIDs, but encoders. So it can be used to type cast field values based on
 # the type OID retrieved by a separate SQL query.
 #
-# PG::TypeMapByOid#fit_to_result(result, false) can be used to generate a result independent
+# PG::TypeMapByOid#build_column_map(result) can be used to generate a result independent
 # PG::TypeMapByColumn type map, which can subsequently be used to cast query bind parameters
 # or #put_copy_data fields.
 #
@@ -268,7 +268,7 @@ end
 #
 #   # Retrieve table OIDs per empty result set.
 #   res = conn.exec( "SELECT * FROM copytable LIMIT 0" )
-#   tm = basic_type_mapping.fit_to_result( res, false )
+#   tm = basic_type_mapping.build_column_map( res )
 #   row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
 #
 #   conn.copy_data( "COPY copytable FROM STDIN", row_encoder ) do |res|
