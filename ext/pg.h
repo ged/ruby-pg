@@ -302,6 +302,7 @@ void init_pg_type_map_by_class                         _(( void ));
 void init_pg_type_map_by_column                        _(( void ));
 void init_pg_type_map_by_mri_type                      _(( void ));
 void init_pg_type_map_by_oid                           _(( void ));
+void init_pg_type_map_in_ruby                          _(( void ));
 void init_pg_coder                                     _(( void ));
 void init_pg_copycoder                                 _(( void ));
 void init_pg_text_encoder                              _(( void ));

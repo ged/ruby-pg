@@ -655,6 +655,7 @@ Init_pg_ext()
 	init_pg_type_map_by_column();
 	init_pg_type_map_by_mri_type();
 	init_pg_type_map_by_oid();
+	init_pg_type_map_in_ruby();
 	init_pg_coder();
 	init_pg_text_encoder();
 	init_pg_text_decoder();

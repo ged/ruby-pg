@@ -34,6 +34,7 @@ ext/pg_type_map_by_class.c
 ext/pg_type_map_by_column.c
 ext/pg_type_map_by_mri_type.c
 ext/pg_type_map_by_oid.c
+ext/pg_type_map_in_ruby.c
 ext/pg_type_map.c
 ext/util.c
 ext/util.h
@@ -78,6 +79,7 @@ spec/pg/type_map_by_class_spec.rb
 spec/pg/type_map_by_column_spec.rb
 spec/pg/type_map_by_mri_type_spec.rb
 spec/pg/type_map_by_oid_spec.rb
+spec/pg/type_map_in_ruby_spec.rb
 spec/pg/type_map_spec.rb
 spec/pg/type_spec.rb
 spec/pg_spec.rb
