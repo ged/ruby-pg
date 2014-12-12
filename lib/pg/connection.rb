@@ -101,7 +101,7 @@ class PG::Connection
 	#
 	# Example with CSV input format:
 	#   conn.exec "create table my_table (a text,b text,c text,d text,e text)"
-	#   conn.copy_data "COPY my_table FROM STDOUT CSV" do
+	#   conn.copy_data "COPY my_table FROM STDIN CSV" do
 	#     conn.put_copy_data "some,csv,data,to,copy\n"
 	#     conn.put_copy_data "more,csv,data,to,copy\n"
 	#   end

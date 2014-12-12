@@ -2542,10 +2542,10 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
  * not sent (false is only possible if the connection
  * is in nonblocking mode, and this command would block).
  *
- * encoder can be a PG::Coder derivation (typically PG::TestEncoder::CopyRow).
+ * encoder can be a PG::Coder derivation (typically PG::TextEncoder::CopyRow).
  * This encodes the received data fields from an Array of Strings. Optionally
  * the encoder can type cast the fields form various Ruby types in one step,
- * if PG::TestEncoder::CopyRow#type_map is set accordingly.
+ * if PG::TextEncoder::CopyRow#type_map is set accordingly.
  *
  * Raises an exception if an error occurs.
  *
@@ -2654,10 +2654,10 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
  * if the copy is done, or +false+ if the call would
  * block (only possible if _async_ is true).
  *
- * decoder can be a PG::Coder derivation (typically PG::TestDecoder::CopyRow).
+ * decoder can be a PG::Coder derivation (typically PG::TextDecoder::CopyRow).
  * This decodes the received data fields as Array of Strings. Optionally
  * the decoder can type cast the fields to various Ruby types in one step,
- * if PG::TestDecoder::CopyRow#type_map is set accordingly.
+ * if PG::TextDecoder::CopyRow#type_map is set accordingly.
  *
  * See also #copy_data.
  *

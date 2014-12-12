@@ -153,12 +153,20 @@ pg_copycoder_type_map_get(VALUE self)
  * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
  * for description of the format.
  *
- * It is intended to be used in conjunction with PG::Connection#copy_data .
+ * It is intended to be used in conjunction with PG::Connection#put_copy_data .
  *
  * The columns are expected as Array of values. The single values are encoded as defined
  * in the assigned #type_map. If no type_map was assigned, all values are converted to
- * Strings by PG::TextEncoder::String.
+ * strings by PG::TextEncoder::String.
  *
+ * Example with default type map ( TypeMapAllStrings ):
+ *   conn.exec "create table my_table (a text,b int,c bool)"
+ *   enco = PG::TextEncoder::CopyRow.new
+ *   conn.copy_data "COPY my_table FROM STDIN", enco do
+ *     conn.put_copy_data ["astring", 7, false]
+ *     conn.put_copy_data ["string2", 42, true]
+ *   end
+ * This creates +my_table+ and inserts two rows.
  */
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
@@ -286,12 +294,22 @@ GetDecimalFromHex(char hex)
  * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
  * for description of the format.
  *
- * It is intended to be used in conjunction with PG::Connection#copy_data .
+ * It is intended to be used in conjunction with PG::Connection#get_copy_data .
  *
  * The columns are retrieved as Array of values. The single values are decoded as defined
  * in the assigned #type_map. If no type_map was assigned, all values are converted to
- * Strings by PG::TextDecoder::String.
+ * strings by PG::TextDecoder::String.
  *
+ * Example with default type map ( TypeMapAllStrings ):
+ *   deco = PG::TextDecoder::CopyRow.new
+ *   conn.copy_data "COPY my_table TO STDOUT", deco do
+ *     while row=conn.get_copy_data
+ *       p row
+ *     end
+ *   end
+ * This prints all rows of +my_table+ to stdout:
+ *   ["astring", "7", "f"]
+ *   ["string2", "42", "t"]
  */
 /*
  * Parse the current line into separate attributes (fields),
@@ -534,8 +552,10 @@ init_pg_copycoder()
 	rb_define_alloc_func( rb_cPG_CopyDecoder, pg_copycoder_decoder_allocate );
 
 	/* Make RDoc aware of the encoder classes... */
+	/* rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "CopyRow", rb_cPG_CopyEncoder ); */
 	pg_define_coder( "CopyRow", pg_text_enc_copy_row, rb_cPG_CopyEncoder, rb_mPG_TextEncoder );
+	/* rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "CopyRow", rb_cPG_CopyDecoder ); */
 	pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
 }
