@@ -71,11 +71,13 @@ module PG::BasicTypeRegistry
 			@coders = coder_map.values
 			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }
 			@coders_by_oid = @coders.inject({}){|h, t| h[t.oid] = t; h }
+			@typenames_by_oid = result.inject({}){|h, t| h[t['oid'].to_i] = t['typname']; h }
 		end
 
 		attr_reader :coders
 		attr_reader :coders_by_oid
 		attr_reader :coders_by_name
+		attr_reader :typenames_by_oid
 
 		def coder_by_name(name)
 			@coders_by_name[name]
@@ -125,7 +127,7 @@ module PG::BasicTypeRegistry
 		raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
 		raise(ArgumentError, "Invalid direction %p" % direction) unless ValidDirections[direction]
 	end
-
+	protected :check_format_and_direction
 
 	# The key of this hash maps to the `typname` column from the table.
 	# encoder_map is then dynamically built with oids as the key and Type
@@ -239,6 +241,23 @@ end
 class PG::BasicTypeMapForResults < PG::TypeMapByOid
 	include PG::BasicTypeRegistry
 
+	class WarningTypeMap < PG::TypeMapInRuby
+		def initialize(typenames)
+			@already_warned = Hash.new{|h, k| h[k] = {} }
+			@typenames_by_oid = typenames
+		end
+
+		def typecast_result_value(result, _tuple, field)
+			format = result.fformat(field)
+			oid = result.ftype(field)
+			unless @already_warned[format][oid]
+				STDERR.puts "Warning: no type cast defined for type #{@typenames_by_oid[format][oid].inspect} with oid #{oid}. Please cast this type explicitly to TEXT to be safe for future changes."
+				 @already_warned[format][oid] = true
+			end
+			super
+		end
+	end
+
 	def initialize(connection)
 		@coder_maps = build_coder_maps(connection)
 
@@ -246,6 +265,9 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 		@coder_maps.map{|f| f[:decoder].coders }.flatten.each do |coder|
 			add_coder(coder)
 		end
+
+		typenames = @coder_maps.map{|f| f[:decoder].typenames_by_oid }
+		self.default_type_map = WarningTypeMap.new(typenames)
 	end
 end
 
