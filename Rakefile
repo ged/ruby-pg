@@ -29,6 +29,8 @@ TMPDIR  = BASEDIR + 'tmp'
 DLEXT   = RbConfig::CONFIG['DLEXT']
 EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
+GEMSPEC = 'pg.gemspec'
+
 TEST_DIRECTORY = BASEDIR + "tmp_test_specs"
 
 CLOBBER.include( TEST_DIRECTORY.to_s )
@@ -187,3 +189,18 @@ file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
 end
+
+task :gemspec => GEMSPEC
+file GEMSPEC => __FILE__
+task GEMSPEC do |task|
+	spec = $hoespec.spec
+	spec.files.delete( '.gemtest' )
+	spec.version = "#{spec.version}.pre#{Time.now.strftime("%Y%m%d%H%M%S")}"
+	File.open( task.name, 'w' ) do |fh|
+		fh.write( spec.to_ruby )
+	end
+end
+
+CLOBBER.include( GEMSPEC.to_s )
+task :default => :gemspec
+
