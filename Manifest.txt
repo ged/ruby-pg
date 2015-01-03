@@ -29,13 +29,13 @@ ext/pg_errors.c
 ext/pg_result.c
 ext/pg_text_decoder.c
 ext/pg_text_encoder.c
+ext/pg_type_map.c
 ext/pg_type_map_all_strings.c
 ext/pg_type_map_by_class.c
 ext/pg_type_map_by_column.c
 ext/pg_type_map_by_mri_type.c
 ext/pg_type_map_by_oid.c
 ext/pg_type_map_in_ruby.c
-ext/pg_type_map.c
 ext/util.c
 ext/util.h
 ext/vc/pg.sln
