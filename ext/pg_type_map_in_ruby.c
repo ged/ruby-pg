@@ -212,12 +212,9 @@ pg_tmir_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format
 	rb_encoding *p_encoding = rb_enc_from_index(enc_idx);
 	VALUE enc = rb_enc_from_encoding(p_encoding);
 	/* field_str is reused in-place by pg_text_dec_copy_row(), so we need to make
-	 * a copy of the string buffer before used in ruby space.
-	 * This requires rb_str_new() instead of rb_str_dup() for Rubinius.
-	 */
-	VALUE field_str_copy = rb_str_new(RSTRING_PTR(field_str), RSTRING_LEN(field_str));
-	PG_ENCODING_SET_NOCHECK(field_str_copy, ENCODING_GET(field_str));
-	OBJ_INFECT(field_str_copy, field_str);
+	 * a copy of the string buffer for use in ruby space. */
+	VALUE field_str_copy = rb_str_dup(field_str);
+	rb_str_modify(field_str_copy);
 
 	return rb_funcall( this->self, s_id_typecast_copy_get, 4, field_str_copy, INT2NUM(fieldno), INT2NUM(format), enc );
 }
