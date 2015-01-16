@@ -3,9 +3,10 @@ rvm:
   - "1.9.3"
   - "2.0.0"
   - "2.1"
+  - "2.2"
   - rbx
 env:
-  - "PGVERSION=9.4.0-beta3-2-linux-x64 PATH=\"/opt/PostgreSQL/9.4/bin:$PATH\""
+  - "PGVERSION=9.4.0-1-linux-x64 PATH=\"/opt/PostgreSQL/9.4/bin:$PATH\""
   - "PGVERSION=9.0.18-1-linux-x64 PATH=\"/opt/PostgreSQL/9.0/bin:$PATH\""
   - "PGCROSS=true"
 matrix:
@@ -14,6 +15,8 @@ matrix:
     - rvm: "1.9.3"
       env: "PGCROSS=true"
     - rvm: "2.0.0"
+      env: "PGCROSS=true"
+    - rvm: "2.1"
       env: "PGCROSS=true"
     - rvm: rbx
       env: "PGCROSS=true"
@@ -33,5 +36,5 @@ before_install:
   # Install compiler and ruby versions for cross compile (as seperate tasks to not exceed timeout limits)
   - "if [ -n \"$PGCROSS\" ]; then sudo apt-get install gcc-mingw-w64-i686 binutils-mingw-w64-i686 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64; fi"
   - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=1.9.3-p547 MINIRUBYOPT=--disable-gems; fi"
-  - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=2.0.0-p481 MINIRUBYOPT=--disable-gems HOST=x86_64-w64-mingw32; fi"
+  - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=2.1.5 MINIRUBYOPT=--disable-gems HOST=x86_64-w64-mingw32; fi"
 script: "if [ -z \"$PGCROSS\" ]; then rake compile test; else rake cross compile; fi"
