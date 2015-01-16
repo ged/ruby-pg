@@ -1,3 +1,8 @@
+== v0.18.2 [2015-01-16] Michael Granger <ged@FaerieMUD.org>
+
+Revert addition of PG::Connection#hostaddr.
+
+
 == v0.18.1 [2015-01-05] Michael Granger <ged@FaerieMUD.org>
 
 Correct the minimum compatible Ruby version to 1.9.3. #199

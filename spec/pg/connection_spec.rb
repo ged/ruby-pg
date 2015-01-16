@@ -162,8 +162,6 @@ describe PG::Connection do
 		expect( @conn.user ).to be_a_kind_of( String )
 		expect( @conn.pass ).to eq( "" )
 		expect( @conn.host ).to eq( "localhost" )
-		# TODO: Not sure why libpq returns a NULL ptr instead of "127.0.0.1"
-		expect( @conn.hostaddr ).to eq( nil ) if @conn.server_version >= 9_04_00
 		expect( @conn.port ).to eq( 54321 )
 		expect( @conn.tty ).to eq( "" )
 		expect( @conn.options ).to eq( "" )
