@@ -92,19 +92,26 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamp.decode('2016-01-02 23:23:59.123456') ).
 						to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.123456) )
 				end
-				it 'decodes timestamps with :00 timezone' do
+				it 'decodes timestamps with hour timezone' do
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04') ).
 						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:00") )
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10') ).
 						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:00") )
 				end
-				it 'decodes timestamps with :30 timezone' do
-					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04:30') ).
-						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:30") )
+				it 'decodes timestamps with hour:minute timezone' do
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04:15') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:15") )
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-0430') ).
 						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:30") )
-					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10:30') ).
-						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:30") )
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10:45') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:45") )
+				end
+				it 'decodes timestamps with hour:minute:sec timezone' do
+					# SET TIME ZONE 'Europe/Dublin'; -- Was UTC−00:25:21 until 1916
+					# SELECT '1900-01-01'::timestamptz;
+					# -- "1900-01-01 00:00:00-00:25:21"
+					expect( textdec_timestamptz.decode('1916-01-01 00:00:00-00:25:21') ).
+						to be_within(0.000001).of( Time.new(1916, 1, 1, 0, 0, 0, "-00:25:21") )
 				end
 			end
 
