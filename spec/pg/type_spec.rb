@@ -15,6 +15,8 @@ describe "PG::Type derivations" do
 	let!(:textdec_string) { PG::TextDecoder::String.new }
 	let!(:textenc_timestamp) { PG::TextEncoder::TimestampWithoutTimeZone.new }
 	let!(:textdec_timestamp) { PG::TextDecoder::TimestampWithoutTimeZone.new }
+	let!(:textenc_timestamptz) { PG::TextEncoder::TimestampWithTimeZone.new }
+	let!(:textdec_timestamptz) { PG::TextDecoder::TimestampWithTimeZone.new }
 	let!(:textenc_bytea) { PG::TextEncoder::Bytea.new }
 	let!(:textdec_bytea) { PG::TextDecoder::Bytea.new }
 	let!(:binaryenc_int2) { PG::BinaryEncoder::Int2.new }
@@ -84,6 +86,28 @@ describe "PG::Type derivations" do
 				expect( textdec_bytea.decode("\\x00010203EF") ).to eq( "\x00\x01\x02\x03\xef".b )
 				expect( textdec_bytea.decode("\\377\\000") ).to eq( "\xff\0".b )
 			end
+
+			context 'timestamps' do
+				it 'decodes timestamps without timezone' do
+					expect( textdec_timestamp.decode('2016-01-02 23:23:59.123456') ).
+						to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.123456) )
+				end
+				it 'decodes timestamps with :00 timezone' do
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:00") )
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:00") )
+				end
+				it 'decodes timestamps with :30 timezone' do
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04:30') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:30") )
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-0430') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:30") )
+					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10:30') ).
+						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:30") )
+				end
+			end
+
 
 			it "should raise when decode method is called with wrong args" do
 				expect{ textdec_int.decode() }.to raise_error(ArgumentError)
