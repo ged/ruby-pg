@@ -45,11 +45,67 @@ describe PG::Connection do
 		expect( optstring ).to match( /(^|\s)user='jrandom'/ )
 	end
 
+	it "can create a connection option string from an option string and a hash" do
+		optstring = described_class.parse_connect_args( 'dbname=original', :user => 'jrandom' )
+
+		expect( optstring ).to be_a( String )
+		expect( optstring ).to match( /(^|\s)dbname=original/ )
+		expect( optstring ).to match( /(^|\s)user='jrandom'/ )
+	end
+
 	it "escapes single quotes and backslashes in connection parameters" do
 		expect(
 			described_class.parse_connect_args( "DB 'browser' \\" )
 		).to match( /host='DB \\'browser\\' \\\\'/ )
 
+	end
+
+	let(:uri) { 'postgresql://user:pass@pgsql.example.com:222/db01?sslmode=require' }
+
+	it "can connect using a URI" do
+		string = described_class.parse_connect_args(uri)
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
+		expect( string ).to match( %r{\?.*sslmode=require} )
+
+		string = described_class.parse_connect_args(URI.parse(uri))
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
+		expect( string ).to match( %r{\?.*sslmode=require} )
+	end
+
+	it "can create a connection URI from a URI and a hash" do
+		string = described_class.parse_connect_args(uri, :connect_timeout => 2)
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
+		expect( string ).to match( %r{\?.*sslmode=require} )
+		expect( string ).to match( %r{\?.*connect_timeout=2} )
+
+		string = described_class.parse_connect_args(uri, :user => 'a', :password => 'b', :host => 'localhost', :port => 555, :dbname => 'x')
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{^postgresql://\?} )
+		expect( string ).to match( %r{\?.*user=a} )
+		expect( string ).to match( %r{\?.*password=b} )
+		expect( string ).to match( %r{\?.*host=localhost} )
+		expect( string ).to match( %r{\?.*port=555} )
+		expect( string ).to match( %r{\?.*dbname=x} )
+	end
+
+	it "can create a connection URI with a non-standard domain socket directory" do
+		string = described_class.parse_connect_args('postgresql://%2Fvar%2Flib%2Fpostgresql/dbname')
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{^postgresql://%2Fvar%2Flib%2Fpostgresql/dbname} )
+
+		string = described_class.parse_connect_args('postgresql:///dbname', :host => '/var/lib/postgresql')
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{^postgresql:///dbname\?} )
+		expect( string ).to match( %r{\?.*host=%2Fvar%2Flib%2Fpostgresql} )
 	end
 
 	it "connects with defaults if no connection parameters are given" do
@@ -89,8 +145,13 @@ describe PG::Connection do
 
 	it "raises an exception when connecting with an invalid number of arguments" do
 		expect {
-			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'extra' )
-		}.to raise_error( ArgumentError, /extra positional parameter/i )
+			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'the-extra-arg' )
+		}.to raise_error do |error|
+			expect( error ).to be_an( ArgumentError )
+			expect( error.message ).to match( /extra positional parameter/i )
+			expect( error.message ).to match( /8/ )
+			expect( error.message ).to match( /the-extra-arg/ )
+		end
 	end
 
 	it "can connect asynchronously", :socket_io do
