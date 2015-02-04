@@ -15,7 +15,7 @@
  * See Contributors.rdoc for the many additional fine people that have contributed
  * to this library over the years.
  *
- * Copyright (c) 1997-2012 by the authors.
+ * Copyright (c) 1997-2015 by the authors.
  *
  * You may redistribute this software under the same terms as Ruby itself; see
  * http://www.ruby-lang.org/en/LICENSE.txt or the LICENSE file in the source

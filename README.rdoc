@@ -130,7 +130,7 @@ Lars Kanis <lars@greiz-reinsdorf.de>.
 
 == Copying
 
-Copyright (c) 1997-2013 by the authors.
+Copyright (c) 1997-2015 by the authors.
 
 * Jeff Davis <ruby-pg@j-davis.com>
 * Guy Decoux (ts) <decoux@moulon.inra.fr>
