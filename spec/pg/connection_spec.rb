@@ -63,13 +63,13 @@ describe PG::Connection do
 	let(:uri) { 'postgresql://user:pass@pgsql.example.com:222/db01?sslmode=require' }
 
 	it "can connect using a URI" do
-		string = described_class.parse_connect_args(uri)
+		string = described_class.parse_connect_args( uri )
 
 		expect( string ).to be_a( String )
 		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
 		expect( string ).to match( %r{\?.*sslmode=require} )
 
-		string = described_class.parse_connect_args(URI.parse(uri))
+		string = described_class.parse_connect_args( URI.parse(uri) )
 
 		expect( string ).to be_a( String )
 		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
@@ -77,14 +77,19 @@ describe PG::Connection do
 	end
 
 	it "can create a connection URI from a URI and a hash" do
-		string = described_class.parse_connect_args(uri, :connect_timeout => 2)
+		string = described_class.parse_connect_args( uri, :connect_timeout => 2 )
 
 		expect( string ).to be_a( String )
 		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
 		expect( string ).to match( %r{\?.*sslmode=require} )
 		expect( string ).to match( %r{\?.*connect_timeout=2} )
 
-		string = described_class.parse_connect_args(uri, :user => 'a', :password => 'b', :host => 'localhost', :port => 555, :dbname => 'x')
+		string = described_class.parse_connect_args( uri,
+			:user => 'a',
+			:password => 'b',
+			:host => 'localhost',
+			:port => 555,
+			:dbname => 'x' )
 
 		expect( string ).to be_a( String )
 		expect( string ).to match( %r{^postgresql://\?} )
@@ -96,12 +101,13 @@ describe PG::Connection do
 	end
 
 	it "can create a connection URI with a non-standard domain socket directory" do
-		string = described_class.parse_connect_args('postgresql://%2Fvar%2Flib%2Fpostgresql/dbname')
+		string = described_class.parse_connect_args( 'postgresql://%2Fvar%2Flib%2Fpostgresql/dbname' )
 
 		expect( string ).to be_a( String )
 		expect( string ).to match( %r{^postgresql://%2Fvar%2Flib%2Fpostgresql/dbname} )
 
-		string = described_class.parse_connect_args('postgresql:///dbname', :host => '/var/lib/postgresql')
+		string = described_class.
+			parse_connect_args( 'postgresql:///dbname', :host => '/var/lib/postgresql' )
 
 		expect( string ).to be_a( String )
 		expect( string ).to match( %r{^postgresql:///dbname\?} )
@@ -113,13 +119,13 @@ describe PG::Connection do
 	end
 
 	it "connects successfully with connection string" do
-		tmpconn = described_class.connect(@conninfo)
+		tmpconn = described_class.connect( @conninfo )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		tmpconn.finish
 	end
 
 	it "connects using 7 arguments converted to strings" do
-		tmpconn = described_class.connect('localhost', @port, nil, nil, :test, nil, nil)
+		tmpconn = described_class.connect( 'localhost', @port, nil, nil, :test, nil, nil )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		tmpconn.finish
 	end
