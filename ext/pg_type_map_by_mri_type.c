@@ -39,7 +39,7 @@ static VALUE rb_cTypeMapByMriType;
 typedef struct {
 	t_typemap typemap;
 	struct pg_tmbmt_converter {
-		FOR_EACH_MRI_TYPE( DECLARE_CODER );
+		FOR_EACH_MRI_TYPE( DECLARE_CODER )
 	} coders;
 } t_tmbmt;
 

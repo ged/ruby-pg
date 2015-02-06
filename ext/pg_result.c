@@ -863,7 +863,7 @@ pgresult_each_row(VALUE self)
 	num_fields = PQnfields(this->pgresult);
 
 	for ( row = 0; row < num_rows; row++ ) {
-		VALUE row_values[num_fields];
+		PG_VARIABLE_LENGTH_ARRAY(VALUE, row_values, num_fields, PG_MAX_COLUMNS)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
@@ -892,7 +892,7 @@ pgresult_values(VALUE self)
 	VALUE results = rb_ary_new2( num_rows );
 
 	for ( row = 0; row < num_rows; row++ ) {
-		VALUE row_values[num_fields];
+		PG_VARIABLE_LENGTH_ARRAY(VALUE, row_values, num_fields, PG_MAX_COLUMNS)
 
 		/* populate the row */
 		for ( field = 0; field < num_fields; field++ ) {
@@ -1176,7 +1176,7 @@ pgresult_stream_each_row(VALUE self)
 		}
 
 		for ( row = 0; row < ntuples; row++ ) {
-			VALUE row_values[nfields];
+			PG_VARIABLE_LENGTH_ARRAY(VALUE, row_values, nfields, PG_MAX_COLUMNS)
 			int field;
 
 			/* populate the row */
