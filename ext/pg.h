@@ -133,6 +133,15 @@
 typedef long suseconds_t;
 #endif
 
+#if defined(HAVE_VARIABLE_LENGTH_ARRAYS)
+	#define PG_VARIABLE_LENGTH_ARRAY(type, name, len, maxlen) type name[(len)];
+#else
+	#define PG_VARIABLE_LENGTH_ARRAY(type, name, len, maxlen) \
+		type name[(maxlen)] = {(len)>(maxlen) ? (rb_raise(rb_eArgError, "Number of " #name " (%d) exceeds allowed maximum of " #maxlen, (len) ), (type)1) : (type)0};
+
+	#define PG_MAX_COLUMNS 4000
+#endif
+
 /* The data behind each PG::Connection object */
 typedef struct {
 	PGconn *pgconn;
