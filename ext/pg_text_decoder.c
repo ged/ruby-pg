@@ -311,7 +311,7 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 	int word_index = 0;
 	int index;
 	/* Use a buffer of the same length, as that will be the worst case */
-	char word[len + 1];
+	PG_VARIABLE_LENGTH_ARRAY(char, word, len + 1, NAMEDATALEN)
 
 	/* The current character in the input string. */
 	char c;
