@@ -115,6 +115,19 @@ describe "PG::Type derivations" do
 				end
 			end
 
+			context 'identifier quotation' do
+				it 'should build an array out of an quoted identifier string' do
+					quoted_type = PG::TextDecoder::Identifier.new
+					expect( quoted_type.decode(%["A.".".B"]) ).to eq( ["A.", ".B"] )
+					expect( quoted_type.decode(%["'A"".""B'"]) ).to eq( ['\'A"."B\''] )
+				end
+
+				it 'should split unquoted identifier string' do
+					quoted_type = PG::TextDecoder::Identifier.new
+					expect( quoted_type.decode(%[a.b]) ).to eq( ['a','b'] )
+					expect( quoted_type.decode(%[a]) ).to eq( ['a'] )
+				end
+			end
 
 			it "should raise when decode method is called with wrong args" do
 				expect{ textdec_int.decode() }.to raise_error(ArgumentError)
@@ -185,6 +198,15 @@ describe "PG::Type derivations" do
 
 			it "encodes binary string to bytea" do
 				expect( textenc_bytea.encode("\x00\x01\x02\x03\xef".b) ).to eq( "\\x00010203ef" )
+			end
+
+			context 'identifier quotation' do
+				it 'should quote and escape identifier' do
+					quoted_type = PG::TextEncoder::Identifier.new
+					expect( quoted_type.encode(['schema','table','col']) ).to eq( %["schema"."table"."col"] )
+					expect( quoted_type.encode(['A.','.B']) ).to eq( %["A.".".B"] )
+					expect( quoted_type.encode(%['A"."B']) ).to eq( %["'A"".""B'"] )
+				end
 			end
 
 			it "should encode with ruby encoder" do
@@ -378,20 +400,6 @@ describe "PG::Type derivations" do
 					array_type = PG::TextDecoder::Array.new elements_type: nil
 					expect( array_type.decode(%[{3,4}]) ).to eq( ['3','4'] )
 				end
-
-				context 'identifier quotation' do
-					it 'should build an array out of an quoted identifier string' do
-						quoted_type = PG::TextDecoder::Identifier.new elements_type: textdec_string
-						expect( quoted_type.decode(%["A.".".B"]) ).to eq( ["A.", ".B"] )
-						expect( quoted_type.decode(%["'A"".""B'"]) ).to eq( ['\'A"."B\''] )
-					end
-
-					it 'should split unquoted identifier string' do
-						quoted_type = PG::TextDecoder::Identifier.new elements_type: textdec_string
-						expect( quoted_type.decode(%[a.b]) ).to eq( ['a','b'] )
-						expect( quoted_type.decode(%[a]) ).to eq( ['a'] )
-					end
-				end
 			end
 
 			describe '#encode' do
@@ -451,22 +459,6 @@ describe "PG::Type derivations" do
 				it "should pass through non Array inputs" do
 					expect( textenc_float_array.encode("text") ).to eq( "text" )
 					expect( textenc_float_array.encode(1234) ).to eq( "1234" )
-				end
-
-				context 'identifier quotation' do
-					it 'should quote and escape identifier' do
-						quoted_type = PG::TextEncoder::Identifier.new elements_type: textenc_string
-						expect( quoted_type.encode(['schema','table','col']) ).to eq( %["schema"."table"."col"] )
-						expect( quoted_type.encode(['A.','.B']) ).to eq( %["A.".".B"] )
-						expect( quoted_type.encode(%['A"."B']) ).to eq( %["'A"".""B'"] )
-					end
-
-					it 'shouldn\'t quote or escape identifier if requested to not do' do
-						quoted_type = PG::TextEncoder::Identifier.new elements_type: textenc_string,
-								needs_quotation: false
-						expect( quoted_type.encode(['a','b']) ).to eq( %[a.b] )
-						expect( quoted_type.encode(%[a.b]) ).to eq( %[a.b] )
-					end
 				end
 
 				context 'literal quotation' do

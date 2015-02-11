@@ -133,6 +133,15 @@
 typedef long suseconds_t;
 #endif
 
+#if defined(HAVE_VARIABLE_LENGTH_ARRAYS)
+	#define PG_VARIABLE_LENGTH_ARRAY(type, name, len, maxlen) type name[(len)];
+#else
+	#define PG_VARIABLE_LENGTH_ARRAY(type, name, len, maxlen) \
+		type name[(maxlen)] = {(len)>(maxlen) ? (rb_raise(rb_eArgError, "Number of " #name " (%d) exceeds allowed maximum of " #maxlen, (len) ), (type)1) : (type)0};
+
+	#define PG_MAX_COLUMNS 4000
+#endif
+
 /* The data behind each PG::Connection object */
 typedef struct {
 	PGconn *pgconn;
@@ -313,6 +322,7 @@ VALUE lookup_error_class                               _(( const char * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
 int pg_coder_enc_to_s                                  _(( t_pg_coder*, VALUE, char *, VALUE *));
+int pg_text_enc_identifier                             _(( t_pg_coder*, VALUE, char *, VALUE *));
 t_pg_coder_enc_func pg_coder_enc_func                  _(( t_pg_coder* ));
 t_pg_coder_dec_func pg_coder_dec_func                  _(( t_pg_coder*, int ));
 void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));

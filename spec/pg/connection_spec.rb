@@ -1193,9 +1193,20 @@ describe PG::Connection do
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
 				expect( escaped ).to eq( "\"string to\"" )
 			end
-
 		end
 
+		it "can quote bigger strings with quote_ident" do
+			original = "'01234567\"" * 100
+			escaped = described_class.quote_ident( original + "\0afterzero" )
+			expect( escaped ).to eq( "\"" + original.gsub("\"", "\"\"") + "\"" )
+		end
+
+		it "can quote Arrays with quote_ident" do
+			original = "'01234567\""
+			escaped = described_class.quote_ident( [original]*3 )
+			expected = ["\"" + original.gsub("\"", "\"\"") + "\""] * 3
+			expect( escaped ).to eq( expected.join(".") )
+		end
 
 		describe "Ruby 1.9.x default_internal encoding" do
 

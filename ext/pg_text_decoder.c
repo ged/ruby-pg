@@ -293,7 +293,7 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
 }
 
 /*
- * Document-class: PG::TextDecoder::Identifier < PG::CompositeDecoder
+ * Document-class: PG::TextDecoder::Identifier < PG::SimpleDecoder
  *
  * This is the decoder class for PostgreSQL identifiers.
  *
@@ -305,16 +305,13 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
 static VALUE
 pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
-	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
-
 	/* Return value: array */
 	VALUE array;
 	VALUE elem;
 	int word_index = 0;
 	int index;
 	/* Use a buffer of the same length, as that will be the worst case */
-	char word[len + 1];
+	PG_VARIABLE_LENGTH_ARRAY(char, word, len + 1, NAMEDATALEN)
 
 	/* The current character in the input string. */
 	char c;
@@ -331,7 +328,7 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 		if(c == '.' && openQuote < 2 ) {
 			word[word_index] = 0;
 
-			elem = dec_func(conv, word, word_index, tuple, field, enc_idx);
+			elem = pg_text_dec_string(conv, word, word_index, tuple, field, enc_idx);
 			rb_ary_push(array, elem);
 
 			openQuote = 0;
@@ -353,7 +350,7 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
 	}
 
 	word[word_index] = 0;
-	elem = dec_func(conv, word, word_index, tuple, field, enc_idx);
+	elem = pg_text_dec_string(conv, word, word_index, tuple, field, enc_idx);
 	rb_ary_push(array, elem);
 
 	return array;
@@ -412,11 +409,11 @@ init_pg_text_decoder()
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Bytea", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Bytea", pg_text_dec_bytea, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Identifier", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Array", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
-	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Identifier", rb_cPG_CompositeDecoder ); */
-	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "FromBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "FromBase64", pg_text_dec_from_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 }

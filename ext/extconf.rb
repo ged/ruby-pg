@@ -94,6 +94,10 @@ $defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
 have_header 'unistd.h'
 have_header 'ruby/st.h' or have_header 'st.h' or abort "pg currently requires the ruby/st.h header"
 
+checking_for "C99 variable length arrays" do
+	$defs.push( "-DHAVE_VARIABLE_LENGTH_ARRAYS" ) if try_compile('void test_vla(int l){ int vla[l]; }')
+end
+
 create_header()
 create_makefile( "pg_ext" )
 
