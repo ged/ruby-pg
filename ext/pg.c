@@ -252,7 +252,7 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
  *   char *current_out, *end_capa;
  *   PG_RB_STR_NEW( string, current_out, end_capa );
  *   while( data_is_going_to_be_processed ){
- *     PG_RB_STR_ENSURE_CAPA( string, 2 current_out, end_capa );
+ *     PG_RB_STR_ENSURE_CAPA( string, 2, current_out, end_capa );
  *     *current_out++ = databyte1;
  *     *current_out++ = databyte2;
  *   }
