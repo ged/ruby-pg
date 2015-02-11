@@ -455,39 +455,34 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 	}
 }
 
-static int
-quote_identifier_buffer( void *_this, char *p_in, int strlen, char *p_out ){
+static char *
+quote_identifier( VALUE value, VALUE out_string, char *current_out ){
+	char *p_in = RSTRING_PTR(value);
 	char *ptr1;
-	char *ptr2;
-	int backslashs = 0;
+	size_t strlen = RSTRING_LEN(value);
+	char *end_capa = current_out;
 
-	/* count required backlashs */
+	PG_RB_STR_ENSURE_CAPA( out_string, strlen + 2, current_out, end_capa );
+	*current_out++ = '"';
 	for(ptr1 = p_in; ptr1 != p_in + strlen; ptr1++) {
-		if (*ptr1 == '"'){
-			backslashs++;
+		char c = *ptr1;
+		if (c == '"'){
+			strlen++;
+			PG_RB_STR_ENSURE_CAPA( out_string, p_in - ptr1 + strlen + 1, current_out, end_capa );
+			*current_out++ = '"';
+		} else if (c == 0){
+			break;
 		}
+		*current_out++ = c;
 	}
+	PG_RB_STR_ENSURE_CAPA( out_string, 1, current_out, end_capa );
+	*current_out++ = '"';
 
-	ptr1 = p_in + strlen;
-	ptr2 = p_out + strlen + backslashs + 2;
-	/* Write end quote */
-	*--ptr2 = '"';
-
-	/* Then store the escaped string on the final position, walking
-		* right to left, until all backslashs are placed. */
-	while( ptr1 != p_in ) {
-		*--ptr2 = *--ptr1;
-		if(*ptr2 == '"'){
-			*--ptr2 = '"';
-		}
-	}
-	/* Write start quote */
-	*p_out = '"';
-	return strlen + backslashs + 2;
+	return current_out;
 }
 
 static char *
-pg_text_enc_array_identifier(t_pg_composite_coder *this, VALUE value, VALUE string, char *out)
+pg_text_enc_array_identifier(VALUE value, VALUE string, char *out)
 {
 	int i;
 	int nr_elems;
@@ -498,7 +493,7 @@ pg_text_enc_array_identifier(t_pg_composite_coder *this, VALUE value, VALUE stri
 	for( i=0; i<nr_elems; i++){
 		VALUE entry = rb_ary_entry(value, i);
 
-		out = quote_string(this->elem, entry, string, out, this->needs_quotation, quote_identifier_buffer, this);
+		out = quote_identifier(entry, string, out);
 		if( i < nr_elems-1 ){
 			out = pg_rb_str_ensure_capa( string, 1, out, NULL );
 			*out++ = '.';
@@ -508,27 +503,29 @@ pg_text_enc_array_identifier(t_pg_composite_coder *this, VALUE value, VALUE stri
 }
 
 /*
- * Document-class: PG::TextEncoder::Identifier < PG::CompositeEncoder
+ * Document-class: PG::TextEncoder::Identifier < PG::SimpleEncoder
  *
  * This is the encoder class for PostgreSQL identifiers.
  *
  * An Array value can be used for "schema.table.column" type identifiers:
  *   PG::TextEncoder::Identifier.new.encode(['schema', 'table', 'column'])
- *      => "schema"."table"."column"
+ *      => '"schema"."table"."column"'
  *
+ *  This encoder can also be used per PG::Connection#quote_ident .
  */
-static int
-pg_text_enc_identifier(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+int
+pg_text_enc_identifier(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate)
 {
-	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-
-	*intermediate = rb_str_new(NULL, 0);
-	out = RSTRING_PTR(*intermediate);
-
+	UNUSED( this );
 	if( TYPE(value) == T_ARRAY){
-		out = pg_text_enc_array_identifier(this, value, *intermediate, out);
+		*intermediate = rb_str_new(NULL, 0);
+		out = RSTRING_PTR(*intermediate);
+		out = pg_text_enc_array_identifier(value, *intermediate, out);
 	} else {
-		out = quote_string(this->elem, value, *intermediate, out, this->needs_quotation, quote_identifier_buffer, this);
+		StringValue(value);
+		*intermediate = rb_str_new(NULL, RSTRING_LEN(value) + 2);
+		out = RSTRING_PTR(*intermediate);
+		out = quote_identifier(value, *intermediate, out);
 	}
 	rb_str_set_len( *intermediate, out - RSTRING_PTR(*intermediate) );
 	return -1;
@@ -651,11 +648,11 @@ init_pg_text_encoder()
 	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Bytea", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Bytea", pg_text_enc_bytea, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Identifier", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Array", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "Array", pg_text_enc_array, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
-	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Identifier", rb_cPG_CompositeEncoder ); */
-	pg_define_coder( "Identifier", pg_text_enc_identifier, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "QuotedLiteral", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "QuotedLiteral", pg_text_enc_quoted_literal, rb_cPG_CompositeEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "ToBase64", rb_cPG_CompositeEncoder ); */
