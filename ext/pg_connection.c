@@ -2997,7 +2997,9 @@ pgconn_transaction(VALUE self)
 /*
  * call-seq:
  *    PG::Connection.quote_ident( str ) -> String
+ *    PG::Connection.quote_ident( array ) -> String
  *    conn.quote_ident( str ) -> String
+ *    conn.quote_ident( array ) -> String
  *
  * Returns a string that is safe for inclusion in a SQL query as an
  * identifier. Note: this is not a quote function for values, but for
@@ -3014,31 +3016,20 @@ pgconn_transaction(VALUE self)
  * Similarly, this function also protects against special characters,
  * and other things that might allow SQL injection if the identifier
  * comes from an untrusted source.
+ *
+ * If the parameter is an Array, then all it's values are separately quoted
+ * and then joined by a "." character. This can be used for identifiers in
+ * the form "schema"."table"."column" .
+ *
+ * This method is functional identical to the encoder PG::TextEncoder::Identifier .
+ *
  */
 static VALUE
 pgconn_s_quote_ident(VALUE self, VALUE in_str)
 {
 	VALUE ret;
-	char *str = StringValuePtr(in_str);
-	/* result size at most NAMEDATALEN*2 plus surrounding
-	 * double-quotes. */
-	char buffer[NAMEDATALEN*2+2];
-	unsigned int i=0,j=0;
-	unsigned int str_len = RSTRING_LENINT(in_str);
+	pg_text_enc_identifier(NULL, in_str, NULL, &ret);
 
-	if(str_len >= NAMEDATALEN) {
-		rb_raise(rb_eArgError,
-			"Input string is longer than NAMEDATALEN-1 (%d)",
-			NAMEDATALEN-1);
-	}
-	buffer[j++] = '"';
-	for(i = 0; i < str_len && str[i]; i++) {
-		if(str[i] == '"')
-			buffer[j++] = '"';
-		buffer[j++] = str[i];
-	}
-	buffer[j++] = '"';
-	ret = rb_str_new(buffer,j);
 	OBJ_INFECT(ret, in_str);
 	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : in_str ));
 
