@@ -299,7 +299,7 @@ quote_array_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 	/* count data plus backslashes; detect chars needing quotes */
 	if (strlen == 0)
 		needquote = 1;   /* force quotes for empty string */
-	else if (strlen == 4 && pg_strncasecmp(p_in, "NULL", strlen) == 0)
+	else if (strlen == 4 && rbpg_strncasecmp(p_in, "NULL", strlen) == 0)
 		needquote = 1;   /* force quotes for literal NULL */
 	else
 		needquote = 0;

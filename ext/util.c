@@ -124,7 +124,7 @@ base64_decode( char *out, char *in, unsigned int len)
  * At most n bytes will be examined from each string.
  */
 int
-pg_strncasecmp(const char *s1, const char *s2, size_t n)
+rbpg_strncasecmp(const char *s1, const char *s2, size_t n)
 {
 	while (n-- > 0)
 	{
