@@ -1,7 +1,17 @@
-== v0.18.2 [2015-01-16] Michael Granger <ged@FaerieMUD.org>
+== v0.18.2 [2015-05-14] Michael Granger <ged@FaerieMUD.org>
 
-- Revert addition of PG::Connection#hostaddr.
-- Fix decoding of timestamps with a fractional zone like "04:30". #203
+Enhancements:
+
+- Allow URI connection string (thanks to Chris Bandy)
+
+Bugfixes:
+
+- Speedups and fixes for PG::TextDecoder::Identifier and quoting behavior
+- Revert addition of PG::Connection#hostaddr [#202].
+- Fix decoding of fractional timezones and timestamps [#203]
+- Fixes for non-C99 compilers
+- Avoid possible symbol name clash when linking againt static libpq.
+
 
 == v0.18.1 [2015-01-05] Michael Granger <ged@FaerieMUD.org>
 
