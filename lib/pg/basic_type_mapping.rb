@@ -25,9 +25,9 @@ module PG::BasicTypeRegistry
 
 			# populate the enum types
 			_enums, leaves = leaves.partition { |row| row['typinput'] == 'enum_in' }
-	# 		enums.each do |row|
-	# 			coder_map[row['oid'].to_i] = OID::Enum.new
-	# 		end
+			# enums.each do |row|
+			#	coder_map[row['oid'].to_i] = OID::Enum.new
+			# end
 
 			# populate the base types
 			leaves.find_all { |row| coders_by_name.key?(row['typname']) }.each do |row|
@@ -41,9 +41,9 @@ module PG::BasicTypeRegistry
 			_records_by_oid = result.group_by { |row| row['oid'] }
 
 			# populate composite types
-	# 		nodes.each do |row|
-	# 			add_oid row, records_by_oid, coder_map
-	# 		end
+			# nodes.each do |row|
+			#	add_oid row, records_by_oid, coder_map
+			# end
 
 			if arraycoder
 				# populate array types
@@ -62,11 +62,11 @@ module PG::BasicTypeRegistry
 			end
 
 			# populate range types
-	# 		ranges.find_all { |row| coder_map.key? row['rngsubtype'].to_i }.each do |row|
-	# 			subcoder = coder_map[row['rngsubtype'].to_i]
-	# 			range = OID::Range.new subcoder
-	# 			coder_map[row['oid'].to_i] = range
-	# 		end
+			# ranges.find_all { |row| coder_map.key? row['rngsubtype'].to_i }.each do |row|
+			#	subcoder = coder_map[row['rngsubtype'].to_i]
+			#	range = OID::Range.new subcoder
+			#	coder_map[row['oid'].to_i] = range
+			# end
 
 			@coders = coder_map.values
 			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }
@@ -154,46 +154,46 @@ module PG::BasicTypeRegistry
 	alias_type    0, 'int8', 'int2'
 	alias_type    0, 'oid',  'int2'
 
-# 	register_type 0, 'numeric', OID::Decimal.new
+	# register_type 0, 'numeric', OID::Decimal.new
 	register_type 0, 'text', PG::TextEncoder::String, PG::TextDecoder::String
 	alias_type 0, 'varchar', 'text'
 	alias_type 0, 'char', 'text'
 	alias_type 0, 'bpchar', 'text'
 	alias_type 0, 'xml', 'text'
 
-# 	# FIXME: why are we keeping these types as strings?
-# 	alias_type 'tsvector', 'text'
-# 	alias_type 'interval', 'text'
-# 	alias_type 'macaddr',  'text'
-# 	alias_type 'uuid',     'text'
-#
-# 	register_type 'money', OID::Money.new
+	# FIXME: why are we keeping these types as strings?
+	# alias_type 'tsvector', 'text'
+	# alias_type 'interval', 'text'
+	# alias_type 'macaddr',  'text'
+	# alias_type 'uuid',     'text'
+	#
+	# register_type 'money', OID::Money.new
 	# There is no PG::TextEncoder::Bytea, because it's simple and more efficient to send bytea-data
 	# in binary format, either with PG::BinaryEncoder::Bytea or in Hash param format.
 	register_type 0, 'bytea', nil, PG::TextDecoder::Bytea
 	register_type 0, 'bool', PG::TextEncoder::Boolean, PG::TextDecoder::Boolean
-# 	register_type 'bit', OID::Bit.new
-# 	register_type 'varbit', OID::Bit.new
-#
+	# register_type 'bit', OID::Bit.new
+	# register_type 'varbit', OID::Bit.new
+
 	register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
 	alias_type 0, 'float8', 'float4'
 
 	register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
 	register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
 	register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
-# 	register_type 'time', OID::Time.new
-#
-# 	register_type 'path', OID::Text.new
-# 	register_type 'point', OID::Point.new
-# 	register_type 'polygon', OID::Text.new
-# 	register_type 'circle', OID::Text.new
-# 	register_type 'hstore', OID::Hstore.new
-# 	register_type 'json', OID::Json.new
-# 	register_type 'citext', OID::Text.new
-# 	register_type 'ltree', OID::Text.new
-#
-# 	register_type 'cidr', OID::Cidr.new
-# 	alias_type 'inet', 'cidr'
+	# register_type 'time', OID::Time.new
+	#
+	# register_type 'path', OID::Text.new
+	# register_type 'point', OID::Point.new
+	# register_type 'polygon', OID::Text.new
+	# register_type 'circle', OID::Text.new
+	# register_type 'hstore', OID::Hstore.new
+	# register_type 'json', OID::Json.new
+	# register_type 'citext', OID::Text.new
+	# register_type 'ltree', OID::Text.new
+	#
+	# register_type 'cidr', OID::Cidr.new
+	# alias_type 'inet', 'cidr'
 
 
 
