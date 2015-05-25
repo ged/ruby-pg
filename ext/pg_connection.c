@@ -1534,7 +1534,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	Check_Type(string, T_STRING);
 
 	escaped = ALLOC_N(char, RSTRING_LEN(string) * 2 + 1);
-	if(rb_obj_class(self) == rb_cPGconn) {
+	if( rb_obj_is_kind_of(self, rb_cPGconn) ) {
 		size = PQescapeStringConn(pg_get_pgconn(self), escaped,
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
@@ -1547,7 +1547,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	result = rb_str_new(escaped, size);
 	xfree(escaped);
 	OBJ_INFECT(result, string);
-	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : string ));
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET( rb_obj_is_kind_of(self, rb_cPGconn) ? self : string ));
 
 	return result;
 }
@@ -1587,7 +1587,7 @@ pgconn_s_escape_bytea(VALUE self, VALUE str)
 	from      = (unsigned char*)RSTRING_PTR(str);
 	from_len  = RSTRING_LEN(str);
 
-	if(rb_obj_class(self) == rb_cPGconn) {
+	if ( rb_obj_is_kind_of(self, rb_cPGconn) ) {
 		to = PQescapeByteaConn(pg_get_pgconn(self), from, from_len, &to_len);
 	} else {
 		to = PQescapeBytea( from, from_len, &to_len);
@@ -3031,7 +3031,7 @@ pgconn_s_quote_ident(VALUE self, VALUE in_str)
 	pg_text_enc_identifier(NULL, in_str, NULL, &ret);
 
 	OBJ_INFECT(ret, in_str);
-	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET( rb_obj_class(self) == rb_cPGconn ? self : in_str ));
+	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET( rb_obj_is_kind_of(self, rb_cPGconn) ? self : in_str ));
 
 	return ret;
 }
