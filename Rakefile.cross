@@ -217,6 +217,11 @@ class CrossLibrary < OpenStruct
 
 		# make libpq.dll
 		task postgresql_lib => [ postgresql_global_makefile ] do |t|
+			# Work around missing dependency to libcommon in PostgreSQL-9.4.0
+			chdir( static_postgresql_srcdir + "common" ) do
+				sh 'make', "-j#{NUM_CPUS}"
+			end
+
 			chdir( postgresql_lib.dirname ) do
 				sh 'make',
 					"-j#{NUM_CPUS}",
@@ -277,4 +282,10 @@ ENV['RUBY_CC_VERSION'].to_s.split(':').each do |ruby_version|
   task "tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so" do |t|
     sh "x86_64-w64-mingw32-strip -S tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so"
   end
+end
+
+desc "Build the windows binary gems"
+task 'gem:windows' => 'gem' do
+  require 'rake_compiler_dock'
+  RakeCompilerDock.sh "bundle && rake cross gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=1.9.3:2.0.0:2.1.6:2.2.2"
 end
