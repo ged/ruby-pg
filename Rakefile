@@ -61,6 +61,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
 
 	self.dependency 'rake-compiler', '~> 0.9', :developer
+	self.dependency 'rake-compiler-dock', '~> 0.2', :developer
 	self.dependency 'hoe', '~> 3.12', :developer
 	self.dependency 'hoe-deveiate', '~> 0.6', :developer
 	self.dependency 'hoe-bundler', '~> 1.0', :developer

@@ -283,3 +283,9 @@ ENV['RUBY_CC_VERSION'].to_s.split(':').each do |ruby_version|
     sh "x86_64-w64-mingw32-strip -S tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so"
   end
 end
+
+desc "Build the windows binary gems"
+task 'gem:windows' => 'gem' do
+  require 'rake_compiler_dock'
+  RakeCompilerDock.sh "bundle && rake cross gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=1.9.3:2.0.0:2.1.6:2.2.2"
+end
