@@ -217,6 +217,11 @@ class CrossLibrary < OpenStruct
 
 		# make libpq.dll
 		task postgresql_lib => [ postgresql_global_makefile ] do |t|
+			# Work around missing dependency to libcommon in PostgreSQL-9.4.0
+			chdir( static_postgresql_srcdir + "common" ) do
+				sh 'make', "-j#{NUM_CPUS}"
+			end
+
 			chdir( postgresql_lib.dirname ) do
 				sh 'make',
 					"-j#{NUM_CPUS}",
