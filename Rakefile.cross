@@ -285,7 +285,17 @@ ENV['RUBY_CC_VERSION'].to_s.split(':').each do |ruby_version|
 end
 
 desc "Build the windows binary gems"
-task 'gem:windows' => 'gem' do
+task 'gem:windows' do
   require 'rake_compiler_dock'
-  RakeCompilerDock.sh "bundle && rake cross gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=1.9.3:2.0.0:2.1.6:2.2.2"
+
+  # Copy gem signing key and certs to be accessable from the docker container
+  mkdir_p 'build/gem'
+  sh "cp ~/.gem/gem-*.pem build/gem/"
+
+  RakeCompilerDock.sh <<-EOT
+    mkdir ~/.gem &&
+    cp build/gem/gem-*.pem ~/.gem/ &&
+    bundle install &&
+    rake cross native gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=1.9.3:2.0.0:2.1.6:2.2.2
+  EOT
 end
