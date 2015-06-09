@@ -285,7 +285,7 @@ ENV['RUBY_CC_VERSION'].to_s.split(':').each do |ruby_version|
 end
 
 desc "Build the windows binary gems"
-task 'gem:windows' do
+task 'gem:windows' => ['ChangeLog'] do
   require 'rake_compiler_dock'
 
   # Copy gem signing key and certs to be accessable from the docker container
