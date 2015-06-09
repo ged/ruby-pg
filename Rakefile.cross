@@ -32,7 +32,17 @@ class CrossLibrary < OpenStruct
 		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.0.1i'
 		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '9.3.5'
 
-		self.compile_home               = Pathname( "./build" ).expand_path
+		# Check if symlinks work in the current working directory.
+		# This fails, if rake-compiler-dock is running on a Windows box.
+		begin
+			FileUtils.rm_f '.test_symlink'
+			FileUtils.ln_s '/', '.test_symlink'
+		rescue SystemCallError
+			# Symlinks don't work -> use home directory instead
+			self.compile_home               = Pathname( "~/.ruby-pg-build" ).expand_path
+		else
+			self.compile_home               = Pathname( "./build" ).expand_path
+		end
 		self.static_sourcesdir          = compile_home + 'sources'
 		self.static_builddir            = compile_home + 'builds' + for_platform
 
