@@ -21,11 +21,12 @@ end
 class CrossLibrary < OpenStruct
 	include Rake::DSL
 
-	def initialize(for_platform, openssl_config)
+	def initialize(for_platform, openssl_config, toolchain)
 		super()
 
 		self.for_platform               = for_platform
 		self.openssl_config             = openssl_config
+		self.host_platform              = toolchain
 
 		# Cross-compilation constants
 		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.0.1i'
@@ -66,17 +67,6 @@ class CrossLibrary < OpenStruct
 		self.postgresql_shlib_mf_orig   = static_postgresql_srcdir + 'Makefile.shlib.orig'
 		self.postgresql_lib             = static_postgresql_libdir + 'libpq.dll'
 		self.postgresql_patches         = Rake::FileList[ (MISCDIR + "postgresql-#{postgresql_version}.*.patch").to_s ]
-
-		# Use rake-compilers config.yml to determine the toolchain that was used
-		# to build Ruby for this platform.
-		self.host_platform = begin
-			config_file = YAML.load_file(File.expand_path("~/.rake-compiler/config.yml"))
-			_, rbfile = config_file.find{|key, fname| key.start_with?("rbconfig-#{for_platform}-") }
-			IO.read(rbfile).match(/CONFIG\["CC"\] = "(.*)"/)[1].sub(/\-gcc/, '')
-		rescue
-			nil
-		end
-
 
 		# clean intermediate files and folders
 		CLEAN.include( static_builddir.to_s )
@@ -251,10 +241,10 @@ end
 
 if File.exist?(File.expand_path("~/.rake-compiler/config.yml"))
 	CrossLibraries = [
-		['i386-mingw32', 'mingw'],
-		['x64-mingw32', 'mingw64'],
-	].map do |platform, openssl_config|
-		CrossLibrary.new platform, openssl_config
+		['i386-mingw32', 'mingw', 'i686-w64-mingw32'],
+		['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
+	].map do |platform, openssl_config, toolchain|
+		CrossLibrary.new platform, openssl_config, toolchain
 	end
 else
 	$stderr.puts "Cross-compilation disabled -- rake-compiler not properly installed"
