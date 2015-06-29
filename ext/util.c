@@ -17,7 +17,7 @@ static const char base64_encode_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
 void
 base64_encode( char *out, char *in, int len)
 {
-	char *in_ptr = in + len;
+	unsigned char *in_ptr = (unsigned char *)in + len;
 	char *out_ptr = out + BASE64_ENCODED_SIZE(len);
 	int part_len = len % 3;
 
