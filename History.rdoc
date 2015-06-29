@@ -1,7 +1,9 @@
 == v0.18.3 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
-Bugfixes:
+Enhancements:
+- Use rake-compiler-dock to build windows gems easily.
 
+Bugfixes:
 - Fix data type resulting in wrong base64 encoding.
 
 

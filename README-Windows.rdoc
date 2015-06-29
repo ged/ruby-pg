@@ -2,9 +2,9 @@
 
 In order to build this extension on MS Windows you will need a couple things.
 
-First, a compiler. For the one click installer this means you should either
-use VC++ 6.0 or the compiler that comes with cygwin or mingw if you're
-building on that platform.
+First, a compiler. For the one click installer this means you should use
+the DevKit or the compiler that comes with cygwin if you're building on that
+platform.
 
 If you've built Ruby yourself, you should use the same compiler to build
 this library that you used to build Ruby.
@@ -29,34 +29,23 @@ Adjust your path accordingly. BE SURE TO USE THE SHORT PATH NAMES! If you
 try to use a path with spaces in it, the nmake.exe program will choke.
 
 
-== Cross compiling for mswin32
+== Building binary 'pg' gems for MS Windows
 
-Using rake-compiler a cross compiled pg gem can be build on a Linux or MacOS X
-host for the win32 platform. The generated gem is statically linked against
-libpq and libssl. OpenSSL and PostgreSQL are downloaded and compiled from the
-sources. There are no runtime dependencies to any but the standard Windows
-DLLs.
+Binary gems for windows can be built on Linux, OS-X and even on Windows
+with the help of docker. This is how regular windows gems are built for
+rubygems.org .
 
-Install mingw32 using the instructions in rake-compiler's README.
-For Debian/Ubuntu it is <tt>apt-get install gcc-mingw32</tt> .
-Use ruby-1.8.7 for the following commands.
+To do this, install boot2docker [on Windows](https://github.com/boot2docker/windows-installer/releases)
+or [on OS X](https://github.com/boot2docker/osx-installer/releases) and make
+sure it is started. A native Docker installation is best on Linux.
 
-Download and cross compile ruby 1.8 and 1.9 for win32 with:
+Then run:
 
-	rake-compiler cross-ruby VERSION=1.8.7-p352
-	rake-compiler cross-ruby VERSION=1.9.2-p290
+	rake gem:windows
 
-Download and cross compile pg for win32:
-
-	rake cross native gem
-
-or with custom versions:
-
-	rake cross native gem RUBY_CC_VERSION=1.8.7:1.9.2 \
-	    OPENSSL_VERSION=1.0.0e POSTGRESQL_VERSION=9.1.1
-
-If everything works, there should be pg-VERSION-x86-mingw32.gem in the pkg
-directory.
+This will download a docker image suited for building windows gems, and it
+will download and build OpenSSL and PostgreSQL. Finally the gem is built
+containing binaries for all supported ruby versions.
 
 
 == Reporting Problems
