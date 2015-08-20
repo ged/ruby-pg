@@ -512,6 +512,7 @@ describe "PG::Type derivations" do
 			expect( e.encode("xxxx") ).to eq("eHh4eA==")
 			expect( e.encode("xxxxx") ).to eq("eHh4eHg=")
 			expect( e.encode("\0\n\t") ).to eq("AAoJ")
+			expect( e.encode("(\xFBm") ).to eq("KPtt")
 		end
 
 		it "should encode Strings as base64 in BinaryDecoder" do
@@ -540,6 +541,7 @@ describe "PG::Type derivations" do
 			expect( e.decode("eHh4eA==") ).to eq("xxxx")
 			expect( e.decode("eHh4eHg=") ).to eq("xxxxx")
 			expect( e.decode("AAoJ") ).to eq("\0\n\t")
+			expect( e.decode("KPtt") ).to eq("(\xFBm")
 		end
 
 		it "should decode base64 in BinaryEncoder" do
