@@ -151,6 +151,7 @@ file 'ChangeLog' do |task|
 	if File.exist?('.hg/branch')
 		$stderr.puts "Updating the changelog..."
 		begin
+			include Hoe::MercurialHelpers
 			content = make_changelog()
 		rescue NameError
 			abort "Packaging tasks require the hoe-mercurial plugin (gem install hoe-mercurial)"
