@@ -2,9 +2,11 @@
 
 Enhancements:
 - Use rake-compiler-dock to build windows gems easily.
+- Add CI-tests on appveyor and fix test cases accordingly.
 
 Bugfixes:
 - Fix data type resulting in wrong base64 encoding.
+- Change instance_of checks to kind_of for subclassing. #220
 
 
 == v0.18.2 [2015-05-14] Michael Granger <ged@FaerieMUD.org>
