@@ -29,8 +29,8 @@ environment:
       PGVERSION: 9.4.4-3-windows
       PGVER: 9.4
     - ruby_version: "21-x64"
-      PGVERSION: 9.0.22-3-windows-x64
-      PGVER: 9.0
+      PGVERSION: 9.3.9-3-windows-x64
+      PGVER: 9.3
     - ruby_version: "22"
       PGVERSION: 9.4.4-3-windows
       PGVER: 9.4
