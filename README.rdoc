@@ -29,7 +29,8 @@ A small example usage:
 
 == Build Status
 
-{<img src="https://travis-ci.org/ged/ruby-pg.png?branch=master" alt="Build Status" />}[https://travis-ci.org/ged/ruby-pg]
+{<img src="https://travis-ci.org/ged/ruby-pg.png?branch=master" alt="Build Status Travis-CI" />}[https://travis-ci.org/ged/ruby-pg]
+{<img src="https://ci.appveyor.com/api/projects/status/at4g4swb2cd4xji7/branch/master?svg=true" alt="Build Status Appveyor" />}[https://ci.appveyor.com/api/projects/status/at4g4swb2cd4xji7/branch/master]
 
 
 == Requirements
