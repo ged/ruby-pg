@@ -255,7 +255,7 @@ module PG::TestingHelpers
 			unless conns.empty?
 				puts "Lingering connections remain:"
 				conns.each do |row|
-					puts "  [%d] {%s} %s -- %s" % row.values_at( 'pid', 'state', 'application_name', 'query' )
+					puts "  [%s] {%s} %s -- %s" % row.values_at( 'pid', 'state', 'application_name', 'query' )
 				end
 			end
 		end
