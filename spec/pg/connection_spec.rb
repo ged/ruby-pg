@@ -228,10 +228,13 @@ describe PG::Connection do
 		expect( @conn.db ).to eq( "test" )
 		expect( @conn.user ).to be_a_kind_of( String )
 		expect( @conn.pass ).to eq( "" )
-		expect( @conn.host ).to eq( "localhost" )
 		expect( @conn.port ).to eq( 54321 )
 		expect( @conn.tty ).to eq( "" )
 		expect( @conn.options ).to eq( "" )
+	end
+	it "can retrieve it's connection parameters for the established connection",
+	    skip: RUBY_PLATFORM=~/x64-mingw/ ? "host segfaults on Windows-x64" : false do
+		expect( @conn.host ).to eq( "localhost" )
 	end
 
 	EXPECTED_TRACE_OUTPUT = %{
