@@ -132,8 +132,7 @@ Rake::ExtensionTask.new do |ext|
 
 	# Add libpq.dll to windows binary gemspec
 	ext.cross_compiling do |spec|
-		# mingw32-platform strings differ (RUBY_PLATFORM=i386-mingw32 vs. x86-mingw32 for rubygems)
-		spec.files << "lib/#{spec.platform.to_s.gsub(/^x86-/, "i386-")}/libpq.dll"
+		spec.files << "lib/libpq.dll"
 	end
 end
 
