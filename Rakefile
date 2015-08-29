@@ -97,7 +97,7 @@ task :test do
 	# the installed gem dir. So we clear the task rake-compiler set up
 	# to break the dependency between :spec and :compile when running under
 	# rubygems-test, and then run :spec.
-	Rake::Task[ EXT.to_s ].clear
+	Rake::Task[ EXT.to_s ].clear if File.exist?(EXT.to_s)
 	Rake::Task[ :spec ].execute
 end
 
