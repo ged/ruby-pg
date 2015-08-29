@@ -1,3 +1,6 @@
+sudo: required
+services:
+  - docker
 language: ruby
 rvm:
   - "2.0.0"
@@ -24,15 +27,11 @@ matrix:
       # one test fails because GVL unblocking function is not called by Rubinius core
     - rvm: rbx
 before_install:
-  - gem install rake-compiler
+  - bundle install
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
   - "if [ -z \"$PGCROSS\" ]; then
       wget http://get.enterprisedb.com/postgresql/postgresql-$PGVERSION.run &&
       chmod +x postgresql-$PGVERSION.run &&
       sudo ./postgresql-$PGVERSION.run --mode unattended --unattendedmodeui minimal;
     fi"
-  # Install compiler and ruby versions for cross compile (as seperate tasks to not exceed timeout limits)
-  - "if [ -n \"$PGCROSS\" ]; then sudo apt-get install gcc-mingw-w64-i686 binutils-mingw-w64-i686 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64; fi"
-  - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=1.9.3-p547 MINIRUBYOPT=--disable-gems; fi"
-  - "if [ -n \"$PGCROSS\" ]; then rake-compiler cross-ruby VERSION=2.1.5 MINIRUBYOPT=--disable-gems HOST=x86_64-w64-mingw32; fi"
-script: "if [ -z \"$PGCROSS\" ]; then rake compile test; else rake cross compile; fi"
+script: "if [ -z \"$PGCROSS\" ]; then rake compile test; else rake gem:windows; fi"
