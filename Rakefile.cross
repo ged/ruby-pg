@@ -290,11 +290,11 @@ task 'gem:windows' => ['ChangeLog'] do
 
   # Copy gem signing key and certs to be accessable from the docker container
   mkdir_p 'build/gem'
-  sh "cp ~/.gem/gem-*.pem build/gem/"
+  sh "cp ~/.gem/gem-*.pem build/gem/ || true"
 
   RakeCompilerDock.sh <<-EOT
     mkdir ~/.gem &&
-    cp build/gem/gem-*.pem ~/.gem/ &&
+    (cp build/gem/gem-*.pem ~/.gem/ || true) &&
     bundle install &&
     rake cross native gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=2.3.0:2.2.2:2.1.6:2.0.0:1.9.3
   EOT
