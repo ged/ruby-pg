@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require 'date'
+
 module PG
 	module TextDecoder
 		class Date < SimpleDecoder
