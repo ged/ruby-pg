@@ -58,8 +58,8 @@ describe 'Basic type mapping' do
 		it "should do OID based type conversions", :ruby_19 do
 			res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE, generate_series(4,5)" )
 			expect( res.map_types!(basic_type_mapping).values ).to eq( [
-					[ 1, 'a', 2.0, true, Time.new(2013,6,30), 4 ],
-					[ 1, 'a', 2.0, true, Time.new(2013,6,30), 5 ],
+					[ 1, 'a', 2.0, true, Date.new(2013,6,30), 4 ],
+					[ 1, 'a', 2.0, true, Date.new(2013,6,30), 5 ],
 			] )
 		end
 
@@ -159,8 +159,8 @@ describe 'Basic type mapping' do
 																		CAST('1913-12-31' AS DATE),
 																		CAST('infinity' AS DATE),
 																		CAST('-infinity' AS DATE)", [], format )
-					expect( res.getvalue(0,0) ).to eq( Time.new(2113, 12, 31) )
-					expect( res.getvalue(0,1) ).to eq( Time.new(1913, 12, 31) )
+					expect( res.getvalue(0,0) ).to eq( Date.new(2113, 12, 31) )
+					expect( res.getvalue(0,1) ).to eq( Date.new(1913, 12, 31) )
 					expect( res.getvalue(0,2) ).to eq( 'infinity' )
 					expect( res.getvalue(0,3) ).to eq( '-infinity' )
 				end

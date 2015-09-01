@@ -7,7 +7,7 @@ module PG
 
 			def decode(string, tuple=nil, field=nil)
 				if string =~ ISO_DATE
-					Time.new $1.to_i, $2.to_i, $3.to_i
+					::Date.new $1.to_i, $2.to_i, $3.to_i
 				else
 					string
 				end
