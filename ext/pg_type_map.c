@@ -54,12 +54,12 @@ pg_typemap_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno
 }
 
 const struct pg_typemap_funcs pg_typemap_funcs = {
-	.fit_to_result = pg_typemap_fit_to_result,
-	.fit_to_query = pg_typemap_fit_to_query,
-	.fit_to_copy_get = pg_typemap_fit_to_copy_get,
-	.typecast_result_value = pg_typemap_result_value,
-	.typecast_query_param = pg_typemap_typecast_query_param,
-	.typecast_copy_get = pg_typemap_typecast_copy_get
+	pg_typemap_fit_to_result,
+	pg_typemap_fit_to_query,
+	pg_typemap_fit_to_copy_get,
+	pg_typemap_result_value,
+	pg_typemap_typecast_query_param,
+	pg_typemap_typecast_copy_get
 };
 
 static VALUE

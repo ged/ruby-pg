@@ -162,12 +162,12 @@ pg_tmbc_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, i
 }
 
 const struct pg_typemap_funcs pg_tmbc_funcs = {
-	.fit_to_result = pg_tmbc_fit_to_result,
-	.fit_to_query = pg_tmbc_fit_to_query,
-	.fit_to_copy_get = pg_tmbc_fit_to_copy_get,
-	.typecast_result_value = pg_tmbc_result_value,
-	.typecast_query_param = pg_tmbc_typecast_query_param,
-	.typecast_copy_get = pg_tmbc_typecast_copy_get
+	pg_tmbc_fit_to_result,
+	pg_tmbc_fit_to_query,
+	pg_tmbc_fit_to_copy_get,
+	pg_tmbc_result_value,
+	pg_tmbc_typecast_query_param,
+	pg_tmbc_typecast_copy_get
 };
 
 static void

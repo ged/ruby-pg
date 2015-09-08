@@ -30,7 +30,9 @@
 
 #include "pg.h"
 #include "util.h"
+#ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
+#endif
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
