@@ -92,6 +92,7 @@ $defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'
+have_header 'inttypes.h'
 have_header 'ruby/st.h' or have_header 'st.h' or abort "pg currently requires the ruby/st.h header"
 
 checking_for "C99 variable length arrays" do

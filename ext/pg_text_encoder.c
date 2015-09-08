@@ -41,7 +41,9 @@
 
 #include "pg.h"
 #include "util.h"
+#ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
+#endif
 #include <math.h>
 
 VALUE rb_mPG_TextEncoder;
