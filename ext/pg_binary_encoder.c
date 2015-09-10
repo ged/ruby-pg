@@ -22,14 +22,14 @@ VALUE rb_mPG_BinaryEncoder;
 static int
 pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
 {
-	char bool;
+	char mybool;
 	switch(value){
-		case Qtrue : bool = 1; break;
-		case Qfalse : bool = 0; break;
+		case Qtrue : mybool = 1; break;
+		case Qfalse : mybool = 0; break;
 		default :
 			rb_raise( rb_eTypeError, "wrong data for binary boolean converter" );
 	}
-	if(out) *out = bool;
+	if(out) *out = mybool;
 	return 1;
 }
 
