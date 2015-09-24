@@ -1,3 +1,13 @@
+== v0.18.4 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Enhancements:
+- Fixing compilation problems with Microsoft Visual Studio 2008. GH #10
+
+Bugfixes:
+- Avoid segfault, when quote_ident or TextEncoder::Identifier
+  is called with Array containing non-strings. #226
+
+
 == v0.18.3 [2015-09-03] Michael Granger <ged@FaerieMUD.org>
 
 Enhancements:
