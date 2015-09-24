@@ -206,6 +206,13 @@ describe "PG::Type derivations" do
 					expect( quoted_type.encode(['schema','table','col']) ).to eq( %["schema"."table"."col"] )
 					expect( quoted_type.encode(['A.','.B']) ).to eq( %["A.".".B"] )
 					expect( quoted_type.encode(%['A"."B']) ).to eq( %["'A"".""B'"] )
+					expect( quoted_type.encode( nil ) ).to be_nil
+				end
+
+				it "will raise a TypeError for invalid arguments to quote_ident" do
+					quoted_type = PG::TextEncoder::Identifier.new
+					expect{ quoted_type.encode( [nil] ) }.to raise_error(TypeError)
+					expect{ quoted_type.encode( [['a']] ) }.to raise_error(TypeError)
 				end
 			end
 

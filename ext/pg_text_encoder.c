@@ -495,6 +495,7 @@ pg_text_enc_array_identifier(VALUE value, VALUE string, char *out)
 	for( i=0; i<nr_elems; i++){
 		VALUE entry = rb_ary_entry(value, i);
 
+		StringValue(entry);
 		out = quote_identifier(entry, string, out);
 		if( i < nr_elems-1 ){
 			out = pg_rb_str_ensure_capa( string, 1, out, NULL );

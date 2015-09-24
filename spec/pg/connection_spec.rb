@@ -1211,6 +1211,12 @@ describe PG::Connection do
 			expect( escaped ).to eq( expected.join(".") )
 		end
 
+		it "will raise a TypeError for invalid arguments to quote_ident" do
+			expect{ described_class.quote_ident( nil ) }.to raise_error(TypeError)
+			expect{ described_class.quote_ident( [nil] ) }.to raise_error(TypeError)
+			expect{ described_class.quote_ident( [['a']] ) }.to raise_error(TypeError)
+		end
+
 		describe "Ruby 1.9.x default_internal encoding" do
 
 			it "honors the Encoding.default_internal if it's set and the synchronous interface is used" do
