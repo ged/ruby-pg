@@ -16,6 +16,7 @@ Bugfixes:
 Enhancements:
 
 - Allow URI connection string (thanks to Chris Bandy)
+- Allow Array type parameter to conn.quote_ident
 
 Bugfixes:
 
