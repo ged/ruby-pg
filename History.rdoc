@@ -1,4 +1,4 @@
-== v0.18.3 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v0.18.3 [2015-09-03] Michael Granger <ged@FaerieMUD.org>
 
 Enhancements:
 - Use rake-compiler-dock to build windows gems easily.
@@ -7,6 +7,8 @@ Enhancements:
 Bugfixes:
 - Fix data type resulting in wrong base64 encoding.
 - Change instance_of checks to kind_of for subclassing. #220
+- TextDecoder::Date returns an actual Ruby Date instead of a Time
+  (thanks to Thomas Ramfjord)
 
 
 == v0.18.2 [2015-05-14] Michael Granger <ged@FaerieMUD.org>
