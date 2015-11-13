@@ -2,6 +2,7 @@
 
 Enhancements:
 - Fixing compilation problems with Microsoft Visual Studio 2008. GH #10
+- Avoid name clash with xcode and jemalloc. PR#22, PR#23
 
 Bugfixes:
 - Avoid segfault, when quote_ident or TextEncoder::Identifier
