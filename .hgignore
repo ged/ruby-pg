@@ -1,7 +1,7 @@
 ChangeLog$
 commit-msg\.txt$
 lowrite\.txt
-\.(diff|patch)$
+\.(diff|patch|test_symlink)$
 \.(s?o|log|bundle)$
 \.DS_Store
 \.orig$
@@ -17,3 +17,4 @@ build/
 misc/ruby-pg/pkg
 misc/postgres/pkg
 ext/errorcodes.def
+^lib/.*\.dll$
