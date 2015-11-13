@@ -1,4 +1,4 @@
-== v0.18.4 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v0.18.4 [2015-11-13] Michael Granger <ged@FaerieMUD.org>
 
 Enhancements:
 - Fixing compilation problems with Microsoft Visual Studio 2008. GH #10
