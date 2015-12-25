@@ -175,7 +175,7 @@ pg_copycoder_type_map_get(VALUE self)
  * PG::Connection#get_copy_data .
  */
 static int
-pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 	t_pg_coder_enc_func enc_func;
@@ -190,6 +190,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 
 	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
 	PG_RB_STR_NEW( *intermediate, current_out, end_capa_ptr );
+	PG_ENCODING_SET_NOCHECK(*intermediate, enc_idx);
 
 	for( i=0; i<RARRAY_LEN(value); i++){
 		char *ptr1;
@@ -217,7 +218,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				enc_func = pg_coder_enc_func(p_elem_coder);
 
 				/* 1st pass for retiving the required memory space */
-				strlen = enc_func(p_elem_coder, entry, NULL, &subint);
+				strlen = enc_func(p_elem_coder, entry, NULL, &subint, enc_idx);
 
 				if( strlen == -1 ){
 					/* we can directly use String value in subint */
@@ -240,7 +241,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2, current_out, end_capa_ptr );
 
 					/* Place the unescaped string at current output position. */
-					strlen = enc_func(p_elem_coder, entry, current_out, &subint);
+					strlen = enc_func(p_elem_coder, entry, current_out, &subint, enc_idx);
 
 					ptr1 = current_out;
 					ptr2 = current_out + strlen;

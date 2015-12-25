@@ -114,12 +114,23 @@ pg_composite_decoder_allocate( VALUE klass )
  *
  */
 static VALUE
-pg_coder_encode(VALUE self, VALUE value)
+pg_coder_encode(int argc, VALUE *argv, VALUE self)
 {
 	VALUE res;
 	VALUE intermediate;
+	VALUE value;
 	int len, len2;
+	int enc_idx;
 	t_pg_coder *this = DATA_PTR(self);
+
+	if(argc < 1 || argc > 2){
+		rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..2)", argc);
+	}else if(argc == 1){
+		enc_idx = rb_ascii8bit_encindex();
+	}else{
+		enc_idx = rb_to_encoding_index(argv[1]);
+	}
+	value = argv[0];
 
 	if( NIL_P(value) )
 		return Qnil;
@@ -128,7 +139,7 @@ pg_coder_encode(VALUE self, VALUE value)
 		rb_raise(rb_eRuntimeError, "no encoder function defined");
 	}
 
-	len = this->enc_func( this, value, NULL, &intermediate );
+	len = this->enc_func( this, value, NULL, &intermediate, enc_idx );
 
 	if( len == -1 ){
 		/* The intermediate value is a String that can be used directly. */
@@ -137,7 +148,8 @@ pg_coder_encode(VALUE self, VALUE value)
 	}
 
 	res = rb_str_new(NULL, len);
-	len2 = this->enc_func( this, value, RSTRING_PTR(res), &intermediate);
+	PG_ENCODING_SET_NOCHECK(res, enc_idx);
+	len2 = this->enc_func( this, value, RSTRING_PTR(res), &intermediate, enc_idx );
 	if( len < len2 ){
 		rb_bug("%s: result length of first encoder run (%i) is less than second run (%i)",
 			rb_obj_classname( self ), len, len2 );
@@ -165,8 +177,8 @@ static VALUE
 pg_coder_decode(int argc, VALUE *argv, VALUE self)
 {
 	char *val;
-	VALUE tuple = -1;
-	VALUE field = -1;
+	int tuple = -1;
+	int field = -1;
 	VALUE res;
 	t_pg_coder *this = DATA_PTR(self);
 
@@ -359,10 +371,19 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 
 
 static int
-pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_text_enc_in_ruby(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
-	*intermediate = rb_funcall( conv->coder_obj, s_id_encode, 1, value );
-	StringValue( *intermediate );
+	int arity = rb_obj_method_arity(conv->coder_obj, s_id_encode);
+	if( arity == 1 ){
+		VALUE out_str = rb_funcall( conv->coder_obj, s_id_encode, 1, value );
+		StringValue( out_str );
+		*intermediate = rb_str_export_to_enc(out_str, rb_enc_from_index(enc_idx));
+	}else{
+		VALUE enc = rb_enc_from_encoding(rb_enc_from_index(enc_idx));
+		VALUE out_str = rb_funcall( conv->coder_obj, s_id_encode, 2, value, enc );
+		StringValue( out_str );
+		*intermediate = out_str;
+	}
 	return -1;
 }
 
@@ -442,7 +463,7 @@ init_pg_coder()
 	 * This accessor is only used in PG::Coder#inspect .
 	 */
 	rb_define_attr(   rb_cPG_Coder, "name", 1, 1 );
-	rb_define_method( rb_cPG_Coder, "encode", pg_coder_encode, 1 );
+	rb_define_method( rb_cPG_Coder, "encode", pg_coder_encode, -1 );
 	rb_define_method( rb_cPG_Coder, "decode", pg_coder_decode, -1 );
 
 	/* Document-class: PG::SimpleCoder < PG::Coder */
