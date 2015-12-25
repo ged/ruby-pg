@@ -116,7 +116,7 @@ describe PG::TypeMapByMriType do
 
 	it "should allow mixed type conversions" do
 		res = @conn.exec_params( "SELECT $1, $2, $3", [5, 1.23, :TestSymbol], 0, tm )
-		expect( res.values ).to eq([['5', '1.23', '[:TestSymbol]']])
+		expect( res.values ).to eq([['5', '1.23', "[:TestSymbol, #{@conn.internal_encoding.inspect}]"]])
 		expect( res.ftype(0) ).to eq(20)
 	end
 

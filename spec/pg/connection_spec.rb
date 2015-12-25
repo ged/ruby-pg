@@ -1150,51 +1150,137 @@ describe PG::Connection do
 			end
 
 			it "uses the client encoding for escaped string" do
-				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				original = "Möhre to\0 escape".encode( "utf-16be" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "string to" )
+				expect( escaped ).to eq( "Möhre to".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the client encoding for escaped literal", :postgresql_90 do
-				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				original = "Möhre to\0 escape".encode( "utf-16be" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_literal( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "'string to'" )
+				expect( escaped ).to eq( "'Möhre to'".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the client encoding for escaped identifier", :postgresql_90 do
-				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				original = "Möhre to\0 escape".encode( "utf-16le" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_identifier( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "\"string to\"" )
+				expect( escaped ).to eq( "\"Möhre to\"".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the client encoding for quote_ident" do
-				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				original = "Möhre to\0 escape".encode( "utf-16le" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.quote_ident( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "\"string to\"" )
+				expect( escaped ).to eq( "\"Möhre to\"".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the previous string encoding for escaped string" do
-				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				original = "Möhre to\0 escape".encode( "iso-8859-1" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = described_class.escape( original )
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
-				expect( escaped ).to eq( "string to" )
+				expect( escaped ).to eq( "Möhre to".encode(Encoding::ISO8859_1) )
 			end
 
 			it "uses the previous string encoding for quote_ident" do
-				original = "string to\0 escape".force_encoding( "iso8859-1" )
+				original = "Möhre to\0 escape".encode( "iso-8859-1" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = described_class.quote_ident( original )
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
-				expect( escaped ).to eq( "\"string to\"" )
+				expect( escaped.encode ).to eq( "\"Möhre to\"".encode(Encoding::ISO8859_1) )
+			end
+		end
+
+		describe "respect and convert character encoding of input strings" do
+			before :each do
+				@conn.internal_encoding = __ENCODING__
+			end
+
+			it "should convert query string and parameters to #exec_params" do
+				r = @conn.exec_params("VALUES( $1, $2, $1=$2, 'grün')".encode("utf-16le"),
+				                  ['grün'.encode('utf-16be'), 'grün'.encode('iso-8859-1')])
+				expect( r.values ).to eq( [['grün', 'grün', 't', 'grün']] )
+			end
+
+			it "should convert query string and parameters to #async_exec" do
+				r = @conn.async_exec("VALUES( $1, $2, $1=$2, 'grün')".encode("cp936"),
+				                  ['grün'.encode('cp850'), 'grün'.encode('utf-16le')])
+				expect( r.values ).to eq( [['grün', 'grün', 't', 'grün']] )
+			end
+
+			it "should convert query string to #exec" do
+				r = @conn.exec("SELECT 'grün'".encode("utf-16be"))
+				expect( r.values ).to eq( [['grün']] )
+			end
+
+			it "should convert query string to #async_exec" do
+				r = @conn.async_exec("SELECT 'grün'".encode("utf-16le"))
+				expect( r.values ).to eq( [['grün']] )
+			end
+
+			it "should convert strings and parameters to #prepare and #exec_prepared" do
+				@conn.prepare("weiß1".encode("utf-16be"), "VALUES( $1, $2, $1=$2, 'grün')".encode("cp850"))
+				r = @conn.exec_prepared("weiß1".encode("utf-32le"),
+				                ['grün'.encode('cp936'), 'grün'.encode('utf-16le')])
+				expect( r.values ).to eq( [['grün', 'grün', 't', 'grün']] )
+			end
+
+			it "should convert strings to #describe_prepared" do
+				@conn.prepare("weiß2", "VALUES(123)")
+				r = @conn.describe_prepared("weiß2".encode("utf-16be"))
+				expect( r.nfields ).to eq( 1 )
+			end
+
+			it "should convert strings to #describe_portal" do
+				@conn.exec "DECLARE cörsör CURSOR FOR VALUES(1,2,3)"
+				r = @conn.describe_portal("cörsör".encode("utf-16le"))
+				expect( r.nfields ).to eq( 3 )
+			end
+
+			it "should convert query string to #send_query" do
+				@conn.send_query("VALUES('grün')".encode("utf-16be"))
+				expect( @conn.get_last_result.values ).to eq( [['grün']] )
+			end
+
+			it "should convert query string and parameters to #send_query" do
+				@conn.send_query("VALUES( $1, $2, $1=$2, 'grün')".encode("utf-16le"),
+				                  ['grün'.encode('utf-32be'), 'grün'.encode('iso-8859-1')])
+				expect( @conn.get_last_result.values ).to eq( [['grün', 'grün', 't', 'grün']] )
+			end
+
+			it "should convert strings and parameters to #send_prepare and #send_query_prepared" do
+				@conn.send_prepare("weiß3".encode("iso-8859-1"), "VALUES( $1, $2, $1=$2, 'grün')".encode("utf-16be"))
+				@conn.get_last_result
+				@conn.send_query_prepared("weiß3".encode("utf-32le"),
+				                ['grün'.encode('utf-16le'), 'grün'.encode('iso-8859-1')])
+				expect( @conn.get_last_result.values ).to eq( [['grün', 'grün', 't', 'grün']] )
+			end
+
+			it "should convert strings to #send_describe_prepared" do
+				@conn.prepare("weiß4", "VALUES(123)")
+				@conn.send_describe_prepared("weiß4".encode("utf-16be"))
+				expect( @conn.get_last_result.nfields ).to eq( 1 )
+			end
+
+			it "should convert strings to #send_describe_portal" do
+				@conn.exec "DECLARE cörsör CURSOR FOR VALUES(1,2,3)"
+				@conn.send_describe_portal("cörsör".encode("utf-16le"))
+				expect( @conn.get_last_result.nfields ).to eq( 3 )
+			end
+
+			it "should convert error string to #put_copy_end" do
+				@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+				@conn.exec( "COPY copytable FROM STDIN" )
+				@conn.put_copy_end("grün".encode("utf-16be"))
+				expect( @conn.get_result.error_message ).to match(/grün/)
+				@conn.get_result
 			end
 		end
 
@@ -1463,15 +1549,15 @@ describe PG::Connection do
 				end
 			end
 
-			it "can process #copy_data input queries with row encoder" do
+			it "can process #copy_data input queries with row encoder and respects character encoding" do
 				@conn2.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
 				res2 = @conn2.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 					@conn2.put_copy_data [1]
-					@conn2.put_copy_data ["2"]
+					@conn2.put_copy_data ["Möhre".encode("utf-16le")]
 				end
 
 				res = @conn2.exec( "SELECT * FROM copytable ORDER BY col1" )
-				expect( res.values ).to eq( [["1"], ["2"]] )
+				expect( res.values ).to eq( [["1"], ["Möhre"]] )
 			end
 		end
 
@@ -1513,14 +1599,16 @@ describe PG::Connection do
 				end
 			end
 
-			it "can process #copy_data output with row decoder" do
+			it "can process #copy_data output with row decoder and respects character encoding" do
+				@conn2.internal_encoding = Encoding::ISO8859_1
 				rows = []
-				res2 = @conn2.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+				res2 = @conn2.copy_data( "COPY (VALUES('1'), ('Möhre')) TO STDOUT".encode("utf-16le") ) do |res|
 					while row=@conn2.get_copy_data
 						rows << row
 					end
 				end
-				expect( rows ).to eq( [["1"], ["2"]] )
+				expect( rows.last.last.encoding ).to eq( Encoding::ISO8859_1 )
+				expect( rows ).to eq( [["1"], ["Möhre".encode("iso-8859-1")]] )
 			end
 
 			it "can type cast #copy_data output with explicit decoder" do
