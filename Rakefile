@@ -74,11 +74,6 @@ $hoespec = Hoe.spec 'pg' do
 
 	self.hg_sign_tags = true if self.respond_to?( :hg_sign_tags= )
 	self.check_history_on_release = true if self.respond_to?( :check_history_on_release= )
-	self.spec_extras[:rdoc_options] = [
-		'-f', 'fivefish',
-		'-t', 'pg: The Ruby Interface to PostgreSQL',
-		'-m', 'README.rdoc',
-	]
 
 	self.rdoc_locations << "deveiate:/usr/local/www/public/code/#{remote_rdoc_dir}"
 end
@@ -139,6 +134,21 @@ Rake::ExtensionTask.new do |ext|
 	ext.cross_compiling do |spec|
 		# mingw32-platform strings differ (RUBY_PLATFORM=i386-mingw32 vs. x86-mingw32 for rubygems)
 		spec.files << "lib/#{spec.platform.to_s.gsub(/^x86-/, "i386-")}/libpq.dll"
+	end
+end
+
+
+# Use the fivefish formatter for docs generated from development checkout
+if File.directory?( '.hg' )
+	require 'rdoc/task'
+
+	Rake::Task[ 'docs' ].clear
+	RDoc::Task.new( 'docs' ) do |rdoc|
+		rdoc.main = "README.rdoc"
+		rdoc.rdoc_files.include( "*.rdoc", "ChangeLog", "lib/**/*.rb", 'ext/**/*.{c,h}' )
+		rdoc.generator = :fivefish
+		rdoc.title = "PG: The Ruby PostgreSQL Driver"
+		rdoc.rdoc_dir = 'doc'
 	end
 end
 
