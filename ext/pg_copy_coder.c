@@ -167,6 +167,12 @@ pg_copycoder_type_map_get(VALUE self)
  *     conn.put_copy_data ["string2", 42, true]
  *   end
  * This creates +my_table+ and inserts two rows.
+ *
+ * It is possible to manually assign a type encoder for each column per PG::TypeMapByColumn,
+ * or to make use of PG::BasicTypeMapBasedOnResult to assign them based on the table OIDs.
+ *
+ * See also PG::TextDecoder::CopyRow for the decoding direction with
+ * PG::Connection#get_copy_data .
  */
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
@@ -301,15 +307,38 @@ GetDecimalFromHex(char hex)
  * strings by PG::TextDecoder::String.
  *
  * Example with default type map ( TypeMapAllStrings ):
+ *   conn.exec("CREATE TABLE my_table AS VALUES('astring', 7, FALSE), ('string2', 42, TRUE) ")
+ *
  *   deco = PG::TextDecoder::CopyRow.new
  *   conn.copy_data "COPY my_table TO STDOUT", deco do
  *     while row=conn.get_copy_data
  *       p row
  *     end
  *   end
- * This prints all rows of +my_table+ to stdout:
+ * This prints all rows of +my_table+ :
  *   ["astring", "7", "f"]
  *   ["string2", "42", "t"]
+ *
+ * Example with column based type map:
+ *   tm = PG::TypeMapByColumn.new( [
+ *     PG::TextDecoder::String.new,
+ *     PG::TextDecoder::Integer.new,
+ *     PG::TextDecoder::Boolean.new] )
+ *   deco = PG::TextDecoder::CopyRow.new( type_map: tm )
+ *   conn.copy_data "COPY my_table TO STDOUT", deco do
+ *     while row=conn.get_copy_data
+ *       p row
+ *     end
+ *   end
+ * This prints the rows with type casted columns:
+ *   ["astring", 7, false]
+ *   ["string2", 42, true]
+ *
+ * Instead of manually assigning a type decoder for each column, PG::BasicTypeMapForResults
+ * can be used to assign them based on the table OIDs.
+ *
+ * See also PG::TextEncoder::CopyRow for the encoding direction with
+ * PG::Connection#put_copy_data .
  */
 /*
  * Parse the current line into separate attributes (fields),

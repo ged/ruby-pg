@@ -110,12 +110,20 @@ class PG::Connection
 	# of #put_copy_data, #get_copy_data and #put_copy_end.
 	#
 	# Example with CSV input format:
-	#   conn.exec "create table my_table (a text,b text,c text,d text,e text)"
+	#   conn.exec "create table my_table (a text,b text,c text,d text)"
 	#   conn.copy_data "COPY my_table FROM STDIN CSV" do
-	#     conn.put_copy_data "some,csv,data,to,copy\n"
-	#     conn.put_copy_data "more,csv,data,to,copy\n"
+	#     conn.put_copy_data "some,data,to,copy\n"
+	#     conn.put_copy_data "more,data,to,copy\n"
 	#   end
-	# This creates +my_table+ and inserts two rows.
+	# This creates +my_table+ and inserts two CSV rows.
+	#
+	# The same with text format encoder PG::TextEncoder::CopyRow
+	# and Array input:
+	#   enco = PG::TextEncoder::CopyRow.new
+	#   conn.copy_data "COPY my_table FROM STDIN", enco do
+	#     conn.put_copy_data ['some', 'data', 'to', 'copy']
+	#     conn.put_copy_data ['more', 'data', 'to', 'copy']
+	#   end
 	#
 	# Example with CSV output format:
 	#   conn.copy_data "COPY my_table TO STDOUT CSV" do
@@ -124,8 +132,21 @@ class PG::Connection
 	#     end
 	#   end
 	# This prints all rows of +my_table+ to stdout:
-	#   "some,csv,data,to,copy\n"
-	#   "more,csv,data,to,copy\n"
+	#   "some,data,to,copy\n"
+	#   "more,data,to,copy\n"
+	#
+	# The same with text format decoder PG::TextDecoder::CopyRow
+	# and Array output:
+	#   deco = PG::TextDecoder::CopyRow.new
+	#   conn.copy_data "COPY my_table TO STDOUT", deco do
+	#     while row=conn.get_copy_data
+	#       p row
+	#     end
+	#   end
+	# This receives all rows of +my_table+ as ruby array:
+	#   ["some", "data", "to", "copy"]
+	#   ["more", "data", "to", "copy"]
+
 	def copy_data( sql, coder=nil )
 		res = exec( sql )
 

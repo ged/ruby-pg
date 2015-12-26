@@ -226,8 +226,8 @@ end
 #
 # Example:
 #   conn = PG::Connection.new
-#   # Assign a default ruleset for type casts of input and output values.
-#   conn.type_mapping = PG::BasicTypeMapping.new(conn)
+#   # Assign a default ruleset for type casts of output values.
+#   conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn)
 #   # Execute a query.
 #   res = conn.exec_params( "SELECT $1::INT", ['5'] )
 #   # Retrieve and cast the result value. Value format is 0 (text) and OID is 20. Therefore typecasting
@@ -236,8 +236,28 @@ end
 #
 # PG::TypeMapByOid#fit_to_result(result, false) can be used to generate
 # a result independent PG::TypeMapByColumn type map, which can subsequently be used
-# to cast #get_copy_data fields. See also PG::BasicTypeMapBasedOnResult .
+# to cast #get_copy_data fields:
 #
+# For the following table:
+#   conn.exec( "CREATE TABLE copytable AS VALUES('a', 123, '{5,4,3}'::INT[])" )
+#
+#   # Retrieve table OIDs per empty result set.
+#   res = conn.exec( "SELECT * FROM copytable LIMIT 0" )
+#   # Build a type map for common database to ruby type decoders.
+#   btm = PG::BasicTypeMapForResults.new(conn)
+#   # Build a PG::TypeMapByColumn with decoders suitable for copytable.
+#   tm = btm.build_column_map( res )
+#   row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
+#
+#   conn.copy_data( "COPY copytable TO STDOUT", row_decoder ) do |res|
+#     while row=conn.get_copy_data
+#       p row
+#     end
+#   end
+# This prints the rows with type casted columns:
+#   ["a", 123, [5, 4, 3]]
+#
+# See also PG::BasicTypeMapBasedOnResult for the encoder direction.
 class PG::BasicTypeMapForResults < PG::TypeMapByOid
 	include PG::BasicTypeRegistry
 
@@ -290,12 +310,17 @@ end
 #
 #   # Retrieve table OIDs per empty result set.
 #   res = conn.exec( "SELECT * FROM copytable LIMIT 0" )
-#   tm = basic_type_mapping.build_column_map( res )
+#   # Build a type map for common ruby to database type encoders.
+#   btm = PG::BasicTypeMapBasedOnResult.new(conn)
+#   # Build a PG::TypeMapByColumn with encoders suitable for copytable.
+#   tm = btm.build_column_map( res )
 #   row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
 #
 #   conn.copy_data( "COPY copytable FROM STDIN", row_encoder ) do |res|
 #     conn.put_copy_data ['a', 123, [5,4,3]]
 #   end
+# This inserts a single row into copytable with type casts from ruby to
+# database types.
 class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
 	include PG::BasicTypeRegistry
 

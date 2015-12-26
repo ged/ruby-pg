@@ -112,7 +112,7 @@ needs for type casting. The default type map is PG::TypeMapAllStrings.
 
 A type map can be assigned per connection or per query respectively per
 result set. Type maps can also be used for COPY in and out data streaming.
-
+See PG::Connection#copy_data .
 
 == Contributing
 
