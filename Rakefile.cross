@@ -296,6 +296,6 @@ task 'gem:windows' => ['ChangeLog'] do
     mkdir ~/.gem &&
     cp build/gem/gem-*.pem ~/.gem/ &&
     bundle install &&
-    rake cross native gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=1.9.3:2.0.0:2.1.6:2.2.2
+    rake cross native gem RUBYOPT=--disable-rubygems RUBY_CC_VERSION=2.3.0:2.2.2:2.1.6:2.0.0:1.9.3
   EOT
 end
