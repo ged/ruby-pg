@@ -1526,28 +1526,26 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
 static VALUE
 pgconn_s_escape(VALUE self, VALUE string)
 {
-	char *escaped;
 	size_t size;
 	int error;
 	VALUE result;
+	int singleton = !rb_obj_is_kind_of(self, rb_cPGconn);
 
 	Check_Type(string, T_STRING);
 
-	escaped = ALLOC_N(char, RSTRING_LEN(string) * 2 + 1);
-	if( rb_obj_is_kind_of(self, rb_cPGconn) ) {
-		size = PQescapeStringConn(pg_get_pgconn(self), escaped,
+	result = rb_str_new(NULL, RSTRING_LEN(string) * 2 + 1);
+	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET( singleton ? string : self ));
+	if( !singleton ) {
+		size = PQescapeStringConn(pg_get_pgconn(self), RSTRING_PTR(result),
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
 		if(error) {
-			xfree(escaped);
 			rb_raise(rb_ePGerror, "%s", PQerrorMessage(pg_get_pgconn(self)));
 		}
 	} else {
-		size = PQescapeString(escaped, RSTRING_PTR(string), RSTRING_LENINT(string));
+		size = PQescapeString(RSTRING_PTR(result), RSTRING_PTR(string), RSTRING_LENINT(string));
 	}
-	result = rb_str_new(escaped, size);
-	xfree(escaped);
+	rb_str_set_len(result, size);
 	OBJ_INFECT(result, string);
-	PG_ENCODING_SET_NOCHECK(result, ENCODING_GET( rb_obj_is_kind_of(self, rb_cPGconn) ? self : string ));
 
 	return result;
 }
