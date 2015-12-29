@@ -1670,8 +1670,9 @@ pgconn_escape_literal(VALUE self, VALUE string)
  *
  * Escape an arbitrary String +str+ as an identifier.
  *
- * This method does the same as #quote_ident, but uses libpq to
- * process the string.
+ * This method does the same as #quote_ident with a String argument,
+ * but it doesn't support an Array argument and it makes use of libpq
+ * to process the string.
  */
 static VALUE
 pgconn_escape_identifier(VALUE self, VALUE string)
