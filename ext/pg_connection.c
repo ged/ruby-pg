@@ -52,7 +52,7 @@ pg_get_connection( VALUE self )
  * Fetch the PG::Connection object data pointer and check it's
  * PGconn data pointer for sanity.
  */
-t_pg_connection *
+static t_pg_connection *
 pg_get_connection_safe( VALUE self )
 {
 	t_pg_connection *this;
@@ -88,7 +88,7 @@ pg_get_pgconn( VALUE self )
 /*
  * Close the associated socket IO object if there is one.
  */
-void
+static void
 pgconn_close_socket_io( VALUE self )
 {
 	t_pg_connection *this = pg_get_connection( self );
