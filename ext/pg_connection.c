@@ -3703,7 +3703,7 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
  *
  * Returns either:
  * * a kind of PG::Coder
- * * +nil+ - type encoding is disabled, returned data will be a String.
+ * * +nil+ - type encoding is disabled, data must be a String.
  *
  */
 static VALUE
