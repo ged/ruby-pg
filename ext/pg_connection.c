@@ -1542,7 +1542,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 			rb_raise(rb_ePGerror, "%s", PQerrorMessage(pg_get_pgconn(self)));
 		}
 	} else {
-		size = PQescapeString(RSTRING_PTR(result), RSTRING_PTR(string), RSTRING_LENINT(string));
+		size = PQescapeString(RSTRING_PTR(result), RSTRING_PTR(string), RSTRING_LEN(string));
 	}
 	rb_str_set_len(result, size);
 	OBJ_INFECT(result, string);
