@@ -684,13 +684,13 @@ describe PG::Connection do
 	end
 
 	it "described_class#block should allow a timeout" do
-		@conn.send_query( "select pg_sleep(3)" )
+		@conn.send_query( "select pg_sleep(1)" )
 
 		start = Time.now
-		@conn.block( 0.1 )
+		@conn.block( 0.3 )
 		finish = Time.now
 
-		expect( (finish - start) ).to be_within( 0.05 ).of( 0.1 )
+		expect( (finish - start) ).to be_within( 0.2 ).of( 0.3 )
 	end
 
 
@@ -1070,8 +1070,8 @@ describe PG::Connection do
 					res.check
 					first_row_time = Time.now unless first_row_time
 				end
-				expect( (Time.now - start_time) ).to be >= 1.0
-				expect( (first_row_time - start_time) ).to be < 1.0
+				expect( (Time.now - start_time) ).to be >= 0.9
+				expect( (first_row_time - start_time) ).to be < 0.9
 			end
 
 			it "should receive rows before entire query fails" do
