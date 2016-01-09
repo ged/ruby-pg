@@ -3,7 +3,7 @@ rvm:
   - "2.0.0"
   - "2.1"
   - "2.2"
-  - "2.3"
+  - "2.3.0"
   - rbx
 env:
   - "PGVERSION=9.4.0-1-linux-x64 PATH=\"/opt/PostgreSQL/9.4/bin:$PATH\""
