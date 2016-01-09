@@ -1,6 +1,5 @@
 language: ruby
 rvm:
-  - "1.9.3"
   - "2.0.0"
   - "2.1"
   - "2.2"
@@ -13,8 +12,6 @@ env:
 matrix:
   # Test cross compilation only with 2.3
   exclude:
-    - rvm: "1.9.3"
-      env: "PGCROSS=true"
     - rvm: "2.0.0"
       env: "PGCROSS=true"
     - rvm: "2.1"
@@ -24,8 +21,6 @@ matrix:
     - rvm: rbx
       env: "PGCROSS=true"
   allow_failures:
-      # hoe-highline requires at least ruby-2.0
-    - rvm: "1.9.3"
       # one test fails because GVL unblocking function is not called by Rubinius core
     - rvm: rbx
 before_install:
