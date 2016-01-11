@@ -725,6 +725,25 @@ describe PG::Connection do
 		expect( @conn.conninfo_hash[:dbname] ).to eq( 'test' )
 	end
 
+	describe "connection information related to SSL" do
+
+		it "can retrieve connection's ssl state", :postgresql_95 do
+			expect( @conn.ssl_in_use? ).to be false
+		end
+
+		it "can retrieve connection's ssl attribute_names", :postgresql_95 do
+			expect( @conn.ssl_attribute_names ).to be_a(Array)
+		end
+
+		it "can retrieve a single ssl connection attribute", :postgresql_95 do
+			expect( @conn.ssl_attribute('dbname') ).to eq( nil )
+		end
+
+		it "can retrieve all connection's ssl attributes", :postgresql_95 do
+			expect( @conn.ssl_attributes ).to be_a_kind_of( Hash )
+		end
+	end
+
 
 	it "honors the connect_timeout connection parameter", :postgresql_93 do
 		conn = PG.connect( port: @port, dbname: 'test', connect_timeout: 11 )

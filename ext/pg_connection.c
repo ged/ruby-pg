@@ -3156,6 +3156,84 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 	return rb_pgresult;
 }
 
+
+#ifdef HAVE_PQSSLATTRIBUTE
+/* Since PostgreSQL-9.5: */
+
+/*
+ * call-seq:
+ *    conn.ssl_in_use? -> Boolean
+ *
+ * Returns +true+ if the connection uses SSL, +false+ if not.
+ *
+ */
+static VALUE
+pgconn_ssl_in_use(VALUE self)
+{
+	return PQsslInUse(pg_get_pgconn(self)) ? Qtrue : Qfalse;
+}
+
+
+/*
+ * call-seq:
+ *    conn.ssl_attribute(attribute_name) -> String
+ *
+ * Returns SSL-related information about the connection.
+ *
+ * The list of available attributes varies depending on the SSL library being used,
+ * and the type of connection. If an attribute is not available, returns nil.
+ *
+ * The following attributes are commonly available:
+ *
+ * [+library+]
+ *   Name of the SSL implementation in use. (Currently, only "OpenSSL" is implemented)
+ * [+protocol+]
+ *   SSL/TLS version in use. Common values are "SSLv2", "SSLv3", "TLSv1", "TLSv1.1" and "TLSv1.2", but an implementation may return other strings if some other protocol is used.
+ * [+key_bits+]
+ *   Number of key bits used by the encryption algorithm.
+ * [+cipher+]
+ *   A short name of the ciphersuite used, e.g. "DHE-RSA-DES-CBC3-SHA". The names are specific to each SSL implementation.
+ * [+compression+]
+ *   If SSL compression is in use, returns the name of the compression algorithm, or "on" if compression is used but the algorithm is not known. If compression is not in use, returns "off".
+ *
+ *
+ * See also #ssl_attribute_names and http://www.postgresql.org/docs/current/interactive/libpq-status.html#LIBPQ-PQSSLATTRIBUTE
+ */
+static VALUE
+pgconn_ssl_attribute(VALUE self, VALUE attribute_name)
+{
+	const char *p_attr;
+
+	p_attr = PQsslAttribute(pg_get_pgconn(self), StringValueCStr(attribute_name));
+	return p_attr ? rb_str_new_cstr(p_attr) : Qnil;
+}
+
+/*
+ * call-seq:
+ *    conn.ssl_attribute_names -> Array<String>
+ *
+ * Return an array of SSL attribute names available.
+ *
+ * See also #ssl_attribute
+ *
+ */
+static VALUE
+pgconn_ssl_attribute_names(VALUE self)
+{
+	int i;
+	const char * const * p_list = PQsslAttributeNames(pg_get_pgconn(self));
+	VALUE ary = rb_ary_new();
+
+	for ( i = 0; p_list[i]; i++ ) {
+		rb_ary_push( ary, rb_str_new_cstr( p_list[i] ));
+	}
+	return ary;
+}
+
+
+#endif
+
+
 /**************************************************************************
  * LARGE OBJECT SUPPORT
  **************************************************************************/
@@ -3899,6 +3977,10 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
+
+	rb_define_method(rb_cPGconn, "ssl_in_use?", pgconn_ssl_in_use, 0);
+	rb_define_method(rb_cPGconn, "ssl_attribute", pgconn_ssl_attribute, 1);
+	rb_define_method(rb_cPGconn, "ssl_attribute_names", pgconn_ssl_attribute_names, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Large Object Support     ******/
 	rb_define_method(rb_cPGconn, "lo_creat", pgconn_locreat, -1);

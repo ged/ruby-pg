@@ -245,6 +245,24 @@ class PG::Connection
 		end
 	end
 
+	# Method 'ssl_attribute' was introduced in PostgreSQL 9.5.
+	if self.instance_methods.find{|m| m.to_sym == :ssl_attribute }
+		# call-seq:
+		#   conn.ssl_attributes -> Hash<String,String>
+		#
+		# Returns SSL-related information about the connection as key/value pairs
+		#
+		# The available attributes varies depending on the SSL library being used,
+		# and the type of connection.
+		#
+		# See also #ssl_attribute
+		def ssl_attributes
+			ssl_attribute_names.each.with_object({}) do |n,h|
+				h[n] = ssl_attribute(n)
+			end
+		end
+	end
+
 end # class PG::Connection
 
 # Backward-compatible alias

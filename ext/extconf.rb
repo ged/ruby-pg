@@ -73,6 +73,7 @@ have_func 'PQlibVersion'
 have_func 'PQping'
 have_func 'PQsetSingleRowMode'
 have_func 'PQconninfo'
+have_func 'PQsslAttribute'
 
 have_func 'rb_encdb_alias'
 have_func 'rb_enc_alias'
