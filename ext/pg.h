@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#if !defined(_WIN32)
+#	include <sys/time.h>
+#endif
 #if defined(HAVE_UNISTD_H) && !defined(_WIN32)
 #	include <unistd.h>
 #endif /* HAVE_UNISTD_H */
