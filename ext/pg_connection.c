@@ -3978,9 +3978,11 @@ init_pg_connection()
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
 
+#ifdef HAVE_PQSSLATTRIBUTE
 	rb_define_method(rb_cPGconn, "ssl_in_use?", pgconn_ssl_in_use, 0);
 	rb_define_method(rb_cPGconn, "ssl_attribute", pgconn_ssl_attribute, 1);
 	rb_define_method(rb_cPGconn, "ssl_attribute_names", pgconn_ssl_attribute_names, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: Large Object Support     ******/
 	rb_define_method(rb_cPGconn, "lo_creat", pgconn_locreat, -1);
