@@ -6,7 +6,7 @@ source "https://rubygems.org/"
 
 
 gem "hoe-mercurial", "~>1.4", :group => [:development, :test]
-gem "hoe-deveiate", "~>0.6", :group => [:development, :test]
+gem "hoe-deveiate", "~>0.7", :group => [:development, :test]
 gem "hoe-highline", "~>0.2", :group => [:development, :test]
 gem "rdoc", "~>4.0", :group => [:development, :test]
 gem "rake-compiler", "~>0.9", :group => [:development, :test]
