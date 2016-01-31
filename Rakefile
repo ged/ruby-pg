@@ -81,7 +81,7 @@ end
 ENV['VERSION'] ||= $hoespec.spec.version.to_s
 
 # Tests should pass before checking in
-task 'hg:precheckin' => [ :check_history, :check_manifest, :spec ]
+task 'hg:precheckin' => [ :check_history, :check_manifest, :spec, :gemspec ]
 
 # Support for 'rvm specs'
 task :specs => :spec
