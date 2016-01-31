@@ -347,7 +347,7 @@ end
 # Example:
 #   conn = PG::Connection.new
 #   # Assign a default ruleset for type casts of input and output values.
-#   conn.type_mapping_for_queries = PG::BasicTypeMapForQueries.new(conn)
+#   conn.type_map_for_queries = PG::BasicTypeMapForQueries.new(conn)
 #   # Execute a query. The Integer param value is typecasted internally by PG::BinaryEncoder::Int8.
 #   # The format of the parameter is set to 1 (binary) and the OID of this parameter is set to 20 (int8).
 #   res = conn.exec_params( "SELECT $1", [5] )
