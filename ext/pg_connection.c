@@ -1510,10 +1510,6 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * call-seq:
  *    conn.escape_string( str ) -> String
  *
- * Connection instance method for versions of 8.1 and higher of libpq
- * uses PQescapeStringConn, which is safer. Avoid calling as a class method,
- * the class method uses the deprecated PQescapeString() API function.
- *
  * Returns a SQL-safe version of the String _str_.
  * This is the preferred way to make strings safe for inclusion in
  * SQL queries.
@@ -1522,6 +1518,12 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * inside of SQL commands.
  *
  * Encoding of escaped string will be equal to client encoding of connection.
+ *
+ * NOTE: This class version of this method can only be used safely in client
+ * programs that use a single PostgreSQL connection at a time (in this case it can
+ * find out what it needs to know "behind the scenes"). It might give the wrong
+ * results if used in programs that use multiple database connections; use the
+ * same method on the connection object in such cases.
  */
 static VALUE
 pgconn_s_escape(VALUE self, VALUE string)
@@ -1554,13 +1556,6 @@ pgconn_s_escape(VALUE self, VALUE string)
  * call-seq:
  *   conn.escape_bytea( string ) -> String
  *
- * Connection instance method for versions of 8.1 and higher of libpq
- * uses PQescapeByteaConn, which is safer. Avoid calling as a class method,
- * the class method uses the deprecated PQescapeBytea() API function.
- *
- * Use the instance method version of this function, it is safer than the
- * class method.
- *
  * Escapes binary data for use within an SQL command with the type +bytea+.
  *
  * Certain byte values must be escaped (but all byte values may be escaped)
@@ -1573,6 +1568,12 @@ pgconn_s_escape(VALUE self, VALUE string)
  *
  * Consider using exec_params, which avoids the need for passing values inside of
  * SQL commands.
+ *
+ * NOTE: This class version of this method can only be used safely in client
+ * programs that use a single PostgreSQL connection at a time (in this case it can
+ * find out what it needs to know "behind the scenes"). It might give the wrong
+ * results if used in programs that use multiple database connections; use the
+ * same method on the connection object in such cases.
  */
 static VALUE
 pgconn_s_escape_bytea(VALUE self, VALUE str)
