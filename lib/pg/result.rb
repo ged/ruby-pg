@@ -12,15 +12,19 @@ class PG::Result
 	# See PG::BasicTypeMapForResults
 	def map_types!(type_map)
 		self.type_map = type_map
-		self
+		return self
 	end
 
+
+	### Return a String representation of the object suitable for debugging.
 	def inspect
 		str = self.to_s
 		str[-1,0] = " status=#{res_status(result_status)} ntuples=#{ntuples} nfields=#{nfields} cmd_tuples=#{cmd_tuples}"
-		str
+		return str
 	end
+
 end # class PG::Result
 
+# :stopdoc:
 # Backward-compatible alias
 PGresult = PG::Result

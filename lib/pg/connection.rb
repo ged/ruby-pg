@@ -265,6 +265,7 @@ class PG::Connection
 
 end # class PG::Connection
 
+# :stopdoc:
 # Backward-compatible alias
 PGconn = PG::Connection
 

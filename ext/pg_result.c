@@ -288,7 +288,7 @@ static void pgresult_init_fnames(VALUE self)
  *
  * Example:
  *    require 'pg'
- *    conn = PGconn.open(:dbname => 'test')
+ *    conn = PG.connect(:dbname => 'test')
  *    res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
  *    res.getvalue(0,0) # '1'
  *    res[0]['b']       # '2'

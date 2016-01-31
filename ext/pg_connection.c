@@ -373,7 +373,7 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 
 
 /*
- * Document-method: conndefaults
+ * Document-method: PG::Connection.conndefaults
  *
  * call-seq:
  *    PG::Connection.conndefaults() -> Array
@@ -3843,6 +3843,9 @@ pgconn_decoder_for_get_copy_data_get(VALUE self)
 }
 
 
+/*
+ * Document-class: PG::Connection
+ */
 void
 init_pg_connection()
 {
