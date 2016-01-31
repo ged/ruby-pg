@@ -22,7 +22,7 @@ VALUE rb_mPG_BinaryEncoder;
  *
  */
 static int
-pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	char mybool;
 	switch(value){
@@ -44,7 +44,7 @@ pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
  *
  */
 static int
-pg_bin_enc_int2(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_bin_enc_int2(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	if(out){
 		write_nbo16(NUM2INT(*intermediate), out);
@@ -63,7 +63,7 @@ pg_bin_enc_int2(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
  *
  */
 static int
-pg_bin_enc_int4(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_bin_enc_int4(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	if(out){
 		write_nbo32(NUM2LONG(*intermediate), out);
@@ -82,7 +82,7 @@ pg_bin_enc_int4(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
  *
  */
 static int
-pg_bin_enc_int8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_bin_enc_int8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	if(out){
 		write_nbo64(NUM2LL(*intermediate), out);
@@ -100,7 +100,7 @@ pg_bin_enc_int8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
  *
  */
 static int
-pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate)
+pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	int strlen;
 	VALUE subint;
@@ -109,13 +109,13 @@ pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 
 	if(out){
 		/* Second encoder pass, if required */
-		strlen = enc_func(this->elem, value, out, intermediate);
+		strlen = enc_func(this->elem, value, out, intermediate, enc_idx);
 		strlen = base64_decode( out, out, strlen );
 
 		return strlen;
 	} else {
 		/* First encoder pass */
-		strlen = enc_func(this->elem, value, NULL, &subint);
+		strlen = enc_func(this->elem, value, NULL, &subint, enc_idx);
 
 		if( strlen == -1 ){
 			/* Encoded string is returned in subint */

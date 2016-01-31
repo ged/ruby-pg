@@ -39,6 +39,14 @@ describe "PG::Type derivations" do
 		end.new
 	end
 
+	let!(:intenc_incrementer_with_encoding) do
+		Class.new(PG::SimpleEncoder) do
+			def encode(value, encoding)
+				r = (value.to_i + 1).to_s + " #{encoding}"
+				r.encode!(encoding)
+			end
+		end.new
+	end
 	let!(:intenc_incrementer_with_int_result) do
 		Class.new(PG::SimpleEncoder) do
 			def encode(value)
@@ -127,6 +135,13 @@ describe "PG::Type derivations" do
 					expect( quoted_type.decode(%[a.b]) ).to eq( ['a','b'] )
 					expect( quoted_type.decode(%[a]) ).to eq( ['a'] )
 				end
+
+				it 'should split identifier string with correct character encoding' do
+					quoted_type = PG::TextDecoder::Identifier.new
+					v = quoted_type.decode(%[Héllo].encode("iso-8859-1")).first
+					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
+					expect( v ).to eq( %[Héllo].encode(Encoding::ISO_8859_1) )
+				end
 			end
 
 			it "should raise when decode method is called with wrong args" do
@@ -209,6 +224,13 @@ describe "PG::Type derivations" do
 					expect( quoted_type.encode( nil ) ).to be_nil
 				end
 
+				it 'should quote identifiers with correct character encoding' do
+					quoted_type = PG::TextEncoder::Identifier.new
+					v = quoted_type.encode(['Héllo'], "iso-8859-1")
+					expect( v ).to eq( %["Héllo"].encode(Encoding::ISO_8859_1) )
+					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
+				end
+
 				it "will raise a TypeError for invalid arguments to quote_ident" do
 					quoted_type = PG::TextEncoder::Identifier.new
 					expect{ quoted_type.encode( [nil] ) }.to raise_error(TypeError)
@@ -218,6 +240,12 @@ describe "PG::Type derivations" do
 
 			it "should encode with ruby encoder" do
 				expect( intenc_incrementer.encode(3) ).to eq( "4 " )
+			end
+
+			it "should encode with ruby encoder and given character encoding" do
+				r = intenc_incrementer_with_encoding.encode(3, Encoding::CP850)
+				expect( r ).to eq( "4 CP850" )
+				expect( r.encoding ).to eq( Encoding::CP850 )
 			end
 
 			it "should return when ruby encoder returns non string values" do
@@ -447,14 +475,37 @@ describe "PG::Type derivations" do
 				end
 
 				context 'array of types with encoder in ruby space' do
-					it 'encodes with quotation' do
+					it 'encodes with quotation and default character encoding' do
 						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer, needs_quotation: true
-						expect( array_type.encode([3,4]) ).to eq( %[{"4 ","5 "}] )
+						r = array_type.encode([3,4])
+						expect( r ).to eq( %[{"4 ","5 "}] )
+						expect( r.encoding ).to eq( Encoding::ASCII_8BIT )
+					end
+
+					it 'encodes with quotation and given character encoding' do
+						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer, needs_quotation: true
+						r = array_type.encode([3,4], Encoding::CP850)
+						expect( r ).to eq( %[{"4 ","5 "}] )
+						expect( r.encoding ).to eq( Encoding::CP850 )
 					end
 
 					it 'encodes without quotation' do
 						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer, needs_quotation: false
 						expect( array_type.encode([3,4]) ).to eq( %[{4 ,5 }] )
+					end
+
+					it 'encodes with default character encoding' do
+						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer_with_encoding
+						r = array_type.encode([3,4])
+						expect( r ).to eq( %[{"4 ASCII-8BIT","5 ASCII-8BIT"}] )
+						expect( r.encoding ).to eq( Encoding::ASCII_8BIT )
+					end
+
+					it 'encodes with given character encoding' do
+						array_type = PG::TextEncoder::Array.new elements_type: intenc_incrementer_with_encoding
+						r = array_type.encode([3,4], Encoding::CP850)
+						expect( r ).to eq( %[{"4 CP850","5 CP850"}] )
+						expect( r.encoding ).to eq( Encoding::CP850 )
 					end
 
 					it "should raise when ruby encoder returns non string values" do
@@ -472,6 +523,13 @@ describe "PG::Type derivations" do
 					it 'should quote and escape literals' do
 						quoted_type = PG::TextEncoder::QuotedLiteral.new elements_type: textenc_string_array
 						expect( quoted_type.encode(["'A\",","\\B'"]) ).to eq( %['{"''A\\",","\\\\B''"}'] )
+					end
+
+					it 'should quote literals with correct character encoding' do
+						quoted_type = PG::TextEncoder::QuotedLiteral.new elements_type: textenc_string_array
+						v = quoted_type.encode(["Héllo"], "iso-8859-1")
+						expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
+						expect( v ).to eq( %['{Héllo}'].encode(Encoding::ISO_8859_1) )
 					end
 				end
 			end
@@ -522,9 +580,19 @@ describe "PG::Type derivations" do
 			expect( e.encode("(\xFBm") ).to eq("KPtt")
 		end
 
+		it 'should encode Strings as base64 with correct character encoding' do
+			e = PG::TextEncoder::ToBase64.new
+			v = e.encode("Héllo".encode("utf-16le"), "iso-8859-1")
+			expect( v ).to eq("SOlsbG8=")
+			expect( v.encoding ).to eq(Encoding::ISO_8859_1)
+		end
+
 		it "should encode Strings as base64 in BinaryDecoder" do
 			e = PG::BinaryDecoder::ToBase64.new
 			expect( e.decode("x") ).to eq("eA==")
+			v = e.decode("Héllo".encode("utf-16le"))
+			expect( v ).to eq("SADpAGwAbABvAA==")
+			expect( v.encoding ).to eq(Encoding::ASCII_8BIT)
 		end
 
 		it "should encode Integers as base64" do
@@ -611,6 +679,12 @@ describe "PG::Type derivations" do
 					expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
 						to eq("xyz\t123\t2456\t34567\t456789\t5678901\t[1, 2, 3]\t12.1\tabcdefg\t\\N\n")
 				end
+
+				it 'should output a string with correct character encoding' do
+					v = encoder.encode(["Héllo"], "iso-8859-1")
+					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
+					expect( v ).to eq( "Héllo\n".encode(Encoding::ISO_8859_1) )
+				end
 			end
 
 			context "with TypeMapByClass" do
@@ -674,6 +748,12 @@ describe "PG::Type derivations" do
 				describe '#decode' do
 					it "should decode different types of Ruby objects" do
 						expect( decoder.decode("123\t \0#\t#\n#\r#\\ \t234\t#\x01#\002\n".gsub("#", "\\"))).to eq( ["123", " \0\t\n\r\\ ", "234", "\x01\x02"] )
+					end
+
+					it 'should respect input character encoding' do
+						v = decoder.decode("Héllo\n".encode("iso-8859-1")).first
+						expect( v.encoding ).to eq(Encoding::ISO_8859_1)
+						expect( v ).to eq("Héllo".encode("iso-8859-1"))
 					end
 				end
 			end
