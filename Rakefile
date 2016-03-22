@@ -67,7 +67,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.dependency 'hoe-bundler', '~> 1.0', :developer
 	self.dependency 'rspec', '~> 3.0', :developer
 
-	self.spec_extras[:licenses] = ['BSD', 'Ruby', 'GPL']
+	self.spec_extras[:licenses] = ['BSD', 'Ruby']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
 
 	self.require_ruby_version( '>= 1.9.3' )
