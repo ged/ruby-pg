@@ -24,7 +24,11 @@ if enable_config("windows-cross")
 else
 	# Native build
 
-	if pgconfig = ( with_config('pg-config') || with_config('pg_config') || find_executable('pg_config') )
+	pgconfig = with_config('pg-config') ||
+		with_config('pg_config') ||
+		find_executable('pg_config')
+
+	if pgconfig && pgconfig != 'ignore'
 		$stderr.puts "Using config values from %s" % [ pgconfig ]
 		incdir = `"#{pgconfig}" --includedir`.chomp
 		libdir = `"#{pgconfig}" --libdir`.chomp
