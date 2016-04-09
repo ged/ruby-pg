@@ -55,7 +55,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
 	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
 	self.extra_rdoc_files.include( 'ext/*.c' )
-	self.license :BSD
+	self.license 'BSD-3-Clause'
 
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
@@ -67,10 +67,9 @@ $hoespec = Hoe.spec 'pg' do
 	self.dependency 'hoe-bundler', '~> 1.0', :developer
 	self.dependency 'rspec', '~> 3.0', :developer
 
-	self.spec_extras[:licenses] = ['BSD', 'Ruby']
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
 
-	self.require_ruby_version( '>= 1.9.3' )
+	self.require_ruby_version( '>= 2.0.0' )
 
 	self.hg_sign_tags = true if self.respond_to?( :hg_sign_tags= )
 	self.check_history_on_release = true if self.respond_to?( :check_history_on_release= )
@@ -214,6 +213,6 @@ task GEMSPEC do |task|
 	end
 end
 
-CLOBBER.include( GEMSPEC.to_s )
+CLOBBER.include( '*.gemspec' )
 task :default => :gemspec
 
