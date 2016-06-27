@@ -47,6 +47,9 @@ else
 	end
 end
 
+if RUBY_VERSION >= '2.3.0' && /solaris/ =~ RUBY_PLATFORM
+	append_cppflags( '-D__EXTENSIONS__' )
+end
 
 find_header( 'libpq-fe.h' ) or abort "Can't find the 'libpq-fe.h header"
 find_header( 'libpq/libpq-fs.h' ) or abort "Can't find the 'libpq/libpq-fs.h header"
