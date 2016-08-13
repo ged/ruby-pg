@@ -2967,7 +2967,7 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 
 	Check_Type(str, T_STRING);
 
-	if ( (PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
+	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
 		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValueCStr(str));
 	}
 #ifdef M17N_SUPPORTED
@@ -3629,7 +3629,7 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 		rb_encoding *rbenc = rb_to_encoding( enc );
 		const char *name = pg_get_rb_encoding_as_pg_encoding( rbenc );
 
-		if ( PQsetClientEncoding(pg_get_pgconn( self ), name) == -1 ) {
+		if ( gvl_PQsetClientEncoding(pg_get_pgconn( self ), name) == -1 ) {
 			VALUE server_encoding = pgconn_external_encoding( self );
 			rb_raise( rb_eEncCompatError, "incompatible character encodings: %s and %s",
 					  rb_enc_name(rb_to_encoding(server_encoding)), name );
@@ -3689,7 +3689,7 @@ pgconn_set_default_encoding( VALUE self )
 
 	if (( enc = rb_default_internal_encoding() )) {
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( PQsetClientEncoding(conn, encname) != 0 )
+		if ( gvl_PQsetClientEncoding(conn, encname) != 0 )
 			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
 		pgconn_set_internal_encoding_index( self );

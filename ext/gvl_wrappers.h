@@ -195,6 +195,9 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 #define FOR_EACH_PARAM_OF_PQsendDescribePortal(param) \
 	param(PGconn *, conn)
 
+#define FOR_EACH_PARAM_OF_PQsetClientEncoding(param) \
+	param(PGconn *, conn)
+
 #define FOR_EACH_PARAM_OF_PQisBusy(param)
 
 #define FOR_EACH_PARAM_OF_PQcancel(param) \
@@ -226,6 +229,7 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 	function(PQsendQueryPrepared, GVL_TYPE_NONVOID, int, int, resultFormat) \
 	function(PQsendDescribePrepared, GVL_TYPE_NONVOID, int, const char *, stmt) \
 	function(PQsendDescribePortal, GVL_TYPE_NONVOID, int, const char *, portal) \
+	function(PQsetClientEncoding, GVL_TYPE_NONVOID, int, const char *, encoding) \
 	function(PQisBusy, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQcancel, GVL_TYPE_NONVOID, int, int, errbufsize);
 
