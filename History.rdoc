@@ -1,3 +1,16 @@
+== v0.19.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Enhancements:
+- Respect and convert character encoding of all strings sent
+  to the server. #231
+- Add PostgreSQL-9.5 functions PQsslInUse(), PQsslAttribute()
+  and PQsslAttributeNames().
+- Various documentation fixes and improvements.
+
+Bugfixes:
+- Release GVL while calling PQsetClientEncoding(). #245
+
+
 == v0.18.4 [2015-11-13] Michael Granger <ged@FaerieMUD.org>
 
 Enhancements:
