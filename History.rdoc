@@ -14,6 +14,7 @@ Enhancements:
   OpenSSL 1.0.2f.
 - Add JSON coders and add them to BasicTypeMapForResults and
   BasicTypeMapBasedOnResult
+- Allow build from git per bundler.
 
 Bugfixes:
 - Release GVL while calling PQsetClientEncoding(). #245

@@ -16,6 +16,5 @@ lowrite\.txt
 build/
 misc/ruby-pg/pkg
 misc/postgres/pkg
-ext/errorcodes.def
 ^lib/.*\.dll$
 \.rvmrc$

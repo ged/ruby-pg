@@ -184,7 +184,7 @@ task :cleanup_testing_dbs do
 end
 
 desc "Update list of server error codes"
-task :update_error_codes do
+task 'ext/errorcodes.txt' do
 	URL_ERRORCODES_TXT = "http://git.postgresql.org/gitweb/?p=postgresql.git;a=blob_plain;f=src/backend/utils/errcodes.txt;hb=HEAD"
 
 	ERRORCODES_TXT = "ext/errorcodes.txt"
@@ -199,6 +199,8 @@ file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
 end
+
+task :update_error_codes => ['ext/errorcodes.def']
 
 task :gemspec => GEMSPEC
 file GEMSPEC => __FILE__
