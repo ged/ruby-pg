@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require 'json'
+
 module PG
 	module TextEncoder
 		class Date < SimpleEncoder
@@ -20,6 +22,12 @@ module PG
 			STRFTIME_ISO_DATETIME_WITH_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N %:z".freeze
 			def encode(value)
 				value.respond_to?(:strftime) ? value.strftime(STRFTIME_ISO_DATETIME_WITH_TIMEZONE) : value
+			end
+		end
+
+		class JSON < SimpleEncoder
+			def encode(value)
+				::JSON.dump(value)
 			end
 		end
 	end

@@ -188,7 +188,8 @@ module PG::BasicTypeRegistry
 	# register_type 'polygon', OID::Text.new
 	# register_type 'circle', OID::Text.new
 	# register_type 'hstore', OID::Hstore.new
-	# register_type 'json', OID::Json.new
+	register_type 0, 'json', PG::TextEncoder::JSON, PG::TextDecoder::JSON
+	alias_type    0, 'jsonb',  'json'
 	# register_type 'citext', OID::Text.new
 	# register_type 'ltree', OID::Text.new
 	#
