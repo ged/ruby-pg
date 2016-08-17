@@ -10,6 +10,10 @@ Enhancements:
 - Various documentation fixes and improvements.
 - Add mechanism to build without pg_config:
     gem install pg -- --with-pg-config=ignore
+- Update Windows binary gems to Ruby-2.3, PostgreSQL 9.5.4 and
+  OpenSSL 1.0.2f.
+- Add JSON coders and add them to BasicTypeMapForResults and
+  BasicTypeMapBasedOnResult
 
 Bugfixes:
 - Release GVL while calling PQsetClientEncoding(). #245
