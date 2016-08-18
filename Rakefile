@@ -184,14 +184,12 @@ task :cleanup_testing_dbs do
 end
 
 desc "Update list of server error codes"
-task 'ext/errorcodes.txt' do
+task :update_error_codes do
 	URL_ERRORCODES_TXT = "http://git.postgresql.org/gitweb/?p=postgresql.git;a=blob_plain;f=src/backend/utils/errcodes.txt;hb=HEAD"
 
 	ERRORCODES_TXT = "ext/errorcodes.txt"
 	sh "wget #{URL_ERRORCODES_TXT.inspect} -O #{ERRORCODES_TXT.inspect} || curl #{URL_ERRORCODES_TXT.inspect} -o #{ERRORCODES_TXT.inspect}"
-end
 
-file 'ext/errorcodes.def' => ['ext/errorcodes.rb', 'ext/errorcodes.txt'] do
 	ruby 'ext/errorcodes.rb', 'ext/errorcodes.txt', 'ext/errorcodes.def'
 end
 
@@ -199,8 +197,6 @@ file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
 end
-
-task :update_error_codes => ['ext/errorcodes.def']
 
 task :gemspec => GEMSPEC
 file GEMSPEC => __FILE__
