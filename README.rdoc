@@ -11,7 +11,7 @@ docs :: http://deveiate.org/code/pg
 
 Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].
 
-It works with {PostgreSQL 8.4 and later}[http://www.postgresql.org/support/versioning/].
+It works with {PostgreSQL 9.1 and later}[http://www.postgresql.org/support/versioning/].
 
 A small example usage:
 
@@ -37,10 +37,10 @@ A small example usage:
 
 == Requirements
 
-* Ruby 1.9.3-p392, or 2.0.0-p0.
-* PostgreSQL 8.4.x or later (with headers, -dev packages, etc).
+* Ruby 2.2
+* PostgreSQL 9.1.x or later (with headers, -dev packages, etc).
 
-It may work with earlier versions of Ruby/PostgreSQL as well, but those are
+It usually work with earlier versions of Ruby/PostgreSQL as well, but those are
 not regularly tested.
 
 

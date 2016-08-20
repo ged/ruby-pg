@@ -1,14 +1,26 @@
 == v0.19.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
+- Deprecate Ruby 1.9
+
 Enhancements:
 - Respect and convert character encoding of all strings sent
   to the server. #231
 - Add PostgreSQL-9.5 functions PQsslInUse(), PQsslAttribute()
   and PQsslAttributeNames().
 - Various documentation fixes and improvements.
+- Add mechanism to build without pg_config:
+    gem install pg -- --with-pg-config=ignore
+- Update Windows binary gems to Ruby-2.3, PostgreSQL 9.5.4 and
+  OpenSSL 1.0.2f.
+- Add JSON coders and add them to BasicTypeMapForResults and
+  BasicTypeMapBasedOnResult
+- Allow build from git per bundler.
 
 Bugfixes:
 - Release GVL while calling PQsetClientEncoding(). #245
+- Add __EXTENSIONS__ to Solaris/SmartOS for Ruby >= 2.3.x. #236
+- Fix wrong exception when running SQL while in Connection#copy_data
+  block for output
 
 
 == v0.18.4 [2015-11-13] Michael Granger <ged@FaerieMUD.org>

@@ -166,6 +166,27 @@ describe 'Basic type mapping' do
 				end
 			end
 
+			it "should do JSON conversions", :postgresql_94 do
+				[0].each do |format|
+					['JSON', 'JSONB'].each do |type|
+						res = @conn.exec( "SELECT CAST('123' AS #{type}),
+																			CAST('12.3' AS #{type}),
+																			CAST('true' AS #{type}),
+																			CAST('false' AS #{type}),
+																			CAST('null' AS #{type}),
+																			CAST('[1, \"a\", null]' AS #{type}),
+																			CAST('{\"b\" : [2,3]}' AS #{type})", [], format )
+						expect( res.getvalue(0,0) ).to eq( 123 )
+						expect( res.getvalue(0,1) ).to be_within(0.1).of( 12.3 )
+						expect( res.getvalue(0,2) ).to eq( true )
+						expect( res.getvalue(0,3) ).to eq( false )
+						expect( res.getvalue(0,4) ).to eq( nil )
+						expect( res.getvalue(0,5) ).to eq( [1, "a", nil] )
+						expect( res.getvalue(0,6) ).to eq( {"b" => [2, 3]} )
+					end
+				end
+			end
+
 			it "should do array type conversions" do
 				[0].each do |format|
 					res = @conn.exec( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
@@ -227,6 +248,39 @@ describe 'Basic type mapping' do
 				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3)", ['b', 234, [2,3]], 0, tm )
 				res = @conn.exec( "SELECT * FROM copytable" )
 				expect( res.values ).to eq( [['a', '123', '{5,4,3}'], ['b', '234', '{2,3}']] )
+			end
+
+			it "can do JSON conversions", :postgresql_94 do
+				['JSON', 'JSONB'].each do |type|
+					sql = "SELECT CAST('123' AS #{type}),
+						CAST('12.3' AS #{type}),
+						CAST('true' AS #{type}),
+						CAST('false' AS #{type}),
+						CAST('null' AS #{type}),
+						CAST('[1, \"a\", null]' AS #{type}),
+						CAST('{\"b\" : [2,3]}' AS #{type})"
+
+					tm = basic_type_mapping.build_column_map( @conn.exec( sql ) )
+					expect( tm.coders.map(&:name) ).to eq( [type.downcase] * 7 )
+
+					res = @conn.exec_params( "SELECT $1, $2, $3, $4, $5, $6, $7",
+						[ 123,
+							12.3,
+							true,
+							false,
+							nil,
+							[1, "a", nil],
+							{"b" => [2, 3]},
+						], 0, tm )
+
+					expect( res.getvalue(0,0) ).to eq( "123" )
+					expect( res.getvalue(0,1) ).to eq( "12.3" )
+					expect( res.getvalue(0,2) ).to eq( "true" )
+					expect( res.getvalue(0,3) ).to eq( "false" )
+					expect( res.getvalue(0,4) ).to eq( nil )
+					expect( res.getvalue(0,5).gsub(" ","") ).to eq( "[1,\"a\",null]" )
+					expect( res.getvalue(0,6).gsub(" ","") ).to eq( "{\"b\":[2,3]}" )
+				end
 			end
 		end
 

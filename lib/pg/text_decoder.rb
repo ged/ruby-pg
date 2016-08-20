@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'date'
+require 'json'
 
 module PG
 	module TextDecoder
@@ -37,6 +38,12 @@ module PG
 				else
 					string
 				end
+			end
+		end
+
+		class JSON < SimpleDecoder
+			def decode(string, tuple=nil, field=nil)
+				::JSON.load(string)
 			end
 		end
 	end

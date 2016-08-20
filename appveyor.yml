@@ -20,20 +20,14 @@ test_script:
   - bundle exec rake test
 environment:
   matrix:
-    - ruby_version: "200"
+    - ruby_version: "22"
       PGVERSION: 9.1.19-3-windows
       PGVER: 9.1
-    - ruby_version: "200-x64"
+    - ruby_version: "22-x64"
       PGVER: 9.4
-    - ruby_version: "21"
-      PGVERSION: 9.4.4-3-windows
-      PGVER: 9.4
-    - ruby_version: "21-x64"
-      PGVERSION: 9.3.9-3-windows-x64
-      PGVER: 9.3
-    - ruby_version: "22"
+    - ruby_version: "23"
       PGVERSION: 9.5.0-1-windows
       PGVER: 9.5
-    - ruby_version: "22-x64"
+    - ruby_version: "23-x64"
       PGVERSION: 9.5.0-1-windows-x64
       PGVER: 9.5

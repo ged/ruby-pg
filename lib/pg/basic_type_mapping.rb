@@ -188,7 +188,8 @@ module PG::BasicTypeRegistry
 	# register_type 'polygon', OID::Text.new
 	# register_type 'circle', OID::Text.new
 	# register_type 'hstore', OID::Hstore.new
-	# register_type 'json', OID::Json.new
+	register_type 0, 'json', PG::TextEncoder::JSON, PG::TextDecoder::JSON
+	alias_type    0, 'jsonb',  'json'
 	# register_type 'citext', OID::Text.new
 	# register_type 'ltree', OID::Text.new
 	#
@@ -339,10 +340,11 @@ end
 # OIDs of supported type casts are not hard-coded in the sources, but are retrieved from the
 # PostgreSQL's pg_type table in PG::BasicTypeMapForQueries.new .
 #
-# Query params are type casted based on the MRI internal type of the given value.
+# Query params are type casted based on the class of the given value.
 #
 # Higher level libraries will most likely not make use of this class, but use their
-# own set of rules to choose suitable encoders and decoders.
+# own derivation of PG::TypeMapByClass or another set of rules to choose suitable
+# encoders and decoders for the values to be sent.
 #
 # Example:
 #   conn = PG::Connection.new

@@ -3,8 +3,6 @@ services:
   - docker
 language: ruby
 rvm:
-  - "2.0.0"
-  - "2.1"
   - "2.2"
   - "2.3.0"
   - rbx
@@ -15,10 +13,6 @@ env:
 matrix:
   # Test cross compilation only with 2.3
   exclude:
-    - rvm: "2.0.0"
-      env: "PGCROSS=true"
-    - rvm: "2.1"
-      env: "PGCROSS=true"
     - rvm: "2.2"
       env: "PGCROSS=true"
     - rvm: rbx

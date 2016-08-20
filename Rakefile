@@ -189,9 +189,7 @@ task :update_error_codes do
 
 	ERRORCODES_TXT = "ext/errorcodes.txt"
 	sh "wget #{URL_ERRORCODES_TXT.inspect} -O #{ERRORCODES_TXT.inspect} || curl #{URL_ERRORCODES_TXT.inspect} -o #{ERRORCODES_TXT.inspect}"
-end
 
-file 'ext/errorcodes.def' => ['ext/errorcodes.rb', 'ext/errorcodes.txt'] do
 	ruby 'ext/errorcodes.rb', 'ext/errorcodes.txt', 'ext/errorcodes.def'
 end
 

@@ -186,7 +186,7 @@ class PG::Connection
 				raise
 			else
 				res = get_last_result
-				if res.result_status != PGRES_COMMAND_OK
+				if !res || res.result_status != PGRES_COMMAND_OK
 					while get_copy_data
 					end
 					while get_result
