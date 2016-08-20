@@ -7,6 +7,7 @@
  * - Jeff Davis <ruby-pg@j-davis.com>
  * - Guy Decoux (ts) <decoux@moulon.inra.fr>
  * - Michael Granger <ged@FaerieMUD.org>
+ * - Lars Kanis <lars@greiz-reinsdorf.de>
  * - Dave Lee
  * - Eiji Matsumoto <usagi@ruby.club.or.jp>
  * - Yukihiro Matsumoto <matz@ruby-lang.org>
@@ -15,10 +16,10 @@
  * See Contributors.rdoc for the many additional fine people that have contributed
  * to this library over the years.
  *
- * Copyright (c) 1997-2015 by the authors.
+ * Copyright (c) 1997-2016 by the authors.
  *
  * You may redistribute this software under the same terms as Ruby itself; see
- * http://www.ruby-lang.org/en/LICENSE.txt or the LICENSE file in the source
+ * https://www.ruby-lang.org/en/about/license.txt or the BSDL file in the source
  * for details.
  *
  * Portions of the code are from the PostgreSQL project, and are distributed

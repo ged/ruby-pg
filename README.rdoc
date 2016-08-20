@@ -137,7 +137,7 @@ Lars Kanis <lars@greiz-reinsdorf.de>.
 
 == Copying
 
-Copyright (c) 1997-2015 by the authors.
+Copyright (c) 1997-2016 by the authors.
 
 * Jeff Davis <ruby-pg@j-davis.com>
 * Guy Decoux (ts) <decoux@moulon.inra.fr>
@@ -149,7 +149,7 @@ Copyright (c) 1997-2015 by the authors.
 * Noboru Saitou <noborus@netlab.jp>
 
 You may redistribute this software under the same terms as Ruby itself; see
-http://www.ruby-lang.org/en/LICENSE.txt or the LICENSE file in the source
+https://www.ruby-lang.org/en/about/license.txt or the BSDL file in the source
 for details.
 
 Portions of the code are from the PostgreSQL project, and are distributed
