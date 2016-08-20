@@ -66,6 +66,10 @@ There's also {a Google+ group}[http://goo.gl/TFy1U] and a
 {mailing list}[http://groups.google.com/group/ruby-pg] if you get stuck, or just
 want to chat about something.
 
+If you want to install as a signed gem, the public certs of the gem signers
+can be found in {the `certs` directory}[https://bitbucket.org/ged/ruby-pg/src/tip/certs/]
+of the repository.
+
 
 == Type Casts
 
