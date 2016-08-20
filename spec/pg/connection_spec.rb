@@ -643,6 +643,31 @@ describe PG::Connection do
 		expect( @conn ).to still_be_usable
 	end
 
+	it "gracefully handle SQL statements while in #copy_data for input" do
+		@conn.exec "ROLLBACK"
+		@conn.transaction do
+			@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
+			expect {
+				@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+					@conn.exec "SELECT 1"
+				end
+			}.to raise_error(PG::Error, /no COPY in progress/)
+		end
+		expect( @conn ).to still_be_usable
+	end
+
+	it "gracefully handle SQL statements while in #copy_data for output" do
+		@conn.exec "ROLLBACK"
+		@conn.transaction do
+			expect {
+				@conn.copy_data( "COPY (VALUES(1), (2)) TO STDOUT" ) do |res|
+					@conn.exec "SELECT 3"
+				end
+			}.to raise_error(PG::Error, /no COPY in progress/)
+		end
+		expect( @conn ).to still_be_usable
+	end
+
 	it "should raise an error for non copy statements in #copy_data" do
 		expect {
 			@conn.copy_data( "SELECT 1" ){}
