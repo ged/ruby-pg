@@ -3671,6 +3671,34 @@ pgconn_external_encoding(VALUE self)
 }
 
 
+static VALUE
+pgconn_set_client_encoding_async1( VALUE args )
+{
+	VALUE self = rb_ary_entry(args, 0);
+	VALUE encname = rb_ary_entry(args, 1);
+	VALUE query_format = rb_str_new_cstr("set client_encoding to '%s'");
+	VALUE query = rb_funcall(query_format, rb_intern("%"), 1, encname);
+
+	pgconn_async_exec(1, &query, self);
+	return 0;
+}
+
+
+static VALUE
+pgconn_set_client_encoding_async2( VALUE arg )
+{
+	UNUSED(arg);
+	return 1;
+}
+
+
+static VALUE
+pgconn_set_client_encoding_async( VALUE self, const char *encname )
+{
+	VALUE args = rb_ary_new_from_args(2, self, rb_str_new_cstr(encname));
+	return rb_rescue(pgconn_set_client_encoding_async1, args, pgconn_set_client_encoding_async2, Qnil);
+}
+
 
 /*
  * call-seq:
@@ -3689,7 +3717,7 @@ pgconn_set_default_encoding( VALUE self )
 
 	if (( enc = rb_default_internal_encoding() )) {
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( gvl_PQsetClientEncoding(conn, encname) != 0 )
+		if ( pgconn_set_client_encoding_async(self, encname) != 0 )
 			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
 		pgconn_set_internal_encoding_index( self );
