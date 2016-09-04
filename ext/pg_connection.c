@@ -3674,8 +3674,8 @@ pgconn_external_encoding(VALUE self)
 static VALUE
 pgconn_set_client_encoding_async1( VALUE args )
 {
-	VALUE self = rb_ary_entry(args, 0);
-	VALUE encname = rb_ary_entry(args, 1);
+	VALUE self = ((VALUE*)args)[0];
+	VALUE encname = ((VALUE*)args)[1];
 	VALUE query_format = rb_str_new_cstr("set client_encoding to '%s'");
 	VALUE query = rb_funcall(query_format, rb_intern("%"), 1, encname);
 
@@ -3695,8 +3695,8 @@ pgconn_set_client_encoding_async2( VALUE arg )
 static VALUE
 pgconn_set_client_encoding_async( VALUE self, const char *encname )
 {
-	VALUE args = rb_ary_new_from_args(2, self, rb_str_new_cstr(encname));
-	return rb_rescue(pgconn_set_client_encoding_async1, args, pgconn_set_client_encoding_async2, Qnil);
+	VALUE args[] = { self, rb_str_new_cstr(encname) };
+	return rb_rescue(pgconn_set_client_encoding_async1, (VALUE)&args, pgconn_set_client_encoding_async2, Qnil);
 }
 
 
