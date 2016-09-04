@@ -1358,12 +1358,12 @@ describe PG::Connection do
 
 				begin
 					prev_encoding = Encoding.default_internal
-					Encoding.default_internal = Encoding::UTF_8
+					Encoding.default_internal = Encoding::ISO8859_2
 
 					conn = PG.connect( @conninfo )
-					expect( conn.internal_encoding ).to eq( Encoding::UTF_8 )
+					expect( conn.internal_encoding ).to eq( Encoding::ISO8859_2 )
 					res = conn.exec( "SELECT foo FROM defaultinternaltest" )
-					expect( res[0]['foo'].encoding ).to eq( Encoding::UTF_8 )
+					expect( res[0]['foo'].encoding ).to eq( Encoding::ISO8859_2 )
 				ensure
 					conn.exec( "DROP TABLE defaultinternaltest" )
 					conn.finish if conn
