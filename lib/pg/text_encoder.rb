@@ -27,7 +27,7 @@ module PG
 
 		class JSON < SimpleEncoder
 			def encode(value)
-				::JSON.stingify(value, quirks_mode: true)
+				::JSON.generate(value, quirks_mode: true)
 			end
 		end
 	end
