@@ -29,8 +29,8 @@ class CrossLibrary < OpenStruct
 		self.host_platform              = toolchain
 
 		# Cross-compilation constants
-		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.0.2h'
-		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '9.5.4'
+		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.0.2j'
+		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '9.6.1'
 
 		# Check if symlinks work in the current working directory.
 		# This fails, if rake-compiler-dock is running on a Windows box.
@@ -291,11 +291,12 @@ task 'gem:windows' => ['ChangeLog'] do
   # Copy gem signing key and certs to be accessable from the docker container
   mkdir_p 'build/gem'
   sh "cp ~/.gem/gem-*.pem build/gem/ || true"
+  sh "bundle package"
 
   RakeCompilerDock.sh <<-EOT
     mkdir ~/.gem &&
     (cp build/gem/gem-*.pem ~/.gem/ || true) &&
-    bundle install &&
+    bundle install --local &&
     rake cross native gem RUBY_CC_VERSION=2.3.0:2.2.2:2.1.6:2.0.0:1.9.3
   EOT
 end
