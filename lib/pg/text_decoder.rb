@@ -43,7 +43,7 @@ module PG
 
 		class JSON < SimpleDecoder
 			def decode(string, tuple=nil, field=nil)
-				::JSON.load(string)
+				::JSON.parse(string, quirks_mode: true)
 			end
 		end
 	end

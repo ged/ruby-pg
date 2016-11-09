@@ -1,3 +1,8 @@
+== v0.19.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+- Use secure JSON methods for JSON (de)serialisation. #248
+
 == v0.19.0 [2016-09-21] Michael Granger <ged@FaerieMUD.org>
 
 - Deprecate Ruby 1.9
