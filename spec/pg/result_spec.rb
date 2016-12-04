@@ -403,6 +403,13 @@ describe PG::Result do
 		expect( r.cleared? ).to eq(true)
 	end
 
+	it "can be inspected before and after clear" do
+		r = @conn.exec "select 1"
+		expect( r.inspect ).to match(/status=PGRES_TUPLES_OK/)
+		r.clear
+		expect( r.inspect ).to match(/cleared/)
+	end
+
 	context 'result value conversions with TypeMapByColumn' do
 		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }

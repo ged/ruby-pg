@@ -19,7 +19,11 @@ class PG::Result
 	### Return a String representation of the object suitable for debugging.
 	def inspect
 		str = self.to_s
-		str[-1,0] = " status=#{res_status(result_status)} ntuples=#{ntuples} nfields=#{nfields} cmd_tuples=#{cmd_tuples}"
+		str[-1,0] = if cleared?
+			" cleared"
+		else
+			" status=#{res_status(result_status)} ntuples=#{ntuples} nfields=#{nfields} cmd_tuples=#{cmd_tuples}"
+		end
 		return str
 	end
 

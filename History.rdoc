@@ -2,6 +2,7 @@
 
 Bugfixes:
 - Use secure JSON methods for JSON (de)serialisation. #248
+- Fix Result#inspect on a cleared result.
 
 == v0.19.0 [2016-09-21] Michael Granger <ged@FaerieMUD.org>
 
