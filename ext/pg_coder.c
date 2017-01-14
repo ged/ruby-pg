@@ -105,7 +105,7 @@ pg_composite_decoder_allocate( VALUE klass )
 
 /*
  * call-seq:
- *    coder.encode( value )
+ *    coder.encode( value [, encoding] )
  *
  * Encodes the given Ruby object into string representation, without
  * sending data to/from the database server.
