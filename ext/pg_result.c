@@ -302,7 +302,7 @@ static void pgresult_init_fnames(VALUE self)
 
 /*
  * call-seq:
- *    res.result_status() -> Fixnum
+ *    res.result_status() -> Integer
  *
  * Returns the status of the query. The status value is one of:
  * * +PGRES_EMPTY_QUERY+
@@ -414,7 +414,7 @@ pgresult_error_field(VALUE self, VALUE field)
 
 /*
  * call-seq:
- *    res.ntuples() -> Fixnum
+ *    res.ntuples() -> Integer
  *
  * Returns the number of tuples in the query result.
  */
@@ -466,7 +466,7 @@ pgresult_fname(VALUE self, VALUE index)
 
 /*
  * call-seq:
- *    res.fnumber( name ) -> Fixnum
+ *    res.fnumber( name ) -> Integer
  *
  * Returns the index of the field specified by the string +name+.
  * The given +name+ is treated like an identifier in an SQL command, that is,
@@ -527,7 +527,7 @@ pgresult_ftable(VALUE self, VALUE column_number)
 
 /*
  * call-seq:
- *    res.ftablecol( column_number ) -> Fixnum
+ *    res.ftablecol( column_number ) -> Integer
  *
  * Returns the column number (within its table) of the table from
  * which the column _column_number_ is made up.
@@ -552,7 +552,7 @@ pgresult_ftablecol(VALUE self, VALUE column_number)
 
 /*
  * call-seq:
- *    res.fformat( column_number ) -> Fixnum
+ *    res.fformat( column_number ) -> Integer
  *
  * Returns the format (0 for text, 1 for binary) of column
  * _column_number_.
@@ -696,7 +696,7 @@ pgresult_getisnull(VALUE self, VALUE tup_num, VALUE field_num)
 
 /*
  * call-seq:
- *    res.getlength( tup_num, field_num ) -> Fixnum
+ *    res.getlength( tup_num, field_num ) -> Integer
  *
  * Returns the (String) length of the field in bytes.
  *
@@ -721,7 +721,7 @@ pgresult_getlength(VALUE self, VALUE tup_num, VALUE field_num)
 
 /*
  * call-seq:
- *    res.nparams() -> Fixnum
+ *    res.nparams() -> Integer
  *
  * Returns the number of parameters of a prepared statement.
  * Only useful for the result returned by conn.describePrepared

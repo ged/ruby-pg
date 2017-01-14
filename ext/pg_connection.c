@@ -352,9 +352,9 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 #ifdef HAVE_PQPING
 /*
  * call-seq:
- *    PG::Connection.ping(connection_hash)       -> Fixnum
- *    PG::Connection.ping(connection_string)     -> Fixnum
- *    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Fixnum
+ *    PG::Connection.ping(connection_hash)       -> Integer
+ *    PG::Connection.ping(connection_string)     -> Integer
+ *    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Integer
  *
  * Check server status.
  *
@@ -457,7 +457,7 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 
 /*
  * call-seq:
- *    conn.connect_poll() -> Fixnum
+ *    conn.connect_poll() -> Integer
  *
  * Returns one of:
  * [+PGRES_POLLING_READING+]
@@ -566,7 +566,7 @@ pgconn_reset_start(VALUE self)
 
 /*
  * call-seq:
- *    conn.reset_poll -> Fixnum
+ *    conn.reset_poll -> Integer
  *
  * Checks the status of a connection reset operation.
  * See #connect_start and #connect_poll for
@@ -805,7 +805,7 @@ pgconn_error_message(VALUE self)
 
 /*
  * call-seq:
- *    conn.socket() -> Fixnum
+ *    conn.socket() -> Integer
  *
  * Returns the socket's file descriptor for this connection.
  * <tt>IO.for_fd()</tt> can be used to build a proper IO object to the socket.
@@ -880,7 +880,7 @@ pgconn_socket_io(VALUE self)
 
 /*
  * call-seq:
- *    conn.backend_pid() -> Fixnum
+ *    conn.backend_pid() -> Integer
  *
  * Returns the process ID of the backend server
  * process for this connection.
@@ -1234,8 +1234,8 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
  * Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
- *      :type   => Fixnum (oid of type of bind parameter)
- *      :format => Fixnum (0 for text, 1 for binary)
+ *      :type   => Integer (oid of type of bind parameter)
+ *      :format => Integer (0 for text, 1 for binary)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
@@ -1377,7 +1377,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * SQL query. Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
- *      :format => Fixnum (0 for text, 1 for binary)
+ *      :format => Integer (0 for text, 1 for binary)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
@@ -1793,8 +1793,8 @@ pgconn_set_single_row_mode(VALUE self)
  * Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
- *      :type   => Fixnum (oid of type of bind parameter)
- *      :format => Fixnum (0 for text, 1 for binary)
+ *      :type   => Integer (oid of type of bind parameter)
+ *      :format => Integer (0 for text, 1 for binary)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
@@ -1940,7 +1940,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  * SQL query. Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
- *      :format => Fixnum (0 for text, 1 for binary)
+ *      :format => Integer (0 for text, 1 for binary)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
@@ -2724,7 +2724,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 
 /*
  * call-seq:
- *    conn.set_error_verbosity( verbosity ) -> Fixnum
+ *    conn.set_error_verbosity( verbosity ) -> Integer
  *
  * Sets connection's verbosity to _verbosity_ and returns
  * the previous setting. Available settings are:
@@ -3280,7 +3280,7 @@ pgconn_ssl_attribute_names(VALUE self)
 
 /*
  * call-seq:
- *    conn.lo_creat( [mode] ) -> Fixnum
+ *    conn.lo_creat( [mode] ) -> Integer
  *
  * Creates a large object with mode _mode_. Returns a large object Oid.
  * On failure, it raises PG::Error.
@@ -3307,7 +3307,7 @@ pgconn_locreat(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.lo_create( oid ) -> Fixnum
+ *    conn.lo_create( oid ) -> Integer
  *
  * Creates a large object with oid _oid_. Returns the large object Oid.
  * On failure, it raises PG::Error.
@@ -3328,7 +3328,7 @@ pgconn_locreate(VALUE self, VALUE in_lo_oid)
 
 /*
  * call-seq:
- *    conn.lo_import(file) -> Fixnum
+ *    conn.lo_import(file) -> Integer
  *
  * Import a file to a large object. Returns a large object Oid.
  *
@@ -3373,7 +3373,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 
 /*
  * call-seq:
- *    conn.lo_open( oid, [mode] ) -> Fixnum
+ *    conn.lo_open( oid, [mode] ) -> Integer
  *
  * Open a large object of _oid_. Returns a large object descriptor
  * instance on success. The _mode_ argument specifies the mode for
@@ -3404,7 +3404,7 @@ pgconn_loopen(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.lo_write( lo_desc, buffer ) -> Fixnum
+ *    conn.lo_write( lo_desc, buffer ) -> Integer
  *
  * Writes the string _buffer_ to the large object _lo_desc_.
  * Returns the number of bytes written.
@@ -3471,7 +3471,7 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 
 /*
  * call-seq:
- *    conn.lo_lseek( lo_desc, offset, whence ) -> Fixnum
+ *    conn.lo_lseek( lo_desc, offset, whence ) -> Integer
  *
  * Move the large object pointer _lo_desc_ to offset _offset_.
  * Valid values for _whence_ are +SEEK_SET+, +SEEK_CUR+, and +SEEK_END+.
@@ -3493,7 +3493,7 @@ pgconn_lolseek(VALUE self, VALUE in_lo_desc, VALUE offset, VALUE whence)
 
 /*
  * call-seq:
- *    conn.lo_tell( lo_desc ) -> Fixnum
+ *    conn.lo_tell( lo_desc ) -> Integer
  *
  * Returns the current position of the large object _lo_desc_.
  */
