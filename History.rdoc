@@ -1,8 +1,18 @@
 == v0.19.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
+Enhancements:
+- Update error codes to PostgreSQL-9.6
+- Update Windows binary gems to Ruby-2.4, PostgreSQL 9.6.1 and
+  OpenSSL 1.0.2j.
+
 Bugfixes:
 - Use secure JSON methods for JSON (de)serialisation. #248
 - Fix Result#inspect on a cleared result.
+- Fix test case that failed on Ruby-2.4. #255
+
+Documentation fixes:
+- Talk about Integer instead of Fixnum.
+- Fix method signature of Coder#encode.
 
 == v0.19.0 [2016-09-21] Michael Granger <ged@FaerieMUD.org>
 
