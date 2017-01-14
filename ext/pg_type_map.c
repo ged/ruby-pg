@@ -11,46 +11,53 @@ VALUE rb_mDefaultTypeMappable;
 static ID s_id_fit_to_query;
 static ID s_id_fit_to_result;
 
+NORETURN( VALUE
+pg_typemap_fit_to_result( VALUE self, VALUE result ));
+NORETURN( VALUE
+pg_typemap_fit_to_query( VALUE self, VALUE params ));
+NORETURN( int
+pg_typemap_fit_to_copy_get( VALUE self ));
+NORETURN( VALUE
+pg_typemap_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field ));
+NORETURN( t_pg_coder *
+pg_typemap_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field ));
+NORETURN( VALUE
+pg_typemap_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format, int enc_idx ));
+
 VALUE
 pg_typemap_fit_to_result( VALUE self, VALUE result )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map result values", rb_obj_classname(self) );
-	return Qnil;
 }
 
 VALUE
 pg_typemap_fit_to_query( VALUE self, VALUE params )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map query params", rb_obj_classname(self) );
-	return Qnil;
 }
 
 int
 pg_typemap_fit_to_copy_get( VALUE self )
 {
 	rb_raise( rb_eNotImpError, "type map %s is not suitable to map get_copy_data results", rb_obj_classname(self) );
-	return Qnil;
 }
 
 VALUE
 pg_typemap_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 {
 	rb_raise( rb_eNotImpError, "type map is not suitable to map result values" );
-	return Qnil;
 }
 
 t_pg_coder *
 pg_typemap_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 {
 	rb_raise( rb_eNotImpError, "type map is not suitable to map query params" );
-	return NULL;
 }
 
 VALUE
 pg_typemap_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format, int enc_idx )
 {
 	rb_raise( rb_eNotImpError, "type map is not suitable to map get_copy_data results" );
-	return Qnil;
 }
 
 const struct pg_typemap_funcs pg_typemap_funcs = {
