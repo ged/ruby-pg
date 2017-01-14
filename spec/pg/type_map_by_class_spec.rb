@@ -59,7 +59,7 @@ describe PG::TypeMapByClass do
 	it "should retrieve particular conversions" do
 		expect( tm[Integer] ).to eq(binaryenc_int)
 		expect( tm[Float] ).to eq(textenc_float)
-		expect( tm[Bignum] ).to be_nil
+		expect( tm[Range] ).to be_nil
 		expect( derived_tm[raise_class] ).to be_kind_of(Proc)
 		expect( derived_tm[Array] ).to eq(:array_type_map_for)
 	end
