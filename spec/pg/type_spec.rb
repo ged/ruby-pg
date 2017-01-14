@@ -956,4 +956,106 @@ describe "PG::Type derivations" do
 			end
 		end
 	end
+
+	describe PG::RowCoder do
+		describe PG::TextEncoder::Row do
+			context "with default typemap" do
+				let!(:encoder) do
+					PG::TextEncoder::Row.new
+				end
+
+				it "should encode different types of Ruby objects" do
+					expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
+						to eq('("xyz","123","2456","34567","456789","5678901","[1, 2, 3]","12.1","abcdefg",)')
+				end
+
+				it 'should output a string with correct character encoding' do
+					v = encoder.encode(["Héllo"], "iso-8859-1")
+					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
+					expect( v ).to eq( '("Héllo")'.encode(Encoding::ISO_8859_1) )
+				end
+			end
+
+			context "with TypeMapByClass" do
+				let!(:tm) do
+					tm = PG::TypeMapByClass.new
+					tm[Integer] = textenc_int
+					tm[Float] = intenc_incrementer
+					tm[Array] = PG::TextEncoder::Array.new elements_type: textenc_string
+					tm
+				end
+				let!(:encoder) do
+					PG::TextEncoder::Row.new type_map: tm
+				end
+
+				it "should have reasonable default values" do
+					expect( encoder.name ).to be_nil
+				end
+
+				it "copies all attributes with #dup" do
+					encoder.name = "test"
+					encoder.type_map = PG::TypeMapByColumn.new []
+					encoder2 = encoder.dup
+					expect( encoder.object_id ).to_not eq( encoder2.object_id )
+					expect( encoder2.name ).to eq( "test" )
+					expect( encoder2.type_map ).to be_a_kind_of( PG::TypeMapByColumn )
+				end
+
+				describe '#encode' do
+					it "should encode different types of Ruby objects" do
+						expect( encoder.encode([]) ).to eq("()")
+						expect( encoder.encode(["a"]) ).to eq('("a")')
+						expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
+							to eq('("xyz","123","2456","34567","456789","5678901","{1,2,3}","13 ","abcdefg",)')
+					end
+
+					it "should escape special characters" do
+						expect( encoder.encode([" \"\t\n\\\r"]) ).to eq("(\" \"\"\t\n##\r\")".gsub("#", "\\"))
+					end
+				end
+			end
+		end
+
+		describe PG::TextDecoder::Row do
+			context "with default typemap" do
+				let!(:decoder) do
+					PG::TextDecoder::Row.new
+				end
+
+				describe '#decode' do
+					it "should decode composite text format to array of strings" do
+						expect( decoder.decode('("fuzzy dice",,"",42,)') ).to eq( ["fuzzy dice",nil, "", "42", nil] )
+					end
+
+					it 'should respect input character encoding' do
+						v = decoder.decode("(Héllo)".encode("iso-8859-1")).first
+						expect( v.encoding ).to eq(Encoding::ISO_8859_1)
+						expect( v ).to eq("Héllo".encode("iso-8859-1"))
+					end
+
+					it 'should raise an error on malformed input' do
+						expect{ decoder.decode('') }.to raise_error(ArgumentError, /"" - Missing left parenthesis/)
+						expect{ decoder.decode('(') }.to raise_error(ArgumentError, /"\(" - Unexpected end of input/)
+						expect{ decoder.decode('(\\') }.to raise_error(ArgumentError, /"\(\\" - Unexpected end of input/)
+						expect{ decoder.decode('()x') }.to raise_error(ArgumentError, /"\(\)x" - Junk after right parenthesis/)
+					end
+				end
+			end
+
+			context "with TypeMapByColumn" do
+				let!(:tm) do
+					PG::TypeMapByColumn.new [textdec_int, textdec_string, intdec_incrementer, nil]
+				end
+				let!(:decoder) do
+					PG::TextDecoder::Row.new type_map: tm
+				end
+
+				describe '#decode' do
+					it "should decode different types of Ruby objects" do
+						expect( decoder.decode("(123,\" #,#\n#\r#\\ \",234,#\x01#\002)".gsub("#", "\\"))).to eq( [123, " ,\n\r\\ ", 235, "\x01\x02"] )
+					end
+				end
+			end
+		end
+	end
 end
