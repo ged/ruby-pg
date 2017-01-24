@@ -4,6 +4,7 @@ Enhancements:
 - Update error codes to PostgreSQL-9.6
 - Update Windows binary gems to Ruby-2.4, PostgreSQL 9.6.1 and
   OpenSSL 1.0.2j.
+- Add support for RubyInstaller2 to Windows binary gems.
 
 Bugfixes:
 - Use secure JSON methods for JSON (de)serialisation. #248
