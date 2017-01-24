@@ -8,11 +8,22 @@ rescue LoadError
 		major_minor = RUBY_VERSION[ /^(\d+\.\d+)/ ] or
 			raise "Oops, can't extract the major/minor version from #{RUBY_VERSION.dump}"
 
-		# Set the PATH environment variable, so that libpq.dll can be found.
-		old_path = ENV['PATH']
-		ENV['PATH'] = "#{File.expand_path("..", __FILE__)};#{old_path}"
-		require "#{major_minor}/pg_ext"
-		ENV['PATH'] = old_path
+		add_dll_path = proc do |path, &block|
+			begin
+				require 'ruby_installer'
+				RubyInstaller.add_dll_directory(path, &block)
+			rescue LoadError
+				old_path = ENV['PATH']
+				ENV['PATH'] = "#{path};#{old_path}"
+				yield
+				ENV['PATH'] = old_path
+			end
+		end
+
+		# Temporary add this directory for DLL search, so that libpq.dll can be found.
+		add_dll_path.call(__dir__) do
+			require "#{major_minor}/pg_ext"
+		end
 	else
 		raise
 	end
@@ -61,4 +72,3 @@ end # module PG
 
 # Backward-compatible aliase
 PGError = PG::Error
-
