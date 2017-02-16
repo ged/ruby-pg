@@ -15,7 +15,7 @@ rescue LoadError
 			rescue LoadError
 				old_path = ENV['PATH']
 				ENV['PATH'] = "#{path};#{old_path}"
-				yield
+				block.call
 				ENV['PATH'] = old_path
 			end
 		end
