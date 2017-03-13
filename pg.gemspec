@@ -1,16 +1,16 @@
 # -*- encoding: utf-8 -*-
-# stub: pg 0.21.0.pre20170310135502 ruby lib
+# stub: pg 0.21.0.pre20170313094134 ruby lib
 # stub: ext/extconf.rb
 
 Gem::Specification.new do |s|
   s.name = "pg".freeze
-  s.version = "0.21.0.pre20170310135502"
+  s.version = "0.21.0.pre20170313094134"
 
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1".freeze) if s.respond_to? :required_rubygems_version=
   s.require_paths = ["lib".freeze]
   s.authors = ["Michael Granger".freeze, "Lars Kanis".freeze]
   s.cert_chain = ["certs/ged.pem".freeze]
-  s.date = "2017-03-10"
+  s.date = "2017-03-13"
   s.description = "Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].\n\nIt works with {PostgreSQL 9.1 and later}[http://www.postgresql.org/support/versioning/].\n\nA small example usage:\n\n  #!/usr/bin/env ruby\n\n  require 'pg'\n\n  # Output a table of current connections to the DB\n  conn = PG.connect( dbname: 'sales' )\n  conn.exec( \"SELECT * FROM pg_stat_activity\" ) do |result|\n    puts \"     PID | User             | Query\"\n    result.each do |row|\n      puts \" %7d | %-16s | %s \" %\n        row.values_at('procpid', 'usename', 'current_query')\n    end\n  end".freeze
   s.email = ["ged@FaerieMUD.org".freeze, "lars@greiz-reinsdorf.de".freeze]
   s.extensions = ["ext/extconf.rb".freeze]
@@ -28,34 +28,34 @@ Gem::Specification.new do |s|
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
       s.add_development_dependency(%q<hoe-mercurial>.freeze, ["~> 1.4"])
-      s.add_development_dependency(%q<hoe-deveiate>.freeze, ["~> 0.7"])
+      s.add_development_dependency(%q<hoe-deveiate>.freeze, ["~> 0.9"])
       s.add_development_dependency(%q<hoe-highline>.freeze, ["~> 0.2"])
-      s.add_development_dependency(%q<rdoc>.freeze, ["~> 4.0"])
-      s.add_development_dependency(%q<rake-compiler>.freeze, ["~> 1.0.3"])
-      s.add_development_dependency(%q<rake-compiler-dock>.freeze, ["~> 0.6.0"])
+      s.add_development_dependency(%q<rake-compiler>.freeze, ["~> 1.0"])
+      s.add_development_dependency(%q<rake-compiler-dock>.freeze, ["~> 0.6"])
       s.add_development_dependency(%q<hoe>.freeze, ["~> 3.12"])
       s.add_development_dependency(%q<hoe-bundler>.freeze, ["~> 1.0"])
-      s.add_development_dependency(%q<rspec>.freeze, ["~> 3.0"])
+      s.add_development_dependency(%q<rspec>.freeze, ["~> 3.5"])
+      s.add_development_dependency(%q<rdoc>.freeze, ["~> 4.0"])
     else
       s.add_dependency(%q<hoe-mercurial>.freeze, ["~> 1.4"])
-      s.add_dependency(%q<hoe-deveiate>.freeze, ["~> 0.7"])
+      s.add_dependency(%q<hoe-deveiate>.freeze, ["~> 0.9"])
       s.add_dependency(%q<hoe-highline>.freeze, ["~> 0.2"])
-      s.add_dependency(%q<rdoc>.freeze, ["~> 4.0"])
-      s.add_dependency(%q<rake-compiler>.freeze, ["~> 1.0.3"])
-      s.add_dependency(%q<rake-compiler-dock>.freeze, ["~> 0.6.0"])
+      s.add_dependency(%q<rake-compiler>.freeze, ["~> 1.0"])
+      s.add_dependency(%q<rake-compiler-dock>.freeze, ["~> 0.6"])
       s.add_dependency(%q<hoe>.freeze, ["~> 3.12"])
       s.add_dependency(%q<hoe-bundler>.freeze, ["~> 1.0"])
-      s.add_dependency(%q<rspec>.freeze, ["~> 3.0"])
+      s.add_dependency(%q<rspec>.freeze, ["~> 3.5"])
+      s.add_dependency(%q<rdoc>.freeze, ["~> 4.0"])
     end
   else
     s.add_dependency(%q<hoe-mercurial>.freeze, ["~> 1.4"])
-    s.add_dependency(%q<hoe-deveiate>.freeze, ["~> 0.7"])
+    s.add_dependency(%q<hoe-deveiate>.freeze, ["~> 0.9"])
     s.add_dependency(%q<hoe-highline>.freeze, ["~> 0.2"])
-    s.add_dependency(%q<rdoc>.freeze, ["~> 4.0"])
-    s.add_dependency(%q<rake-compiler>.freeze, ["~> 1.0.3"])
-    s.add_dependency(%q<rake-compiler-dock>.freeze, ["~> 0.6.0"])
+    s.add_dependency(%q<rake-compiler>.freeze, ["~> 1.0"])
+    s.add_dependency(%q<rake-compiler-dock>.freeze, ["~> 0.6"])
     s.add_dependency(%q<hoe>.freeze, ["~> 3.12"])
     s.add_dependency(%q<hoe-bundler>.freeze, ["~> 1.0"])
-    s.add_dependency(%q<rspec>.freeze, ["~> 3.0"])
+    s.add_dependency(%q<rspec>.freeze, ["~> 3.5"])
+    s.add_dependency(%q<rdoc>.freeze, ["~> 4.0"])
   end
 end
