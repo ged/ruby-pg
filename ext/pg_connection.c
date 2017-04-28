@@ -613,7 +613,7 @@ pgconn_user(VALUE self)
  * call-seq:
  *    conn.pass()
  *
- * Returns the authenticated user name.
+ * Returns the authenticated password.
  */
 static VALUE
 pgconn_pass(VALUE self)
