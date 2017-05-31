@@ -29,6 +29,3 @@ class PG::Result
 
 end # class PG::Result
 
-# :stopdoc:
-# Backward-compatible alias
-PGresult = PG::Result

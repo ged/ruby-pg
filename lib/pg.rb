@@ -70,5 +70,7 @@ module PG
 end # module PG
 
 
-# Backward-compatible aliase
-PGError = PG::Error
+autoload :PGError,  'pg/deprecated_constants'
+autoload :PGconn,   'pg/deprecated_constants'
+autoload :PGresult, 'pg/deprecated_constants'
+

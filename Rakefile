@@ -62,10 +62,10 @@ $hoespec = Hoe.spec 'pg' do
 
 	self.dependency 'rake-compiler', '~> 1.0', :developer
 	self.dependency 'rake-compiler-dock', '~> 0.6', :developer
-	self.dependency 'hoe', '~> 3.12', :developer
 	self.dependency 'hoe-deveiate', '~> 0.9', :developer
 	self.dependency 'hoe-bundler', '~> 1.0', :developer
 	self.dependency 'rspec', '~> 3.5', :developer
+	self.dependency 'rdoc', '~> 5.1', :developer
 
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
 
