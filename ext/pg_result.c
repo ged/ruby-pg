@@ -772,11 +772,17 @@ pgresult_cmd_status(VALUE self)
  * Returns the number of tuples (rows) affected by the SQL command.
  *
  * If the SQL command that generated the PG::Result was not one of:
- * * +INSERT+
- * * +UPDATE+
- * * +DELETE+
- * * +MOVE+
- * * +FETCH+
+ *
+ * * <tt>SELECT</tt>
+ * * <tt>CREATE TABLE AS</tt>
+ * * <tt>INSERT</tt>
+ * * <tt>UPDATE</tt>
+ * * <tt>DELETE</tt>
+ * * <tt>MOVE</tt>
+ * * <tt>FETCH</tt>
+ * * <tt>COPY</tt>
+ * * an +EXECUTE+ of a prepared query that contains an +INSERT+, +UPDATE+, or +DELETE+ statement
+ *
  * or if no tuples were affected, <tt>0</tt> is returned.
  */
 static VALUE
