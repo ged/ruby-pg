@@ -10,8 +10,8 @@ rescue LoadError
 
 		add_dll_path = proc do |path, &block|
 			begin
-				require 'ruby_installer'
-				RubyInstaller.add_dll_directory(path, &block)
+				require 'ruby_installer/runtime'
+				RubyInstaller::Runtime.add_dll_directory(path, &block)
 			rescue LoadError
 				old_path = ENV['PATH']
 				ENV['PATH'] = "#{path};#{old_path}"
