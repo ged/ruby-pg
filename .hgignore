@@ -1,7 +1,7 @@
 ChangeLog$
 commit-msg\.txt$
 lowrite\.txt
-\.(diff|patch|test_symlink|lock)$
+\.(diff|patch|test_symlink|lock|ruby-(gemset|version))$
 \.(s?o|log|bundle)$
 \.DS_Store
 \.orig$
