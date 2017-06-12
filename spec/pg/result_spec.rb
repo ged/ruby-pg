@@ -100,11 +100,11 @@ describe PG::Result do
 		expect( res[0]['n'] ).to be_nil()
 	end
 
-	it "encapsulates errors in a PGError object" do
+	it "encapsulates errors in a PG::Error object" do
 		exception = nil
 		begin
 			@conn.exec( "SELECT * FROM nonexistant_table" )
-		rescue PGError => err
+		rescue PG::Error => err
 			exception = err
 		end
 
@@ -136,7 +136,7 @@ describe PG::Result do
 		exception = nil
 		begin
 			@conn.exec( "INSERT INTO integrity VALUES (NULL)" )
-		rescue PGError => err
+		rescue PG::Error => err
 			exception = err
 		end
 		result = exception.result
@@ -152,7 +152,7 @@ describe PG::Result do
 		sqlstate = nil
 		begin
 			res = @conn.exec("SELECT 1/0")
-		rescue PGError => e
+		rescue PG::Error => e
 			sqlstate = e.result.result_error_field( PG::PG_DIAG_SQLSTATE ).to_i
 		end
 		expect( sqlstate ).to eq( 22012 )
