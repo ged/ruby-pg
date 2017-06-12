@@ -3,6 +3,12 @@
 Enhancements:
 - Move add_dll_directory to the Runtime namespace for newest versions
   of RubyInstaller.
+- Deprecate PGconn, PGresult, and PGError top-level constants; a warning
+  will be output the first time one of them is used. They will be
+  removed in the upcoming 1.0 release.
+
+Documentation fixes:
+- Update the docs for PG::Result#cmd_tuples
 
 
 == v0.20.0 [2017-03-10] Michael Granger <ged@FaerieMUD.org>
