@@ -155,10 +155,14 @@ class CrossLibrary < OpenStruct
 		end
 
 		desc "compile static #{libssl}"
-		file libssl => :compile_static_openssl
+		file libssl => :compile_static_openssl do |t|
+			rm t.name.gsub(/\.a$/, ".dll.a")
+		end
 
 		desc "compile static #{libcrypto}"
-		file libcrypto => :compile_static_openssl
+		file libcrypto => :compile_static_openssl do |t|
+			rm t.name.gsub(/\.a$/, ".dll.a")
+		end
 
 
 
@@ -201,7 +205,7 @@ class CrossLibrary < OpenStruct
 				cmd << "CFLAGS=-L#{static_openssl_builddir}"
 				cmd << "LDFLAGS=-L#{static_openssl_builddir}"
 				cmd << "LDFLAGS_SL=-L#{static_openssl_builddir}"
-				cmd << "LIBS=-lwsock32 -lgdi32"
+				cmd << "LIBS=-lwsock32 -lgdi32 -lws2_32"
 				cmd << "CPPFLAGS=-I#{static_openssl_builddir}/include"
 
 				run( *cmd )
