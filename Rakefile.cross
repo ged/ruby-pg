@@ -29,8 +29,8 @@ class CrossLibrary < OpenStruct
 		self.host_platform              = toolchain
 
 		# Cross-compilation constants
-		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.0.2j'
-		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '9.6.2'
+		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.1.0f'
+		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '9.6.3'
 
 		# Check if symlinks work in the current working directory.
 		# This fails, if rake-compiler-dock is running on a Windows box.
@@ -54,8 +54,8 @@ class CrossLibrary < OpenStruct
 		self.openssl_tarball            = static_sourcesdir + File.basename( openssl_source_uri.path )
 		self.openssl_makefile           = static_openssl_builddir + 'Makefile'
 
-		self.libssleay32                = static_openssl_builddir + 'libssleay32.a'
-		self.libeay32                   = static_openssl_builddir + 'libeay32.a'
+		self.libssl                     = static_openssl_builddir + 'libssl.a'
+		self.libcrypto                  = static_openssl_builddir + 'libcrypto.a'
 
 		self.openssl_patches            = Rake::FileList[ (MISCDIR + "openssl-#{openssl_version}.*.patch").to_s ]
 
@@ -126,11 +126,9 @@ class CrossLibrary < OpenStruct
 		end
 
 		self.cmd_prelude = [
-			'env',
-			"CC=#{host_platform}-gcc",
+			"env",
+			"CROSS_COMPILE=#{host_platform}-",
 			"CFLAGS=-DDSO_WIN32",
-			"AR=#{host_platform}-ar",
-			"RANLIB=#{host_platform}-ranlib"
 		]
 
 
@@ -145,7 +143,7 @@ class CrossLibrary < OpenStruct
 		end
 
 		desc "compile static openssl libraries"
-		task :openssl_libs => [ libssleay32, libeay32 ]
+		task :openssl_libs => [ libssl, libcrypto ]
 
 		task :compile_static_openssl => openssl_makefile do |t|
 			chdir( static_openssl_builddir ) do
@@ -156,15 +154,11 @@ class CrossLibrary < OpenStruct
 			end
 		end
 
-		desc "compile static #{libeay32}"
-		file libeay32 => :compile_static_openssl do |t|
-			FileUtils.cp( static_openssl_builddir + 'libcrypto.a', libeay32.to_s )
-		end
+		desc "compile static #{libssl}"
+		file libssl => :compile_static_openssl
 
-		desc "compile static #{libssleay32}"
-		file libssleay32 => :compile_static_openssl do |t|
-			FileUtils.cp( static_openssl_builddir + 'libssl.a', libssleay32.to_s )
-		end
+		desc "compile static #{libcrypto}"
+		file libcrypto => :compile_static_openssl
 
 
 
@@ -226,7 +220,7 @@ class CrossLibrary < OpenStruct
 				sh 'make',
 					"-j#{NUM_CPUS}",
 					postgresql_lib.basename.to_s,
-					'SHLIB_LINK=-lssleay32 -leay32 -lcrypt32 -lgdi32 -lsecur32 -lwsock32 -lws2_32'
+					'SHLIB_LINK=-lssl -lcrypto -lcrypt32 -lgdi32 -lsecur32 -lwsock32 -lws2_32'
 			end
 		end
 

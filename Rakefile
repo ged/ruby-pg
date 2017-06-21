@@ -155,6 +155,7 @@ end
 file '.hg/branch' do
 	warn "WARNING: You need the Mercurial repo to update the ChangeLog"
 end
+Rake::Task["ChangeLog"].clear
 file 'ChangeLog' do |task|
 	if File.exist?('.hg/branch')
 		$stderr.puts "Updating the changelog..."
