@@ -367,6 +367,8 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
  *   could not establish connection
  * [+PQPING_NO_ATTEMPT+]
  *   connection not attempted (bad params)
+ *
+ * Available since PostgreSQL-9.1
  */
 static VALUE
 pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
@@ -686,6 +688,7 @@ pgconn_options(VALUE self)
  *
  * Returns the connection options used by a live connection.
  *
+ * Available since PostgreSQL-9.3
  */
 static VALUE
 pgconn_conninfo( VALUE self )
@@ -1652,6 +1655,8 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
  *    conn.escape_literal( str ) -> String
  *
  * Escape an arbitrary String +str+ as a literal.
+ *
+ * Available since PostgreSQL-9.0
  */
 static VALUE
 pgconn_escape_literal(VALUE self, VALUE string)
@@ -1694,6 +1699,8 @@ pgconn_escape_literal(VALUE self, VALUE string)
  * This method does the same as #quote_ident with a String argument,
  * but it doesn't support an Array argument and it makes use of libpq
  * to process the string.
+ *
+ * Available since PostgreSQL-9.0
  */
 static VALUE
 pgconn_escape_identifier(VALUE self, VALUE string)
@@ -1763,6 +1770,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  *     end
  *   end
  *
+ * Available since PostgreSQL-9.2
  */
 static VALUE
 pgconn_set_single_row_mode(VALUE self)
@@ -3198,14 +3206,13 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 
 
 #ifdef HAVE_PQSSLATTRIBUTE
-/* Since PostgreSQL-9.5: */
-
 /*
  * call-seq:
  *    conn.ssl_in_use? -> Boolean
  *
  * Returns +true+ if the connection uses SSL, +false+ if not.
  *
+ * Available since PostgreSQL-9.5
  */
 static VALUE
 pgconn_ssl_in_use(VALUE self)
@@ -3238,6 +3245,8 @@ pgconn_ssl_in_use(VALUE self)
  *
  *
  * See also #ssl_attribute_names and http://www.postgresql.org/docs/current/interactive/libpq-status.html#LIBPQ-PQSSLATTRIBUTE
+ *
+ * Available since PostgreSQL-9.5
  */
 static VALUE
 pgconn_ssl_attribute(VALUE self, VALUE attribute_name)
@@ -3256,6 +3265,7 @@ pgconn_ssl_attribute(VALUE self, VALUE attribute_name)
  *
  * See also #ssl_attribute
  *
+ * Available since PostgreSQL-9.5
  */
 static VALUE
 pgconn_ssl_attribute_names(VALUE self)
