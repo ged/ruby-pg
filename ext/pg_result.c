@@ -1087,6 +1087,8 @@ pgresult_type_map_get(VALUE self)
  *     # do something with the received row of the second query
  *   end
  *   conn.get_result  # => nil   (no more results)
+ *
+ * Available since PostgreSQL-9.2
  */
 static VALUE
 pgresult_stream_each(VALUE self)
@@ -1150,6 +1152,8 @@ pgresult_stream_each(VALUE self)
  *
  * This method works equally to #stream_each , but yields an Array of
  * values.
+ *
+ * Available since PostgreSQL-9.2
  */
 static VALUE
 pgresult_stream_each_row(VALUE self)
