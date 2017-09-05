@@ -37,7 +37,7 @@ A small example usage:
 
 == Requirements
 
-* Ruby 2.2
+* Ruby 2.2 or newer
 * PostgreSQL 9.1.x or later (with headers, -dev packages, etc).
 
 It usually work with earlier versions of Ruby/PostgreSQL as well, but those are
@@ -165,4 +165,3 @@ to this library over the years.
 
 We are thankful to the people at the ruby-list and ruby-dev mailing lists.
 And to the people who developed PostgreSQL.
-
