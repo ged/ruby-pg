@@ -119,6 +119,19 @@ describe PG::Connection do
 	end
 
 	it "connects successfully with connection string" do
+		conninfo_with_colon_in_password = "host=localhost user=a port=555 dbname=test password=a:a"
+
+		string = described_class.parse_connect_args( conninfo_with_colon_in_password )
+
+		expect( string ).to be_a( String )
+		expect( string ).to match( %r{(^|\s)user=a} )
+		expect( string ).to match( %r{(^|\s)password=a:a} )
+		expect( string ).to match( %r{(^|\s)host=localhost} )
+		expect( string ).to match( %r{(^|\s)port=555} )
+		expect( string ).to match( %r{(^|\s)dbname=test} )
+	end
+
+	it "connects successfully with connection string" do
 		tmpconn = described_class.connect( @conninfo )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		tmpconn.finish

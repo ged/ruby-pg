@@ -47,7 +47,7 @@ class PG::Connection
 
 		if args.length == 1
 			case args.first
-			when URI, URI.regexp
+			when URI, /\A#{URI.regexp}\z/
 				uri = URI(args.first)
 				options.merge!( Hash[URI.decode_www_form( uri.query )] ) if uri.query
 			when /=/
