@@ -232,7 +232,7 @@ describe PG::Connection do
 		described_class.connect(@conninfo).finish
 		sleep 0.5
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
-							WHERE usename IS NOT NULL])
+							WHERE usename IS NOT NULL AND application_name != ''])
 		# there's still the global @conn, but should be no more
 		expect( res[0]['n'] ).to eq( '1' )
 	end
@@ -1537,9 +1537,14 @@ describe PG::Connection do
 		end
 
 		it "shouldn't type map params unless requested" do
-			expect{
-				@conn.exec_params( "SELECT $1", [5] )
-			}.to raise_error(PG::IndeterminateDatatype)
+			if @conn.server_version < 100000
+				expect{
+					@conn.exec_params( "SELECT $1", [5] )
+				}.to raise_error(PG::IndeterminateDatatype)
+			else
+				# PostgreSQL-10 maps to TEXT type (OID 25)
+				expect( @conn.exec_params( "SELECT $1", [5] ).ftype(0)).to eq(25)
+			end
 		end
 
 		it "should raise an error on invalid encoder to put_copy_data" do

@@ -251,7 +251,7 @@ module PG::TestingHelpers
 
 	def check_for_lingering_connections( conn )
 		conn.exec( "SELECT * FROM pg_stat_activity" ) do |res|
-			conns = res.find_all {|row| row['pid'].to_i != conn.backend_pid }
+			conns = res.find_all {|row| row['pid'].to_i != conn.backend_pid && ["client backend", nil].include?(row["backend_type"]) }
 			unless conns.empty?
 				puts "Lingering connections remain:"
 				conns.each do |row|
