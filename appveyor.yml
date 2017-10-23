@@ -12,6 +12,7 @@ install:
         $(new-object net.webclient).DownloadFile('http://get.enterprisedb.com/postgresql/postgresql-' + $env:PGVERSION + '.exe', 'C:\postgresql-setup.exe')
         cmd /c C:\postgresql-setup.exe --mode unattended --extract-only 1
       }
+      $env:RUBY_DLL_PATH = 'C:\Program Files\PostgreSQL\' + $env:PGVER + '\bin;C:\Program Files (x86)\PostgreSQL\' + $env:PGVER + '\bin'
       $env:PATH = 'C:\Program Files\PostgreSQL\' + $env:PGVER + '\bin;' + $env:PATH
       $env:PATH = 'C:\Program Files (x86)\PostgreSQL\' + $env:PGVER + '\bin;' + $env:PATH
 build_script:
@@ -21,13 +22,13 @@ test_script:
 environment:
   matrix:
     - ruby_version: "24"
-      PGVERSION: 9.6.3-2-windows
-      PGVER: 9.6
+      PGVERSION: 10.0-1-windows
+      PGVER: 10
     - ruby_version: "24-x64"
-      PGVERSION: 9.6.3-2-windows-x64
-      PGVER: 9.6
+      PGVERSION: 10.0-1-windows-x64
+      PGVER: 10
     - ruby_version: "22"
-      PGVERSION: 9.2.21-1-windows
-      PGVER: 9.2
+      PGVERSION: 9.3.19-1-windows
+      PGVER: 9.3
     - ruby_version: "22-x64"
-      PGVER: 9.4
+      PGVER: 9.6
