@@ -60,6 +60,15 @@ abort "Can't find the PostgreSQL client library (libpq)" unless
 	have_library( 'libpq', 'PQconnectdb', ['libpq-fe.h'] ) ||
 	have_library( 'ms/libpq', 'PQconnectdb', ['libpq-fe.h'] )
 
+if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
+	# Work around: https://sourceware.org/bugzilla/show_bug.cgi?id=22504
+	checking_for "workaround gcc version with link issue" do
+		`#{RbConfig::MAKEFILE_CONFIG['CC']} --version`.chomp =~ /\s(\d+)\.\d+\.\d+(\s|$)/ &&
+			$1.to_i >= 6 &&
+			have_library(':libpq.lib') # Prefer linking to libpq.lib over libpq.dll if available
+	end
+end
+
 # optional headers/functions
 have_func 'PQconnectionUsedPassword' or
 	abort "Your PostgreSQL is too old. Either install an older version " +
