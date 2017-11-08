@@ -1,5 +1,5 @@
 init:
-  - set PATH=C:/Ruby%ruby_version%/bin;c:/Program Files/Git/cmd;c:/Windows/system32;C:/Windows/System32/WindowsPowerShell/v1.0
+  - set PATH=C:/Ruby%ruby_version%/bin;c:/Program Files/Git/cmd;c:/Windows/system32;C:/Windows/System32/WindowsPowerShell/v1.0;C:/Program Files/Mercurial
   - set RUBYOPT=--verbose
 install:
   - ruby --version
