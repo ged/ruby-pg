@@ -2976,7 +2976,7 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 	Check_Type(str, T_STRING);
 
 	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
-		rb_raise(rb_ePGerror, "invalid encoding name: %s",StringValueCStr(str));
+		rb_raise(rb_ePGerror, "Failed to set client encoding (invalid encoding name: %s or connection error)", StringValueCStr(str));
 	}
 #ifdef M17N_SUPPORTED
 	pgconn_set_internal_encoding_index( self );
