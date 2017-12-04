@@ -5,6 +5,8 @@ language: ruby
 rvm:
   - "2.2"
   - "2.4.2"
+  - "2.5"
+  - ruby-head
   - rbx
 env:
   - "PGVERSION=10.0-1-linux-x64 PATH=\"/opt/PostgreSQL/10/bin:$PATH\""
@@ -15,11 +17,17 @@ matrix:
   exclude:
     - rvm: "2.2"
       env: "PGCROSS=true"
+    - rvm: "2.5"
+      env: "PGCROSS=true"
+    - rvm: ruby-head
+      env: "PGCROSS=true"
     - rvm: rbx
       env: "PGCROSS=true"
   allow_failures:
+    - rvm: ruby-head
       # one test fails because GVL unblocking function is not called by Rubinius core
     - rvm: rbx
+  fast_finish: true
 before_install:
   - gem install bundler
   - bundle install
