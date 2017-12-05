@@ -105,8 +105,6 @@ task :maint do
 	ENV['MAINTAINER_MODE'] = 'yes'
 end
 
-ENV['RUBY_CC_VERSION'] ||= '1.8.7:1.9.2:2.0.0'
-
 # Rake-compiler task
 Rake::ExtensionTask.new do |ext|
 	ext.name           = 'pg_ext'

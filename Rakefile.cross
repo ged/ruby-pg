@@ -82,8 +82,6 @@ class CrossLibrary < OpenStruct
 		CLEAN.include( static_builddir.to_s )
 
 
-		ENV['RUBY_CC_VERSION'] ||= '1.9.3:2.0.0'
-
 		def download(url, save_to)
 			part = save_to+".part"
 			sh "wget #{url.to_s.inspect} -O #{part.inspect} || curl #{url.to_s.inspect} -o #{part.inspect}"
