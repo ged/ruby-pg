@@ -231,6 +231,10 @@
   register_error_class( "22003", klass );
 }
 {
+  VALUE klass = define_error_class( "SequenceGeneratorLimitExceeded", "22" );
+  register_error_class( "2200H", klass );
+}
+{
   VALUE klass = define_error_class( "StringDataLengthMismatch", "22" );
   register_error_class( "22026", klass );
 }
@@ -586,6 +590,10 @@
 {
   VALUE klass = define_error_class( "WrongObjectType", "42" );
   register_error_class( "42809", klass );
+}
+{
+  VALUE klass = define_error_class( "GeneratedAlways", "42" );
+  register_error_class( "428C9", klass );
 }
 {
   VALUE klass = define_error_class( "UndefinedColumn", "42" );
