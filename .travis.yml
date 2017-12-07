@@ -7,7 +7,7 @@ rvm:
   - "2.4.2"
   - "2.5"
   - ruby-head
-  - rbx
+  - rbx-3
 env:
   - "PGVERSION=10.0-1-linux-x64 PATH=\"/opt/PostgreSQL/10/bin:$PATH\""
   - "PGVERSION=9.3.19-1-linux-x64 PATH=\"/opt/PostgreSQL/9.3/bin:$PATH\""
@@ -21,20 +21,26 @@ matrix:
       env: "PGCROSS=true"
     - rvm: ruby-head
       env: "PGCROSS=true"
-    - rvm: rbx
+    - rvm: rbx-3
       env: "PGCROSS=true"
   allow_failures:
     - rvm: ruby-head
       # one test fails because GVL unblocking function is not called by Rubinius core
-    - rvm: rbx
+    - rvm: rbx-3
   fast_finish: true
 before_install:
   - gem install bundler
   - bundle install
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
-  - "if [ -z \"$PGCROSS\" ]; then
-      wget http://get.enterprisedb.com/postgresql/postgresql-$PGVERSION.run &&
-      chmod +x postgresql-$PGVERSION.run &&
-      sudo ./postgresql-$PGVERSION.run --mode unattended --unattendedmodeui minimal;
-    fi"
-script: "if [ -z \"$PGCROSS\" ]; then rake compile test; else rake gem:windows; fi"
+  - |
+    if [ -z "$PGCROSS" ]; then
+      wget http://get.enterprisedb.com/postgresql/postgresql-$PGVERSION.run && \
+        chmod +x postgresql-$PGVERSION.run && \
+        sudo ./postgresql-$PGVERSION.run --mode unattended --unattendedmodeui minimal
+    fi
+script: |
+  if [ -z "$PGCROSS" ]; then
+    rake compile test
+  else
+    rake gem:windows
+  fi
