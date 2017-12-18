@@ -28,10 +28,26 @@
  *
  */
 
+#include "ruby/version.h"
 #include "pg.h"
 #include "util.h"
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
+#endif
+
+#ifdef RUBY_API_VERSION_MAJOR
+#       if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)
+                /* use C implementation of the SimpleDecoder`s timestamp function
+                 * when using ruby >= 2.3 */
+#               define PG_TEXT_DECODER_TIMESTAMP_EXT
+#       endif
+#endif
+
+#ifdef PG_TEXT_DECODER_TIMESTAMP_EXT
+#       include <ctype.h>
+#       include <time.h>
+static VALUE rb_cPG_TimestampWithTimeZone;
+static VALUE rb_cPG_TimestampWithoutTimeZone;
 #endif
 
 VALUE rb_mPG_TextDecoder;
@@ -392,6 +408,180 @@ pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int fie
 	return out_value;
 }
 
+#ifdef PG_TEXT_DECODER_TIMESTAMP_EXT
+static inline int char_to_digit(char c)
+{
+  return c - '0';
+}
+
+static int str4_to_int(const char *str)
+{
+  return char_to_digit(str[0]) * 1000
+       + char_to_digit(str[1]) * 100
+       + char_to_digit(str[2]) * 10
+       + char_to_digit(str[3]);
+}
+
+static int str2_to_int(const char *str)
+{
+  return char_to_digit(str[0]) * 10
+       + char_to_digit(str[1]);
+}
+
+static VALUE pg_text_decoder_timestamp_do(VALUE rstr, int with_timezone)
+{
+  const char *str = StringValuePtr(rstr);
+
+  if (isdigit(str[0]) && isdigit(str[1]) && isdigit(str[2]) && isdigit(str[3])
+   && str[4] == '-'
+   && isdigit(str[5]) && isdigit(str[6])
+   && str[7] == '-'
+   && isdigit(str[8]) && isdigit(str[9])
+   && str[10] == ' '
+   && isdigit(str[11]) && isdigit(str[12])
+   && str[13] == ':'
+   && isdigit(str[14]) && isdigit(str[15])
+   && str[16] == ':'
+   && isdigit(str[17]) && isdigit(str[18])
+  )
+  {
+    struct tm tm;
+    int nsec = 0;
+    int tz_neg = 0;
+    int tz_hour = 0;
+    int tz_min = 0;
+    int tz_sec = 0;
+ 
+    tm.tm_year = str4_to_int(&str[0]) - 1900;
+    tm.tm_mon = str2_to_int(&str[5]) - 1;
+    tm.tm_mday = str2_to_int(&str[8]);
+    tm.tm_hour = str2_to_int(&str[11]);
+    tm.tm_min = str2_to_int(&str[14]);
+    tm.tm_sec = str2_to_int(&str[17]);
+    tm.tm_isdst = 0;
+    str += 19;
+ 
+    if (str[0] == '.' && isdigit(str[1]))
+    {
+      /* nano second part, up to 9 digits */
+      static const int coef[9] = {
+        100000000, 10000000, 1000000,
+        100000, 10000, 1000, 100, 10, 1
+      };
+      int i;
+
+      str++;
+      for (i = 0; i < 9 && isdigit(*str); i++)
+      {
+        nsec += coef[i] * char_to_digit(*str++);
+      }
+    }
+
+    if (with_timezone)
+    {
+      if ((str[0] == '+' || str[0] == '-') && isdigit(str[1]) && isdigit(str[2]))
+      {
+        tz_neg = str[0] == '-';
+        tz_hour = str2_to_int(&str[1]);
+        str += 3;
+      }
+      if (str[0] == ':')
+      {
+        str++;
+      }
+      if (isdigit(str[0]) && isdigit(str[1]))
+      {
+        tz_min = str2_to_int(str);
+        str += 2;
+      }
+      if (str[0] == ':')
+      {
+        str++;
+      }
+      if (isdigit(str[0]) && isdigit(str[1]))
+      {
+        tz_sec = str2_to_int(str);
+        str += 2;
+      }
+    }
+    if (*str != '\0')
+    {
+      // not consumed all the string
+      return rstr;
+    }
+
+    if (with_timezone)
+    {
+#ifdef _WIN32
+      /* we can't use _mkgmtime because it is not available when using mingw32 */
+      time_t time;
+      time_t prevTZ = _timezone;
+      _timezone = 0;
+      time = mktime(&tm);
+      _timezone = prevTZ;
+#else
+      time_t time = timegm(&tm);
+#endif
+      if (time != -1)
+      {
+        struct timespec ts;
+        int gmt_offset;
+
+        gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+        if (tz_neg)
+        {
+          gmt_offset = - gmt_offset;
+        }
+        ts.tv_sec = time - gmt_offset;
+        ts.tv_nsec = nsec;
+        return rb_time_timespec_new(&ts, gmt_offset);
+      }
+    }
+    else
+    {
+      time_t time = mktime(&tm);
+      if (time != -1)
+      {
+        struct timespec ts;
+
+        ts.tv_sec = time;
+        ts.tv_nsec = nsec;
+        return rb_time_timespec_new(&ts, 0);
+      }
+    }
+  }
+  return rstr;
+}
+
+static VALUE
+pg_text_dec_timestamp_with_time_zone(int argc, VALUE *argv, VALUE self)
+{
+  if (argc < 1 || argc > 3)
+  {
+        rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..3)", argc);
+  }
+  if (NIL_P(argv[0]))
+  {
+        return Qnil;
+  }
+  return pg_text_decoder_timestamp_do(argv[0], 1);
+}
+
+static VALUE
+pg_text_dec_timestamp_without_time_zone(int argc, VALUE *argv, VALUE self)
+{
+  if (argc < 1 || argc > 3)
+  {
+        rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..3)", argc);
+  }
+  if (NIL_P(argv[0]))
+  {
+        return Qnil;
+  }
+  return pg_text_decoder_timestamp_do(argv[0], 0);
+}
+#endif
+
 void
 init_pg_text_decoder()
 {
@@ -418,4 +608,14 @@ init_pg_text_decoder()
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "FromBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "FromBase64", pg_text_dec_from_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
+
+#ifdef PG_TEXT_DECODER_TIMESTAMP_EXT
+        /* Document-class: PG::TimestampWithTimeZone < PG::SimpleDecoder */
+        rb_cPG_TimestampWithTimeZone = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithTimeZone", rb_cPG_SimpleDecoder );
+        rb_define_method( rb_cPG_TimestampWithTimeZone, "decode", pg_text_dec_timestamp_with_time_zone, -1 );
+ 
+        /* Document-class: PG::TimestampWithoutTimeZone < PG::SimpleDecoder */
+        rb_cPG_TimestampWithoutTimeZone = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithoutTimeZone", rb_cPG_SimpleDecoder );
+        rb_define_method( rb_cPG_TimestampWithoutTimeZone, "decode", pg_text_dec_timestamp_without_time_zone, -1 );
+#endif
 }
