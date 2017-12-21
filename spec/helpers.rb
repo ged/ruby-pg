@@ -5,7 +5,9 @@ require 'rspec'
 require 'shellwords'
 require 'pg'
 
-TEST_DIRECTORY = Pathname.getwd + "tmp_test_specs"
+DEFAULT_TEST_DIR_STR = File.join(Dir.pwd, "tmp_test_specs")
+TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
+TEST_DIRECTORY = Pathname.new(TEST_DIR_STR)
 
 module PG::TestingHelpers
 
