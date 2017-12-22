@@ -1257,7 +1257,7 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
  * for binary.
  *
  * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
- * This will type cast the params form various Ruby types before transmission
+ * This will type cast the params from various Ruby types before transmission
  * based on the encoders defined by the type map. When a type encoder is used
  * the format and oid of a given bind parameter are retrieved from the encoder
  * instead out of the hash form described above.
@@ -1393,7 +1393,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * for binary.
  *
  * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
- * This will type cast the params form various Ruby types before transmission
+ * This will type cast the params from various Ruby types before transmission
  * based on the encoders defined by the type map. When a type encoder is used
  * the format and oid of a given bind parameter are retrieved from the encoder
  * instead out of the hash form described above.
@@ -1821,7 +1821,7 @@ pgconn_set_single_row_mode(VALUE self)
  * for binary.
  *
  * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
- * This will type cast the params form various Ruby types before transmission
+ * This will type cast the params from various Ruby types before transmission
  * based on the encoders defined by the type map. When a type encoder is used
  * the format and oid of a given bind parameter are retrieved from the encoder
  * instead out of the hash form described above.
@@ -1961,7 +1961,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  * for binary.
  *
  * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
- * This will type cast the params form various Ruby types before transmission
+ * This will type cast the params from various Ruby types before transmission
  * based on the encoders defined by the type map. When a type encoder is used
  * the format and oid of a given bind parameter are retrieved from the encoder
  * instead out of the hash form described above.
@@ -2562,7 +2562,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
  *
  * encoder can be a PG::Coder derivation (typically PG::TextEncoder::CopyRow).
  * This encodes the received data fields from an Array of Strings. Optionally
- * the encoder can type cast the fields form various Ruby types in one step,
+ * the encoder can type cast the fields from various Ruby types in one step,
  * if PG::TextEncoder::CopyRow#type_map is set accordingly.
  *
  * Raises an exception if an error occurs.

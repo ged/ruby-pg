@@ -75,7 +75,7 @@ describe "PG::Type derivations" do
 				expect( intdec_incrementer.decode("3") ).to eq( 4 )
 			end
 
-			it "should decode integers of different lengths form text format" do
+			it "should decode integers of different lengths from text format" do
 				30.times do |zeros|
 					expect( textdec_int.decode("1" + "0"*zeros) ).to eq( 10 ** zeros )
 					expect( textdec_int.decode(zeros==0 ? "0" : "9"*zeros) ).to eq( 10 ** zeros - 1 )
