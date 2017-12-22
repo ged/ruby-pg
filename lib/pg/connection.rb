@@ -85,7 +85,7 @@ class PG::Connection
 
 
 	#  call-seq:
-	#     conn.copy_data( sql ) {|sql_result| ... } -> PG::Result
+	#     conn.copy_data( sql [, coder] ) {|sql_result| ... } -> PG::Result
 	#
 	# Execute a copy process for transfering data to or from the server.
 	#
@@ -108,6 +108,11 @@ class PG::Connection
 	# in case of client side or server side failures. Therefore, in case
 	# of blocking mode of operation, #copy_data is preferred to raw calls
 	# of #put_copy_data, #get_copy_data and #put_copy_end.
+	#
+	# _coder_ can be a PG::Coder derivation
+	# (typically PG::TextEncoder::CopyRow or PG::TextDecoder::CopyRow).
+	# This enables encoding of data fields given to #put_copy_data
+	# or decoding of fields received by #get_copy_data.
 	#
 	# Example with CSV input format:
 	#   conn.exec "create table my_table (a text,b text,c text,d text)"
