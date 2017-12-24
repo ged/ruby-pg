@@ -2,8 +2,14 @@ init:
   - set PATH=C:/Ruby%ruby_version%/bin;c:/Program Files/Git/cmd;c:/Windows/system32;C:/Windows/System32/WindowsPowerShell/v1.0;C:/Program Files/Mercurial
   - set RUBYOPT=--verbose
 install:
+  - ps: |
+      if ($env:RUBYDOWNLOAD -ne $null) {
+        $(new-object net.webclient).DownloadFile("https://github.com/oneclick/rubyinstaller2/releases/download/rubyinstaller-head/rubyinstaller-head-$env:RUBYDOWNLOAD.exe", "$pwd/ruby-setup.exe")
+        cmd /c ruby-setup.exe /verysilent /dir=C:/Ruby$env:ruby_version
+      }
   - ruby --version
   - gem --version
+  - gem install bundler --conservative
   - bundle install
   - ps: |
       if ($env:PGVERSION -ne $null)
@@ -20,6 +26,14 @@ test_script:
   - bundle exec rake test
 environment:
   matrix:
+    - ruby_version: "head"
+      RUBYDOWNLOAD: x64
+      PGVERSION: 10.0-1-windows-x64
+      PGVER: 10
+    - ruby_version: "head"
+      RUBYDOWNLOAD: x86
+      PGVERSION: 10.0-1-windows
+      PGVER: 10
     - ruby_version: "24-x64"
       PGVERSION: 10.0-1-windows-x64
       PGVER: 10
@@ -31,3 +45,6 @@ environment:
       PGVER: 9.3
     - ruby_version: "22-x64"
       PGVER: 9.6
+matrix:
+  allow_failures:
+    - ruby_version: "head"
