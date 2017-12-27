@@ -1,8 +1,21 @@
 == vXXX [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
+- Deprecate Ruby older than 2.2
+
+Enhancements:
+- Update error codes to PostgreSQL-10
+- Update Windows binary gems to Ruby-2.5, PostgreSQL 10.1 and
+  OpenSSL 1.1.0g.
+
 Bugfixes:
-- Fix URI detection for connection strings. #265
-  (thanks to jjoos)
+- Fix URI detection for connection strings. #265 (thanks to jjoos)
+- MINGW: Workaround segfault due to GCC linker error in conjunction with MSVC.
+  This happens when linking to PostgreSQL-10.0-x64 from EnterpriseDB.
+
+Documentation fixes:
+- Add PostgreSQL version since when the given function is supported. #263
+- Better documentation to `encoder` and `decoder` arguments of COPY related methods.
+
 
 == v0.21.0 [2017-06-12] Michael Granger <ged@FaerieMUD.org>
 
@@ -15,6 +28,9 @@ Enhancements:
 
 Documentation fixes:
 - Update the docs for PG::Result#cmd_tuples
+
+New Samples:
+- Add an example of the nicer #copy_data way of doing `COPY`.
 
 
 == v0.20.0 [2017-03-10] Michael Granger <ged@FaerieMUD.org>
