@@ -1253,6 +1253,12 @@ describe PG::Connection do
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
 				expect( escaped.encode ).to eq( "\"Möhre to\"".encode(Encoding::ISO8859_1) )
 			end
+
+			it "raises appropriate error if set_client_encoding is called with invalid arguments" do
+				expect { @conn.set_client_encoding( "invalid" ) }.to raise_error(PG::Error, /invalid value/)
+				expect { @conn.set_client_encoding( :invalid ) }.to raise_error(TypeError)
+				expect { @conn.set_client_encoding( nil ) }.to raise_error(TypeError)
+			end
 		end
 
 		describe "respect and convert character encoding of input strings" do
