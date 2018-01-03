@@ -7,7 +7,7 @@ require 'pg'
 
 describe PG do
 
-	it "knows what version of the libpq library is loaded", :postgresql_91 do
+	it "knows what version of the libpq library is loaded" do
 		expect( PG.library_version ).to be_an( Integer )
 		expect( PG.library_version ).to be >= 90100
 	end

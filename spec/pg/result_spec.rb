@@ -39,7 +39,7 @@ describe PG::Result do
 		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
 	end
 
-	context "result streaming", :postgresql_92 do
+	context "result streaming" do
 		it "can iterate over all tuples in single row mode" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
 			@conn.set_single_row_mode
@@ -199,7 +199,7 @@ describe PG::Result do
 		expect( out_bytes ).to eq( in_bytes )
 	end
 
-	it "returns the parameter type of the specified prepared statement parameter", :postgresql_92 do
+	it "returns the parameter type of the specified prepared statement parameter" do
 		query = 'SELECT * FROM pg_stat_activity WHERE user = $1::name AND query = $2::text'
 		@conn.prepare( 'queryfinder', query )
 		res = @conn.describe_prepared( 'queryfinder' )

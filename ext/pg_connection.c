@@ -349,7 +349,6 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	return rb_conn;
 }
 
-#ifdef HAVE_PQPING
 /*
  * call-seq:
  *    PG::Connection.ping(connection_hash)       -> Integer
@@ -381,7 +380,6 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 
 	return INT2FIX((int)ping);
 }
-#endif
 
 
 /*
@@ -1698,7 +1696,6 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 	return ret;
 }
 
-#ifdef HAVE_PQESCAPELITERAL
 /*
  * call-seq:
  *    conn.escape_literal( str ) -> String
@@ -1736,9 +1733,7 @@ pgconn_escape_literal(VALUE self, VALUE string)
 
 	return result;
 }
-#endif
 
-#ifdef HAVE_PQESCAPEIDENTIFIER
 /*
  * call-seq:
  *    conn.escape_identifier( str ) -> String
@@ -1780,9 +1775,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 
 	return result;
 }
-#endif
 
-#ifdef HAVE_PQSETSINGLEROWMODE
 /*
  * call-seq:
  *    conn.set_single_row_mode -> self
@@ -1836,7 +1829,6 @@ pgconn_set_single_row_mode(VALUE self)
 
 	return self;
 }
-#endif
 
 /*
  * call-seq:
@@ -2260,7 +2252,6 @@ pgconn_flush(self)
 static VALUE
 pgconn_cancel(VALUE self)
 {
-#ifdef HAVE_PQGETCANCEL
 	char errbuf[256];
 	PGcancel *cancel;
 	VALUE retval;
@@ -2278,9 +2269,6 @@ pgconn_cancel(VALUE self)
 
 	PQfreeCancel(cancel);
 	return retval;
-#else
-	rb_notimplement();
-#endif
 }
 
 
@@ -2585,12 +2573,10 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	relname = rb_tainted_str_new2( pnotification->relname );
 	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
 	be_pid = INT2NUM( pnotification->be_pid );
-#ifdef HAVE_ST_NOTIFY_EXTRA
 	if ( *pnotification->extra ) {
 		extra = rb_tainted_str_new2( pnotification->extra );
 		PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
 	}
-#endif
 	PQfreemem( pnotification );
 
 	if ( rb_block_given_p() )
@@ -4000,9 +3986,7 @@ init_pg_connection()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
-#ifdef HAVE_PQPING
 	rb_define_singleton_method(rb_cPGconn, "ping", pgconn_s_ping, -1);
-#endif
 
 	/******     PG::Connection INSTANCE METHODS: Connection Control     ******/
 	rb_define_method(rb_cPGconn, "initialize", pgconn_init, -1);
@@ -4051,17 +4035,11 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "make_empty_pgresult", pgconn_make_empty_pgresult, 1);
 	rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	rb_define_alias(rb_cPGconn, "escape", "escape_string");
-#ifdef HAVE_PQESCAPELITERAL
 	rb_define_method(rb_cPGconn, "escape_literal", pgconn_escape_literal, 1);
-#endif
-#ifdef HAVE_PQESCAPEIDENTIFIER
 	rb_define_method(rb_cPGconn, "escape_identifier", pgconn_escape_identifier, 1);
-#endif
 	rb_define_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
-#ifdef HAVE_PQSETSINGLEROWMODE
 	rb_define_method(rb_cPGconn, "set_single_row_mode", pgconn_set_single_row_mode, 0);
-#endif
 
 	/******     PG::Connection INSTANCE METHODS: Asynchronous Command Processing     ******/
 	rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);

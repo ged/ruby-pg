@@ -152,7 +152,7 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "connects using a hash of optional connection parameters", :postgresql_90 do
+	it "connects using a hash of optional connection parameters" do
 		tmpconn = described_class.connect(
 			:host => 'localhost',
 			:port => @port,
@@ -537,7 +537,7 @@ describe PG::Connection do
 		@conn.exec( 'UNLISTEN woo' )
 	end
 
-	it "can receive notices while waiting for NOTIFY without exceeding the timeout", :postgresql_90 do
+	it "can receive notices while waiting for NOTIFY without exceeding the timeout" do
 		notices = []
 		@conn.set_notice_processor do |msg|
 			notices << [msg, Time.now]
@@ -599,7 +599,7 @@ describe PG::Connection do
 		expect( @conn ).to still_be_usable
 	end
 
-	it "can handle server errors in #copy_data for output", :postgresql_90 do
+	it "can handle server errors in #copy_data for output" do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
 			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
@@ -931,155 +931,147 @@ describe PG::Connection do
 		expect{ conn.block }.to raise_error(PG::ConnectionBad, /can't get socket descriptor/)
 	end
 
-	context "under PostgreSQL 9", :postgresql_90 do
+	it "sets the fallback_application_name on new connections" do
+		conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
 
-		before( :each ) do
-			pending "only works with a PostgreSQL >= 9.0 server" if @conn.server_version < 9_00_00
-		end
+		conn_name = conn_string[ /application_name='(.*?)'/, 1 ]
+		expect( conn_name ).to include( $0[0..10] )
+		expect( conn_name ).to include( $0[-10..-1] )
+		expect( conn_name.length ).to be <= 64
+	end
 
-		it "sets the fallback_application_name on new connections" do
+	it "sets a shortened fallback_application_name on new connections" do
+		old_0 = $0
+		begin
+			$0 = "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby"
 			conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
-
 			conn_name = conn_string[ /application_name='(.*?)'/, 1 ]
 			expect( conn_name ).to include( $0[0..10] )
 			expect( conn_name ).to include( $0[-10..-1] )
 			expect( conn_name.length ).to be <= 64
+		ensure
+			$0 = old_0
 		end
-
-		it "sets a shortened fallback_application_name on new connections" do
-			old_0 = $0
-			begin
-				$0 = "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby"
-				conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
-				conn_name = conn_string[ /application_name='(.*?)'/, 1 ]
-				expect( conn_name ).to include( $0[0..10] )
-				expect( conn_name ).to include( $0[-10..-1] )
-				expect( conn_name.length ).to be <= 64
-			ensure
-				$0 = old_0
-			end
-		end
-
-		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
-		    "any number of arguments" do
-
-			@conn.exec( 'ROLLBACK' )
-			@conn.exec( 'LISTEN knees' )
-
-			conn = described_class.connect( @conninfo )
-			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-			conn.finish
-
-			event, pid, msg = nil
-			@conn.wait_for_notify( 10 ) do |*args|
-				event, pid, msg = *args
-			end
-			@conn.exec( 'UNLISTEN knees' )
-
-			expect( event ).to eq( 'knees' )
-			expect( pid ).to be_a_kind_of( Integer )
-			expect( msg ).to eq( 'skirt and boots' )
-		end
-
-		it "accepts nil as the timeout in #wait_for_notify " do
-			@conn.exec( 'ROLLBACK' )
-			@conn.exec( 'LISTEN knees' )
-
-			conn = described_class.connect( @conninfo )
-			conn.exec( %Q{NOTIFY knees} )
-			conn.finish
-
-			event, pid = nil
-			@conn.wait_for_notify( nil ) do |*args|
-				event, pid = *args
-			end
-			@conn.exec( 'UNLISTEN knees' )
-
-			expect( event ).to eq( 'knees' )
-			expect( pid ).to be_a_kind_of( Integer )
-		end
-
-		it "sends nil as the payload if the notification wasn't given one" do
-			@conn.exec( 'ROLLBACK' )
-			@conn.exec( 'LISTEN knees' )
-
-			conn = described_class.connect( @conninfo )
-			conn.exec( %Q{NOTIFY knees} )
-			conn.finish
-
-			payload = :notnil
-			@conn.wait_for_notify( nil ) do |*args|
-				payload = args[ 2 ]
-			end
-			@conn.exec( 'UNLISTEN knees' )
-
-			expect( payload ).to be_nil()
-		end
-
-		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
-		   "two arguments" do
-
-			@conn.exec( 'ROLLBACK' )
-			@conn.exec( 'LISTEN knees' )
-
-			conn = described_class.connect( @conninfo )
-			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-			conn.finish
-
-			event, pid, msg = nil
-			@conn.wait_for_notify( 10 ) do |arg1, arg2|
-				event, pid, msg = arg1, arg2
-			end
-			@conn.exec( 'UNLISTEN knees' )
-
-			expect( event ).to eq( 'knees' )
-			expect( pid ).to be_a_kind_of( Integer )
-			expect( msg ).to be_nil()
-		end
-
-		it "calls the block supplied to wait_for_notify with the notify payload if it " +
-		   "doesn't accept arguments" do
-
-			@conn.exec( 'ROLLBACK' )
-			@conn.exec( 'LISTEN knees' )
-
-			conn = described_class.connect( @conninfo )
-			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-			conn.finish
-
-			notification_received = false
-			@conn.wait_for_notify( 10 ) do
-				notification_received = true
-			end
-			@conn.exec( 'UNLISTEN knees' )
-
-			expect( notification_received ).to be_truthy()
-		end
-
-		it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
-		   "three arguments" do
-
-			@conn.exec( 'ROLLBACK' )
-			@conn.exec( 'LISTEN knees' )
-
-			conn = described_class.connect( @conninfo )
-			conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
-			conn.finish
-
-			event, pid, msg = nil
-			@conn.wait_for_notify( 10 ) do |arg1, arg2, arg3|
-				event, pid, msg = arg1, arg2, arg3
-			end
-			@conn.exec( 'UNLISTEN knees' )
-
-			expect( event ).to eq( 'knees' )
-			expect( pid ).to be_a_kind_of( Integer )
-			expect( msg ).to eq( 'skirt and boots' )
-		end
-
 	end
 
-	context "under PostgreSQL 9.1 client library", :postgresql_91, :without_transaction do
+	it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+			"any number of arguments" do
+
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN knees' )
+
+		conn = described_class.connect( @conninfo )
+		conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+		conn.finish
+
+		event, pid, msg = nil
+		@conn.wait_for_notify( 10 ) do |*args|
+			event, pid, msg = *args
+		end
+		@conn.exec( 'UNLISTEN knees' )
+
+		expect( event ).to eq( 'knees' )
+		expect( pid ).to be_a_kind_of( Integer )
+		expect( msg ).to eq( 'skirt and boots' )
+	end
+
+	it "accepts nil as the timeout in #wait_for_notify " do
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN knees' )
+
+		conn = described_class.connect( @conninfo )
+		conn.exec( %Q{NOTIFY knees} )
+		conn.finish
+
+		event, pid = nil
+		@conn.wait_for_notify( nil ) do |*args|
+			event, pid = *args
+		end
+		@conn.exec( 'UNLISTEN knees' )
+
+		expect( event ).to eq( 'knees' )
+		expect( pid ).to be_a_kind_of( Integer )
+	end
+
+	it "sends nil as the payload if the notification wasn't given one" do
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN knees' )
+
+		conn = described_class.connect( @conninfo )
+		conn.exec( %Q{NOTIFY knees} )
+		conn.finish
+
+		payload = :notnil
+		@conn.wait_for_notify( nil ) do |*args|
+			payload = args[ 2 ]
+		end
+		@conn.exec( 'UNLISTEN knees' )
+
+		expect( payload ).to be_nil()
+	end
+
+	it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+			"two arguments" do
+
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN knees' )
+
+		conn = described_class.connect( @conninfo )
+		conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+		conn.finish
+
+		event, pid, msg = nil
+		@conn.wait_for_notify( 10 ) do |arg1, arg2|
+			event, pid, msg = arg1, arg2
+		end
+		@conn.exec( 'UNLISTEN knees' )
+
+		expect( event ).to eq( 'knees' )
+		expect( pid ).to be_a_kind_of( Integer )
+		expect( msg ).to be_nil()
+	end
+
+	it "calls the block supplied to wait_for_notify with the notify payload if it " +
+			"doesn't accept arguments" do
+
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN knees' )
+
+		conn = described_class.connect( @conninfo )
+		conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+		conn.finish
+
+		notification_received = false
+		@conn.wait_for_notify( 10 ) do
+			notification_received = true
+		end
+		@conn.exec( 'UNLISTEN knees' )
+
+		expect( notification_received ).to be_truthy()
+	end
+
+	it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
+			"three arguments" do
+
+		@conn.exec( 'ROLLBACK' )
+		@conn.exec( 'LISTEN knees' )
+
+		conn = described_class.connect( @conninfo )
+		conn.exec( %Q{NOTIFY knees, 'skirt and boots'} )
+		conn.finish
+
+		event, pid, msg = nil
+		@conn.wait_for_notify( 10 ) do |arg1, arg2, arg3|
+			event, pid, msg = arg1, arg2, arg3
+		end
+		@conn.exec( 'UNLISTEN knees' )
+
+		expect( event ).to eq( 'knees' )
+		expect( pid ).to be_a_kind_of( Integer )
+		expect( msg ).to eq( 'skirt and boots' )
+	end
+
+	context "server ping", :without_transaction do
 
 		it "pings successfully with connection string" do
 			ping = described_class.ping(@conninfo)
@@ -1112,71 +1104,69 @@ describe PG::Connection do
 			expect( ping ).to eq( PG::PQPING_NO_ATTEMPT )
 		end
 
-
 	end
 
-	context "under PostgreSQL 9.2 client library", :postgresql_92 do
-		describe "set_single_row_mode" do
+	describe "set_single_row_mode" do
 
-			it "raises an error when called at the wrong time" do
-				expect {
-					@conn.set_single_row_mode
-				}.to raise_error(PG::Error)
-			end
-
-			it "should work in single row mode" do
-				@conn.send_query( "SELECT generate_series(1,10)" )
+		it "raises an error when called at the wrong time" do
+			expect {
 				@conn.set_single_row_mode
+			}.to raise_error(PG::Error)
+		end
 
-				results = []
-				loop do
-					@conn.block
-					res = @conn.get_result or break
-					results << res
-				end
-				expect( results.length ).to eq( 11 )
-				results[0..-2].each do |res|
-					expect( res.result_status ).to eq( PG::PGRES_SINGLE_TUPLE )
-					values = res.field_values('generate_series')
-					expect( values.length ).to eq( 1 )
-					expect( values.first.to_i ).to be > 0
-				end
-				expect( results.last.result_status ).to eq( PG::PGRES_TUPLES_OK )
-				expect( results.last.ntuples ).to eq( 0 )
+		it "should work in single row mode" do
+			@conn.send_query( "SELECT generate_series(1,10)" )
+			@conn.set_single_row_mode
+
+			results = []
+			loop do
+				@conn.block
+				res = @conn.get_result or break
+				results << res
 			end
+			expect( results.length ).to eq( 11 )
+			results[0..-2].each do |res|
+				expect( res.result_status ).to eq( PG::PGRES_SINGLE_TUPLE )
+				values = res.field_values('generate_series')
+				expect( values.length ).to eq( 1 )
+				expect( values.first.to_i ).to be > 0
+			end
+			expect( results.last.result_status ).to eq( PG::PGRES_TUPLES_OK )
+			expect( results.last.ntuples ).to eq( 0 )
+		end
 
-			it "should receive rows before entire query is finished" do
-				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(1);" )
-				@conn.set_single_row_mode
+		it "should receive rows before entire query is finished" do
+			@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(1);" )
+			@conn.set_single_row_mode
 
-				start_time = Time.now
-				first_row_time = nil
+			start_time = Time.now
+			first_row_time = nil
+			loop do
+				res = @conn.get_result or break
+				res.check
+				first_row_time = Time.now unless first_row_time
+			end
+			expect( (Time.now - start_time) ).to be >= 0.9
+			expect( (first_row_time - start_time) ).to be < 0.9
+		end
+
+		it "should receive rows before entire query fails" do
+			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
+			@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, errfunc();" )
+			@conn.set_single_row_mode
+
+			first_result = nil
+			expect do
 				loop do
 					res = @conn.get_result or break
 					res.check
-					first_row_time = Time.now unless first_row_time
+					first_result ||= res
 				end
-				expect( (Time.now - start_time) ).to be >= 0.9
-				expect( (first_row_time - start_time) ).to be < 0.9
-			end
-
-			it "should receive rows before entire query fails" do
-				@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
-				@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, errfunc();" )
-				@conn.set_single_row_mode
-
-				first_result = nil
-				expect do
-					loop do
-						res = @conn.get_result or break
-						res.check
-						first_result ||= res
-					end
-				end.to raise_error(PG::Error)
-				expect( first_result.kind_of?(PG::Result) ).to be_truthy
-				expect( first_result.result_status ).to eq( PG::PGRES_SINGLE_TUPLE )
-			end
+			end.to raise_error(PG::Error)
+			expect( first_result.kind_of?(PG::Result) ).to be_truthy
+			expect( first_result.result_status ).to eq( PG::PGRES_SINGLE_TUPLE )
 		end
+
 	end
 
 	context "multinationalization support", :ruby_19 do
@@ -1243,7 +1233,7 @@ describe PG::Connection do
 				expect( escaped ).to eq( "Möhre to".encode(Encoding::EUC_JP) )
 			end
 
-			it "uses the client encoding for escaped literal", :postgresql_90 do
+			it "uses the client encoding for escaped literal" do
 				original = "Möhre to\0 escape".encode( "utf-16be" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_literal( original )
@@ -1251,7 +1241,7 @@ describe PG::Connection do
 				expect( escaped ).to eq( "'Möhre to'".encode(Encoding::EUC_JP) )
 			end
 
-			it "uses the client encoding for escaped identifier", :postgresql_90 do
+			it "uses the client encoding for escaped identifier" do
 				original = "Möhre to\0 escape".encode( "utf-16le" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_identifier( original )
@@ -1456,7 +1446,7 @@ describe PG::Connection do
 			conn.finish if conn
 		end
 
-		it "handles clearing result in or after set_notice_receiver", :postgresql_90 do
+		it "handles clearing result in or after set_notice_receiver" do
 			r = nil
 			@conn.set_notice_receiver do |result|
 				r = result
@@ -1471,7 +1461,7 @@ describe PG::Connection do
 			@conn.set_notice_receiver
 		end
 
-		it "receives properly encoded messages in the notice callbacks", :postgresql_90 do
+		it "receives properly encoded messages in the notice callbacks" do
 			[:receiver, :processor].each do |kind|
 				notices = []
 				@conn.internal_encoding = 'utf-8'
@@ -1499,7 +1489,7 @@ describe PG::Connection do
 			end
 		end
 
-		it "receives properly encoded text from wait_for_notify", :postgresql_90 do
+		it "receives properly encoded text from wait_for_notify" do
 			@conn.internal_encoding = 'utf-8'
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
@@ -1516,7 +1506,7 @@ describe PG::Connection do
 			expect( msg.encoding ).to eq( Encoding::UTF_8 )
 		end
 
-		it "returns properly encoded text from notifies", :postgresql_90 do
+		it "returns properly encoded text from notifies" do
 			@conn.internal_encoding = 'utf-8'
 			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )

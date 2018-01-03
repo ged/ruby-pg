@@ -70,24 +70,9 @@ if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
 end
 
 # optional headers/functions
-have_func 'PQconnectionUsedPassword' or
+have_func 'PQsetSingleRowMode' or
 	abort "Your PostgreSQL is too old. Either install an older version " +
-	      "of this gem or upgrade your database."
-have_func 'PQisthreadsafe'
-have_func 'PQprepare'
-have_func 'PQexecParams'
-have_func 'PQescapeString'
-have_func 'PQescapeStringConn'
-have_func 'PQescapeLiteral'
-have_func 'PQescapeIdentifier'
-have_func 'PQgetCancel'
-have_func 'lo_create'
-have_func 'pg_encoding_to_char'
-have_func 'pg_char_to_encoding'
-have_func 'PQsetClientEncoding'
-have_func 'PQlibVersion'
-have_func 'PQping'
-have_func 'PQsetSingleRowMode'
+	      "of this gem or upgrade your database to at least PostgreSQL-9.2."
 have_func 'PQconninfo'
 have_func 'PQsslAttribute'
 have_func 'PQencryptPasswordConn'
@@ -101,12 +86,7 @@ have_func 'rb_w32_wrap_io_handle'
 have_func 'rb_str_modify_expand'
 have_func 'rb_hash_dup'
 
-have_const 'PGRES_COPY_BOTH', 'libpq-fe.h'
-have_const 'PGRES_SINGLE_TUPLE', 'libpq-fe.h'
 have_const 'PG_DIAG_TABLE_NAME', 'libpq-fe.h'
-
-$defs.push( "-DHAVE_ST_NOTIFY_EXTRA" ) if
-	have_struct_member 'struct pgNotify', 'extra', 'libpq-fe.h'
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'

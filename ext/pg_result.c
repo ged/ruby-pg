@@ -92,12 +92,8 @@ pg_result_check( VALUE self )
 		case PGRES_TUPLES_OK:
 		case PGRES_COPY_OUT:
 		case PGRES_COPY_IN:
-#ifdef HAVE_CONST_PGRES_COPY_BOTH
 		case PGRES_COPY_BOTH:
-#endif
-#ifdef HAVE_CONST_PGRES_SINGLE_TUPLE
 		case PGRES_SINGLE_TUPLE:
-#endif
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
 			return self;
@@ -1056,7 +1052,6 @@ pgresult_type_map_get(VALUE self)
 	return this->typemap;
 }
 
-#ifdef HAVE_PQSETSINGLEROWMODE
 /*
  * call-seq:
  *    res.stream_each{ |tuple| ... }
@@ -1214,7 +1209,6 @@ pgresult_stream_each_row(VALUE self)
 	/* never reached */
 	return self;
 }
-#endif
 
 
 void
@@ -1271,11 +1265,9 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "type_map=", pgresult_type_map_set, 1);
 	rb_define_method(rb_cPGresult, "type_map", pgresult_type_map_get, 0);
 
-#ifdef HAVE_PQSETSINGLEROWMODE
 	/******     PG::Result INSTANCE METHODS: streaming     ******/
 	rb_define_method(rb_cPGresult, "stream_each", pgresult_stream_each, 0);
 	rb_define_method(rb_cPGresult, "stream_each_row", pgresult_stream_each_row, 0);
-#endif
 }
 
 

@@ -298,7 +298,6 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
  * Module Methods
  **************************************************************************/
 
-#ifdef HAVE_PQLIBVERSION
 /*
  * call-seq:
  *   PG.library_version -> Integer
@@ -316,7 +315,6 @@ pg_s_library_version(VALUE self)
 	UNUSED( self );
 	return INT2NUM(PQlibVersion());
 }
-#endif
 
 
 /*
@@ -410,9 +408,7 @@ Init_pg_ext()
 	/*************************
 	 *  PG module methods
 	 *************************/
-#ifdef HAVE_PQLIBVERSION
 	rb_define_singleton_method( rb_mPG, "library_version", pg_s_library_version, 0 );
-#endif
 	rb_define_singleton_method( rb_mPG, "isthreadsafe", pg_s_threadsafe_p, 0 );
 	SINGLETON_ALIAS( rb_mPG, "is_threadsafe?", "isthreadsafe" );
 	SINGLETON_ALIAS( rb_mPG, "threadsafe?", "isthreadsafe" );
@@ -478,7 +474,6 @@ Init_pg_ext()
 	/* Verbose error verbosity level (#set_error_verbosity) */
 	rb_define_const(rb_mPGconstants, "PQERRORS_VERBOSE", INT2FIX(PQERRORS_VERBOSE));
 
-#ifdef HAVE_PQPING
 	/******     PG::Connection CLASS CONSTANTS: Check Server Status ******/
 
 	/* Server is accepting connections. */
@@ -489,7 +484,6 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "PQPING_NO_RESPONSE", INT2FIX(PQPING_NO_RESPONSE));
 	/* Connection not attempted (bad params). */
 	rb_define_const(rb_mPGconstants, "PQPING_NO_ATTEMPT", INT2FIX(PQPING_NO_ATTEMPT));
-#endif
 
 	/******     PG::Connection CLASS CONSTANTS: Large Objects     ******/
 
@@ -524,13 +518,9 @@ Init_pg_ext()
 	/* #result_status constant: A fatal error occurred. */
 	rb_define_const(rb_mPGconstants, "PGRES_FATAL_ERROR", INT2FIX(PGRES_FATAL_ERROR));
 	/* #result_status constant: Copy In/Out data transfer in progress. */
-#ifdef HAVE_CONST_PGRES_COPY_BOTH
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
-#endif
 	/* #result_status constant: Single tuple from larger resultset. */
-#ifdef HAVE_CONST_PGRES_SINGLE_TUPLE
 	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
-#endif
 
 	/******     Result CONSTANTS: result error field codes      ******/
 
