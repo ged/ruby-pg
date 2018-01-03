@@ -24,10 +24,6 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 				 rb_unblock_function_t *ubf, void *data2);
 #endif
 
-#ifndef HAVE_PQENCRYPTPASSWORDCONN
-extern char *PQencryptPasswordConn(PGconn *conn, const char *passwd, const char *user, const char *algorithm);
-#endif
-
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
 
