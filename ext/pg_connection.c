@@ -420,16 +420,65 @@ pgconn_s_conndefaults(VALUE self)
 }
 
 
+#ifdef HAVE_PQENCRYPTPASSWORDCONN
+/*
+ * call-seq:
+ *    conn.encrypt_password( password, username, algorithm=nil ) -> String
+ *
+ * This function is intended to be used by client applications that wish to send commands like <tt>ALTER USER joe PASSWORD 'pwd'</tt>.
+ * It is good practice not to send the original cleartext password in such a command, because it might be exposed in command logs, activity displays, and so on.
+ * Instead, use this function to convert the password to encrypted form before it is sent.
+ *
+ * The +password+ and +username+ arguments are the cleartext password, and the SQL name of the user it is for.
+ * +algorithm+ specifies the encryption algorithm to use to encrypt the password.
+ * Currently supported algorithms are +md5+ and +scram-sha-256+ (+on+ and +off+ are also accepted as aliases for +md5+, for compatibility with older server versions).
+ * Note that support for +scram-sha-256+ was introduced in PostgreSQL version 10, and will not work correctly with older server versions.
+ * If algorithm is omitted or +nil+, this function will query the server for the current value of the +password_encryption+ setting.
+ * That can block, and will fail if the current transaction is aborted, or if the connection is busy executing another query.
+ * If you wish to use the default algorithm for the server but want to avoid blocking, query +password_encryption+ yourself before calling #encrypt_password, and pass that value as the algorithm.
+ *
+ * Return value is the encrypted password.
+ * The caller can assume the string doesn't contain any special characters that would require escaping.
+ *
+ * Available since PostgreSQL-10
+ */
+static VALUE
+pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
+{
+	char *encrypted = NULL;
+	VALUE rval = Qnil;
+	VALUE password, username, algorithm;
+	PGconn *conn = pg_get_pgconn(self);
+
+	rb_scan_args( argc, argv, "21", &password, &username, &algorithm );
+
+	Check_Type(password, T_STRING);
+	Check_Type(username, T_STRING);
+
+	encrypted = gvl_PQencryptPasswordConn(conn, StringValueCStr(password), StringValueCStr(username), RTEST(algorithm) ? StringValueCStr(algorithm) : NULL);
+	if ( encrypted ) {
+		rval = rb_str_new2( encrypted );
+		PQfreemem( encrypted );
+
+		OBJ_INFECT( rval, password );
+		OBJ_INFECT( rval, username );
+		OBJ_INFECT( rval, algorithm );
+	} else {
+		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+	}
+
+	return rval;
+}
+#endif
+
+
 /*
  * call-seq:
  *    PG::Connection.encrypt_password( password, username ) -> String
  *
- * This function is intended to be used by client applications that
- * send commands like: +ALTER USER joe PASSWORD 'pwd'+.
- * The arguments are the cleartext password, and the SQL name
- * of the user it is for.
+ * This is an older, deprecated version of #encrypt_password.
+ * The difference is that this function always uses +md5+ as the encryption algorithm.
  *
- * Return value is the encrypted password.
  */
 static VALUE
 pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
@@ -4060,6 +4109,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
+#ifdef HAVE_PQENCRYPTPASSWORDCONN
+	rb_define_method(rb_cPGconn, "encrypt_password", pgconn_encrypt_password, -1);
+#endif
 
 #ifdef HAVE_PQSSLATTRIBUTE
 	rb_define_method(rb_cPGconn, "ssl_in_use?", pgconn_ssl_in_use, 0);

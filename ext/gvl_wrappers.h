@@ -24,6 +24,10 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 				 rb_unblock_function_t *ubf, void *data2);
 #endif
 
+#ifndef HAVE_PQENCRYPTPASSWORDCONN
+extern char *PQencryptPasswordConn(PGconn *conn, const char *passwd, const char *user, const char *algorithm);
+#endif
+
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
 
@@ -200,6 +204,11 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 
 #define FOR_EACH_PARAM_OF_PQisBusy(param)
 
+#define FOR_EACH_PARAM_OF_PQencryptPasswordConn(param) \
+	param(PGconn *, conn) \
+	param(const char *, passwd) \
+	param(const char *, user)
+
 #define FOR_EACH_PARAM_OF_PQcancel(param) \
 	param(PGcancel *, cancel) \
 	param(char *, errbuf)
@@ -231,8 +240,8 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 	function(PQsendDescribePortal, GVL_TYPE_NONVOID, int, const char *, portal) \
 	function(PQsetClientEncoding, GVL_TYPE_NONVOID, int, const char *, encoding) \
 	function(PQisBusy, GVL_TYPE_NONVOID, int, PGconn *, conn) \
+	function(PQencryptPasswordConn, GVL_TYPE_NONVOID, char *, const char *, algorithm) \
 	function(PQcancel, GVL_TYPE_NONVOID, int, int, errbufsize);
-
 
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 

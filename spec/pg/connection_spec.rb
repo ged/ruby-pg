@@ -731,11 +731,6 @@ describe PG::Connection do
 		expect( (finish - start) ).to be_within( 0.2 ).of( 0.3 )
 	end
 
-
-	it "can encrypt a string given a password and username" do
-		expect( described_class.encrypt_password("postgres", "postgres") ).to match( /\S+/ )
-	end
-
 	it "can return the default connection options" do
 		expect( described_class.conndefaults ).to be_a( Array )
 		expect( described_class.conndefaults ).to all( be_a(Hash) )
@@ -792,18 +787,52 @@ describe PG::Connection do
 		end
 	end
 
+	describe "deprecated password encryption method" do
+		it "can encrypt password for a given user" do
+			expect( described_class.encrypt_password("postgres", "postgres") ).to match( /\S+/ )
+		end
 
-	it "raises an appropriate error if either of the required arguments for encrypt_password " +
-	   "is not valid" do
-		expect {
-			described_class.encrypt_password( nil, nil )
-		}.to raise_error( TypeError )
-		expect {
-			described_class.encrypt_password( "postgres", nil )
-		}.to raise_error( TypeError )
-		expect {
-			described_class.encrypt_password( nil, "postgres" )
-		}.to raise_error( TypeError )
+		it "raises an appropriate error if either of the required arguments is not valid" do
+			expect {
+				described_class.encrypt_password( nil, nil )
+			}.to raise_error( TypeError )
+			expect {
+				described_class.encrypt_password( "postgres", nil )
+			}.to raise_error( TypeError )
+			expect {
+				described_class.encrypt_password( nil, "postgres" )
+			}.to raise_error( TypeError )
+		end
+	end
+
+	describe "password encryption method", :postgresql_10 do
+		it "can encrypt without algorithm" do
+			expect( @conn.encrypt_password("postgres", "postgres") ).to match( /\S+/ )
+			expect( @conn.encrypt_password("postgres", "postgres", nil) ).to match( /\S+/ )
+		end
+
+		it "can encrypt with algorithm" do
+			expect( @conn.encrypt_password("postgres", "postgres", "md5") ).to match( /md5\S+/i )
+			expect( @conn.encrypt_password("postgres", "postgres", "scram-sha-256") ).to match( /SCRAM-SHA-256\S+/i )
+		end
+
+		it "raises an appropriate error if either of the required arguments is not valid" do
+			expect {
+				@conn.encrypt_password( nil, nil )
+			}.to raise_error( TypeError )
+			expect {
+				@conn.encrypt_password( "postgres", nil )
+			}.to raise_error( TypeError )
+			expect {
+				@conn.encrypt_password( nil, "postgres" )
+			}.to raise_error( TypeError )
+			expect {
+				@conn.encrypt_password( "postgres", "postgres", :invalid )
+			}.to raise_error( TypeError )
+			expect {
+				@conn.encrypt_password( "postgres", "postgres", "invalid" )
+			}.to raise_error( PG::Error, /unrecognized/ )
+		end
 	end
 
 
