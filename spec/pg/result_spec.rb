@@ -386,7 +386,7 @@ describe PG::Result do
 	end
 
 	it "the raised result is nil in case of a connection error" do
-		c = PGconn.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		c = PG::Connection.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 		expect {
 			c.exec "select 1"
 		}.to raise_error {|error|
