@@ -36,21 +36,12 @@
 #
 
 
-begin
-	require 'date'
-	require 'ostruct'
-	require 'optparse'
-	require 'pathname'
-	require 'etc'
-	require 'pg'
-
-rescue LoadError # 1.8 support
-	unless Object.const_defined?( :Gem )
-		require 'rubygems'
-		retry
-	end
-	raise
-end
+require 'date'
+require 'ostruct'
+require 'optparse'
+require 'pathname'
+require 'etc'
+require 'pg'
 
 
 ### A tablespace migration class.

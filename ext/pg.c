@@ -69,7 +69,6 @@ VALUE rb_mPGconstants;
  * M17n functions
  */
 
-#ifdef M17N_SUPPORTED
 /**
  * The mapping from canonical encoding names in PostgreSQL to ones in Ruby.
  */
@@ -144,7 +143,7 @@ pg_find_or_create_johab(void)
 
 	enc_index = rb_define_dummy_encoding(aliases[0]);
 	for (i = 1; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
-		ENC_ALIAS(aliases[i], aliases[0]);
+		rb_encdb_alias(aliases[i], aliases[0]);
 	}
 	return rb_enc_from_index(enc_index);
 }
@@ -228,8 +227,6 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
 
 	return encname;
 }
-
-#endif /* M17N_SUPPORTED */
 
 
 /*
@@ -632,9 +629,7 @@ Init_pg_ext()
 	/* Add the constants to the toplevel namespace */
 	rb_include_module( rb_mPG, rb_mPGconstants );
 
-#ifdef M17N_SUPPORTED
 	enc_pg2ruby = st_init_numtable();
-#endif
 
 	/* Initialize the main extension classes */
 	init_pg_connection();

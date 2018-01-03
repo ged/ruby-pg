@@ -18,10 +18,8 @@ static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
 
 static VALUE pgconn_finish( VALUE );
-#ifdef M17N_SUPPORTED
 static VALUE pgconn_set_default_encoding( VALUE self );
 void pgconn_set_internal_encoding_index( VALUE );
-#endif
 
 #ifndef HAVE_RB_THREAD_FD_SELECT
 #define rb_fdset_t fd_set
@@ -291,9 +289,7 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 		rb_exc_raise(error);
 	}
 
-#ifdef M17N_SUPPORTED
 	pgconn_set_default_encoding( self );
-#endif
 
 	if (rb_block_given_p()) {
 		return rb_ensure(rb_yield, self, pgconn_finish, self);
@@ -2312,45 +2308,8 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
-/* Win32 + Ruby 1.8 */
-#if !defined( HAVE_RUBY_VM_H ) && defined( _WIN32 )
-
-/*
- * Duplicate the sockets from libpq and create temporary CRT FDs
- */
-void create_crt_fd(fd_set *os_set, fd_set *crt_set)
-{
-	int i;
-	crt_set->fd_count = os_set->fd_count;
-	for (i = 0; i < os_set->fd_count; i++) {
-		WSAPROTOCOL_INFO wsa_pi;
-		/* dupicate the SOCKET */
-		int r = WSADuplicateSocket(os_set->fd_array[i], GetCurrentProcessId(), &wsa_pi);
-		SOCKET s = WSASocket(wsa_pi.iAddressFamily, wsa_pi.iSocketType, wsa_pi.iProtocol, &wsa_pi, 0, 0);
-		/* create the CRT fd so ruby can get back to the SOCKET */
-		int fd = _open_osfhandle(s, O_RDWR|O_BINARY);
-		os_set->fd_array[i] = s;
-		crt_set->fd_array[i] = fd;
-	}
-}
-
-/*
- * Clean up the CRT FDs from create_crt_fd()
- */
-void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
-{
-	int i;
-	for (i = 0; i < os_set->fd_count; i++) {
-		/* cleanup the CRT fd */
-		_close(crt_set->fd_array[i]);
-		/* cleanup the duplicated SOCKET */
-		closesocket(os_set->fd_array[i]);
-	}
-}
-#endif
-
 /* Win32 + Ruby 1.9+ */
-#if defined( HAVE_RUBY_VM_H ) && defined( _WIN32 )
+#if defined( _WIN32 )
 /*
  * On Windows, use platform-specific strategies to wait for the socket
  * instead of rb_thread_select().
@@ -2438,7 +2397,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 
 #else
 
-/* non Win32 or Win32+Ruby-1.8 */
+/* non Win32 */
 
 static void *
 wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
@@ -2448,9 +2407,6 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	void *retval;
 	rb_fdset_t sd_rset;
 	struct timeval aborttime={0,0}, currtime, waittime;
-#ifdef _WIN32
-	rb_fdset_t crt_sd_rset;
-#endif
 
 	if ( sd < 0 )
 		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
@@ -2470,14 +2426,6 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		rb_fd_zero( &sd_rset );
 		rb_fd_set( sd, &sd_rset );
 
-#ifdef _WIN32
-		/* Ruby's FD_SET is modified on win32 to convert a file descriptor
-		 * to osfhandle, but we already get a osfhandle from PQsocket().
-		 * Therefore it's overwritten here. */
-		sd_rset.fd_array[0] = sd;
-		create_crt_fd(&sd_rset, &crt_sd_rset);
-#endif
-
 		if ( ptimeout ) {
 			gettimeofday(&currtime, NULL);
 			timersub(&aborttime, &currtime, &waittime);
@@ -2490,11 +2438,6 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		} else {
 			ret = 0;
 		}
-
-
-#ifdef _WIN32
-		cleanup_crt_fd(&sd_rset, &crt_sd_rset);
-#endif
 
 		if ( ret < 0 ){
 			rb_fd_term( &sd_rset );
@@ -3015,9 +2958,7 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
-#ifdef M17N_SUPPORTED
 	pgconn_set_internal_encoding_index( self );
-#endif
 
 	return Qnil;
 }
@@ -3613,8 +3554,6 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 }
 
 
-#ifdef M17N_SUPPORTED
-
 void
 pgconn_set_internal_encoding_index( VALUE self )
 {
@@ -3775,8 +3714,6 @@ pgconn_set_default_encoding( VALUE self )
 	}
 }
 
-
-#endif /* M17N_SUPPORTED */
 
 /*
  * call-seq:
@@ -4125,12 +4062,10 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "lo_unlink", pgconn_lounlink, 1);
 	rb_define_alias(rb_cPGconn, "lounlink", "lo_unlink");
 
-#ifdef M17N_SUPPORTED
 	rb_define_method(rb_cPGconn, "internal_encoding", pgconn_internal_encoding, 0);
 	rb_define_method(rb_cPGconn, "internal_encoding=", pgconn_internal_encoding_set, 1);
 	rb_define_method(rb_cPGconn, "external_encoding", pgconn_external_encoding, 0);
 	rb_define_method(rb_cPGconn, "set_default_encoding", pgconn_set_default_encoding, 0);
-#endif /* M17N_SUPPORTED */
 
 	rb_define_method(rb_cPGconn, "type_map_for_queries=", pgconn_type_map_for_queries_set, 1);
 	rb_define_method(rb_cPGconn, "type_map_for_queries", pgconn_type_map_for_queries_get, 0);

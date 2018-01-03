@@ -77,8 +77,6 @@ have_func 'PQconninfo'
 have_func 'PQsslAttribute'
 have_func 'PQencryptPasswordConn'
 
-have_func 'rb_encdb_alias'
-have_func 'rb_enc_alias'
 have_func 'rb_thread_call_without_gvl'
 have_func 'rb_thread_call_with_gvl'
 have_func 'rb_thread_fd_select'
@@ -91,7 +89,6 @@ have_const 'PG_DIAG_TABLE_NAME', 'libpq-fe.h'
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'
 have_header 'inttypes.h'
-have_header 'ruby/st.h' or have_header 'st.h' or abort "pg currently requires the ruby/st.h header"
 
 checking_for "C99 variable length arrays" do
 	$defs.push( "-DHAVE_VARIABLE_LENGTH_ARRAYS" ) if try_compile('void test_vla(int l){ int vla[l]; }')

@@ -10,19 +10,10 @@
 #
 
 
-begin
-	require 'ostruct'
-	require 'optparse'
-	require 'etc'
-	require 'pg'
-
-rescue LoadError # 1.8 support
-	unless Object.const_defined?( :Gem )
-		require 'rubygems'
-		retry
-	end
-	raise
-end
+require 'ostruct'
+require 'optparse'
+require 'etc'
+require 'pg'
 
 SCRIPT_VERSION = %q$Id$
 

@@ -1,6 +1,8 @@
 == vXXX [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
+Removed:
 - Deprecate Ruby older than 2.2
+- Remove compatibility code for Ruby < 1.9.3 and PostgreSQL < 9.2.
 
 Enhancements:
 - Update error codes to PostgreSQL-10

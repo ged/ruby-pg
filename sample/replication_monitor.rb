@@ -15,21 +15,12 @@
 #	db_replication.monitor db-master.example.com ...
 #
 
-begin
-	require 'ostruct'
-	require 'optparse'
-	require 'pathname'
-	require 'etc'
-	require 'pg'
-	require 'pp'
-
-rescue LoadError # 1.8 support
-	unless Object.const_defined?( :Gem )
-		require 'rubygems'
-		retry
-	end
-	raise
-end
+require 'ostruct'
+require 'optparse'
+require 'pathname'
+require 'etc'
+require 'pg'
+require 'pp'
 
 
 ### A class to encapsulate the PG handles.

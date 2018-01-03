@@ -18,75 +18,32 @@
 
 /* Ruby headers */
 #include "ruby.h"
-#ifdef HAVE_RUBY_ST_H
-#	include "ruby/st.h"
-#elif HAVE_ST_H
-#	include "st.h"
-#endif
+#include "ruby/st.h"
+#include "ruby/encoding.h"
 
-#if defined(HAVE_RUBY_ENCODING_H) && HAVE_RUBY_ENCODING_H
-#	include "ruby/encoding.h"
-#	define M17N_SUPPORTED
-#	ifdef HAVE_RB_ENCDB_ALIAS
-		extern int rb_encdb_alias(const char *, const char *);
-#		define ENC_ALIAS(name, orig) rb_encdb_alias((name), (orig))
-#	elif HAVE_RB_ENC_ALIAS
-		extern int rb_enc_alias(const char *, const char *);
-#		define ENC_ALIAS(name, orig) rb_enc_alias((name), (orig))
-#	else
-		extern int rb_enc_alias(const char *alias, const char *orig); /* declaration missing in Ruby 1.9.1 */
-#		define ENC_ALIAS(name, orig) rb_enc_alias((name), (orig))
-#	endif
+/* exported by ruby-1.9.3+ but not declared */
+extern int rb_encdb_alias(const char *, const char *);
 
 
-# if !defined(ENCODING_SET_INLINED)
+#if !defined(ENCODING_SET_INLINED)
 /* Rubinius doesn't define ENCODING_SET_INLINED, so we fall back to the more
  * portable version.
  */
-#  define PG_ENCODING_SET_NOCHECK(obj,i) \
+# define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
 		rb_enc_set_index((obj), (i)); \
 	} while(0)
-# else
-#  define PG_ENCODING_SET_NOCHECK(obj,i) \
+#else
+# define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
 		if ((i) < ENCODING_INLINE_MAX) \
 			ENCODING_SET_INLINED((obj), (i)); \
 		else \
 			rb_enc_set_index((obj), (i)); \
 	} while(0)
-# endif
-
-#else
-#	define PG_ENCODING_SET_NOCHECK(obj,i) /* nothing */
 #endif
 
-#if RUBY_VM != 1
-#	define RUBY_18_COMPAT
-#endif
-
-#ifndef RARRAY_LEN
-#	define RARRAY_LEN(x) RARRAY((x))->len
-#endif /* RARRAY_LEN */
-
-#ifndef RSTRING_LEN
-#	define RSTRING_LEN(x) RSTRING((x))->len
-#endif /* RSTRING_LEN */
-
-#ifndef RSTRING_PTR
-#	define RSTRING_PTR(x) RSTRING((x))->ptr
-#endif /* RSTRING_PTR */
-
-#ifndef StringValuePtr
-#	define StringValuePtr(x) STR2CSTR(x)
-#endif /* StringValuePtr */
-
-#ifdef RUBY_18_COMPAT
-#	define rb_io_stdio_file GetWriteFile
-#	include "rubyio.h"
-#else
-#	include "ruby/io.h"
-#endif
+#include "ruby/io.h"
 
 #ifdef RUBINIUS
 	/* Workaround for wrong FIXNUM_MAX definition */
@@ -382,12 +339,10 @@ pgresult_get_this( VALUE self )
 }
 
 
-#ifdef M17N_SUPPORTED
 rb_encoding * pg_get_pg_encoding_as_rb_encoding        _(( int ));
 rb_encoding * pg_get_pg_encname_as_rb_encoding         _(( const char * ));
 const char * pg_get_rb_encoding_as_pg_encoding         _(( rb_encoding * ));
 rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
-#endif /* M17N_SUPPORTED */
 
 void notice_receiver_proxy(void *arg, const PGresult *result);
 void notice_processor_proxy(void *arg, const char *message);
