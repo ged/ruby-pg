@@ -24,40 +24,15 @@
 /* exported by ruby-1.9.3+ but not declared */
 extern int rb_encdb_alias(const char *, const char *);
 
-
-#if !defined(ENCODING_SET_INLINED)
-/* Rubinius doesn't define ENCODING_SET_INLINED, so we fall back to the more
- * portable version.
- */
-# define PG_ENCODING_SET_NOCHECK(obj,i) \
-	do { \
-		rb_enc_set_index((obj), (i)); \
-	} while(0)
-#else
-# define PG_ENCODING_SET_NOCHECK(obj,i) \
+#define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
 		if ((i) < ENCODING_INLINE_MAX) \
 			ENCODING_SET_INLINED((obj), (i)); \
 		else \
 			rb_enc_set_index((obj), (i)); \
 	} while(0)
-#endif
 
 #include "ruby/io.h"
-
-#ifdef RUBINIUS
-	/* Workaround for wrong FIXNUM_MAX definition */
-	typedef intptr_t native_int;
-#endif
-
-#ifndef RETURN_SIZED_ENUMERATOR
-	#define RETURN_SIZED_ENUMERATOR(obj, argc, argv, size_fn) RETURN_ENUMERATOR((obj), (argc), (argv))
-#endif
-
-#ifndef HAVE_RB_HASH_DUP
-	/* Rubinius doesn't define rb_hash_dup() */
-	#define rb_hash_dup(tuple) rb_funcall((tuple), rb_intern("dup"), 0)
-#endif
 
 #ifndef timeradd
 #define timeradd(a, b, result) \

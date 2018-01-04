@@ -77,13 +77,6 @@ have_func 'PQconninfo'
 have_func 'PQsslAttribute'
 have_func 'PQencryptPasswordConn'
 
-have_func 'rb_thread_call_without_gvl'
-have_func 'rb_thread_call_with_gvl'
-have_func 'rb_thread_fd_select'
-have_func 'rb_w32_wrap_io_handle'
-have_func 'rb_str_modify_expand'
-have_func 'rb_hash_dup'
-
 have_const 'PG_DIAG_TABLE_NAME', 'libpq-fe.h'
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1

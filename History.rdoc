@@ -1,8 +1,12 @@
 == vXXX [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
+Deprecated:
+- Deprecate Ruby older than 2.2.
+- Deprecate Connection#socket in favor of #socket_io.
+
 Removed:
-- Deprecate Ruby older than 2.2
-- Remove compatibility code for Ruby < 1.9.3 and PostgreSQL < 9.2.
+- Remove compatibility code for Ruby < 2.0 and PostgreSQL < 9.2.
+- Remove partial compatibility with Rubinius.
 
 Enhancements:
 - Update error codes to PostgreSQL-10

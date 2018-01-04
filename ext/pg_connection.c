@@ -21,15 +21,6 @@ static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
 void pgconn_set_internal_encoding_index( VALUE );
 
-#ifndef HAVE_RB_THREAD_FD_SELECT
-#define rb_fdset_t fd_set
-#define rb_fd_init(f)
-#define rb_fd_zero(f)  FD_ZERO(f)
-#define rb_fd_set(n, f)  FD_SET(n, f)
-#define rb_fd_term(f)
-#define rb_thread_fd_select rb_thread_select
-#endif
-
 /*
  * Global functions
  */
@@ -93,7 +84,7 @@ pgconn_close_socket_io( VALUE self )
 	VALUE socket_io = this->socket_io;
 
 	if ( RTEST(socket_io) ) {
-#if defined(_WIN32) && defined(HAVE_RB_W32_WRAP_IO_HANDLE)
+#if defined(_WIN32)
 		int ruby_sd = NUM2INT(rb_funcall( socket_io, rb_intern("fileno"), 0 ));
 		if( rb_w32_unwrap_io_handle(ruby_sd) ){
 			rb_raise(rb_eConnectionBad, "Could not unwrap win32 socket handle");
@@ -853,6 +844,8 @@ pgconn_error_message(VALUE self)
  * call-seq:
  *    conn.socket() -> Integer
  *
+ * This method is deprecated. Please use the more portable method #socket_io .
+ *
  * Returns the socket's file descriptor for this connection.
  * <tt>IO.for_fd()</tt> can be used to build a proper IO object to the socket.
  * If you do so, you will likely also want to set <tt>autoclose=false</tt>
@@ -861,7 +854,7 @@ pgconn_error_message(VALUE self)
  * creates an IO that's associated with the connection object itself,
  * and so won't go out of scope until the connection does.
  *
- * *Note:* On Windows the file descriptor is not really usable,
+ * *Note:* On Windows the file descriptor is not usable,
  * since it can not be used to build a Ruby IO object.
  */
 static VALUE
@@ -873,22 +866,17 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
-
-#if !defined(_WIN32) || defined(HAVE_RB_W32_WRAP_IO_HANDLE)
-
 /*
  * call-seq:
  *    conn.socket_io() -> IO
  *
- * Fetch a memoized IO object created from the Connection's underlying socket.
+ * Fetch a memorized IO object created from the Connection's underlying socket.
  * This object can be used for IO.select to wait for events while running
  * asynchronous API calls.
  *
  * Using this instead of #socket avoids the problem of the underlying connection
  * being closed by Ruby when an IO created using <tt>IO.for_fd(conn.socket)</tt>
- * goes out of scope.
- *
- * This method can also be used on Windows but requires Ruby-2.0+.
+ * goes out of scope. In contrast to #socket, it also works on Windows.
  */
 static VALUE
 pgconn_socket_io(VALUE self)
@@ -921,8 +909,6 @@ pgconn_socket_io(VALUE self)
 
 	return socket_io;
 }
-
-#endif
 
 /*
  * call-seq:
@@ -3953,9 +3939,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "server_version", pgconn_server_version, 0);
 	rb_define_method(rb_cPGconn, "error_message", pgconn_error_message, 0);
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
-#if !defined(_WIN32) || defined(HAVE_RB_W32_WRAP_IO_HANDLE)
 	rb_define_method(rb_cPGconn, "socket_io", pgconn_socket_io, 0);
-#endif
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);

@@ -15,14 +15,7 @@
 #ifndef __gvl_wrappers_h
 #define __gvl_wrappers_h
 
-#if defined(HAVE_RB_THREAD_CALL_WITH_GVL)
-extern void *rb_thread_call_with_gvl(void *(*func)(void *), void *data1);
-#endif
-
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
-				 rb_unblock_function_t *ubf, void *data2);
-#endif
+#include <ruby/thread.h>
 
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
@@ -53,21 +46,14 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 		return NULL; \
 	}
 
-#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-	#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
-		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
-			struct gvl_wrapper_##name##_params params = { \
-				{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
-			}; \
-			rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, RUBY_UBF_IO, 0); \
-			when_non_void( return params.retval; ) \
-		}
-#else
-	#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
-		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
-			return name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
-		}
-#endif
+#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
+		struct gvl_wrapper_##name##_params params = { \
+			{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
+		}; \
+		rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, RUBY_UBF_IO, 0); \
+		when_non_void( return params.retval; ) \
+	}
 
 #define DEFINE_GVL_STUB_DECL(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname);
@@ -80,21 +66,14 @@ extern void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 		return NULL; \
 	}
 
-#if defined(HAVE_RB_THREAD_CALL_WITH_GVL)
-	#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
-		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
-			struct gvl_wrapper_##name##_params params = { \
-				{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
-			}; \
-			rb_thread_call_with_gvl(gvl_##name##_skeleton, &params); \
-			when_non_void( return params.retval; ) \
-		}
-#else
-	#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
-		rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
-			return name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
-		}
-#endif
+#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
+		struct gvl_wrapper_##name##_params params = { \
+			{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
+		}; \
+		rb_thread_call_with_gvl(gvl_##name##_skeleton, &params); \
+		when_non_void( return params.retval; ) \
+	}
 
 #define GVL_TYPE_VOID(string)
 #define GVL_TYPE_NONVOID(string) string
