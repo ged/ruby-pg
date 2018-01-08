@@ -524,6 +524,8 @@ static int str2_to_int(const char *str)
 
 static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, int field, int with_timezone)
 {
+  const char *rstr = str;
+
   if (isdigit(str[0]) && isdigit(str[1]) && isdigit(str[2]) && isdigit(str[3])
    && str[4] == '-'
    && isdigit(str[5]) && isdigit(str[6])
@@ -640,7 +642,7 @@ static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, i
       }
     }
   }
-  rb_raise( rb_eTypeError, "wrong data for %s converter in tuple %d field %d length %d", with_timezone ? "TimestampWithTimeZone" : "TimestampWithoutTimeZOne", tuple, field, len);
+  return rb_tainted_str_new(rstr, len);
 }
 
 static VALUE
