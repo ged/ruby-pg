@@ -415,9 +415,9 @@ static int str2_to_int(const char *str)
        + char_to_digit(str[1]);
 }
 
-static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, int field, int with_timezone)
+static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx, int with_timezone)
 {
-  const char *rstr = str;
+  const char *str = val;
 
   if (isdigit(str[0]) && isdigit(str[1]) && isdigit(str[2]) && isdigit(str[3])
    && str[4] == '-'
@@ -579,19 +579,19 @@ static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, i
 #endif
     }
   }
-  return rb_tainted_str_new(rstr, len);
+  return pg_text_dec_string(conv, val, len, tuple, field, enc_idx);
 }
 
 static VALUE
 pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
-  return pg_text_decoder_timestamp_do(val, len, tuple, field, 1);
+  return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 1);
 }
 
 static VALUE
 pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
 {
-  return pg_text_decoder_timestamp_do(val, len, tuple, field, 0);
+  return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 0);
 }
 
 void
