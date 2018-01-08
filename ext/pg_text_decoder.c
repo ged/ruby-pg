@@ -34,23 +34,13 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-
-#ifdef RUBY_API_VERSION_MAJOR
-#       if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)
-                /* use C implementation of the SimpleDecoder`s timestamp function
-                 * when using ruby >= 2.3 */
-#               define PG_TEXT_DECODER_TIMESTAMP_EXT
-#       endif
-#endif
-
-#ifdef PG_TEXT_DECODER_TIMESTAMP_EXT
-#       include <ctype.h>
-#       include <time.h>
-#endif
+#include <ctype.h>
+#include <time.h>
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
 
+extern VALUE rb_cTime;
 
 /*
  * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
@@ -502,7 +492,6 @@ pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int fie
 	return out_value;
 }
 
-#ifdef PG_TEXT_DECODER_TIMESTAMP_EXT
 static inline int char_to_digit(char c)
 {
   return c - '0';
@@ -539,20 +528,20 @@ static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, i
    && isdigit(str[17]) && isdigit(str[18])
   )
   {
-    struct tm tm;
+    int year, mon, day;
+    int hour, min, sec;
     int nsec = 0;
     int tz_neg = 0;
     int tz_hour = 0;
     int tz_min = 0;
     int tz_sec = 0;
  
-    tm.tm_year = str4_to_int(&str[0]) - 1900;
-    tm.tm_mon = str2_to_int(&str[5]) - 1;
-    tm.tm_mday = str2_to_int(&str[8]);
-    tm.tm_hour = str2_to_int(&str[11]);
-    tm.tm_min = str2_to_int(&str[14]);
-    tm.tm_sec = str2_to_int(&str[17]);
-    tm.tm_isdst = 0;
+    year = str4_to_int(&str[0]);
+    mon = str2_to_int(&str[5]);
+    day = str2_to_int(&str[8]);
+    hour = str2_to_int(&str[11]);
+    min = str2_to_int(&str[14]);
+    sec = str2_to_int(&str[17]);
     str += 19;
  
     if (str[0] == '.' && isdigit(str[1]))
@@ -600,7 +589,17 @@ static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, i
     }
     if (*str == '\0')
     {
+#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)
       // must have consumed all the string
+      struct tm tm;
+      tm.tm_year = year - 1900;
+      tm.tm_mon = mon - 1;
+      tm.tm_mday = day;
+      tm.tm_hour = hour;
+      tm.tm_min = min;
+      tm.tm_sec = sec;
+      tm.tm_isdst = 0;
+
       if (with_timezone)
       {
 #ifdef _WIN32
@@ -640,6 +639,40 @@ static VALUE pg_text_decoder_timestamp_do(const char *str, int len, int tuple, i
           return rb_time_timespec_new(&ts, 0);
         }
       }
+#else
+      VALUE sec_value;
+      VALUE gmt_offset_value = Qnil;
+      if (nsec)
+      {
+        int sec_numerator = sec * 1000000 + nsec / 1000;
+        int sec_denominator = 1000000;
+        sec_value = rb_funcall(Qnil, rb_intern("Rational"), 2,
+            INT2NUM(sec_numerator), INT2NUM(sec_denominator));
+      }
+      else
+      {
+        sec_value = INT2NUM(sec);
+      }
+      if (with_timezone)
+      {
+        int gmt_offset;
+
+        gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+        if (tz_neg)
+        {
+          gmt_offset = - gmt_offset;
+        }
+        gmt_offset_value = INT2NUM(gmt_offset);
+      }
+      return rb_funcall(rb_cTime, rb_intern("new"), 7,
+          INT2NUM(year),
+          INT2NUM(mon),
+          INT2NUM(day),
+          INT2NUM(hour),
+          INT2NUM(min),
+          sec_value,
+          gmt_offset_value);
+#endif
     }
   }
   return rb_tainted_str_new(rstr, len);
@@ -656,7 +689,6 @@ pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, char *val, int len, in
 {
   return pg_text_decoder_timestamp_do(val, len, tuple, field, 0);
 }
-#endif
 
 void
 init_pg_text_decoder()
