@@ -121,6 +121,92 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamptz.decode('1916-01-01 00:00:00-00:25:21') ).
 						to be_within(0.000001).of( Time.new(1916, 1, 1, 0, 0, 0, "-00:25:21") )
 				end
+
+                                it 'decodes timestamps with variable number of digits for the useconds part' do
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.0') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.0) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.1') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.1) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.12') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.12) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.123') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.123) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.1234') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.1234) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.12345') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.12345) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.123456') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.123456) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.1234567') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.1234567) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.12345678') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.12345678) )
+                                        expect( textdec_timestamptz.decode('2016-01-02 23:23:59.123456789') ).
+                                                to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.123456789) )
+        			end
+
+                                def textdec_timestamptz_decode_should_fail(str)
+                                        expect(textdec_timestamptz.decode(str)).to eq(str)
+                                end
+
+                                it 'fails when the timestamp is an empty string' do
+                                        textdec_timestamptz_decode_should_fail('')
+                                end
+                                it 'fails when the timestamp contains invalid separator characters' do
+                                        textdec_timestamptz_decode_should_fail('2016_01-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01_02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23-23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23-59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59:123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456.00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00.25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25.21')
+                                end
+                                it 'fails when the timestamp contains values with less digits than expected' do
+                                        textdec_timestamptz_decode_should_fail('201-01-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-0-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-0 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 2:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:2:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:5.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+0:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:2:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:2')
+                                end
+                                it 'fails when the timestamp contains values with more digits than expected' do
+                                        textdec_timestamptz_decode_should_fail('20166-01-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-011-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-022 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 233:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:233:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:599.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.1234567890+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+000:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:255:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:211')
+                                end
+                                it 'fails when the timestamp contains values with invalid characters' do
+                                        textdec_timestamptz_decode_should_fail('201x-01-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-0x-02 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-0x 23:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 2x:23:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:2x:59.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:5x.123456+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.12345x+00:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+0x:25:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:2x:21')
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:2x')
+                                end
+                                it 'fails when the timestamp contains leading characters' do
+                                        textdec_timestamptz_decode_should_fail(' 2016-01-02 23:23:59.123456')
+                                end
+                                it 'fails when the timestamp contains trailing characters' do
+                                        textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456 ')
+                                end
+                                it 'fails when the timestamp contains non ASCII character' do
+                                        textdec_timestamptz_decode_should_fail('2016-01ª02 23:23:59.123456')
+                                end
 			end
 
 			context 'identifier quotation' do
