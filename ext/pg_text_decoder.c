@@ -535,7 +535,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
     int tz_hour = 0;
     int tz_min = 0;
     int tz_sec = 0;
- 
+
     year = str4_to_int(&str[0]);
     mon = str2_to_int(&str[5]);
     day = str2_to_int(&str[8]);
@@ -543,7 +543,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
     min = str2_to_int(&str[14]);
     sec = str2_to_int(&str[17]);
     str += 19;
- 
+
     if (str[0] == '.' && isdigit(str[1]))
     {
       /* nano second part, up to 9 digits */
@@ -558,6 +558,8 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
       {
         nsec += coef[i] * char_to_digit(*str++);
       }
+      /* consume digits smaller than nsec */
+      while(isdigit(*str)) str++;
     }
 
     if (with_timezone)
