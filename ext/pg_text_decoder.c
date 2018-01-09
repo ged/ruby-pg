@@ -40,8 +40,6 @@
 VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
 
-extern VALUE rb_cTime;
-
 /*
  * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
  *
