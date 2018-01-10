@@ -70,7 +70,3 @@ module PG
 end # module PG
 
 
-autoload :PGError,  'pg/deprecated_constants'
-autoload :PGconn,   'pg/deprecated_constants'
-autoload :PGresult, 'pg/deprecated_constants'
-
