@@ -589,7 +589,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
     }
     if (*str == '\0')
     {
-#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)
+#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3) && !defined(_WIN32)
       // must have consumed all the string
       struct tm tm;
       tm.tm_year = year - 1900;
@@ -602,16 +602,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 
       if (with_timezone)
       {
-#ifdef _WIN32
-        /* we can't use _mkgmtime because it is not available when using mingw32 */
-        time_t time;
-        time_t prevTZ = _timezone;
-        _timezone = 0;
-        time = mktime(&tm);
-        _timezone = prevTZ;
-#else
         time_t time = timegm(&tm);
-#endif
         if (time != -1)
         {
           struct timespec ts;
