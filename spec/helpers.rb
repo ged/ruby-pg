@@ -23,11 +23,9 @@ module PG::TestingHelpers
 			mod.around( :each ) do |example|
 				begin
 					@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
-					if PG.respond_to?( :library_version )
-						desc = example.source_location.join(':')
-						@conn.exec_params %Q{SET application_name TO '%s'} %
-							[@conn.escape_string(desc.slice(-60))]
-					end
+					desc = example.source_location.join(':')
+					@conn.exec_params %Q{SET application_name TO '%s'} %
+						[@conn.escape_string(desc.slice(-60))]
 					example.run
 				ensure
 					@conn.exec( 'ROLLBACK' ) unless example.metadata[:without_transaction]
