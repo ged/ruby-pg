@@ -46,7 +46,6 @@ lib/pg/basic_type_mapping.rb
 lib/pg/coder.rb
 lib/pg/connection.rb
 lib/pg/constants.rb
-lib/pg/deprecated_constants.rb
 lib/pg/exceptions.rb
 lib/pg/result.rb
 lib/pg/text_decoder.rb

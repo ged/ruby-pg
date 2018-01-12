@@ -1,4 +1,4 @@
-== vXXX [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v1.0.0 [2018-01-10] Michael Granger <ged@FaerieMUD.org>
 
 Deprecated:
 - Deprecate Ruby older than 2.2.
