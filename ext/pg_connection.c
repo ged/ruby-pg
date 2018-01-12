@@ -899,10 +899,8 @@ pgconn_socket_io(VALUE self)
 
 		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 1, INT2NUM(ruby_sd) );
 
-		/* Disable autoclose feature, when supported */
-		if( rb_respond_to(socket_io, id_autoclose) ){
-			rb_funcall( socket_io, id_autoclose, 1, Qfalse );
-		}
+		/* Disable autoclose feature */
+		rb_funcall( socket_io, id_autoclose, 1, Qfalse );
 
 		this->socket_io = socket_io;
 	}
