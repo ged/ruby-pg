@@ -1,4 +1,4 @@
-#!/usr/bin/env rake
+# -*- rake -*-
 
 require 'uri'
 require 'tempfile'
