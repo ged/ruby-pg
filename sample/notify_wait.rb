@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 #
 # Test script, demonstrating a non-poll notification for a table event.
 #

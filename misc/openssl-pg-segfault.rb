@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 
 PGHOST   = 'localhost'
 PGDB     = 'test'

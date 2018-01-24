@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 
 require 'pg' unless defined?( PG )
 require 'uri'

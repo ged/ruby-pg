@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 # vim: set noet nosta sw=4 ts=4 :
 #
 # Quickly dump size information for a given database.

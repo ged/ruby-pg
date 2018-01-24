@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 # vim: set nosta noet ts=4 sw=4:
 #
 # Script to automatically move partitioned tables and their indexes

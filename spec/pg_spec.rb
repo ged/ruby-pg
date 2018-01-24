@@ -1,4 +1,4 @@
-#!/usr/bin/env rspec
+# -*- rspec -*-
 # encoding: utf-8
 
 require_relative 'helpers'

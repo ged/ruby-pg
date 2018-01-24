@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby1.9.1
+# -*- ruby -*-1.9.1
 
 require 'pg'
 

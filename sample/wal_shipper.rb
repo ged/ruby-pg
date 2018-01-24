@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 #
 # A script to wrap ssh and rsync for PostgreSQL WAL files shipping.
 # Mahlon E. Smith <mahlon@martini.nu>

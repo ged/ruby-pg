@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+# -*- ruby -*-
 # vim: set noet nosta sw=4 ts=4 :
 #
 # Get the current WAL segment and offset from a master postgresql
