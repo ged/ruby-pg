@@ -7,6 +7,7 @@ Deprecated:
 Removed:
 - Remove compatibility code for Ruby < 2.0 and PostgreSQL < 9.2.
 - Remove partial compatibility with Rubinius.
+- Remove top-level constants PGconn, PGresult, and PGError.
 
 Enhancements:
 - Update error codes to PostgreSQL-10
