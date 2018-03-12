@@ -2456,22 +2456,15 @@ notify_readable(PGconn *conn)
 
 /*
  * call-seq:
- *    conn.wait_for_notify( [ timeout ] ) -> String
- *    conn.wait_for_notify( [ timeout ] ) { |event, pid| block }
- *    conn.wait_for_notify( [ timeout ] ) { |event, pid, payload| block } # PostgreSQL 9.0
+ *    conn.wait_for_notify( [ timeout ] ) { |event, pid, payload| block } -> String
  *
  * Blocks while waiting for notification(s), or until the optional
  * _timeout_ is reached, whichever comes first.  _timeout_ is
  * measured in seconds and can be fractional.
  *
- * Returns +nil+ if _timeout_ is reached, the name of the NOTIFY
- * event otherwise.  If used in block form, passes the name of the
- * NOTIFY +event+ and the generating +pid+ into the block.
- *
- * Under PostgreSQL 9.0 and later, if the notification is sent with
- * the optional +payload+ string, it will be given to the block as the
- * third argument.
- *
+ * Returns +nil+ if _timeout_ is reached, the name of the NOTIFY event otherwise.
+ * If used in block form, passes the name of the NOTIFY +event+, the generating
+ * +pid+ and the optional +payload+ string into the block.
  */
 static VALUE
 pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
