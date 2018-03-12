@@ -170,11 +170,43 @@ pg_text_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, in
 }
 
 /*
+ * array_isspace() --- a non-locale-dependent isspace()
+ *
+ * We used to use isspace() for parsing array values, but that has
+ * undesirable results: an array value might be silently interpreted
+ * differently depending on the locale setting.  Now we just hard-wire
+ * the traditional ASCII definition of isspace().
+ */
+static int
+array_isspace(char ch)
+{
+	if (ch == ' ' ||
+		ch == '\t' ||
+		ch == '\n' ||
+		ch == '\r' ||
+		ch == '\v' ||
+		ch == '\f')
+		return 1;
+	return 0;
+}
+
+static int
+array_isdim(char ch)
+{
+	if ( (ch >= '0' && ch <= '9') ||
+		(ch == '-') ||
+		(ch == '+') ||
+		(ch == ':') )
+		return 1;
+	return 0;
+}
+
+/*
  * Array parser functions are thankfully borrowed from here:
  * https://github.com/dockyard/pg_array_parser
  */
 static VALUE
-read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	/* Return value: array */
 	VALUE array;
@@ -198,7 +230,7 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 
 	/* Special case the empty array, so it doesn't need to be handled manually inside
 	* the loop. */
-	if(((*index) < array_string_length) && c_pg_array_string[(*index)] == '}')
+	if(((*index) < array_string_length) && c_pg_array_string[*index] == '}')
 	{
 		return array;
 	}
@@ -238,8 +270,10 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 			}
 			else if(c == '{')
 			{
+				VALUE subarray;
 				(*index)++;
-				rb_ary_push(array, read_array(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func));
+				subarray = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+				rb_ary_push(array, subarray);
 				escapeNext = 1;
 			}
 			else
@@ -271,13 +305,75 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 	return array;
 }
 
+static VALUE
+read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+{
+	int ndim = 0;
+	/*
+	 * If the input string starts with dimension info, read and use that.
+	 * Otherwise, we require the input to be in curly-brace style, and we
+	 * prescan the input to determine dimensions.
+	 *
+	 * Dimension info takes the form of one or more [n] or [m:n] items. The
+	 * outer loop iterates once per dimension item.
+	 */
+	for (;;)
+	{
+		/*
+		 * Note: we currently allow whitespace between, but not within,
+		 * dimension items.
+		 */
+		while (array_isspace(c_pg_array_string[*index]))
+			(*index)++;
+		if (c_pg_array_string[*index] != '[')
+			break;				/* no more dimension items */
+		(*index)++;
+
+		while (array_isdim(c_pg_array_string[*index]))
+			(*index)++;
+
+		if (c_pg_array_string[*index] != ']')
+			rb_raise( rb_eTypeError, "missing \"]\" in array dimensions");
+		(*index)++;
+
+		ndim++;
+	}
+
+	if (ndim == 0)
+	{
+		/* No array dimensions */
+	}
+	else
+	{
+		/* If array dimensions are given, expect '=' operator */
+		if (c_pg_array_string[*index] != '=')
+			rb_raise( rb_eTypeError, "missing assignment operator");
+		(*index)++;
+
+		while (array_isspace(c_pg_array_string[*index]))
+			(*index)++;
+	}
+
+	if (c_pg_array_string[*index] != '{')
+		rb_raise( rb_eTypeError, "array value must start with \"{\" or dimension information");
+	(*index)++;
+
+	return read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+}
+
 /*
  * Document-class: PG::TextDecoder::Array < PG::CompositeDecoder
  *
- * This is the decoder class for PostgreSQL array types.
+ * This is a decoder class for PostgreSQL array types.
  *
- * All values are decoded according to the #elements_type
- * accessor. Sub-arrays are decoded recursively.
+ * It returns an Array with possibly an arbitrary number of sub-Arrays.
+ * All values are decoded according to the #elements_type accessor.
+ * Sub-arrays are decoded recursively.
+ *
+ * This decoder simply ignores any dimension decorations preceding the array values.
+ * It returns all array values as regular ruby Array with a zero based index, regardless of the index given in the dimension decoration.
+ *
+ * An array decoder which respects dimension decorations is waiting to be implemented.
  *
  */
 static VALUE
@@ -287,7 +383,7 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
 	/* create a buffer of the same length, as that will be the worst case */
 	char *word = xmalloc(len + 1);
-	int index = 1;
+	int index = 0;
 
 	VALUE return_value = read_array(this, &index, val, len, word, enc_idx, tuple, field, dec_func);
 	free(word);
