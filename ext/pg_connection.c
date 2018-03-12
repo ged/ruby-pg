@@ -2630,16 +2630,18 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.get_copy_data( [ async = false [, decoder = nil ]] ) -> String
+ *    conn.get_copy_data( [ async = false [, decoder = nil ]] ) -> Object
  *
- * Return a string containing one row of data, +nil+
+ * Return one row of data, +nil+
  * if the copy is done, or +false+ if the call would
  * block (only possible if _async_ is true).
  *
- * _decoder_ can be a PG::Coder derivation (typically PG::TextDecoder::CopyRow).
- * This decodes the received data fields from PostgreSQL's COPY text format to an
- * Array of Strings. Optionally
- * the decoder can type cast the fields to various Ruby types in one step,
+ * If _decoder_ is not set or +nil+, data is returned as binary string.
+ *
+ * If _decoder_ is set to a PG::Coder derivation, the return type depends on this decoder.
+ * PG::TextDecoder::CopyRow decodes the received data fields from one row of PostgreSQL's
+ * COPY text format to an Array of Strings.
+ * Optionally the decoder can type cast the single fields to various Ruby types in one step,
  * if PG::TextDecoder::CopyRow#type_map is set accordingly.
  *
  * See also #copy_data.
