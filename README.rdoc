@@ -44,6 +44,17 @@ It usually work with earlier versions of Ruby/PostgreSQL as well, but those are
 not regularly tested.
 
 
+== Versioning
+
+We tag and release gems according to the {Semantic Versioning}[http://semver.org/] principle.
+
+As a result of this policy, you can (and should) specify a dependency on this gem using the {Pessimistic Version Constraint}[http://guides.rubygems.org/patterns/#pessimistic-version-constraint] with two digits of precision.
+
+For example:
+
+  spec.add_dependency 'pg', '~> 1.0'
+
+
 == How To Install
 
 Install via RubyGems:
