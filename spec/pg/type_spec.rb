@@ -121,6 +121,71 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamptz.decode('1916-01-01 00:00:00-00:25:21') ).
 						to be_within(0.000001).of( Time.new(1916, 1, 1, 0, 0, 0, "-00:25:21") )
 				end
+				it 'decodes timestamps with date before 1823' do
+					expect( textdec_timestamp.decode('1822-01-02 23:23:59.123456') ).
+						to be_within(0.000001).of( Time.new(1822,01,02, 23, 23, 59.123456) )
+				end
+				it 'decodes timestamps with date after 2116' do
+					expect( textdec_timestamp.decode('2117-01-02 23:23:59.123456') ).
+						to be_within(0.000001).of( Time.new(2117,01,02, 23, 23, 59.123456) )
+				end
+				it 'decodes timestamps with variable number of digits for the useconds part' do
+					sec = "59.12345678912345"
+					(4..sec.length).each do |i|
+						expect( textdec_timestamp.decode("2016-01-02 23:23:#{sec[0,i]}") ).
+										to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, sec[0,i].to_f) )
+					end
+				end
+				it 'decodes timestamps with leap-second' do
+					expect( textdec_timestamp.decode('1998-12-31 23:59:60.1234') ).
+						to be_within(0.000001).of( Time.new(1998,12,31, 23, 59, 60.1234) )
+				end
+
+				def textdec_timestamptz_decode_should_fail(str)
+					expect(textdec_timestamptz.decode(str)).to eq(str)
+				end
+
+				it 'fails when the timestamp is an empty string' do
+					textdec_timestamptz_decode_should_fail('')
+				end
+				it 'fails when the timestamp contains values with less digits than expected' do
+					textdec_timestamptz_decode_should_fail('201-01-02 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-0-02 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-0 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 2:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:2:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:5.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+0:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:2:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:2')
+				end
+				it 'fails when the timestamp contains values with more digits than expected' do
+					textdec_timestamptz_decode_should_fail('20166-01-02 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-011-02 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-022 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 233:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:233:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:599.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+000:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:255:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:211')
+				end
+				it 'fails when the timestamp contains values with invalid characters' do
+					str = '2013-01-02 23:23:59.123456+00:25:21'
+					str.length.times do |i|
+						textdec_timestamptz_decode_should_fail(str[0,i] + "x" + str[i+1..-1])
+					end
+				end
+				it 'fails when the timestamp contains leading characters' do
+					textdec_timestamptz_decode_should_fail(' 2016-01-02 23:23:59.123456')
+				end
+				it 'fails when the timestamp contains trailing characters' do
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456 ')
+				end
+				it 'fails when the timestamp contains non ASCII character' do
+					textdec_timestamptz_decode_should_fail('2016-01ª02 23:23:59.123456')
+				end
 			end
 
 			context 'identifier quotation' do
