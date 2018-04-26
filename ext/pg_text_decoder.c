@@ -39,6 +39,8 @@
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
+static ID s_id_Rational;
+static ID s_id_new;
 
 /*
  * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
@@ -637,7 +639,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
       {
         int sec_numerator = sec * 1000000 + nsec / 1000;
         int sec_denominator = 1000000;
-        sec_value = rb_funcall(Qnil, rb_intern("Rational"), 2,
+        sec_value = rb_funcall(Qnil, s_id_Rational, 2,
             INT2NUM(sec_numerator), INT2NUM(sec_denominator));
       }
       else
@@ -655,7 +657,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
         }
         gmt_offset_value = INT2NUM(gmt_offset);
       }
-      return rb_funcall(rb_cTime, rb_intern("new"), 7,
+      return rb_funcall(rb_cTime, s_id_new, 7,
           INT2NUM(year),
           INT2NUM(mon),
           INT2NUM(day),
@@ -685,6 +687,8 @@ void
 init_pg_text_decoder()
 {
 	s_id_decode = rb_intern("decode");
+	s_id_Rational = rb_intern("Rational");
+	s_id_new = rb_intern("new");
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
