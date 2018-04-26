@@ -76,6 +76,7 @@ have_func 'PQsetSingleRowMode' or
 have_func 'PQconninfo'
 have_func 'PQsslAttribute'
 have_func 'PQencryptPasswordConn'
+have_func 'timegm'
 
 have_const 'PG_DIAG_TABLE_NAME', 'libpq-fe.h'
 

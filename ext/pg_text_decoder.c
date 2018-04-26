@@ -589,10 +589,14 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 				str += 2;
 			}
 		}
-		if (*str == '\0')
+
+		if (*str == '\0') /* must have consumed all the string */
 		{
-#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3) && !defined(_WIN32)
-			// must have consumed all the string
+			VALUE sec_value;
+			VALUE gmt_offset_value = Qnil;
+
+#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3) && defined(HAVE_TIMEGM)
+			/* Fast path for time conversion */
 			struct tm tm;
 			tm.tm_year = year - 1900;
 			tm.tm_mon = mon - 1;
@@ -632,9 +636,10 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					return rb_time_timespec_new(&ts, 0);
 				}
 			}
-#else
-			VALUE sec_value;
-			VALUE gmt_offset_value = Qnil;
+			/* Some libc implementations fail to convert certain values,
+			 * so that we fall through to the slow path.
+			 */
+#endif
 			if (nsec)
 			{
 				int sec_numerator = sec * 1000000 + nsec / 1000;
@@ -665,9 +670,10 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					INT2NUM(min),
 					sec_value,
 					gmt_offset_value);
-#endif
 		}
 	}
+
+	/* fall through to string conversion */
 	return pg_text_dec_string(conv, val, len, tuple, field, enc_idx);
 }
 
@@ -712,9 +718,9 @@ init_pg_text_decoder()
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "FromBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "FromBase64", pg_text_dec_from_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 
-				/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithTimeZone", rb_cPG_SimpleDecoder ); */
-				pg_define_coder( "TimestampWithTimeZone", pg_text_dec_timestamp_with_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithTimeZone", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "TimestampWithTimeZone", pg_text_dec_timestamp_with_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 
-				/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithoutTimeZone", rb_cPG_SimpleDecoder ); */
-				pg_define_coder( "TimestampWithoutTimeZone", pg_text_dec_timestamp_without_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithoutTimeZone", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "TimestampWithoutTimeZone", pg_text_dec_timestamp_without_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 }
