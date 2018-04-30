@@ -124,10 +124,14 @@ describe "PG::Type derivations" do
 				it 'decodes timestamps with date before 1823' do
 					expect( textdec_timestamp.decode('1822-01-02 23:23:59.123456') ).
 						to be_within(0.000001).of( Time.new(1822,01,02, 23, 23, 59.123456) )
+					expect( textdec_timestamptz.decode('1822-01-02 23:23:59.123456+04') ).
+						to be_within(0.000001).of( Time.new(1822,01,02, 23, 23, 59.123456, "+04:00") )
 				end
 				it 'decodes timestamps with date after 2116' do
 					expect( textdec_timestamp.decode('2117-01-02 23:23:59.123456') ).
 						to be_within(0.000001).of( Time.new(2117,01,02, 23, 23, 59.123456) )
+					expect( textdec_timestamptz.decode('2117-01-02 23:23:59.123456+04') ).
+						to be_within(0.000001).of( Time.new(2117,01,02, 23, 23, 59.123456, "+04:00") )
 				end
 				it 'decodes timestamps with variable number of digits for the useconds part' do
 					sec = "59.12345678912345"
