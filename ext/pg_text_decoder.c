@@ -28,15 +28,19 @@
  *
  */
 
+#include "ruby/version.h"
 #include "pg.h"
 #include "util.h"
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+#include <ctype.h>
+#include <time.h>
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
-
+static ID s_id_Rational;
+static ID s_id_new;
 
 /*
  * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
@@ -488,10 +492,209 @@ pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int fie
 	return out_value;
 }
 
+static inline int char_to_digit(char c)
+{
+	return c - '0';
+}
+
+static int str4_to_int(const char *str)
+{
+	return char_to_digit(str[0]) * 1000
+			+ char_to_digit(str[1]) * 100
+			+ char_to_digit(str[2]) * 10
+			+ char_to_digit(str[3]);
+}
+
+static int str2_to_int(const char *str)
+{
+	return char_to_digit(str[0]) * 10
+			+ char_to_digit(str[1]);
+}
+
+static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx, int with_timezone)
+{
+	const char *str = val;
+
+	if (isdigit(str[0]) && isdigit(str[1]) && isdigit(str[2]) && isdigit(str[3])
+	&& str[4] == '-'
+	&& isdigit(str[5]) && isdigit(str[6])
+	&& str[7] == '-'
+	&& isdigit(str[8]) && isdigit(str[9])
+	&& str[10] == ' '
+	&& isdigit(str[11]) && isdigit(str[12])
+	&& str[13] == ':'
+	&& isdigit(str[14]) && isdigit(str[15])
+	&& str[16] == ':'
+	&& isdigit(str[17]) && isdigit(str[18])
+	)
+	{
+		int year, mon, day;
+		int hour, min, sec;
+		int nsec = 0;
+		int tz_neg = 0;
+		int tz_hour = 0;
+		int tz_min = 0;
+		int tz_sec = 0;
+
+		year = str4_to_int(&str[0]);
+		mon = str2_to_int(&str[5]);
+		day = str2_to_int(&str[8]);
+		hour = str2_to_int(&str[11]);
+		min = str2_to_int(&str[14]);
+		sec = str2_to_int(&str[17]);
+		str += 19;
+
+		if (str[0] == '.' && isdigit(str[1]))
+		{
+			/* nano second part, up to 9 digits */
+			static const int coef[9] = {
+				100000000, 10000000, 1000000,
+				100000, 10000, 1000, 100, 10, 1
+			};
+			int i;
+
+			str++;
+			for (i = 0; i < 9 && isdigit(*str); i++)
+			{
+				nsec += coef[i] * char_to_digit(*str++);
+			}
+			/* consume digits smaller than nsec */
+			while(isdigit(*str)) str++;
+		}
+
+		if (with_timezone)
+		{
+			if ((str[0] == '+' || str[0] == '-') && isdigit(str[1]) && isdigit(str[2]))
+			{
+				tz_neg = str[0] == '-';
+				tz_hour = str2_to_int(&str[1]);
+				str += 3;
+			}
+			if (str[0] == ':')
+			{
+				str++;
+			}
+			if (isdigit(str[0]) && isdigit(str[1]))
+			{
+				tz_min = str2_to_int(str);
+				str += 2;
+			}
+			if (str[0] == ':')
+			{
+				str++;
+			}
+			if (isdigit(str[0]) && isdigit(str[1]))
+			{
+				tz_sec = str2_to_int(str);
+				str += 2;
+			}
+		}
+
+		if (*str == '\0') /* must have consumed all the string */
+		{
+			VALUE sec_value;
+			VALUE gmt_offset_value = Qnil;
+
+#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3) && defined(HAVE_TIMEGM)
+			/* Fast path for time conversion */
+			struct tm tm;
+			tm.tm_year = year - 1900;
+			tm.tm_mon = mon - 1;
+			tm.tm_mday = day;
+			tm.tm_hour = hour;
+			tm.tm_min = min;
+			tm.tm_sec = sec;
+			tm.tm_isdst = 0;
+
+			if (with_timezone)
+			{
+				time_t time = timegm(&tm);
+				if (time != -1)
+				{
+					struct timespec ts;
+					int gmt_offset;
+
+					gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+					if (tz_neg)
+					{
+						gmt_offset = - gmt_offset;
+					}
+					ts.tv_sec = time - gmt_offset;
+					ts.tv_nsec = nsec;
+					return rb_time_timespec_new(&ts, gmt_offset);
+				}
+			}
+			else
+			{
+				time_t time = mktime(&tm);
+				if (time != -1)
+				{
+					struct timespec ts;
+
+					ts.tv_sec = time;
+					ts.tv_nsec = nsec;
+					return rb_time_timespec_new(&ts, 0);
+				}
+			}
+			/* Some libc implementations fail to convert certain values,
+			 * so that we fall through to the slow path.
+			 */
+#endif
+			if (nsec)
+			{
+				int sec_numerator = sec * 1000000 + nsec / 1000;
+				int sec_denominator = 1000000;
+				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
+						INT2NUM(sec_numerator), INT2NUM(sec_denominator));
+			}
+			else
+			{
+				sec_value = INT2NUM(sec);
+			}
+			if (with_timezone)
+			{
+				int gmt_offset;
+
+				gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+				if (tz_neg)
+				{
+					gmt_offset = - gmt_offset;
+				}
+				gmt_offset_value = INT2NUM(gmt_offset);
+			}
+			return rb_funcall(rb_cTime, s_id_new, 7,
+					INT2NUM(year),
+					INT2NUM(mon),
+					INT2NUM(day),
+					INT2NUM(hour),
+					INT2NUM(min),
+					sec_value,
+					gmt_offset_value);
+		}
+	}
+
+	/* fall through to string conversion */
+	return pg_text_dec_string(conv, val, len, tuple, field, enc_idx);
+}
+
+static VALUE
+pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 1);
+}
+
+static VALUE
+pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 0);
+}
+
 void
 init_pg_text_decoder()
 {
 	s_id_decode = rb_intern("decode");
+	s_id_Rational = rb_intern("Rational");
+	s_id_new = rb_intern("new");
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
@@ -514,4 +717,10 @@ init_pg_text_decoder()
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "FromBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "FromBase64", pg_text_dec_from_base64, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );
+
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithTimeZone", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "TimestampWithTimeZone", pg_text_dec_timestamp_with_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
+
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithoutTimeZone", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "TimestampWithoutTimeZone", pg_text_dec_timestamp_without_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 }
