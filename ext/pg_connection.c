@@ -2296,14 +2296,10 @@ pgconn_notifies(VALUE self)
 #if defined( _WIN32 )
 /*
  * On Windows, use platform-specific strategies to wait for the socket
- * instead of rb_thread_select().
+ * instead of rb_wait_for_single_fd().
  */
 
 int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
-
-/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
- * and does not wait (nor sleep) any time even if timeout is given.
- * Instead use the Winsock events and rb_w32_wait_events(). */
 
 static void *
 wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *) )
@@ -2389,7 +2385,6 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	int sd = PQsocket( conn );
 	int ret;
 	void *retval;
-	rb_fdset_t sd_rset;
 	struct timeval aborttime={0,0}, currtime, waittime;
 
 	if ( sd < 0 )
@@ -2399,17 +2394,12 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	if ( PQconsumeInput(conn) == 0 )
 		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 
-	rb_fd_init( &sd_rset );
-
 	if ( ptimeout ) {
 		gettimeofday(&currtime, NULL);
 		timeradd(&currtime, ptimeout, &aborttime);
 	}
 
 	while ( !(retval=is_readable(conn)) ) {
-		rb_fd_zero( &sd_rset );
-		rb_fd_set( sd, &sd_rset );
-
 		if ( ptimeout ) {
 			gettimeofday(&currtime, NULL);
 			timersub(&aborttime, &currtime, &waittime);
@@ -2418,30 +2408,26 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
 			/* Wait for the socket to become readable before checking again */
-			ret = rb_thread_fd_select( sd+1, &sd_rset, NULL, NULL, ptimeout ? &waittime : NULL );
+			ret = rb_wait_for_single_fd( sd, RB_WAITFD_IN, ptimeout ? &waittime : NULL );
 		} else {
 			ret = 0;
 		}
 
 		if ( ret < 0 ){
-			rb_fd_term( &sd_rset );
-			rb_sys_fail( "rb_thread_select()" );
+			rb_sys_fail( "rb_wait_for_single_fd()" );
 		}
 
 		/* Return false if the select() timed out */
 		if ( ret == 0 ){
-			rb_fd_term( &sd_rset );
 			return NULL;
 		}
 
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if ( PQconsumeInput(conn) == 0 ){
-			rb_fd_term( &sd_rset );
 			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 		}
 	}
 
-	rb_fd_term( &sd_rset );
 	return retval;
 }
 
@@ -3064,10 +3050,6 @@ get_result_readable(PGconn *conn)
 static VALUE
 pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	PGconn *conn = pg_get_pgconn( self );
-
-	/* If WIN32 and Ruby 1.9 do not use rb_thread_select() which sometimes hangs
-	 * and does not wait (nor sleep) any time even if timeout is given.
-	 * Instead use the Winsock events and rb_w32_wait_events(). */
 
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
