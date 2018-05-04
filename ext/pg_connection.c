@@ -198,6 +198,7 @@ pgconn_s_allocate( VALUE klass )
 	this->decoder_for_get_copy_data = Qnil;
 	this->trace_stream = Qnil;
 	this->external_encoding = Qnil;
+	this->socket = -1;
 
 	return self;
 }
@@ -270,7 +271,6 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 	this = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
 	this->pgconn = gvl_PQconnectdb(StringValueCStr(conninfo));
-
 	if(this->pgconn == NULL)
 		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
 
@@ -279,6 +279,10 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+
+	this->socket = PQsocket( this->pgconn );
+	if ( this->socket < 0 )
+		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 	pgconn_set_default_encoding( self );
 
@@ -329,6 +333,10 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 		rb_iv_set(error, "@connection", rb_conn);
 		rb_exc_raise(error);
 	}
+
+	this->socket = PQsocket( this->pgconn );
+	if ( this->socket < 0 )
+		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_conn, pgconn_finish, rb_conn );
@@ -2302,17 +2310,14 @@ pgconn_notifies(VALUE self)
 int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
 
 static void *
-wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *) )
+wait_socket_readable( t_pg_connection *this, struct timeval *ptimeout, void *(*is_readable)(PGconn *) )
 {
-	int sd = PQsocket( conn );
+	PGconn *conn = this->pgconn;
 	void *retval;
 	struct timeval aborttime={0,0}, currtime, waittime;
 	DWORD timeout_milisec = INFINITE;
 	DWORD wait_ret;
 	WSAEVENT hEvent;
-
-	if ( sd < 0 )
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 	hEvent = WSACreateEvent();
 
@@ -2328,7 +2333,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	}
 
 	while ( !(retval=is_readable(conn)) ) {
-		if ( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
+		if ( WSAEventSelect(this->socket, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
 			WSACloseEvent( hEvent );
 			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
 		}
@@ -2380,15 +2385,12 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 /* non Win32 */
 
 static void *
-wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
+wait_socket_readable( t_pg_connection *this, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
 {
-	int sd = PQsocket( conn );
+	PGconn *conn = this->pgconn;
 	int ret;
 	void *retval;
 	struct timeval aborttime={0,0}, currtime, waittime;
-
-	if ( sd < 0 )
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if ( PQconsumeInput(conn) == 0 )
@@ -2408,7 +2410,7 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
 			/* Wait for the socket to become readable before checking again */
-			ret = rb_wait_for_single_fd( sd, RB_WAITFD_IN, ptimeout ? &waittime : NULL );
+			ret = rb_wait_for_single_fd( this->socket, RB_WAITFD_IN, ptimeout ? &waittime : NULL );
 		} else {
 			ret = 0;
 		}
@@ -2455,7 +2457,7 @@ notify_readable(PGconn *conn)
 static VALUE
 pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGnotify *pnotification;
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
@@ -2471,7 +2473,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 		ptimeout = &timeout;
 	}
 
-	pnotification = (PGnotify*) wait_socket_readable( conn, ptimeout, notify_readable);
+	pnotification = (PGnotify*) wait_socket_readable( this, ptimeout, notify_readable);
 
 	/* Return nil if the select timed out */
 	if ( !pnotification ) return Qnil;
@@ -3049,7 +3051,7 @@ get_result_readable(PGconn *conn)
  */
 static VALUE
 pgconn_block( int argc, VALUE *argv, VALUE self ) {
-	PGconn *conn = pg_get_pgconn( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
@@ -3064,7 +3066,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		ptimeout = &timeout;
 	}
 
-	ret = wait_socket_readable( conn, ptimeout, get_result_readable);
+	ret = wait_socket_readable( this, ptimeout, get_result_readable);
 
 	if( !ret )
 		return Qfalse;
