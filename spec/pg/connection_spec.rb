@@ -176,21 +176,8 @@ describe PG::Connection do
 	it "can connect asynchronously", :socket_io do
 		tmpconn = described_class.connect_start( @conninfo )
 		expect( tmpconn ).to be_a( described_class )
-		socket = tmpconn.socket_io
-		status = tmpconn.connect_poll
 
-		while status != PG::PGRES_POLLING_OK
-			if status == PG::PGRES_POLLING_READING
-				select( [socket], [], [], 5.0 ) or
-					raise "Asynchronous connection timed out!"
-
-			elsif status == PG::PGRES_POLLING_WRITING
-				select( [], [socket], [], 5.0 ) or
-					raise "Asynchronous connection timed out!"
-			end
-			status = tmpconn.connect_poll
-		end
-
+		wait_for_polling_ok(tmpconn)
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		tmpconn.finish
 	end
@@ -201,26 +188,46 @@ describe PG::Connection do
 		described_class.connect_start(@conninfo) do |tmpconn|
 			expect( tmpconn ).to be_a( described_class )
 			conn = tmpconn
-			socket = tmpconn.socket_io
-			status = tmpconn.connect_poll
 
-			while status != PG::PGRES_POLLING_OK
-				if status == PG::PGRES_POLLING_READING
-					if(not select([socket],[],[],5.0))
-						raise "Asynchronous connection timed out!"
-					end
-				elsif(status == PG::PGRES_POLLING_WRITING)
-					if(not select([],[socket],[],5.0))
-						raise "Asynchronous connection timed out!"
-					end
-				end
-				status = tmpconn.connect_poll
-			end
-
+			wait_for_polling_ok(tmpconn)
 			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		end
 
 		expect( conn ).to be_finished()
+	end
+
+	context "with async established connection", :socket_io do
+		before :each do
+			@conn2 = described_class.connect_start( @conninfo )
+			wait_for_polling_ok(@conn2)
+			expect( @conn2 ).to still_be_usable
+		end
+
+		after :each do
+			expect( @conn2 ).to still_be_usable
+			@conn2.close
+		end
+
+		it "conn.send_query and IO.select work" do
+			@conn2.send_query("SELECT 1")
+			res = wait_for_query_result(@conn2)
+			expect( res.values ).to eq([["1"]])
+		end
+
+		it "conn.send_query and conn.block work" do
+			@conn2.send_query("SELECT 2")
+			@conn2.block
+			res = @conn2.get_last_result
+			expect( res.values ).to eq([["2"]])
+		end
+
+		it "conn.async_query works" do
+			res = @conn2.async_query("SELECT 3")
+			expect( res.values ).to eq([["3"]])
+			expect( @conn2 ).to still_be_usable
+
+			res = @conn2.query("SELECT 4")
+		end
 	end
 
 	it "raises proper error when sending fails" do
@@ -874,7 +881,7 @@ describe PG::Connection do
 	end
 
 
-	it "can connect asynchronously", :socket_io do
+	it "handles server close while asynchronous connect", :socket_io do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 		expect( [PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK] ).to include conn.connect_poll

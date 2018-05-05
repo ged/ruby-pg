@@ -318,6 +318,40 @@ module PG::TestingHelpers
 		return ConnStillUsableMatcher.new
 	end
 
+	def wait_for_polling_ok(conn)
+		socket = conn.socket_io
+		status = conn.connect_poll
+
+		while status != PG::PGRES_POLLING_OK
+			if status == PG::PGRES_POLLING_READING
+				select( [socket], [], [], 5.0 ) or
+					raise "Asynchronous connection timed out!"
+
+			elsif status == PG::PGRES_POLLING_WRITING
+				select( [], [socket], [], 5.0 ) or
+					raise "Asynchronous connection timed out!"
+			end
+			status = conn.connect_poll
+		end
+	end
+
+	def wait_for_query_result(conn)
+		result = nil
+		loop do
+			# Buffer any incoming data on the socket until a full result is ready.
+			conn.consume_input
+			while conn.is_busy
+				select( [conn.socket_io], nil, nil, 5.0 ) or
+					raise "Timeout waiting for query response."
+				conn.consume_input
+			end
+
+			# Fetch the next result. If there isn't one, the query is finished
+			result = conn.get_result || break
+		end
+		result
+	end
+
 end
 
 
