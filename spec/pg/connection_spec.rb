@@ -893,7 +893,11 @@ describe PG::Connection do
 		expect( conn.connect_poll ).to eq( PG::PGRES_POLLING_FAILED )
 	end
 
-	it "discards previous results (if any) before waiting on an #async_exec"
+	it "discards previous results (if any) before waiting on an #async_exec" do
+		@conn.send_query( "select 1" )
+		res = @conn.async_exec( "select 42 as one" )
+		expect( res.to_a ).to eq( [{ 'one' => '42' }] )
+	end
 
 	it "calls the block if one is provided to #async_exec" do
 		result = nil
