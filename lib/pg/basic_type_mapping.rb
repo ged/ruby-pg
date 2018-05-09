@@ -2,6 +2,26 @@
 
 require 'pg' unless defined?( PG )
 
+# This module defines the mapping between OID and encoder/decoder classes for PG::BasicTypeMapForResults, PG::BasicTypeMapForQueries and PG::BasicTypeMapBasedOnResult.
+#
+# Additional types can be added like so:
+#
+#   require 'pg'
+#   require 'ipaddr'
+#
+#   class InetDecoder < PG::SimpleDecoder
+#     def decode(string, tuple=nil, field=nil)
+#       IPAddr.new(string)
+#     end
+#   end
+#   class InetEncoder < PG::SimpleEncoder
+#     def encode(ip_addr)
+#       ip_addr.to_s
+#     end
+#   end
+#
+#   # 0 if for text format, can also be 1 for binary
+#   PG::BasicTypeRegistry.register_type(0, 'inet', InetEncoder, InetDecoder)
 module PG::BasicTypeRegistry
 	# An instance of this class stores the coders that should be used for a given wire format (text or binary)
 	# and type cast direction (encoder or decoder).
@@ -137,6 +157,7 @@ module PG::BasicTypeRegistry
 	# Register an OID type named +name+ with a typecasting encoder and decoder object in
 	# +type+.  +name+ should correspond to the `typname` column in
 	# the `pg_type` table.
+	# +format+ can be 0 for text format and 1 for binary.
 	def self.register_type(format, name, encoder_class, decoder_class)
 		CODERS_BY_NAME[format] ||= { encoder: {}, decoder: {} }
 		CODERS_BY_NAME[format][:encoder][name] = encoder_class.new(name: name, format: format) if encoder_class
@@ -258,7 +279,7 @@ end
 # This prints the rows with type casted columns:
 #   ["a", 123, [5, 4, 3]]
 #
-# See also PG::BasicTypeMapBasedOnResult for the encoder direction.
+# See also PG::BasicTypeMapBasedOnResult for the encoder direction and PG::BasicTypeRegistry for the definition of additional types.
 class PG::BasicTypeMapForResults < PG::TypeMapByOid
 	include PG::BasicTypeRegistry
 
