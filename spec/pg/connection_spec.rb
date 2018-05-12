@@ -302,18 +302,15 @@ describe PG::Connection do
 
 			trace_data = trace_file.read
 
-			expected_trace_output = EXPECTED_TRACE_OUTPUT.dup
-			# For PostgreSQL < 9.0, the output will be different:
-			# -From backend (#4)> 13
-			# -From backend> "SELECT 1"
-			# +From backend (#4)> 11
-			# +From backend> "SELECT"
-			if @conn.server_version < 90000
-				expected_trace_output.sub!( /From backend \(#4\)> 13/, 'From backend (#4)> 11' )
-				expected_trace_output.sub!( /From backend> "SELECT 1"/, 'From backend> "SELECT"' )
-			end
+			# For async_exec the output will be different:
+			#  From backend> Z
+			#  From backend (#4)> 5
+			# +From backend> Z
+			# +From backend (#4)> 5
+			#  From backend> T
+			trace_data.sub!( /(From backend> Z\nFrom backend \(#4\)> 5\n){3}/m, '\\1\\1' )
 
-			expect( trace_data ).to eq( expected_trace_output )
+			expect( trace_data ).to eq( EXPECTED_TRACE_OUTPUT )
 		end
 
 	it "allows a query to be cancelled" do
