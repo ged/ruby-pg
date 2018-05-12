@@ -3125,6 +3125,13 @@ pgconn_get_last_result(VALUE self)
  * This function has the same behavior as #exec,
  * but is implemented using the asynchronous command
  * processing API of libpq.
+ *
+ * Both #exec and #async_exec release the GVL while waiting for server response, so that concurrent threads will get executed.
+ * However #async_exec has two advantages:
+ *
+ * 1. #async_exec can be aborted by signals (like Strg-C), while #exec blocks signal processing until the query is answered.
+ * 2. Ruby VM gets notified about IO blocked operations.
+ *    It can therefore schedule thing like garbage collection, while queries are running like in this proposal: https://bugs.ruby-lang.org/issues/14723
  */
 static VALUE
 pgconn_async_exec(int argc, VALUE *argv, VALUE self)
