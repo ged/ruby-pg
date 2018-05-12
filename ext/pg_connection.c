@@ -3180,6 +3180,103 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 }
 
 
+/*
+ * call-seq:
+ *    conn.async_prepare(stmt_name, sql [, param_types ] ) -> PG::Result
+ *
+ * This function has the same behavior as #prepare, but is implemented using the asynchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ */
+static VALUE
+pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	pgconn_send_prepare( argc, argv, self );
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+	rb_pgresult = pgconn_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
+
+
+/*
+ * call-seq:
+ *    conn.async_query_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
+ *    conn.async_query_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
+ *
+ * This function has the same behavior as #exec_prepared, but is implemented using the asynchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ */
+static VALUE
+pgconn_async_query_prepared(int argc, VALUE *argv, VALUE self)
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	pgconn_send_query_prepared( argc, argv, self );
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+	rb_pgresult = pgconn_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
+
+
+/*
+ * call-seq:
+ *    conn.async_describe_portal( portal_name ) -> PG::Result
+ *
+ * This function has the same behavior as #describe_portal, but is implemented using the asynchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ */
+static VALUE
+pgconn_async_describe_portal(VALUE self, VALUE portal)
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	pgconn_send_describe_portal( self, portal );
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+	rb_pgresult = pgconn_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
+
+
+/*
+ * call-seq:
+ *    conn.async_describe_prepared( statement_name ) -> PG::Result
+ *
+ * This function has the same behavior as #describe_prepared, but is implemented using the asynchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ */
+static VALUE
+pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	pgconn_send_describe_prepared( self, stmt_name );
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+	rb_pgresult = pgconn_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
+
+
 #ifdef HAVE_PQSSLATTRIBUTE
 /*
  * call-seq:
@@ -3975,10 +4072,16 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Asynchronous Command Processing     ******/
 	rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);
+	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
+	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "send_prepare", pgconn_send_prepare, -1);
+	rb_define_method(rb_cPGconn, "async_prepare", pgconn_async_prepare, -1);
 	rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, -1);
+	rb_define_method(rb_cPGconn, "async_query_prepared", pgconn_async_query_prepared, -1);
 	rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 1);
+	rb_define_method(rb_cPGconn, "async_describe_prepared", pgconn_async_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "send_describe_portal", pgconn_send_describe_portal, 1);
+	rb_define_method(rb_cPGconn, "async_describe_portal", pgconn_async_describe_portal, 1);
 	rb_define_method(rb_cPGconn, "get_result", pgconn_get_result, 0);
 	rb_define_method(rb_cPGconn, "consume_input", pgconn_consume_input, 0);
 	rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
@@ -4017,8 +4120,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
-	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
-	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
 	rb_define_method(rb_cPGconn, "encrypt_password", pgconn_encrypt_password, -1);

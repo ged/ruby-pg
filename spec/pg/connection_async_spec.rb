@@ -6,6 +6,10 @@ require_relative '../helpers'
 context "running with async_* methods" do
 	redirect_methods = {
 		:async_exec => :exec,
+		:async_prepare => :prepare,
+		:async_query_prepared => :exec_prepared,
+		:async_describe_prepared => :describe_prepared,
+		:async_describe_portal => :describe_portal,
 	}
 
 	before :each do
