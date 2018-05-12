@@ -893,6 +893,14 @@ describe PG::Connection do
 		expect( conn.connect_poll ).to eq( PG::PGRES_POLLING_FAILED )
 	end
 
+	it "discards previous results at #discard_results" do
+		@conn.send_query( "select 1" )
+		@conn.discard_results
+		@conn.send_query( "select 41 as one" )
+		res = @conn.get_last_result
+		expect( res.to_a ).to eq( [{ 'one' => '41' }] )
+	end
+
 	it "discards previous results (if any) before waiting on #exec and #async_exec" do
 		@conn.send_query( "select 1" )
 		res = @conn.exec( "select 42 as one" )

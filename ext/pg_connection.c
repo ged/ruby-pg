@@ -3119,6 +3119,36 @@ pgconn_get_last_result(VALUE self)
 
 /*
  * call-seq:
+ *    conn.discard_results()
+ *
+ * Silently discard any prior query result that application didn't eat.
+ * This is done prior of Connection#exec and sibling methods and can
+ * be called explicitly when using the async API.
+ */
+static VALUE
+pgconn_discard_results(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+
+	PGresult *cur;
+	while ((cur = gvl_PQgetResult(conn)) != NULL) {
+		int status = PQresultStatus(cur);
+		PQclear(cur);
+		if (status == PGRES_COPY_IN){
+			gvl_PQputCopyEnd(conn, "COPY terminated by new PQexec");
+		}
+		if (status == PGRES_COPY_OUT){
+			char *buffer = NULL;
+			while( gvl_PQgetCopyData(conn, &buffer, 0) > 0)
+				PQfreemem(buffer);
+		}
+	}
+
+	return Qnil;
+}
+
+/*
+ * call-seq:
  *    conn.async_exec(sql [, params, result_format ] ) -> PG::Result
  *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
  *
@@ -3138,12 +3168,9 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 {
 	VALUE rb_pgresult = Qnil;
 
-	/* remove any remaining results from the queue */
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	pgconn_get_last_result( self );
-
+	pgconn_discard_results( self );
 	pgconn_send_query( argc, argv, self );
-	pgconn_block( 0, NULL, self );
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
 	rb_pgresult = pgconn_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
@@ -3959,6 +3986,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
 	rb_define_alias(rb_cPGconn, "nonblocking?", "isnonblocking");
 	rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
+	rb_define_method(rb_cPGconn, "discard_results", pgconn_discard_results, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Cancelling Queries in Progress     ******/
 	rb_define_method(rb_cPGconn, "cancel", pgconn_cancel, 0);
