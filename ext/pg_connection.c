@@ -4054,13 +4054,12 @@ init_pg_connection()
 	/* rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0); */
 
 	/******     PG::Connection INSTANCE METHODS: Command Execution     ******/
-	rb_define_method(rb_cPGconn, "exec", pgconn_exec, -1);
-	rb_define_alias(rb_cPGconn, "query", "exec");
-	rb_define_method(rb_cPGconn, "exec_params", pgconn_exec_params, -1);
-	rb_define_method(rb_cPGconn, "prepare", pgconn_prepare, -1);
-	rb_define_method(rb_cPGconn, "exec_prepared", pgconn_exec_prepared, -1);
-	rb_define_method(rb_cPGconn, "describe_prepared", pgconn_describe_prepared, 1);
-	rb_define_method(rb_cPGconn, "describe_portal", pgconn_describe_portal, 1);
+	rb_define_method(rb_cPGconn, "sync_exec", pgconn_exec, -1);
+	rb_define_method(rb_cPGconn, "sync_exec_params", pgconn_exec_params, -1);
+	rb_define_method(rb_cPGconn, "sync_prepare", pgconn_prepare, -1);
+	rb_define_method(rb_cPGconn, "sync_exec_prepared", pgconn_exec_prepared, -1);
+	rb_define_method(rb_cPGconn, "sync_describe_prepared", pgconn_describe_prepared, 1);
+	rb_define_method(rb_cPGconn, "sync_describe_portal", pgconn_describe_portal, 1);
 	rb_define_method(rb_cPGconn, "make_empty_pgresult", pgconn_make_empty_pgresult, 1);
 	rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	rb_define_alias(rb_cPGconn, "escape", "escape_string");

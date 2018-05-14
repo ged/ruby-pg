@@ -268,5 +268,24 @@ class PG::Connection
 		end
 	end
 
+	REDIRECT_METHODS = {
+		:exec => [:async_exec, :sync_exec],
+		:query => [:async_exec, :sync_exec],
+		:exec_params => [:async_exec, :sync_exec_params],
+		:prepare => [:async_prepare, :sync_prepare],
+		:exec_prepared => [:async_query_prepared, :sync_exec_prepared],
+		:describe_portal => [:async_describe_portal, :sync_describe_portal],
+		:describe_prepared => [:async_describe_prepared, :sync_describe_prepared],
+	}
+
+	def self.async_api=(enable)
+		REDIRECT_METHODS.each do |ali, (async, sync)|
+			remove_method(ali) if method_defined?(ali)
+			alias_method( ali, enable ? async : sync )
+		end
+	end
+
+	# pg-1.1.0+ defaults to libpq's async API for query related blocking methods
+	self.async_api = true
 end # class PG::Connection
 
