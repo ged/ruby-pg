@@ -993,8 +993,8 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 
-	/* If called with no parameters, use PQexec */
-	if ( argc == 1 ) {
+	/* If called with no or nil parameters, use PQexec for compatibility */
+	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
 		VALUE query_str = argv[0];
 
 		result = gvl_PQexec(conn, pg_cstr_enc(query_str, ENCODING_GET(self)));
@@ -1007,9 +1007,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	}
 
 	/* Otherwise, just call #exec_params instead for backward-compatibility */
-	else {
-		return pgconn_exec_params( argc, argv, self );
-	}
+	return pgconn_exec_params( argc, argv, self );
 
 }
 
@@ -1312,12 +1310,13 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	int resultFormat;
 	struct query_params_data paramsData = { ENCODING_GET(self) };
 
+	/* For compatibility we accept 1 to 4 parameters */
 	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 1;
 
 	/*
-	 * Handle the edge-case where the caller is coming from #exec, but passed an explict +nil+
-	 * for the second parameter.
+	 * For backward compatibility no or +nil+ for the second parameter
+	 * is passed to #exec
 	 */
 	if ( NIL_P(paramsData.params) ) {
 		return pgconn_exec( 1, argv, self );
