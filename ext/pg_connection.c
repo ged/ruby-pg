@@ -1005,6 +1005,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		}
 		return rb_pgresult;
 	}
+	rb_warn("forwarding exec to exec_params is deprecated");
 
 	/* Otherwise, just call #exec_params instead for backward-compatibility */
 	return pgconn_exec_params( argc, argv, self );
@@ -1319,6 +1320,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	 * is passed to #exec
 	 */
 	if ( NIL_P(paramsData.params) ) {
+		rb_warn("forwarding exec_params to exec is deprecated");
 		return pgconn_exec( 1, argv, self );
 	}
 	pgconn_query_assign_typemap( self, &paramsData );
@@ -1848,6 +1850,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		return Qnil;
 	}
 
+	rb_warn("forwarding async_exec to async_exec_params and send_query to send_query_params is deprecated");
 	/* If called with parameters, and optionally result_format,
 	 * use PQsendQueryParams
 	 */
@@ -3218,6 +3221,7 @@ pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
 	pgconn_discard_results( self );
 	/* If called with no or nil parameters, use PQsendQuery for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
+		rb_warn("forwarding async_exec_params to async_exec is deprecated");
 		pgconn_send_query( argc, argv, self );
 	} else {
 		pgconn_send_query_params( argc, argv, self );
