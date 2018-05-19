@@ -1738,4 +1738,43 @@ describe PG::Connection do
 			end
 		end
 	end
+
+	describe "deprecated forms of methods" do
+		it "should forward exec to exec_params" do
+			res = @conn.exec("VALUES($1::INT)", [7]).values
+			expect(res).to eq( [["7"]] )
+			res = @conn.exec("VALUES($1::INT)", [7], 1).values
+			expect(res).to eq( [[[7].pack("N")]] )
+			res = @conn.exec("VALUES(8)", [], 1).values
+			expect(res).to eq( [[[8].pack("N")]] )
+		end
+
+		it "should forward exec_params to exec" do
+			res = @conn.exec_params("VALUES(3); VALUES(4)").values
+			expect(res).to eq( [["4"]] )
+			res = @conn.exec_params("VALUES(3); VALUES(4)", nil).values
+			expect(res).to eq( [["4"]] )
+			res = @conn.exec_params("VALUES(3); VALUES(4)", nil, nil).values
+			expect(res).to eq( [["4"]] )
+			res = @conn.exec_params("VALUES(3); VALUES(4)", nil, 1).values
+			expect(res).to eq( [["4"]] )
+			res = @conn.exec_params("VALUES(3); VALUES(4)", nil, nil, nil).values
+			expect(res).to eq( [["4"]] )
+			expect{
+				@conn.exec_params("VALUES(3); VALUES(4)", nil, nil, nil, nil).values
+			}.to raise_error(ArgumentError)
+		end
+
+		it "should forward send_query to send_query_params" do
+			@conn.send_query("VALUES($1)", [5])
+			expect(@conn.get_last_result.values).to eq( [["5"]] )
+		end
+
+		it "shouldn't forward send_query_params to send_query" do
+			expect{ @conn.send_query_params("VALUES(4)").values }
+				.to raise_error(ArgumentError)
+			expect{ @conn.send_query_params("VALUES(4)", nil).values }
+				.to raise_error(TypeError)
+		end
+	end
 end
