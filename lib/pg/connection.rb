@@ -271,9 +271,9 @@ class PG::Connection
 	REDIRECT_METHODS = {
 		:exec => [:async_exec, :sync_exec],
 		:query => [:async_exec, :sync_exec],
-		:exec_params => [:async_exec, :sync_exec_params],
+		:exec_params => [:async_exec_params, :sync_exec_params],
 		:prepare => [:async_prepare, :sync_prepare],
-		:exec_prepared => [:async_query_prepared, :sync_exec_prepared],
+		:exec_prepared => [:async_exec_prepared, :sync_exec_prepared],
 		:describe_portal => [:async_describe_portal, :sync_describe_portal],
 		:describe_prepared => [:async_describe_prepared, :sync_describe_prepared],
 	}

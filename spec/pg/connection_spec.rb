@@ -898,19 +898,19 @@ describe PG::Connection do
 		expect( res.to_a ).to eq( [{ 'one' => '41' }] )
 	end
 
-	it "discards previous results (if any) before waiting on #exec and #async_exec" do
+	it "discards previous results (if any) before waiting on #exec" do
 		@conn.send_query( "select 1" )
 		res = @conn.exec( "select 42 as one" )
 		expect( res.to_a ).to eq( [{ 'one' => '42' }] )
 	end
 
-	it "discards previous errors before waiting on #exec and #async_exec", :without_transaction do
+	it "discards previous errors before waiting on #exec", :without_transaction do
 		@conn.send_query( "ERROR" )
 		res = @conn.exec( "select 43 as one" )
 		expect( res.to_a ).to eq( [{ 'one' => '43' }] )
 	end
 
-	it "calls the block if one is provided to #exec and #async_exec" do
+	it "calls the block if one is provided to #exec" do
 		result = nil
 		@conn.exec( "select 47 as one" ) do |pg_res|
 			result = pg_res[0]

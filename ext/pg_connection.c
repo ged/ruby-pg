@@ -979,9 +979,9 @@ static VALUE pgconn_exec_params( int, VALUE *, VALUE );
  * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec</code> returns the value of the block.
  *
- * #exec is implemented on the synchronous command processing API of libpq, whereas
+ * #sync_exec is implemented on the synchronous command processing API of libpq, whereas
  * #async_exec is implemented on the asynchronous API.
- * #exec is somewhat faster that #async_exec, but blocks any signals to be processed until
+ * #sync_exec is somewhat faster that #async_exec, but blocks any signals to be processed until
  * the query is finished. This is most notably visible by a delayed reaction to Control+C.
  * Both methods ensure that other threads can process while waiting for the server to
  * complete the request.
@@ -1817,15 +1817,52 @@ pgconn_set_single_row_mode(VALUE self)
 	return self;
 }
 
+static VALUE pgconn_send_query_params(int argc, VALUE *argv, VALUE self);
+
 /*
  * call-seq:
- *    conn.send_query(sql [, params, result_format[, type_map ]] ) -> nil
+ *    conn.send_query(sql) -> nil
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL for
  * asynchronous processing, and immediately returns.
  * On failure, it raises a PG::Error.
  *
- * +params+ is an optional array of the bind parameters for the SQL query.
+ * For backward compatibility, if you pass more than one parameter to this method,
+ * it will call #send_query_params for you. New code should explicitly use #send_query_params if
+ * argument placeholders are used.
+ *
+ */
+static VALUE
+pgconn_send_query(int argc, VALUE *argv, VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	VALUE error;
+
+	/* If called with no or nil parameters, use PQexec for compatibility */
+	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
+		if(gvl_PQsendQuery(conn, pg_cstr_enc(argv[0], ENCODING_GET(self))) == 0) {
+			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+			rb_iv_set(error, "@connection", self);
+			rb_exc_raise(error);
+		}
+		return Qnil;
+	}
+
+	/* If called with parameters, and optionally result_format,
+	 * use PQsendQueryParams
+	 */
+	return pgconn_send_query_params( argc, argv, self);
+}
+
+/*
+ * call-seq:
+ *    conn.send_query_params(sql, params [, result_format [, type_map ]] ) -> nil
+ *
+ * Sends SQL query request specified by _sql_ to PostgreSQL for
+ * asynchronous processing, and immediately returns.
+ * On failure, it raises a PG::Error.
+ *
+ * +params+ is an array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
  *   a hash of the form:
  *     {:value  => String (value of bind parameter)
@@ -1856,7 +1893,7 @@ pgconn_set_single_row_mode(VALUE self)
  *
  */
 static VALUE
-pgconn_send_query(int argc, VALUE *argv, VALUE self)
+pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int result;
@@ -1866,22 +1903,8 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	int resultFormat;
 	struct query_params_data paramsData = { ENCODING_GET(self) };
 
-	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
+	rb_scan_args(argc, argv, "22", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 1;
-
-	/* If called with no parameters, use PQsendQuery */
-	if(NIL_P(paramsData.params)) {
-		if(gvl_PQsendQuery(conn, pg_cstr_enc(command, paramsData.enc_idx)) == 0) {
-			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
-			rb_iv_set(error, "@connection", self);
-			rb_exc_raise(error);
-		}
-		return Qnil;
-	}
-
-	/* If called with parameters, and optionally result_format,
-	 * use PQsendQueryParams
-	 */
 
 	pgconn_query_assign_typemap( self, &paramsData );
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
@@ -3148,14 +3171,14 @@ pgconn_discard_results(VALUE self)
 
 /*
  * call-seq:
- *    conn.async_exec(sql [, params, result_format ] ) -> PG::Result
- *    conn.async_exec(sql [, params, result_format ] ) {|pg_result| block }
+ *    conn.async_exec(sql) -> PG::Result
+ *    conn.async_exec(sql) {|pg_result| block }
  *
- * This function has the same behavior as #exec,
+ * This function has the same behavior as #sync_exec,
  * but is implemented using the asynchronous command
  * processing API of libpq.
  *
- * Both #exec and #async_exec release the GVL while waiting for server response, so that concurrent threads will get executed.
+ * Both #sync_exec and #async_exec release the GVL while waiting for server response, so that concurrent threads will get executed.
  * However #async_exec has two advantages:
  *
  * 1. #async_exec can be aborted by signals (like Ctrl-C), while #exec blocks signal processing until the query is answered.
@@ -3181,9 +3204,39 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
+ *    conn.async_exec_params(sql, params [, result_format [, type_map ]] ) -> nil
+ *    conn.async_exec_params(sql, params [, result_format [, type_map ]] ) {|pg_result| block }
+ *
+ * This function has the same behavior as #sync_exec_params, but is implemented using the asynchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ */
+static VALUE
+pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	/* If called with no or nil parameters, use PQsendQuery for compatibility */
+	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
+		pgconn_send_query( argc, argv, self );
+	} else {
+		pgconn_send_query_params( argc, argv, self );
+	}
+	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+	rb_pgresult = pgconn_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
+
+
+/*
+ * call-seq:
  *    conn.async_prepare(stmt_name, sql [, param_types ] ) -> PG::Result
  *
- * This function has the same behavior as #prepare, but is implemented using the asynchronous command processing API of libpq.
+ * This function has the same behavior as #sync_prepare, but is implemented using the asynchronous command processing API of libpq.
  * See #async_exec for the differences between the two API variants.
  */
 static VALUE
@@ -3205,14 +3258,14 @@ pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.async_query_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
- *    conn.async_query_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
+ *    conn.async_exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
+ *    conn.async_exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
  *
- * This function has the same behavior as #exec_prepared, but is implemented using the asynchronous command processing API of libpq.
+ * This function has the same behavior as #sync_exec_prepared, but is implemented using the asynchronous command processing API of libpq.
  * See #async_exec for the differences between the two API variants.
  */
 static VALUE
-pgconn_async_query_prepared(int argc, VALUE *argv, VALUE self)
+pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 {
 	VALUE rb_pgresult = Qnil;
 
@@ -3232,7 +3285,7 @@ pgconn_async_query_prepared(int argc, VALUE *argv, VALUE self)
  * call-seq:
  *    conn.async_describe_portal( portal_name ) -> PG::Result
  *
- * This function has the same behavior as #describe_portal, but is implemented using the asynchronous command processing API of libpq.
+ * This function has the same behavior as #sync_describe_portal, but is implemented using the asynchronous command processing API of libpq.
  * See #async_exec for the differences between the two API variants.
  */
 static VALUE
@@ -3256,7 +3309,7 @@ pgconn_async_describe_portal(VALUE self, VALUE portal)
  * call-seq:
  *    conn.async_describe_prepared( statement_name ) -> PG::Result
  *
- * This function has the same behavior as #describe_prepared, but is implemented using the asynchronous command processing API of libpq.
+ * This function has the same behavior as #sync_describe_prepared, but is implemented using the asynchronous command processing API of libpq.
  * See #async_exec for the differences between the two API variants.
  */
 static VALUE
@@ -4070,12 +4123,14 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Asynchronous Command Processing     ******/
 	rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);
+	rb_define_method(rb_cPGconn, "send_query_params", pgconn_send_query_params, -1);
 	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
+	rb_define_method(rb_cPGconn, "async_exec_params", pgconn_async_exec_params, -1);
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "send_prepare", pgconn_send_prepare, -1);
 	rb_define_method(rb_cPGconn, "async_prepare", pgconn_async_prepare, -1);
 	rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, -1);
-	rb_define_method(rb_cPGconn, "async_query_prepared", pgconn_async_query_prepared, -1);
+	rb_define_method(rb_cPGconn, "async_exec_prepared", pgconn_async_exec_prepared, -1);
 	rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "async_describe_prepared", pgconn_async_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "send_describe_portal", pgconn_send_describe_portal, 1);
