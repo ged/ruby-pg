@@ -1313,19 +1313,8 @@ describe PG::Connection do
 				expect( r.values ).to eq( [['grün', 'grün', 't', 'grün']] )
 			end
 
-			it "should convert query string and parameters to #async_exec" do
-				r = @conn.async_exec("VALUES( $1, $2, $1=$2, 'grün')".encode("cp936"),
-				                  ['grün'.encode('cp850'), 'grün'.encode('utf-16le')])
-				expect( r.values ).to eq( [['grün', 'grün', 't', 'grün']] )
-			end
-
 			it "should convert query string to #exec" do
 				r = @conn.exec("SELECT 'grün'".encode("utf-16be"))
-				expect( r.values ).to eq( [['grün']] )
-			end
-
-			it "should convert query string to #async_exec" do
-				r = @conn.async_exec("SELECT 'grün'".encode("utf-16le"))
 				expect( r.values ).to eq( [['grün']] )
 			end
 
