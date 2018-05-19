@@ -24,7 +24,7 @@ module PG::TestingHelpers
 				begin
 					@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
 					desc = example.source_location.join(':')
-					@conn.exec_params %Q{SET application_name TO '%s'} %
+					@conn.exec %Q{SET application_name TO '%s'} %
 						[@conn.escape_string(desc.slice(-60))]
 					example.run
 				ensure
@@ -264,7 +264,7 @@ module PG::TestingHelpers
 
 	# Retrieve the names of the column types of a given result set.
 	def result_typenames(res)
-		@conn.exec( "SELECT " + res.nfields.times.map{|i| "format_type($#{i*2+1},$#{i*2+2})"}.join(","),
+		@conn.exec_params( "SELECT " + res.nfields.times.map{|i| "format_type($#{i*2+1},$#{i*2+2})"}.join(","),
 				res.nfields.times.map{|i| [res.ftype(i), res.fmod(i)] }.flatten ).
 				values[0]
 	end

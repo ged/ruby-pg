@@ -405,22 +405,11 @@ describe PG::Connection do
 		end
 	end
 
-
-	it "supports parameters passed to #exec (backward compatibility)" do
-		@conn.exec( "CREATE TABLE students ( name TEXT, age INTEGER )" )
-		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Wally', 8] )
-		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Sally', 6] )
-		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Dorothy', 4] )
-
-		res = @conn.exec( "SELECT name FROM students WHERE age >= $1", [6] )
-		expect( res.values ).to eq( [ ['Wally'], ['Sally'] ] )
-	end
-
 	it "supports explicitly calling #exec_params" do
 		@conn.exec( "CREATE TABLE students ( name TEXT, age INTEGER )" )
-		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Wally', 8] )
-		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Sally', 6] )
-		@conn.exec( "INSERT INTO students VALUES( $1, $2 )", ['Dorothy', 4] )
+		@conn.exec_params( "INSERT INTO students VALUES( $1, $2 )", ['Wally', 8] )
+		@conn.exec_params( "INSERT INTO students VALUES( $1, $2 )", ['Sally', 6] )
+		@conn.exec_params( "INSERT INTO students VALUES( $1, $2 )", ['Dorothy', 4] )
 
 		res = @conn.exec_params( "SELECT name FROM students WHERE age >= $1", [6] )
 		expect( res.values ).to eq( [ ['Wally'], ['Sally'] ] )
@@ -1198,7 +1187,7 @@ describe PG::Connection do
 				out_string = nil
 				@conn.transaction do |conn|
 					conn.internal_encoding = 'iso8859-1'
-					res = conn.exec("VALUES ('fantasia')", [], 0)
+					res = conn.exec_params("VALUES ('fantasia')", [], 0)
 					out_string = res[0]['column1']
 				end
 				expect( out_string ).to eq( 'fantasia' )
@@ -1209,7 +1198,7 @@ describe PG::Connection do
 				out_string = nil
 				@conn.transaction do |conn|
 					conn.internal_encoding = 'utf-8'
-					res = conn.exec("VALUES ('世界線航跡蔵')", [], 0)
+					res = conn.exec_params("VALUES ('世界線航跡蔵')", [], 0)
 					out_string = res[0]['column1']
 				end
 				expect( out_string ).to eq( '世界線航跡蔵' )
@@ -1221,7 +1210,7 @@ describe PG::Connection do
 				@conn.transaction do |conn|
 					conn.internal_encoding = 'EUC-JP'
 					stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
-					res = conn.exec(stmt, [], 0)
+					res = conn.exec_params(stmt, [], 0)
 					out_string = res[0]['column1']
 				end
 				expect( out_string ).to eq( '世界線航跡蔵'.encode('EUC-JP') )
@@ -1234,7 +1223,7 @@ describe PG::Connection do
 				@conn.transaction do |conn|
 					conn.internal_encoding = 'EUC-JP'
 					stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
-					res = conn.exec(stmt, [], 0)
+					res = conn.exec_params(stmt, [], 0)
 					conn.internal_encoding = 'utf-8'
 					out_string = res[0]['column1']
 				end
@@ -1342,8 +1331,8 @@ describe PG::Connection do
 				expect( @conn.get_last_result.values ).to eq( [['grün']] )
 			end
 
-			it "should convert query string and parameters to #send_query" do
-				@conn.send_query("VALUES( $1, $2, $1=$2, 'grün')".encode("utf-16le"),
+			it "should convert query string and parameters to #send_query_params" do
+				@conn.send_query_params("VALUES( $1, $2, $1=$2, 'grün')".encode("utf-16le"),
 				                  ['grün'.encode('utf-32be'), 'grün'.encode('iso-8859-1')])
 				expect( @conn.get_last_result.values ).to eq( [['grün', 'grün', 't', 'grün']] )
 			end
