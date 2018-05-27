@@ -78,14 +78,14 @@ describe 'Basic type mapping' do
 
 			it "should do boolean type conversions" do
 				[1, 0].each do |format|
-					res = @conn.exec( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN", [], format )
+					res = @conn.exec_params( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN", [], format )
 					expect( res.values ).to eq( [[true, false, nil]] )
 				end
 			end
 
 			it "should do binary type conversions" do
 				[1, 0].each do |format|
-					res = @conn.exec( "SELECT E'\\\\000\\\\377'::BYTEA", [], format )
+					res = @conn.exec_params( "SELECT E'\\\\000\\\\377'::BYTEA", [], format )
 					expect( res.values ).to eq( [[["00ff"].pack("H*")]] )
 					expect( res.values[0][0].encoding ).to eq( Encoding::ASCII_8BIT ) if Object.const_defined? :Encoding
 				end
@@ -93,7 +93,7 @@ describe 'Basic type mapping' do
 
 			it "should do integer type conversions" do
 				[1, 0].each do |format|
-					res = @conn.exec( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], format )
+					res = @conn.exec_params( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], format )
 					expect( res.values ).to eq( [[-8999, -899999999, -8999999999999999999]] )
 				end
 			end
@@ -101,7 +101,7 @@ describe 'Basic type mapping' do
 			it "should do string type conversions" do
 				@conn.internal_encoding = 'utf-8' if Object.const_defined? :Encoding
 				[1, 0].each do |format|
-					res = @conn.exec( "SELECT 'abcäöü'::TEXT", [], format )
+					res = @conn.exec_params( "SELECT 'abcäöü'::TEXT", [], format )
 					expect( res.values ).to eq( [['abcäöü']] )
 					expect( res.values[0][0].encoding ).to eq( Encoding::UTF_8 ) if Object.const_defined? :Encoding
 				end
@@ -109,7 +109,7 @@ describe 'Basic type mapping' do
 
 			it "should do float type conversions" do
 				[1, 0].each do |format|
-					res = @conn.exec( "SELECT -8.999e3::FLOAT4,
+					res = @conn.exec_params( "SELECT -8.999e3::FLOAT4,
 														8.999e10::FLOAT4,
 														-8999999999e-99::FLOAT8,
 														NULL::FLOAT4,
@@ -129,7 +129,7 @@ describe 'Basic type mapping' do
 
 			it "should do datetime without time zone type conversions" do
 				[0].each do |format|
-					res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
+					res = @conn.exec_params( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
 																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE),
 																		CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
 																		CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
@@ -142,7 +142,7 @@ describe 'Basic type mapping' do
 
 			it "should do datetime with time zone type conversions" do
 				[0].each do |format|
-					res = @conn.exec( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITH TIME ZONE),
+					res = @conn.exec_params( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITH TIME ZONE),
 																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE),
 																		CAST('infinity' AS TIMESTAMP WITH TIME ZONE),
 																		CAST('-infinity' AS TIMESTAMP WITH TIME ZONE)", [], format )
@@ -155,7 +155,7 @@ describe 'Basic type mapping' do
 
 			it "should do date type conversions" do
 				[0].each do |format|
-					res = @conn.exec( "SELECT CAST('2113-12-31' AS DATE),
+					res = @conn.exec_params( "SELECT CAST('2113-12-31' AS DATE),
 																		CAST('1913-12-31' AS DATE),
 																		CAST('infinity' AS DATE),
 																		CAST('-infinity' AS DATE)", [], format )
@@ -169,7 +169,7 @@ describe 'Basic type mapping' do
 			it "should do JSON conversions", :postgresql_94 do
 				[0].each do |format|
 					['JSON', 'JSONB'].each do |type|
-						res = @conn.exec( "SELECT CAST('123' AS #{type}),
+						res = @conn.exec_params( "SELECT CAST('123' AS #{type}),
 																			CAST('12.3' AS #{type}),
 																			CAST('true' AS #{type}),
 																			CAST('false' AS #{type}),
@@ -189,7 +189,7 @@ describe 'Basic type mapping' do
 
 			it "should do array type conversions" do
 				[0].each do |format|
-					res = @conn.exec( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
+					res = @conn.exec_params( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
 															CAST('{1,2,3}' AS INT4[]),
 															CAST('{1,2,3}' AS INT8[]),
 															CAST('{1,2,3}' AS TEXT[]),

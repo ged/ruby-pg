@@ -96,7 +96,7 @@ describe PG::Result do
 	end
 
 	it "inserts nil AS NULL and return NULL as nil" do
-		res = @conn.exec("SELECT $1::int AS n", [nil])
+		res = @conn.exec_params("SELECT $1::int AS n", [nil])
 		expect( res[0]['n'] ).to be_nil()
 	end
 
@@ -161,7 +161,7 @@ describe PG::Result do
 	it "returns the same bytes in binary format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
-		res = @conn.exec('VALUES ($1::bytea)',
+		res = @conn.exec_params('VALUES ($1::bytea)',
 			[ { :value => bytes, :format => 1 } ], 1)
 		expect( res[0]['column1'] ).to eq( bytes )
 		expect( res.getvalue(0,0) ).to eq( bytes )
@@ -173,7 +173,7 @@ describe PG::Result do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
 		@conn.exec("SET standard_conforming_strings=on")
-		res = @conn.exec("VALUES ('#{PG::Connection.escape_bytea(bytes)}'::bytea)", [], 1)
+		res = @conn.exec_params("VALUES ('#{PG::Connection.escape_bytea(bytes)}'::bytea)", [], 1)
 		expect( res[0]['column1'] ).to eq( bytes )
 		expect( res.getvalue(0,0) ).to eq( bytes )
 		expect( res.values[0][0] ).to eq( bytes )
@@ -183,7 +183,7 @@ describe PG::Result do
 	it "returns the same bytes in text format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read
-		res = @conn.exec('VALUES ($1::bytea)',
+		res = @conn.exec_params('VALUES ($1::bytea)',
 			[ { :value => bytes, :format => 1 } ])
 		expect( PG::Connection.unescape_bytea(res[0]['column1']) ).to eq( bytes )
 	end
@@ -194,7 +194,7 @@ describe PG::Result do
 
 		out_bytes = nil
 		@conn.exec("SET standard_conforming_strings=on")
-		res = @conn.exec("VALUES ('#{PG::Connection.escape_bytea(in_bytes)}'::bytea)", [], 0)
+		res = @conn.exec_params("VALUES ('#{PG::Connection.escape_bytea(in_bytes)}'::bytea)", [], 0)
 		out_bytes = PG::Connection.unescape_bytea(res[0]['column1'])
 		expect( out_bytes ).to eq( in_bytes )
 	end
@@ -205,10 +205,10 @@ describe PG::Result do
 		res = @conn.describe_prepared( 'queryfinder' )
 
 		expect(
-			@conn.exec( 'SELECT format_type($1, -1)', [res.paramtype(0)] ).getvalue( 0, 0 )
+			@conn.exec_params( 'SELECT format_type($1, -1)', [res.paramtype(0)] ).getvalue( 0, 0 )
 		).to eq( 'name' )
 		expect(
-			@conn.exec( 'SELECT format_type($1, -1)', [res.paramtype(1)] ).getvalue( 0, 0 )
+			@conn.exec_params( 'SELECT format_type($1, -1)', [res.paramtype(1)] ).getvalue( 0, 0 )
 		).to eq( 'text' )
 	end
 
