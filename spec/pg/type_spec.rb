@@ -444,6 +444,11 @@ describe "PG::Type derivations" do
 							expect( textdec_string_array.decode(%[  [-1:+2]=  {4,3,2,1}]) ).to eq( ['4','3','2','1'] )
 						end
 
+						it 'ignores spaces after array' do
+							expect( textdec_string_array.decode(%[[2:4]={1,2,3}  ]) ).to eq( ['1','2','3'] )
+							expect( textdec_string_array.decode(%[{1,2,3}   ]) ).to eq( ['1','2','3'] )
+						end
+
 						it 'complains about broken array dimensions' do
 							expect{ textdec_string_array.decode(%([2:4={1,2,3})) }.to raise_error(TypeError)
 							expect{ textdec_string_array.decode(%(2:4]={1,2,3})) }.to raise_error(TypeError)
@@ -451,6 +456,15 @@ describe "PG::Type derivations" do
 							expect{ textdec_string_array.decode(%([x]={1,2,3})) }.to raise_error(TypeError)
 							expect{ textdec_string_array.decode(%([]{1,2,3})) }.to raise_error(TypeError)
 							expect{ textdec_string_array.decode(%(1,2,3)) }.to raise_error(TypeError)
+						end
+
+						it 'complains about malformed array' do
+							expect{ textdec_string_array.decode(%({1,2,3)) }.to raise_error(TypeError)
+							expect{ textdec_string_array.decode(%({1,2,3}})) }.to raise_error(TypeError)
+							expect{ textdec_string_array.decode(%({1,2,3}x)) }.to raise_error(TypeError)
+							expect{ textdec_string_array.decode(%({{1,2},{2,3})) }.to raise_error(TypeError)
+							expect{ textdec_string_array.decode(%({{1,2},{2,3}}x)) }.to raise_error(TypeError)
+							expect{ textdec_string_array.decode(%({[1,2},{2,3}}})) }.to raise_error(TypeError)
 						end
 					end
 

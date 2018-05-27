@@ -8,6 +8,7 @@ Enhancements:
 Bugfixes:
 - Properly decode array with prepended dimensions. #272
   For now dimension decorations are ignored, but a valid Array is returned.
+  Moreover it raises TypeError for invalid input values.
 
 
 == v1.0.0 [2018-01-10] Michael Granger <ged@FaerieMUD.org>

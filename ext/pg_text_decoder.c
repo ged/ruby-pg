@@ -280,6 +280,10 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_
 				rb_ary_push(array, subarray);
 				escapeNext = 1;
 			}
+			else if(c == 0)
+			{
+				rb_raise( rb_eTypeError, "premature end of the array string" );
+			}
 			else
 			{
 				word[word_index] = c;
@@ -306,13 +310,14 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_
 		}
 	}
 
-	return array;
+	rb_raise( rb_eTypeError, "premature end of the array string" );
 }
 
 static VALUE
 read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	int ndim = 0;
+	VALUE ret;
 	/*
 	 * If the input string starts with dimension info, read and use that.
 	 * Otherwise, we require the input to be in curly-brace style, and we
@@ -362,7 +367,20 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 		rb_raise( rb_eTypeError, "array value must start with \"{\" or dimension information");
 	(*index)++;
 
-	return read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+	ret = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+
+	if (c_pg_array_string[*index] != '}' )
+		rb_raise( rb_eTypeError, "array value must end with \"}\"");
+	(*index)++;
+
+	/* only whitespace is allowed after the closing brace */
+	for(;(*index) < array_string_length; ++(*index))
+	{
+		if (!array_isspace(c_pg_array_string[*index]))
+			rb_raise( rb_eTypeError, "malformed array literal: Junk after closing right brace.");
+	}
+
+	return ret;
 }
 
 /*
