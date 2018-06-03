@@ -205,6 +205,19 @@ array_isdim(char ch)
 	return 0;
 }
 
+static VALUE
+array_parser_error(const char *text){
+/* TODO: Parsing malformed arrays is deprecated and will raise a TypeError
+ * with pg-2.0+ :
+ *
+ * rb_raise( rb_eTypeError, text );
+ */
+
+	rb_warn("Parsing and returning of broken array strings is deprecated. "
+	        "pg-2.0 will raise a TypeError (%s) in this case.", text);
+	return 0;
+}
+
 /*
  * Array parser functions are thankfully borrowed from here:
  * https://github.com/dockyard/pg_array_parser
@@ -282,7 +295,8 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_
 			}
 			else if(c == 0)
 			{
-				rb_raise( rb_eTypeError, "premature end of the array string" );
+				array_parser_error( "premature end of the array string" );
+				return array;
 			}
 			else
 			{
@@ -310,7 +324,8 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_
 		}
 	}
 
-	rb_raise( rb_eTypeError, "premature end of the array string" );
+	array_parser_error( "premature end of the array string" );
+	return array;
 }
 
 static VALUE
@@ -341,8 +356,10 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 		while (array_isdim(c_pg_array_string[*index]))
 			(*index)++;
 
-		if (c_pg_array_string[*index] != ']')
-			rb_raise( rb_eTypeError, "missing \"]\" in array dimensions");
+		if (c_pg_array_string[*index] != ']'){
+			array_parser_error( "missing \"]\" in array dimensions");
+			break;
+		}
 		(*index)++;
 
 		ndim++;
@@ -355,8 +372,10 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 	else
 	{
 		/* If array dimensions are given, expect '=' operator */
-		if (c_pg_array_string[*index] != '=')
-			rb_raise( rb_eTypeError, "missing assignment operator");
+		if (c_pg_array_string[*index] != '=') {
+			array_parser_error( "missing assignment operator");
+			(*index)-=2; /* jump back to before "]" so that we don't break behavior to pg < 1.1 */
+		}
 		(*index)++;
 
 		while (array_isspace(c_pg_array_string[*index]))
@@ -364,20 +383,20 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
 	}
 
 	if (c_pg_array_string[*index] != '{')
-		rb_raise( rb_eTypeError, "array value must start with \"{\" or dimension information");
+		array_parser_error( "array value must start with \"{\" or dimension information");
 	(*index)++;
 
 	ret = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
 
 	if (c_pg_array_string[*index] != '}' )
-		rb_raise( rb_eTypeError, "array value must end with \"}\"");
+		array_parser_error( "array value must end with \"}\"");
 	(*index)++;
 
 	/* only whitespace is allowed after the closing brace */
 	for(;(*index) < array_string_length; ++(*index))
 	{
 		if (!array_isspace(c_pg_array_string[*index]))
-			rb_raise( rb_eTypeError, "malformed array literal: Junk after closing right brace.");
+			array_parser_error( "malformed array literal: Junk after closing right brace.");
 	}
 
 	return ret;

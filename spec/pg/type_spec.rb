@@ -449,22 +449,44 @@ describe "PG::Type derivations" do
 							expect( textdec_string_array.decode(%[{1,2,3}   ]) ).to eq( ['1','2','3'] )
 						end
 
-						it 'complains about broken array dimensions' do
-							expect{ textdec_string_array.decode(%([2:4={1,2,3})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%(2:4]={1,2,3})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%(={1,2,3})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%([x]={1,2,3})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%([]{1,2,3})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%(1,2,3)) }.to raise_error(TypeError)
+						describe "with malformed syntax are deprecated" do
+							it 'accepts broken array dimensions' do
+								expect( textdec_string_array.decode(%([2:4={1,2,3})) ).to eq([['1','2','3']])
+								expect( textdec_string_array.decode(%(2:4]={1,2,3})) ).to eq([['1','2','3']])
+								expect( textdec_string_array.decode(%(={1,2,3})) ).to eq([['1','2','3']])
+								expect( textdec_string_array.decode(%([x]={1,2,3})) ).to eq([['1','2','3']])
+								expect( textdec_string_array.decode(%([]{1,2,3})) ).to eq([['1','2','3']])
+								expect( textdec_string_array.decode(%(1,2,3)) ).to eq(['','2'])
+							end
+
+							it 'accepts malformed arrays' do
+								expect( textdec_string_array.decode(%({1,2,3)) ).to eq(['1','2'])
+								expect( textdec_string_array.decode(%({1,2,3}})) ).to eq(['1','2','3'])
+								expect( textdec_string_array.decode(%({1,2,3}x)) ).to eq(['1','2','3'])
+								expect( textdec_string_array.decode(%({{1,2},{2,3})) ).to eq([['1','2'],['2','3']])
+								expect( textdec_string_array.decode(%({{1,2},{2,3}}x)) ).to eq([['1','2'],['2','3']])
+								expect( textdec_string_array.decode(%({[1,2},{2,3}}})) ).to eq(['[1','2'])
+							end
 						end
 
-						it 'complains about malformed array' do
-							expect{ textdec_string_array.decode(%({1,2,3)) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%({1,2,3}})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%({1,2,3}x)) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%({{1,2},{2,3})) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%({{1,2},{2,3}}x)) }.to raise_error(TypeError)
-							expect{ textdec_string_array.decode(%({[1,2},{2,3}}})) }.to raise_error(TypeError)
+						pending "with malformed syntax are raised with pg-2.0+" do
+							it 'complains about broken array dimensions' do
+								expect{ textdec_string_array.decode(%([2:4={1,2,3})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%(2:4]={1,2,3})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%(={1,2,3})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%([x]={1,2,3})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%([]{1,2,3})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%(1,2,3)) }.to raise_error(TypeError)
+							end
+
+							it 'complains about malformed array' do
+								expect{ textdec_string_array.decode(%({1,2,3)) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%({1,2,3}})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%({1,2,3}x)) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%({{1,2},{2,3})) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%({{1,2},{2,3}}x)) }.to raise_error(TypeError)
+								expect{ textdec_string_array.decode(%({[1,2},{2,3}}})) }.to raise_error(TypeError)
+							end
 						end
 					end
 
