@@ -4,6 +4,7 @@ Enhancements:
 - Replace Ruby code by a faster C implementation of the SimpleDecoder's timestamp decode functions. github #20
 - Replace `rb_thread_fd_select()` by faster `rb_wait_for_single_fd()` in `conn.block` and `conn.async_exec` .
 - Fix headers and permission bits of various repository files.
+- Add PG::Result#tuple_values
 
 Bugfixes:
 - Properly decode array with prepended dimensions. #272
