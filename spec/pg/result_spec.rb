@@ -343,6 +343,15 @@ describe PG::Result do
 		expect{ res.field_values(:x) }.to raise_error(TypeError)
 	end
 
+	it "can return the values of a single tuple" do
+		res = @conn.exec( "SELECT 1 AS x, 'a' AS y UNION ALL SELECT 2, 'b'" )
+		expect( res.tuple_values(0) ).to eq( ['1', 'a'] )
+		expect( res.tuple_values(1) ).to eq( ['2', 'b'] )
+		expect{ res.tuple_values(2) }.to raise_error(IndexError)
+		expect{ res.tuple_values(-1) }.to raise_error(IndexError)
+		expect{ res.tuple_values("x") }.to raise_error(TypeError)
+	end
+
 	it "raises a proper exception for a nonexistant table" do
 		expect {
 			@conn.exec( "SELECT * FROM nonexistant_table" )
@@ -436,6 +445,7 @@ describe PG::Result do
 			expect( res.enum_for(:each).to_a ).to eq( [{'f' => 123}] )
 			expect( res.column_values(0) ).to eq( [123] )
 			expect( res.field_values('f') ).to eq( [123] )
+			expect( res.tuple_values(0) ).to eq( [123] )
 		end
 
 		it "should be usable for several querys" do
