@@ -42,6 +42,17 @@ describe 'Basic type mapping' do
 
 			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]'] )
 		end
+
+		it "should do IPAddr param encoding" do
+			res = @conn.exec_params( "SELECT $1::inet,$2::inet,$3::cidr,$4::cidr",
+				['1.2.3.4', IPAddr.new('1234::5678'), '1.2.3.4', IPAddr.new('1234:5678::/32')], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [
+					[ '1.2.3.4', '1234::5678', '1.2.3.4/32', '1234:5678::/32'],
+			] )
+
+			expect( result_typenames(res) ).to eq( ['inet', 'inet', 'cidr', 'cidr'] )
+		end
 	end
 
 
@@ -205,6 +216,86 @@ describe 'Basic type mapping' do
 					expect( res.getvalue(0,5) ).to eq( ['1','2','3'] )
 					expect( res.getvalue(0,6) ).to eq( [1.0,2.0,3.0] )
 					expect( res.getvalue(0,7) ).to eq( [1.0,2.0,3.0] )
+				end
+			end
+
+			it "should do inet type conversions" do
+				[0].each do |format|
+					vals = [
+					  '1.2.3.4',
+						'0.0.0.0/0',
+						'1.0.0.0/8',
+						'1.2.0.0/16',
+						'1.2.3.0/24',
+						'1.2.3.4/32',
+						'1.2.3.128/25',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012',
+						'::/0',
+						'1234:3456::/32',
+						'1234:3456:5678:789a::/64',
+						'1234:3456:5678:789a:9abc:bced::/96',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012/128',
+					]
+					sql_vals = vals.map { |v| "CAST('#{v}' AS inet)" }
+					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )
+					vals.each_with_index do |v, i|
+						val = res.getvalue(0,i)
+						ip, prefix = v.split('/', 2)
+						expect( val.to_s ).to eq( ip )
+						if val.respond_to?(:prefix)
+							val_prefix = val.prefix
+						else
+					    default_prefix = (val.family == Socket::AF_INET ? 32 : 128)
+							range = val.to_range
+							val_prefix	= default_prefix - Math.log(((range.end.to_i - range.begin.to_i) + 1), 2).to_i
+						end
+						if v.include?('/')
+							expect( val_prefix ).to eq( prefix.to_i )
+						elsif v.include?('.')
+							expect( val_prefix ).to eq( 32 )
+						else
+							expect( val_prefix ).to eq( 128 )
+						end
+					end
+				end
+			end
+
+			it "should do cidr type conversions" do
+				[0].each do |format|
+					vals = [
+						'0.0.0.0/0',
+						'1.0.0.0/8',
+						'1.2.0.0/16',
+						'1.2.3.0/24',
+						'1.2.3.4/32',
+						'1.2.3.128/25',
+						'::/0',
+						'1234:3456::/32',
+						'1234:3456:5678:789a::/64',
+						'1234:3456:5678:789a:9abc:bced::/96',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012/128',
+					]
+					sql_vals = vals.map { |v| "CAST('#{v}' AS cidr)" }
+					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )
+					vals.each_with_index do |v, i|
+					  val = res.getvalue(0,i)
+						ip, prefix = v.split('/', 2)
+					  expect( val.to_s ).to eq( ip )
+						if val.respond_to?(:prefix)
+							val_prefix = val.prefix
+						else
+					    default_prefix = (val.family == Socket::AF_INET ? 32 : 128)
+							range = val.to_range
+							val_prefix	= default_prefix - Math.log(((range.end.to_i - range.begin.to_i) + 1), 2).to_i
+						end
+						if v.include?('/')
+						  expect( val_prefix ).to eq( prefix.to_i )
+						elsif v.include?('.')
+						  expect( val_prefix ).to eq( 32 )
+					  else
+						  expect( val_prefix ).to eq( 128 )
+						end
+					end
 				end
 			end
 		end

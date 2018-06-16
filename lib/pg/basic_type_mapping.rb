@@ -214,8 +214,8 @@ module PG::BasicTypeRegistry
 	# register_type 'citext', OID::Text.new
 	# register_type 'ltree', OID::Text.new
 	#
-	# register_type 'cidr', OID::Cidr.new
-	# alias_type 'inet', 'cidr'
+	register_type 0, 'inet', PG::TextEncoder::Inet, PG::TextDecoder::Inet
+	alias_type 0, 'cidr', 'inet'
 
 
 
@@ -433,6 +433,9 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		# to unnecessary type conversions on server side.
 		Integer => [0, 'int8'],
 		Float => [0, 'float8'],
+		# We use text format and no type OID for IPAddr, because setting the OID can lead
+		# to unnecessary inet/cidr conversions on the server side.
+		IPAddr => [0, 'inet'],
 		Array => :get_array_type,
 	}
 
