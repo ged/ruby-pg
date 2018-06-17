@@ -175,7 +175,7 @@ module PG::BasicTypeRegistry
 	alias_type    0, 'int8', 'int2'
 	alias_type    0, 'oid',  'int2'
 
-	# register_type 0, 'numeric', OID::Decimal.new
+	register_type 0, 'numeric', PG::TextEncoder::Numeric, PG::TextDecoder::Numeric
 	register_type 0, 'text', PG::TextEncoder::String, PG::TextDecoder::String
 	alias_type 0, 'varchar', 'text'
 	alias_type 0, 'char', 'text'
@@ -433,6 +433,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		# to unnecessary type conversions on server side.
 		Integer => [0, 'int8'],
 		Float => [0, 'float8'],
+		BigDecimal => [0, 'numeric'],
 		Array => :get_array_type,
 	}
 

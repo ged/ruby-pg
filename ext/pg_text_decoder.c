@@ -41,6 +41,7 @@ VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
 static ID s_id_Rational;
 static ID s_id_new;
+static ID s_id_BigDecimal;
 
 /*
  * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
@@ -136,6 +137,19 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
 	}
 	/* Fallback to ruby method if number too big or unrecognized. */
 	return rb_cstr2inum(val, 10);
+}
+
+/*
+ * Document-class: PG::TextDecoder::Numeric < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL numeric types
+ * to Ruby BigDecimal objects.
+ *
+ */
+static VALUE
+pg_text_dec_numeric(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
 }
 
 /*
@@ -733,6 +747,9 @@ init_pg_text_decoder()
 	s_id_Rational = rb_intern("Rational");
 	s_id_new = rb_intern("new");
 
+	rb_require("bigdecimal");
+	s_id_BigDecimal = rb_intern("BigDecimal");
+
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
 
@@ -743,6 +760,8 @@ init_pg_text_decoder()
 	pg_define_coder( "Integer", pg_text_dec_integer, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Float", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Float", pg_text_dec_float, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "BigDecimal", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Numeric", pg_text_dec_numeric, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "String", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Bytea", rb_cPG_SimpleDecoder ); */
