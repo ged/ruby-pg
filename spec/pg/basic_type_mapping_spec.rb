@@ -181,7 +181,7 @@ describe 'Basic type mapping' do
 
 			it "should do numeric type conversions" do
 				[0].each do |format|
-				  small = '123456790123.12'
+					small = '123456790123.12'
 					large = ('123456790'*10) << '.' << ('012345679')
 					numerics = [
 						'1',
