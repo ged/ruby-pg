@@ -16,6 +16,102 @@ static t_pg_result *pgresult_get_this( VALUE );
 static t_pg_result *pgresult_get_this_safe( VALUE );
 
 
+#define PGRESULT_DATA_BLOCKSIZE 2048
+typedef struct pgresAttValue
+{
+	int			len;			/* length in bytes of the value */
+	char	   *value;			/* actual value, plus terminating zero byte */
+} PGresAttValue;
+
+
+static int
+count_leading_zero_bits(unsigned int x)
+{
+#if defined(__GNUC__) || defined(__clang__)
+	return __builtin_clz(x);
+#elif defined(_MSC_VER)
+	DWORD r = 0;
+	_BitScanForward(&r, x);
+	return (int)r;
+#else
+	unsigned int a;
+	for(a=0; a < sizeof(unsigned int) * 8; a++){
+		if( x & (1 << (sizeof(unsigned int) * 8 - 1))) return a;
+		x <<= 1;
+	}
+	return a;
+#endif
+}
+
+static ssize_t
+pgresult_approx_size(PGresult *result)
+{
+	int num_fields = PQnfields(result);
+	ssize_t size = 0;
+
+	if( num_fields > 0 ){
+		int num_tuples = PQntuples(result);
+
+		if( num_tuples > 0 ){
+			int pos;
+
+			/* This is a simple heuristic to determine the number of sample fields and subsequently to approximate the memory size taken by all field values of the result set.
+			 * Since scanning of all field values is would have a severe performance impact, only a small subset of fields is retrieved and the result is extrapolated to the whole result set.
+			 * The given algorithm has no real scientific background, but is made for speed and typical table layouts.
+			 */
+			int num_samples =
+				(num_fields < 9 ? num_fields : 39 - count_leading_zero_bits(num_fields-8)) *
+				(num_tuples < 8 ? 1 : 30 - count_leading_zero_bits(num_tuples));
+
+			/* start with scanning very last fields, since they are most probably in the cache */
+			for( pos = 0; pos < (num_samples+1)/2; pos++ ){
+				size += PQgetlength(result, num_tuples - 1 - (pos / num_fields), num_fields - 1 - (pos % num_fields));
+			}
+			/* scan the very first fields */
+			for( pos = 0; pos < num_samples/2; pos++ ){
+				size += PQgetlength(result, pos / num_fields, pos % num_fields);
+			}
+			/* extrapolate sample size to whole result set */
+			size = size * num_tuples * num_fields / num_samples;
+		}
+
+		/* count metadata */
+		size += num_fields * (
+				sizeof(PGresAttDesc) + /* column description */
+				num_tuples * (
+					sizeof(PGresAttValue) + 1 /* ptr, len and zero termination of each value */
+				)
+		);
+
+		/* Account free space due to libpq's default block size */
+		size = (size + PGRESULT_DATA_BLOCKSIZE - 1) / PGRESULT_DATA_BLOCKSIZE * PGRESULT_DATA_BLOCKSIZE;
+
+		/* count tuple pointers */
+		size += sizeof(void*) * ((num_tuples + 128 - 1) / 128 * 128);
+	}
+
+	size += 216; /* add PGresult size */
+
+	return size;
+}
+
+static void
+pgresult_clear( t_pg_result *this )
+{
+	if( this->pgresult && !this->autoclear ){
+		PQclear(this->pgresult);
+#ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
+		rb_gc_adjust_memory_usage(-this->result_size);
+#endif
+	}
+	this->pgresult = NULL;
+}
+
+static size_t
+pgresult_memsize( t_pg_result *this )
+{
+	return this->result_size;
+}
 
 /*
  * Global functions
@@ -24,21 +120,20 @@ static t_pg_result *pgresult_get_this_safe( VALUE );
 /*
  * Result constructor
  */
-VALUE
-pg_new_result(PGresult *result, VALUE rb_pgconn)
+static VALUE
+pg_new_result2(PGresult *result, VALUE rb_pgconn)
 {
 	int nfields = result ? PQnfields(result) : 0;
 	VALUE self = pgresult_s_allocate( rb_cPGresult );
 	t_pg_result *this;
 
 	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
-	DATA_PTR(self) = this;
+	RTYPEDDATA_DATA(self) = this;
 
 	this->pgresult = result;
 	this->connection = rb_pgconn;
 	this->typemap = pg_typemap_all_strings;
 	this->p_typemap = DATA_PTR( this->typemap );
-	this->autoclear = 0;
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 
@@ -59,10 +154,36 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 }
 
 VALUE
+pg_new_result(PGresult *result, VALUE rb_pgconn)
+{
+	VALUE self = pg_new_result2(result, rb_pgconn);
+	t_pg_result *this = pgresult_get_this(self);
+	t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
+
+	this->autoclear = 0;
+
+	if( p_conn->guess_result_memsize ){
+		/* Approximate size of underlying pgresult memory storage and account to ruby GC */
+		this->result_size = pgresult_approx_size(result);
+
+#ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
+		rb_gc_adjust_memory_usage(this->result_size);
+#endif
+	}
+
+	return self;
+}
+
+VALUE
 pg_new_result_autoclear(PGresult *result, VALUE rb_pgconn)
 {
-	VALUE self = pg_new_result(result, rb_pgconn);
+	VALUE self = pg_new_result2(result, rb_pgconn);
 	t_pg_result *this = pgresult_get_this(self);
+
+	/* Autocleared results are freed implicit instead of by PQclear().
+	 * So it's not very useful to be accounted by ruby GC.
+	 */
+	this->result_size = 0;
 	this->autoclear = 1;
 	return self;
 }
@@ -141,9 +262,7 @@ VALUE
 pg_result_clear(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this(self);
-	if( !this->autoclear )
-		PQclear(pgresult_get(self));
-	this->pgresult = NULL;
+	pgresult_clear( this );
 	return Qnil;
 }
 
@@ -204,8 +323,7 @@ static void
 pgresult_gc_free( t_pg_result *this )
 {
 	if( !this ) return;
-	if(this->pgresult != NULL && !this->autoclear)
-		PQclear(this->pgresult);
+	pgresult_clear( this );
 
 	xfree(this);
 }
@@ -239,6 +357,20 @@ pgresult_get(VALUE self)
 	return this->pgresult;
 }
 
+
+static const rb_data_type_t pgresult_type = {
+	"pg",
+	{
+		(void (*)(void*))pgresult_gc_mark,
+		(void (*)(void*))pgresult_gc_free,
+		(size_t (*)(const void *))pgresult_memsize,
+	},
+	0, 0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 /*
  * Document-method: allocate
  *
@@ -248,7 +380,7 @@ pgresult_get(VALUE self)
 static VALUE
 pgresult_s_allocate( VALUE klass )
 {
-	VALUE self = Data_Wrap_Struct( klass, pgresult_gc_mark, pgresult_gc_free, NULL );
+	VALUE self = TypedData_Wrap_Struct( klass, &pgresult_type, NULL );
 
 	return self;
 }
@@ -1154,10 +1286,7 @@ pgresult_stream_each(VALUE self)
 			rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
 		}
 
-		if( !this->autoclear ){
-			PQclear( pgresult );
-			this->pgresult = NULL;
-		}
+		pgresult_clear( this );
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
@@ -1226,10 +1355,7 @@ pgresult_stream_each_row(VALUE self)
 			rb_yield( rb_ary_new4( nfields, row_values ));
 		}
 
-		if( !this->autoclear ){
-			PQclear( pgresult );
-			this->pgresult = NULL;
-		}
+		pgresult_clear( this );
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )

@@ -102,6 +102,9 @@ typedef struct {
 
 	/* The connection socket, used for rb_wait_for_single_fd() */
 	int socket;
+
+	/* enable/disable guessing size of PGresult's allocated memory */
+	int guess_result_memsize;
 } t_pg_connection;
 
 typedef struct pg_coder t_pg_coder;
@@ -131,6 +134,9 @@ typedef struct {
 	 * Set to -1 if fnames[] is not yet initialized.
 	 */
 	int nfields;
+
+	/* Size of PGresult as published to ruby memory management. */
+	ssize_t result_size;
 
 	/* Prefilled tuple Hash with fnames[] as keys. */
 	VALUE tuple_hash;
