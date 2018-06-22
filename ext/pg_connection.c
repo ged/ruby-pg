@@ -1850,7 +1850,11 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		return Qnil;
 	}
 
-	rb_warn("forwarding async_exec to async_exec_params and send_query to send_query_params is deprecated");
+	/* TODO: Enable this warning, after pg-1.1.0 is released, so that there's a transition phase for frameworks to use the new methods.
+	 * Otherwise we would bother users with warnings they can not fix.
+	 */
+	/* rb_warn("forwarding async_exec to async_exec_params and send_query to send_query_params is deprecated"); */
+
 	/* If called with parameters, and optionally result_format,
 	 * use PQsendQueryParams
 	 */
