@@ -759,7 +759,6 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 	ip = rb_class_new_instance(1, &ip, s_IPAddr);
 #else
 	VALUE ip_int;
-	VALUE vmask;
 	VALUE vmasks;
 	char dst[16];
 	int af = strchr(val, '.') ? AF_INET : AF_INET6;
@@ -800,7 +799,6 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 			rb_raise(rb_eTypeError, "invalid mask for IPv6: %d", mask);
 		}
 		vmasks = s_vmasks6;
-		vmask = RARRAY_PTR(s_vmasks6)[mask];
 
 		if (!is_big_endian) {
 			unsigned int * dstp = (unsigned int *)dst;
@@ -833,7 +831,7 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 		ip = rb_obj_alloc(s_IPAddr);
 		rb_ivar_set(ip, s_ivar_family, INT2NUM(af));
 		rb_ivar_set(ip, s_ivar_addr, ip_int);
-		rb_ivar_set(ip, s_ivar_mask_addr, RARRAY_PTR(vmasks)[mask]);
+		rb_ivar_set(ip, s_ivar_mask_addr, RARRAY_AREF(vmasks, mask));
 	} else {
 		VALUE ip_args[2];
 		ip_args[0] = ip_int;
