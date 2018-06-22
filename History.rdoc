@@ -1,4 +1,22 @@
+== v2.0.0 - far from release -
+
+Removed:
+- Removed query method variants deprecated in pg-1.1.0.
+
+Changed:
+- Parsing of broken array strings raises a TypeError.
+
+
 == v1.1.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Deprecated:
+- Forwarding conn.exec to conn.exec_params is deprecated.
+- Forwarding conn.exec_params to conn.exec is deprecated.
+- Forwarding conn.async_exec to conn.async_exec_params.
+- Forwarding conn.send_query to conn.send_query_params is deprecated.
+- Forwarding conn.async_exec_params to conn.async_exec is deprecated.
+- Parsing and returning of broken array strings is deprecated.
+  pg-2.0 will raise a TypeError in this case.
 
 Enhancements:
 - Replace Ruby code by a faster C implementation of the SimpleDecoder's timestamp decode functions. github #20
