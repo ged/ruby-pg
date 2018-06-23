@@ -836,7 +836,7 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 		}
 		vmasks = s_vmasks4;
 
-		ip_int = UINT2NUM(ntohl(*(unsigned int *)dst));
+		ip_int = UINT2NUM(read_nbo32(dst));
 	} else {
 		unsigned long long * dstllp = (unsigned long long *)dst;
 
