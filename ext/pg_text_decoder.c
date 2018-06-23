@@ -36,6 +36,11 @@
 #endif
 #include <ctype.h>
 #include <time.h>
+#if !defined(_WIN32)
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#endif
+#include <string.h>
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_decode;
@@ -43,6 +48,17 @@ static ID s_id_Rational;
 static ID s_id_new;
 static ID s_id_utc;
 static ID s_id_getlocal;
+
+VALUE s_IPAddr;
+VALUE s_vmasks4;
+VALUE s_vmasks6;
+static int use_ipaddr_alloc;
+static ID s_id_lshift;
+static ID s_id_add;
+static ID s_id_mask;
+static ID s_ivar_family;
+static ID s_ivar_addr;
+static ID s_ivar_mask_addr;
 
 /*
  * Document-class: PG::TextDecoder::Boolean < PG::SimpleDecoder
@@ -774,9 +790,106 @@ pg_text_dec_timestamp_utc(t_pg_coder *conv, char *val, int len, int tuple, int f
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 3);
 }
 
+/*
+ * Document-class: PG::TextDecoder::Inet < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL inet type
+ * to Ruby IPAddr values.
+ *
+ */
+static VALUE
+pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+{
+	VALUE ip;
+#if defined(_WIN32)
+	ip = rb_str_new(val, len);
+	ip = rb_class_new_instance(1, &ip, s_IPAddr);
+#else
+	VALUE ip_int;
+	VALUE vmasks;
+	char dst[16];
+	int af = strchr(val, '.') ? AF_INET : AF_INET6;
+	int mask = -1;
+
+	if (len >= 4) {
+		if (val[len-2] == '/') {
+			mask = val[len-1] - '0';
+			val[len-2] = '\0';
+		} else if (val[len-3] == '/') {
+			mask = (val[len-2]- '0') *10 + val[len-1] - '0';
+			val[len-3] = '\0';
+		} else if (val[len-4] == '/') {
+			mask = (val[len-3]- '0')*100 + (val[len-2]- '0')*10 + val[len-1] - '0';
+			val[len-4] = '\0';
+		}
+	}
+
+	if (1 != inet_pton(af, val, dst)) {
+		rb_raise(rb_eTypeError, "wrong data for text inet converter in tuple %d field %d val", tuple, field);
+	}
+
+	if (af == AF_INET) {
+		if (mask == -1) {
+			mask = 32;
+		} else if (mask < 0 || mask > 32) {
+			rb_raise(rb_eTypeError, "invalid mask for IPv4: %d", mask);
+		}
+		vmasks = s_vmasks4;
+
+		ip_int = UINT2NUM(ntohl(*(unsigned int *)dst));
+	} else {
+		unsigned long long * dstllp = (unsigned long long *)dst;
+
+		if (mask == -1) {
+			mask = 128;
+		} else if (mask < 0 || mask > 128) {
+			rb_raise(rb_eTypeError, "invalid mask for IPv6: %d", mask);
+		}
+		vmasks = s_vmasks6;
+
+		/* 4 Bignum allocations */
+		ip_int = ULL2NUM(read_nbo64(dstllp));
+		ip_int = rb_funcall(ip_int, s_id_lshift, 1, INT2NUM(64));
+		dstllp++;
+		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(read_nbo64(dstllp)));
+	}
+
+	if (use_ipaddr_alloc) {
+		ip = rb_obj_alloc(s_IPAddr);
+		rb_ivar_set(ip, s_ivar_family, INT2NUM(af));
+		rb_ivar_set(ip, s_ivar_addr, ip_int);
+		rb_ivar_set(ip, s_ivar_mask_addr, RARRAY_AREF(vmasks, mask));
+	} else {
+		VALUE ip_args[2];
+		ip_args[0] = ip_int;
+		ip_args[1] = INT2NUM(af);
+		ip = rb_class_new_instance(2, ip_args, s_IPAddr);
+		ip = rb_funcall(ip, s_id_mask, 1, INT2NUM(mask));
+	}
+
+#endif
+	return ip;
+}
+
 void
 init_pg_text_decoder()
 {
+	rb_require("ipaddr");
+	s_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
+	s_ivar_family = rb_intern("@family");
+	s_ivar_addr = rb_intern("@addr");
+	s_ivar_mask_addr = rb_intern("@mask_addr");
+	s_id_lshift = rb_intern("<<");
+	s_id_add = rb_intern("+");
+	s_id_mask = rb_intern("mask");
+
+	use_ipaddr_alloc = RTEST(rb_eval_string("IPAddr.new.instance_variables.sort == [:@addr, :@family, :@mask_addr]"));
+
+	s_vmasks4 = rb_eval_string("a = [0]*33; a[0] = 0; a[32] = 0xffffffff; 31.downto(1){|i| a[i] = a[i+1] - (1 << (31 - i))}; a.freeze");
+	rb_global_variable(&s_vmasks4);
+	s_vmasks6 = rb_eval_string("a = [0]*129; a[0] = 0; a[128] = 0xffffffffffffffffffffffffffffffff; 127.downto(1){|i| a[i] = a[i+1] - (1 << (127 - i))}; a.freeze");
+	rb_global_variable(&s_vmasks6);
+
 	s_id_decode = rb_intern("decode");
 	s_id_Rational = rb_intern("Rational");
 	s_id_new = rb_intern("new");
@@ -813,4 +926,7 @@ init_pg_text_decoder()
 	pg_define_coder( "TimestampUtcToLocal", pg_text_dec_timestamp_utc_to_local, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampUtc", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "TimestampUtc", pg_text_dec_timestamp_utc, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
+
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Inet", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Inet", pg_text_dec_inet, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 }
