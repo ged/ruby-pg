@@ -695,7 +695,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					}
 					break;
 				}
-				case 1: /* interprete as local time, return as local time */
+				case 1: /* interpret as local time, return as local time */
 					/* Fall through to rb_funcall(), because I couldn't find a fast way to
 					 * use rb_time_timespec_new() for this case.
 					 */
