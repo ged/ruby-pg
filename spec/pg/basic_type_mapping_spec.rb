@@ -43,6 +43,18 @@ describe 'Basic type mapping' do
 			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]'] )
 		end
 
+		it "should do bigdecimal param encoding" do
+			large = ('123456790'*10) << '.' << ('012345679')
+			res = @conn.exec_params( "SELECT $1::numeric,$2::numeric",
+				[BigDecimal.new('1'), BigDecimal.new(large)], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [
+					[ "1.0", large ],
+			] )
+
+			expect( result_typenames(res) ).to eq( ['numeric', 'numeric'] )
+		end
+
 		it "should do IPAddr param encoding" do
 			res = @conn.exec_params( "SELECT $1::inet,$2::inet,$3::cidr,$4::cidr",
 				['1.2.3.4', IPAddr.new('1234::5678'), '1.2.3.4', IPAddr.new('1234:5678::/32')], nil, basic_type_mapping )
@@ -53,6 +65,7 @@ describe 'Basic type mapping' do
 
 			expect( result_typenames(res) ).to eq( ['inet', 'inet', 'cidr', 'cidr'] )
 		end
+
 	end
 
 
@@ -174,6 +187,27 @@ describe 'Basic type mapping' do
 					expect( res.getvalue(0,1) ).to eq( Date.new(1913, 12, 31) )
 					expect( res.getvalue(0,2) ).to eq( 'infinity' )
 					expect( res.getvalue(0,3) ).to eq( '-infinity' )
+				end
+			end
+
+			it "should do numeric type conversions" do
+				[0].each do |format|
+					small = '123456790123.12'
+					large = ('123456790'*10) << '.' << ('012345679')
+					numerics = [
+						'1',
+						'1.0',
+						'1.2',
+						small,
+						large,
+					]
+					sql_numerics = numerics.map { |v| "CAST(#{v} AS numeric)" }
+					res = @conn.exec_params( "SELECT #{sql_numerics.join(',')}", [], format )
+					expect( res.getvalue(0,0) ).to eq( BigDecimal('1') )
+					expect( res.getvalue(0,1) ).to eq( BigDecimal('1') )
+					expect( res.getvalue(0,2) ).to eq( BigDecimal('1.2') )
+					expect( res.getvalue(0,3) ).to eq( BigDecimal(small) )
+					expect( res.getvalue(0,4) ).to eq( BigDecimal(large) )
 				end
 			end
 
