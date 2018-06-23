@@ -50,7 +50,6 @@ static ID s_id_new;
 VALUE s_IPAddr;
 VALUE s_vmasks4;
 VALUE s_vmasks6;
-static int is_big_endian;
 static int use_ipaddr_alloc;
 static ID s_id_lshift;
 static ID s_id_add;
@@ -800,31 +799,11 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 		}
 		vmasks = s_vmasks6;
 
-		if (!is_big_endian) {
-			unsigned int * dstp = (unsigned int *)dst;
-                        unsigned int dstt;
-
-			*dstp = ntohl(*dstp);
-                        dstp++;
-			*dstp = ntohl(*dstp);
-                        dstp++;
-			*dstp = ntohl(*dstp);
-                        dstp++;
-			*dstp = ntohl(*dstp);
-
-                        dstp -= 3;
-                        dstt = *dstp;
-                        *dstp = *(dstp+1);
-                        *(dstp+1) = dstt;
-                        dstt = *(dstp+2);
-                        *(dstp+2) = *(dstp+3);
-                        *(dstp+3) = dstt;
-		}
-
 		/* 4 Bignum allocations */
-		ip_int = ULL2NUM(*dstllp);
+		ip_int = ULL2NUM(read_nbo64(dstllp));
 		ip_int = rb_funcall(ip_int, s_id_lshift, 1, INT2NUM(64));
-		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(*(dstllp+1)));
+		dstllp++;
+		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(read_nbo64(dstllp)));
 	}
 
 	if (use_ipaddr_alloc) {
@@ -856,7 +835,6 @@ init_pg_text_decoder()
 	s_id_add = rb_intern("+");
 	s_id_mask = rb_intern("mask");
 
-	is_big_endian = 1 == htonl(1);
 	use_ipaddr_alloc = RTEST(rb_eval_string("IPAddr.new.instance_variables.sort == [:@addr, :@family, :@mask_addr]"));
 
 	s_vmasks4 = rb_eval_string("a = [0]*33; a[0] = 0; a[32] = 0xffffffff; 31.downto(1){|i| a[i] = a[i+1] - (1 << (31 - i))}; a.freeze");
