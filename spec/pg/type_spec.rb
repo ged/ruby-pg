@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 require 'pg'
+require 'time'
 
 
 describe "PG::Type derivations" do
@@ -15,6 +16,9 @@ describe "PG::Type derivations" do
 	let!(:textdec_string) { PG::TextDecoder::String.new }
 	let!(:textenc_timestamp) { PG::TextEncoder::TimestampWithoutTimeZone.new }
 	let!(:textdec_timestamp) { PG::TextDecoder::TimestampWithoutTimeZone.new }
+	let!(:textenc_timestamputc) { PG::TextEncoder::TimestampUtc.new }
+	let!(:textdec_timestamputc) { PG::TextDecoder::TimestampUtc.new }
+	let!(:textdec_timestampul) { PG::TextDecoder::TimestampUtcToLocal.new }
 	let!(:textenc_timestamptz) { PG::TextEncoder::TimestampWithTimeZone.new }
 	let!(:textdec_timestamptz) { PG::TextDecoder::TimestampWithTimeZone.new }
 	let!(:textenc_bytea) { PG::TextEncoder::Bytea.new }
@@ -96,15 +100,29 @@ describe "PG::Type derivations" do
 			end
 
 			context 'timestamps' do
-				it 'decodes timestamps without timezone' do
-					expect( textdec_timestamp.decode('2016-01-02 23:23:59.123456') ).
-						to be_within(0.000001).of( Time.new(2016,01,02, 23, 23, 59.123456) )
+				it 'decodes timestamps without timezone as local time' do
+					expect( textdec_timestamp.decode('2016-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.new(2016,1,2, 23,23,59.123456).iso8601(5) )
+					expect( textdec_timestamp.decode('2016-08-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.new(2016,8,2, 23,23,59.123456).iso8601(5) )
+				end
+				it 'decodes timestamps with UTC time and returns UTC timezone' do
+					expect( textdec_timestamputc.decode('2016-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(2016,1,2, 23,23,59.123456).iso8601(5) )
+					expect( textdec_timestamputc.decode('2016-08-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(2016,8,2, 23,23,59.123456).iso8601(5) )
+				end
+				it 'decodes timestamps with UTC time and returns local timezone' do
+					expect( textdec_timestampul.decode('2016-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(2016,1,2, 23,23,59.123456).getlocal.iso8601(5) )
+					expect( textdec_timestampul.decode('2016-08-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(2016,8,2, 23,23,59.123456).getlocal.iso8601(5) )
 				end
 				it 'decodes timestamps with hour timezone' do
-					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04') ).
-						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:00") )
-					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10') ).
-						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:00") )
+					expect( textdec_timestamptz.decode('2016-01-02 23:23:59.123456-04').iso8601(5) ).
+						to eq( Time.new(2016,1,2, 23,23,59.123456, "-04:00").iso8601(5) )
+					expect( textdec_timestamptz.decode('2016-08-02 23:23:59.123456+10').iso8601(5) ).
+						to eq( Time.new(2016,8,2, 23,23,59.123456, "+10:00").iso8601(5) )
 				end
 				it 'decodes timestamps with hour:minute timezone' do
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04:15') ).
@@ -122,16 +140,24 @@ describe "PG::Type derivations" do
 						to be_within(0.000001).of( Time.new(1916, 1, 1, 0, 0, 0, "-00:25:21") )
 				end
 				it 'decodes timestamps with date before 1823' do
-					expect( textdec_timestamp.decode('1822-01-02 23:23:59.123456') ).
-						to be_within(0.000001).of( Time.new(1822,01,02, 23, 23, 59.123456) )
-					expect( textdec_timestamptz.decode('1822-01-02 23:23:59.123456+04') ).
-						to be_within(0.000001).of( Time.new(1822,01,02, 23, 23, 59.123456, "+04:00") )
+					expect( textdec_timestamp.decode('1822-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.new(1822,01,02, 23, 23, 59.123456).iso8601(5) )
+					expect( textdec_timestamputc.decode('1822-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(1822,01,02, 23, 23, 59.123456).iso8601(5) )
+					expect( textdec_timestampul.decode('1822-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(1822,01,02, 23, 23, 59.123456).getlocal.iso8601(5) )
+					expect( textdec_timestamptz.decode('1822-01-02 23:23:59.123456+04').iso8601(5) ).
+						to eq( Time.new(1822,01,02, 23, 23, 59.123456, "+04:00").iso8601(5) )
 				end
 				it 'decodes timestamps with date after 2116' do
-					expect( textdec_timestamp.decode('2117-01-02 23:23:59.123456') ).
-						to be_within(0.000001).of( Time.new(2117,01,02, 23, 23, 59.123456) )
-					expect( textdec_timestamptz.decode('2117-01-02 23:23:59.123456+04') ).
-						to be_within(0.000001).of( Time.new(2117,01,02, 23, 23, 59.123456, "+04:00") )
+					expect( textdec_timestamp.decode('2117-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.new(2117,01,02, 23, 23, 59.123456).iso8601(5) )
+					expect( textdec_timestamputc.decode('2117-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(2117,01,02, 23, 23, 59.123456).iso8601(5) )
+					expect( textdec_timestampul.decode('2117-01-02 23:23:59.123456').iso8601(5) ).
+						to eq( Time.utc(2117,01,02, 23, 23, 59.123456).getlocal.iso8601(5) )
+					expect( textdec_timestamptz.decode('2117-01-02 23:23:59.123456+04').iso8601(5) ).
+						to eq( Time.new(2117,01,02, 23, 23, 59.123456, "+04:00").iso8601(5) )
 				end
 				it 'decodes timestamps with variable number of digits for the useconds part' do
 					sec = "59.12345678912345"
@@ -282,6 +308,27 @@ describe "PG::Type derivations" do
 
 			it "encodes binary string to bytea" do
 				expect( textenc_bytea.encode("\x00\x01\x02\x03\xef".b) ).to eq( "\\x00010203ef" )
+			end
+
+			context 'timestamps' do
+				it 'encodes timestamps without timezone' do
+					expect( textenc_timestamp.encode(Time.new(2016,1,2, 23, 23, 59.123456, 3*60*60)) ).
+						to match( /^2016-01-02 23:23:59.12345\d+$/ )
+					expect( textenc_timestamp.encode(Time.new(2016,8,2, 23, 23, 59.123456, 3*60*60)) ).
+						to match( /^2016-08-02 23:23:59.12345\d+$/ )
+				end
+				it 'encodes timestamps with UTC timezone' do
+					expect( textenc_timestamputc.encode(Time.new(2016,1,2, 23, 23, 59.123456, 3*60*60)) ).
+						to match( /^2016-01-02 20:23:59.12345\d+$/ )
+					expect( textenc_timestamputc.encode(Time.new(2016,8,2, 23, 23, 59.123456, 3*60*60)) ).
+						to match( /^2016-08-02 20:23:59.12345\d+$/ )
+				end
+				it 'encodes timestamps with hour timezone' do
+					expect( textenc_timestamptz.encode(Time.new(2016,1,02, 23, 23, 59.123456, -4*60*60)) ).
+						to match( /^2016-01-02 23:23:59.12345\d+ \-04:00$/ )
+					expect( textenc_timestamptz.encode(Time.new(2016,8,02, 23, 23, 59.123456, 10*60*60)) ).
+						to match( /^2016-08-02 23:23:59.12345\d+ \+10:00$/ )
+				end
 			end
 
 			context 'identifier quotation' do

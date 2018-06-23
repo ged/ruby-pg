@@ -18,6 +18,13 @@ module PG
 			end
 		end
 
+		class TimestampUtc < SimpleEncoder
+			STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE_UTC = "%Y-%m-%d %H:%M:%S.%N".freeze
+			def encode(value)
+				value.respond_to?(:utc) ? value.utc.strftime(STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE_UTC) : value
+			end
+		end
+
 		class TimestampWithTimeZone < SimpleEncoder
 			STRFTIME_ISO_DATETIME_WITH_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N %:z".freeze
 			def encode(value)
