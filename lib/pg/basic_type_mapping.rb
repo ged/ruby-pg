@@ -199,7 +199,10 @@ module PG::BasicTypeRegistry
 	register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
 	alias_type 0, 'float8', 'float4'
 
-	register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
+	# Default is to assume UTC times are stored in timestampwithoutzone, optionally we could register
+	# a typemapper that strips out timezone (without a UTC conversion)
+	# register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
+	register_type 0, 'timestamp', PG::TextEncoder::TimestampUtc, PG::TextDecoder::TimestampUtc
 	register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
 	register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
 	# register_type 'time', OID::Time.new
