@@ -256,11 +256,12 @@ describe 'Basic type mapping' do
 			it "should do inet type conversions" do
 				[0].each do |format|
 					vals = [
-					  '1.2.3.4',
+						'1.2.3.4',
 						'0.0.0.0/0',
 						'1.0.0.0/8',
 						'1.2.0.0/16',
 						'1.2.3.0/24',
+						'1.2.3.4/24',
 						'1.2.3.4/32',
 						'1.2.3.128/25',
 						'1234:3456:5678:789a:9abc:bced:edf0:f012',
@@ -269,27 +270,16 @@ describe 'Basic type mapping' do
 						'1234:3456:5678:789a::/64',
 						'1234:3456:5678:789a:9abc:bced::/96',
 						'1234:3456:5678:789a:9abc:bced:edf0:f012/128',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012/0',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012/32',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012/64',
+						'1234:3456:5678:789a:9abc:bced:edf0:f012/96',
 					]
-					sql_vals = vals.map { |v| "CAST('#{v}' AS inet)" }
+					sql_vals = vals.map{|v| "CAST('#{v}' AS inet)"}
 					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )
 					vals.each_with_index do |v, i|
 						val = res.getvalue(0,i)
-						ip, prefix = v.split('/', 2)
-						expect( val.to_s ).to eq( ip )
-						if val.respond_to?(:prefix)
-							val_prefix = val.prefix
-						else
-					    default_prefix = (val.family == Socket::AF_INET ? 32 : 128)
-							range = val.to_range
-							val_prefix	= default_prefix - Math.log(((range.end.to_i - range.begin.to_i) + 1), 2).to_i
-						end
-						if v.include?('/')
-							expect( val_prefix ).to eq( prefix.to_i )
-						elsif v.include?('.')
-							expect( val_prefix ).to eq( 32 )
-						else
-							expect( val_prefix ).to eq( 128 )
-						end
+						expect( res.getvalue(0,i) ).to eq( IPAddr.new(v) )
 					end
 				end
 			end
