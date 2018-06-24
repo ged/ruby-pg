@@ -675,7 +675,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 			tm.tm_hour = hour;
 			tm.tm_min = min;
 			tm.tm_sec = sec;
-			tm.tm_isdst = 0;
+			tm.tm_isdst = -1;
 
 			switch(without_timezone){
 				case 0: /* with timezone */
@@ -696,10 +696,15 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					break;
 				}
 				case 1: /* interprete as local time, return as local time */
-					/* Fall through to rb_funcall(), because I couldn't find a fast way to
-					 * use rb_time_timespec_new() for this case.
-					 */
+				{
+					time_t time = mktime(&tm);
+					if (time != -1){
+						ts.tv_sec = time;
+						ts.tv_nsec = nsec;
+						return rb_time_timespec_new(&ts, INT_MAX);
+					}
 					break;
+				}
 				case 2: /* interprete as UTC time, return as local time */
 				{
 					time_t time = timegm(&tm);
