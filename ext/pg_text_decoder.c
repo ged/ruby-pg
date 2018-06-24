@@ -695,7 +695,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					}
 					break;
 				}
-				case 1: /* interprete as local time, return as local time */
+				case 1: /* interpret as local time, return as local time */
 				{
 					time_t time = mktime(&tm);
 					if (time != -1){
@@ -705,7 +705,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					}
 					break;
 				}
-				case 2: /* interprete as UTC time, return as local time */
+				case 2: /* interpret as UTC time, return as local time */
 				{
 					time_t time = timegm(&tm);
 					if (time != -1){
@@ -715,7 +715,7 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					}
 					break;
 				}
-				case 3: /* interprete as UTC time, return as UTC time */
+				case 3: /* interpret as UTC time, return as UTC time */
 				{
 					time_t time = timegm(&tm);
 					if (time != -1){
@@ -754,11 +754,11 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 					gmt_offset_value = INT2NUM(gmt_offset);
 					break;
 				}
-				case 1: /* interprete as local time, return as local time */
+				case 1: /* interpret as local time, return as local time */
 					gmt_offset_value = Qnil;
 					break;
-				case 2: /* interprete as UTC time, return as local time */
-				case 3: /* interprete as UTC time, return as UTC time */
+				case 2: /* interpret as UTC time, return as local time */
+				case 3: /* interpret as UTC time, return as UTC time */
 					gmt_offset_value = INT2NUM(0);
 					break;
 			}
@@ -774,11 +774,11 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 
 			switch(without_timezone){
 				case 0: /* with timezone */
-				case 1: /* interprete as local time, return as local time */
+				case 1: /* interpret as local time, return as local time */
 					return res;
-				case 2: /* interprete as UTC time, return as local time */
+				case 2: /* interpret as UTC time, return as local time */
 					return rb_funcall(res, s_id_getlocal, 0);
-				case 3: /* interprete as UTC time, return as UTC time */
+				case 3: /* interpret as UTC time, return as UTC time */
 					return rb_funcall(res, s_id_utc, 0);
 			}
 		}
