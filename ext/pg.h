@@ -149,7 +149,7 @@ typedef struct {
 
 
 typedef int (* t_pg_coder_enc_func)(t_pg_coder *, VALUE, char *, VALUE *, int);
-typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, char *, int, int, int, int);
+typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, const char *, int, int, int, int);
 typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
 typedef int (* t_pg_fit_to_copy_get)(VALUE);
@@ -262,8 +262,8 @@ void init_pg_text_decoder                              _(( void ));
 void init_pg_binary_encoder                            _(( void ));
 void init_pg_binary_decoder                            _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
-VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, int, int, int, int ));
-VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
+VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, const char *, int, int, int, int ));
+VALUE pg_text_dec_string                               _(( t_pg_coder*, const char *, int, int, int, int ));
 int pg_coder_enc_to_s                                  _(( t_pg_coder*, VALUE, char *, VALUE *, int));
 int pg_text_enc_identifier                             _(( t_pg_coder*, VALUE, char *, VALUE *, int));
 t_pg_coder_enc_func pg_coder_enc_func                  _(( t_pg_coder* ));

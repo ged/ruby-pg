@@ -57,8 +57,8 @@
 #define BASE64_ENCODED_SIZE(strlen) (((strlen) + 2) / 3 * 4)
 #define BASE64_DECODED_SIZE(base64len) (((base64len) + 3) / 4 * 3)
 
-void base64_encode( char *out, char *in, int len);
-int base64_decode( char *out, char *in, unsigned int len);
+void base64_encode( char *out, const char *in, int len);
+int base64_decode( char *out, const char *in, unsigned int len);
 
 int rbpg_strncasecmp(const char *s1, const char *s2, size_t n);
 

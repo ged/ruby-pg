@@ -12,7 +12,7 @@
  * assigns a decoder function.
  *
  * Signature of all type cast decoders is:
- *    VALUE decoder_function(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+ *    VALUE decoder_function(t_pg_coder *this, const char *val, int len, int tuple, int field, int enc_idx)
  *
  * Params:
  *   this     - The data part of the coder object that belongs to the decoder function.
@@ -69,7 +69,7 @@ static ID s_ivar_mask_addr;
  *
  */
 static VALUE
-pg_text_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_boolean(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for text boolean converter in tuple %d field %d", tuple, field);
@@ -86,7 +86,7 @@ pg_text_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, 
  *
  */
 VALUE
-pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_string(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret = rb_tainted_str_new( val, len );
 	PG_ENCODING_SET_NOCHECK( ret, enc_idx );
@@ -101,7 +101,7 @@ pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, i
  *
  */
 static VALUE
-pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	long i;
 	int max_len;
@@ -126,7 +126,7 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
 		 *     conn.exec("select generate_series(1,1000000)").values }
 		 *   end
 		 */
-		char *val_pos = val;
+		const char *val_pos = val;
 		char digit = *val_pos;
 		int neg;
 		int error = 0;
@@ -165,7 +165,7 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
  *
  */
 static VALUE
-pg_text_dec_numeric(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
 }
@@ -178,7 +178,7 @@ pg_text_dec_numeric(t_pg_coder *conv, char *val, int len, int tuple, int field, 
  *
  */
 static VALUE
-pg_text_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_float_new(strtod(val, NULL));
 }
@@ -191,7 +191,7 @@ pg_text_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, in
  *
  */
 static VALUE
-pg_text_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	unsigned char *to;
 	size_t to_len;
@@ -255,7 +255,7 @@ array_parser_error(const char *text){
  * https://github.com/dockyard/pg_array_parser
  */
 static VALUE
-read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+read_array_without_dim(t_pg_composite_coder *this, int *index, const char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	/* Return value: array */
 	VALUE array;
@@ -361,7 +361,7 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_
 }
 
 static VALUE
-read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+read_array(t_pg_composite_coder *this, int *index, const char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	int ndim = 0;
 	VALUE ret;
@@ -450,7 +450,7 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
  *
  */
 static VALUE
-pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_array(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
@@ -474,7 +474,7 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
  *
  */
 static VALUE
-pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_identifier(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	/* Return value: array */
 	VALUE array;
@@ -536,7 +536,7 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
  *
  */
 static VALUE
-pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_from_base64(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
@@ -580,7 +580,7 @@ static int str2_to_int(const char *str)
 			+ char_to_digit(str[1]);
 }
 
-static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx, int without_timezone)
+static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx, int without_timezone)
 {
 	const char *str = val;
 
@@ -789,22 +789,22 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 }
 
 static VALUE
-pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 0);
 }
 static VALUE
-pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 1);
 }
 static VALUE
-pg_text_dec_timestamp_utc_to_local(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_utc_to_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 2);
 }
 static VALUE
-pg_text_dec_timestamp_utc(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_utc(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 3);
 }
@@ -817,7 +817,7 @@ pg_text_dec_timestamp_utc(t_pg_coder *conv, char *val, int len, int tuple, int f
  *
  */
 static VALUE
-pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ip;
 #if defined(_WIN32)
