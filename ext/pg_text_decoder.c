@@ -839,18 +839,18 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 		if (val[len-2] == '/') {
 			mask = val[len-1] - '0';
 			memcpy(buf, val, len-2);
+			buf[len-2] = '\0';
 			val = buf;
-			val[len-2] = '\0';
 		} else if (val[len-3] == '/') {
 			mask = (val[len-2]- '0')*10 + val[len-1] - '0';
 			memcpy(buf, val, len-3);
+			buf[len-3] = '\0';
 			val = buf;
-			val[len-3] = '\0';
 		} else if (val[len-4] == '/') {
 			mask = (val[len-3]- '0')*100 + (val[len-2]- '0')*10 + val[len-1] - '0';
 			memcpy(buf, val, len-4);
+			buf[len-4] = '\0';
 			val = buf;
-			val[len-4] = '\0';
 		}
 	}
 
