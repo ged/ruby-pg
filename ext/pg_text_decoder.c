@@ -827,18 +827,29 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 	VALUE ip_int;
 	VALUE vmasks;
 	char dst[16];
+	char buf[64];
 	int af = strchr(val, '.') ? AF_INET : AF_INET6;
 	int mask = -1;
+
+	if (len >= 64) {
+		rb_raise(rb_eTypeError, "too long data for text inet converter in tuple %d field %d", tuple, field);
+	}
 
 	if (len >= 4) {
 		if (val[len-2] == '/') {
 			mask = val[len-1] - '0';
+			memcpy(buf, val, len-2);
+			val = buf;
 			val[len-2] = '\0';
 		} else if (val[len-3] == '/') {
-			mask = (val[len-2]- '0') *10 + val[len-1] - '0';
+			mask = (val[len-2]- '0')*10 + val[len-1] - '0';
+			memcpy(buf, val, len-3);
+			val = buf;
 			val[len-3] = '\0';
 		} else if (val[len-4] == '/') {
 			mask = (val[len-3]- '0')*100 + (val[len-2]- '0')*10 + val[len-1] - '0';
+			memcpy(buf, val, len-4);
+			val = buf;
 			val[len-4] = '\0';
 		}
 	}
@@ -848,6 +859,8 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 	}
 
 	if (af == AF_INET) {
+		unsigned int ip_int_native;
+
 		if (mask == -1) {
 			mask = 32;
 		} else if (mask < 0 || mask > 32) {
@@ -855,9 +868,27 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 		}
 		vmasks = s_vmasks4;
 
-		ip_int = UINT2NUM(read_nbo32(dst));
+		ip_int_native = read_nbo32(dst);
+
+		/* Work around broken IPAddr behavior of convering portion
+		   of address after netmask to 0 */
+		switch (mask) {
+			case 0:
+				ip_int_native = 0;
+				break;
+			case 32:
+				/* nothing to do */
+				break;
+			default:
+				ip_int_native &= ~((1UL<<(32-mask))-1);
+				break;
+		}
+
+		ip_int = UINT2NUM(ip_int_native);
 	} else {
 		unsigned long long * dstllp = (unsigned long long *)dst;
+		unsigned long long ip_int_native1;
+		unsigned long long ip_int_native2;
 
 		if (mask == -1) {
 			mask = 128;
@@ -866,11 +897,28 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 		}
 		vmasks = s_vmasks6;
 
-		/* 4 Bignum allocations */
-		ip_int = ULL2NUM(read_nbo64(dstllp));
-		ip_int = rb_funcall(ip_int, s_id_lshift, 1, INT2NUM(64));
+		ip_int_native1 = read_nbo64(dstllp);
 		dstllp++;
-		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(read_nbo64(dstllp)));
+		ip_int_native2 = read_nbo64(dstllp);
+
+		if (mask == 128) {
+			/* nothing to do */
+		} else if (mask == 64) {
+			ip_int_native2 = 0;
+		} else if (mask == 0) {
+			ip_int_native1 = 0;
+			ip_int_native2 = 0;
+		} else if (mask < 64) {
+			ip_int_native1 &= ~((1ULL<<(64-mask))-1);
+			ip_int_native2 = 0;
+		} else {
+			ip_int_native2 &= ~((1ULL<<(128-mask))-1);
+		}
+
+		/* 4 Bignum allocations */
+		ip_int = ULL2NUM(ip_int_native1);
+		ip_int = rb_funcall(ip_int, s_id_lshift, 1, INT2NUM(64));
+		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(ip_int_native2));
 	}
 
 	if (use_ipaddr_alloc) {
@@ -895,6 +943,7 @@ init_pg_text_decoder()
 {
 	rb_require("ipaddr");
 	s_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
+	rb_global_variable(&s_IPAddr);
 	s_ivar_family = rb_intern("@family");
 	s_ivar_addr = rb_intern("@addr");
 	s_ivar_mask_addr = rb_intern("@mask_addr");
