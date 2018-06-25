@@ -183,6 +183,16 @@ pg_text_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int fie
 	return rb_float_new(strtod(val, NULL));
 }
 
+struct pg_blob_initialization {
+	char *blob_string;
+	size_t length;
+};
+
+static VALUE pg_create_blob(VALUE v) {
+	struct pg_blob_initialization *bi = (struct pg_blob_initialization *)v;
+	return rb_tainted_str_new(bi->blob_string, bi->length);
+}
+
 /*
  * Document-class: PG::TextDecoder::Bytea < PG::SimpleDecoder
  *
@@ -193,16 +203,13 @@ pg_text_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int fie
 static VALUE
 pg_text_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	unsigned char *to;
-	size_t to_len;
-	VALUE ret;
+	struct pg_blob_initialization bi;
 
-	to = PQunescapeBytea( (unsigned char *)val, &to_len);
-
-	ret = rb_tainted_str_new((char*)to, to_len);
-	PQfreemem(to);
-
-	return ret;
+	bi.blob_string = (char *)PQunescapeBytea((unsigned char*)val, &bi.length);
+	if (bi.blob_string == NULL) {
+		rb_raise(rb_eNoMemError, "PQunescapeBytea failure: probably not enough memory");
+	}
+	return rb_ensure(pg_create_blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
 }
 
 /*
