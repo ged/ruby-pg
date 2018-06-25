@@ -368,7 +368,7 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, const char *c_pg_
 }
 
 static VALUE
-read_array(t_pg_composite_coder *this, int *index, const char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+read_array(t_pg_composite_coder *this, int *index, const char *c_pg_array_string, int array_string_length, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	int ndim = 0;
 	VALUE ret;
@@ -425,7 +425,18 @@ read_array(t_pg_composite_coder *this, int *index, const char *c_pg_array_string
 		array_parser_error( "array value must start with \"{\" or dimension information");
 	(*index)++;
 
-	ret = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+	if ( (*index) < array_string_length && c_pg_array_string[*index] == '}' ) {
+		/* avoid buffer allocation for empty array */
+		ret = rb_ary_new();
+	} else {
+		/* create a buffer of the same length, as that will be the worst case */
+		VALUE buf = rb_str_new(NULL, array_string_length);
+		char *word = RSTRING_PTR(buf);
+
+		ret = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+
+		RB_GC_GUARD(buf);
+	}
 
 	if (c_pg_array_string[*index] != '}' )
 		array_parser_error( "array value must end with \"}\"");
@@ -461,12 +472,10 @@ pg_text_dec_array(t_pg_coder *conv, const char *val, int len, int tuple, int fie
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
-	/* create a buffer of the same length, as that will be the worst case */
-	char *word = xmalloc(len + 1);
 	int index = 0;
 
-	VALUE return_value = read_array(this, &index, val, len, word, enc_idx, tuple, field, dec_func);
-	free(word);
+	VALUE return_value = read_array(this, &index, val, len, enc_idx, tuple, field, dec_func);
+
 	return return_value;
 }
 
