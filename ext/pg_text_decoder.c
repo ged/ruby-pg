@@ -367,91 +367,6 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, const char *c_pg_
 	return array;
 }
 
-static VALUE
-read_array(t_pg_composite_coder *this, int *index, const char *c_pg_array_string, int array_string_length, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
-{
-	int ndim = 0;
-	VALUE ret;
-	/*
-	 * If the input string starts with dimension info, read and use that.
-	 * Otherwise, we require the input to be in curly-brace style, and we
-	 * prescan the input to determine dimensions.
-	 *
-	 * Dimension info takes the form of one or more [n] or [m:n] items. The
-	 * outer loop iterates once per dimension item.
-	 */
-	for (;;)
-	{
-		/*
-		 * Note: we currently allow whitespace between, but not within,
-		 * dimension items.
-		 */
-		while (array_isspace(c_pg_array_string[*index]))
-			(*index)++;
-		if (c_pg_array_string[*index] != '[')
-			break;				/* no more dimension items */
-		(*index)++;
-
-		while (array_isdim(c_pg_array_string[*index]))
-			(*index)++;
-
-		if (c_pg_array_string[*index] != ']'){
-			array_parser_error( "missing \"]\" in array dimensions");
-			break;
-		}
-		(*index)++;
-
-		ndim++;
-	}
-
-	if (ndim == 0)
-	{
-		/* No array dimensions */
-	}
-	else
-	{
-		/* If array dimensions are given, expect '=' operator */
-		if (c_pg_array_string[*index] != '=') {
-			array_parser_error( "missing assignment operator");
-			(*index)-=2; /* jump back to before "]" so that we don't break behavior to pg < 1.1 */
-		}
-		(*index)++;
-
-		while (array_isspace(c_pg_array_string[*index]))
-			(*index)++;
-	}
-
-	if (c_pg_array_string[*index] != '{')
-		array_parser_error( "array value must start with \"{\" or dimension information");
-	(*index)++;
-
-	if ( (*index) < array_string_length && c_pg_array_string[*index] == '}' ) {
-		/* avoid buffer allocation for empty array */
-		ret = rb_ary_new();
-	} else {
-		/* create a buffer of the same length, as that will be the worst case */
-		VALUE buf = rb_str_new(NULL, array_string_length);
-		char *word = RSTRING_PTR(buf);
-
-		ret = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
-
-		RB_GC_GUARD(buf);
-	}
-
-	if (c_pg_array_string[*index] != '}' )
-		array_parser_error( "array value must end with \"}\"");
-	(*index)++;
-
-	/* only whitespace is allowed after the closing brace */
-	for(;(*index) < array_string_length; ++(*index))
-	{
-		if (!array_isspace(c_pg_array_string[*index]))
-			array_parser_error( "malformed array literal: Junk after closing right brace.");
-	}
-
-	return ret;
-}
-
 /*
  * Document-class: PG::TextDecoder::Array < PG::CompositeDecoder
  *
@@ -468,15 +383,92 @@ read_array(t_pg_composite_coder *this, int *index, const char *c_pg_array_string
  *
  */
 static VALUE
-pg_text_dec_array(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_string_length, int tuple, int field, int enc_idx)
 {
-	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
 	int index = 0;
+	int ndim = 0;
+	VALUE ret;
 
-	VALUE return_value = read_array(this, &index, val, len, enc_idx, tuple, field, dec_func);
+	/*
+	 * If the input string starts with dimension info, read and use that.
+	 * Otherwise, we require the input to be in curly-brace style, and we
+	 * prescan the input to determine dimensions.
+	 *
+	 * Dimension info takes the form of one or more [n] or [m:n] items. The
+	 * outer loop iterates once per dimension item.
+	 */
+	for (;;)
+	{
+		/*
+		 * Note: we currently allow whitespace between, but not within,
+		 * dimension items.
+		 */
+		while (array_isspace(c_pg_array_string[index]))
+			index++;
+		if (c_pg_array_string[index] != '[')
+			break;				/* no more dimension items */
+		index++;
 
-	return return_value;
+		while (array_isdim(c_pg_array_string[index]))
+			index++;
+
+		if (c_pg_array_string[index] != ']'){
+			array_parser_error( "missing \"]\" in array dimensions");
+			break;
+		}
+		index++;
+
+		ndim++;
+	}
+
+	if (ndim == 0)
+	{
+		/* No array dimensions */
+	}
+	else
+	{
+		/* If array dimensions are given, expect '=' operator */
+		if (c_pg_array_string[index] != '=') {
+			array_parser_error( "missing assignment operator");
+			index-=2; /* jump back to before "]" so that we don't break behavior to pg < 1.1 */
+		}
+		index++;
+
+		while (array_isspace(c_pg_array_string[index]))
+			index++;
+	}
+
+	if (c_pg_array_string[index] != '{')
+		array_parser_error( "array value must start with \"{\" or dimension information");
+	index++;
+
+	if ( index < array_string_length && c_pg_array_string[index] == '}' ) {
+		/* avoid buffer allocation for empty array */
+		ret = rb_ary_new();
+	} else {
+		t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+		t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
+		/* create a buffer of the same length, as that will be the worst case */
+		VALUE buf = rb_str_new(NULL, array_string_length);
+		char *word = RSTRING_PTR(buf);
+
+		ret = read_array_without_dim(this, &index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+
+		RB_GC_GUARD(buf);
+	}
+
+	if (c_pg_array_string[index] != '}' )
+		array_parser_error( "array value must end with \"}\"");
+	index++;
+
+	/* only whitespace is allowed after the closing brace */
+	for(;index < array_string_length; ++index)
+	{
+		if (!array_isspace(c_pg_array_string[index]))
+			array_parser_error( "malformed array literal: Junk after closing right brace.");
+	}
+
+	return ret;
 }
 
 /*
