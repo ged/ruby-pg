@@ -66,6 +66,7 @@ module PG
 	require 'pg/type_map_by_column'
 	require 'pg/connection'
 	require 'pg/result'
+	require 'pg/lazy_tuple'
 
 end # module PG
 

@@ -79,4 +79,9 @@ describe PG::VeryLazyTuple do
 	it "should give account about memory usage" do
 		expect( ObjectSpace.memsize_of(tuple0) ).to be > 0
 	end
+
+	it "should override #inspect" do
+		expect( tuple2.inspect ).to eq("#<PG::VeryLazyTuple 1, true>")
+		expect{ tuple_empty.inspect }.to raise_error(TypeError)
+	end
 end

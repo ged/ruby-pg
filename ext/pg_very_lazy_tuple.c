@@ -236,7 +236,10 @@ pgvlr_load(VALUE self, VALUE a)
 void
 init_pg_very_lazy_tuple()
 {
-	rb_cPG_VeryLazyTuple = rb_define_class_under( rb_mPG, "VeryLazyTuple", rb_cObject );
+	VALUE rb_cPG_LazyTuple;
+
+	rb_cPG_LazyTuple = rb_define_class_under( rb_mPG, "LazyTuple", rb_cObject );
+	rb_cPG_VeryLazyTuple = rb_define_class_under( rb_mPG, "VeryLazyTuple", rb_cPG_LazyTuple );
 	rb_define_alloc_func( rb_cPG_VeryLazyTuple, pgvlt_s_allocate );
 	rb_include_module(rb_cPG_VeryLazyTuple, rb_mEnumerable);
 
