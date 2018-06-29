@@ -313,7 +313,7 @@ VALUE pg_result_clear                                  _(( VALUE ));
 static inline t_pg_result *
 pgresult_get_this( VALUE self )
 {
-	t_pg_result *this = DATA_PTR(self);
+	t_pg_result *this = RTYPEDDATA_DATA(self);
 
 	if( this == NULL )
 		rb_raise(rb_ePGerror, "result has been cleared");
