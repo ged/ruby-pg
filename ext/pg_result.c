@@ -1133,6 +1133,29 @@ pgresult_tuple_values(VALUE self, VALUE index)
 	}
 }
 
+/*
+ *  call-seq:
+ *     res.tuple_values_very_lazy( n )   -> array
+ *
+ *  Returns a PG::VeryLazyTuple of the field values from the nth row of the result.
+ *
+ */
+static VALUE
+pgresult_tuple_values_vl(VALUE self, VALUE index)
+{
+	int tuple_num = NUM2INT( index );
+	t_pg_result *this;
+	int num_tuples;
+
+	this = pgresult_get_this_safe(self);
+	num_tuples = PQntuples(this->pgresult);
+
+	if ( tuple_num < 0 || tuple_num >= num_tuples )
+		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
+
+  return pgvlt_new(self, tuple_num);
+}
+
 
 /*
  * call-seq:
@@ -1406,6 +1429,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 	rb_define_method(rb_cPGresult, "tuple_values", pgresult_tuple_values, 1);
+	rb_define_method(rb_cPGresult, "tuple_values_very_lazy", pgresult_tuple_values_vl, 1);
 	rb_define_method(rb_cPGresult, "cleared?", pgresult_cleared_p, 0);
 	rb_define_method(rb_cPGresult, "autoclear?", pgresult_autoclear_p, 0);
 

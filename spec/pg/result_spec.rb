@@ -352,6 +352,15 @@ describe PG::Result do
 		expect{ res.tuple_values("x") }.to raise_error(TypeError)
 	end
 
+	it "can return the values of a single vary lazy tuple" do
+		res = @conn.exec( "SELECT 1 AS x, 'a' AS y UNION ALL SELECT 2, 'b'" )
+		expect( res.tuple_values_very_lazy(0) ).to be_kind_of( PG::VeryLazyTuple )
+		expect( res.tuple_values_very_lazy(1) ).to be_kind_of( PG::VeryLazyTuple )
+		expect{ res.tuple_values_very_lazy(2) }.to raise_error(IndexError)
+		expect{ res.tuple_values_very_lazy(-1) }.to raise_error(IndexError)
+		expect{ res.tuple_values_very_lazy("x") }.to raise_error(TypeError)
+	end
+
 	it "raises a proper exception for a nonexistant table" do
 		expect {
 			@conn.exec( "SELECT * FROM nonexistant_table" )
