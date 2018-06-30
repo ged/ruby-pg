@@ -913,7 +913,7 @@ describe "PG::Type derivations" do
 				end
 
 				describe '#decode' do
-					it "should decode different types of Ruby objects" do
+					it "should decode COPY text format to array of strings" do
 						expect( decoder.decode("123\t \0#\t#\n#\r#\\ \t234\t#\x01#\002\n".gsub("#", "\\"))).to eq( ["123", " \0\t\n\r\\ ", "234", "\x01\x02"] )
 					end
 

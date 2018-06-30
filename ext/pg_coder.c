@@ -192,7 +192,11 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	if( NIL_P(argv[0]) )
 		return Qnil;
 
-	val = StringValuePtr(argv[0]);
+	if( this->format == 0 ){
+		val = StringValueCStr(argv[0]);
+	}else{
+		val = StringValuePtr(argv[0]);
+	}
 	if( !this->dec_func ){
 		rb_raise(rb_eRuntimeError, "no decoder function defined");
 	}

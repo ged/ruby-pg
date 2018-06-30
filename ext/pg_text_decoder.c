@@ -16,9 +16,9 @@
  *
  * Params:
  *   this     - The data part of the coder object that belongs to the decoder function.
- *   val, len - The text or binary data to decode. The caller ensures, that the data is
- *              zero terminated ( that is val[len] = 0 ). The memory should be used read
- *              only by the callee.
+ *   val, len - The text or binary data to decode.
+ *              The caller ensures, that text data (format=0) is zero terminated so that val[len]=0.
+ *              The memory should be used read-only by the callee.
  *   tuple    - Row of the value within the result set.
  *   field    - Column of the value within the result set.
  *   enc_idx  - Index of the Encoding that any output String should get assigned.
