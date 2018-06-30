@@ -33,6 +33,34 @@ describe PG::VeryLazyTuple do
 			expect( tuple3[0] ).to eq( 2 )
 			expect( tuple3[1] ).to eq( false )
 		end
+
+		it "casts lazy and caches result" do
+			a = []
+			deco = Class.new(PG::SimpleDecoder) do
+				define_method(:decode) do |*args|
+					a << args
+					args.last
+				end
+			end.new
+
+			result2x2.map_types!(PG::TypeMapByColumn.new([deco, deco]))
+			t = result2x2.tuple_values_very_lazy(1)
+
+			# cast and cache at first call to [0]
+			a.clear
+			expect( t[0] ).to eq( 0 )
+			expect( a ).to eq([["2", 1, 0]])
+
+			# use cache at second call to [0]
+			a.clear
+			expect( t[0] ).to eq( 0 )
+			expect( a ).to eq([])
+
+			# cast and cache at first call to [1]
+			a.clear
+			expect( t[1] ).to eq( 1 )
+			expect( a ).to eq([["b", 1, 1]])
+		end
 	end
 
 	describe "each" do
