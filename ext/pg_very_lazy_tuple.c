@@ -194,6 +194,11 @@ pgvlr_dump(VALUE self)
 
 	pgvlr_materialize(this);
 	a = rb_ary_new4(this->num_fields, &this->values[0]);
+
+	if (FL_TEST(self, FL_EXIVAR)) {
+		rb_copy_generic_ivar(a, self);
+		FL_SET(a, FL_EXIVAR);
+	}
 	return a;
 }
 
@@ -228,6 +233,11 @@ pgvlr_load(VALUE self, VALUE a)
 		if( v == Qundef )
 			rb_raise(rb_eTypeError, "field %d is not materialized", i);
 		this->values[i] = RARRAY_AREF(a, i);
+	}
+
+	if (FL_TEST(a, FL_EXIVAR)) {
+		rb_copy_generic_ivar(self, a);
+		FL_SET(self, FL_EXIVAR);
 	}
 
 	return self;

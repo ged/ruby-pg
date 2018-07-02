@@ -100,6 +100,15 @@ describe PG::VeryLazyTuple do
 		end
 	end
 
+	it "passes instance variables when marshaled" do
+		t1 = tuple0
+		t1.instance_variable_set("@a", 4711)
+		str = Marshal.dump(t1)
+		t2 = Marshal.load(str)
+
+		expect( t2.instance_variable_get("@a") ).to eq( 4711 )
+	end
+
 	it "can't be marshaled when empty" do
 		expect{ Marshal.dump(tuple_empty) }.to raise_error(TypeError)
 	end
