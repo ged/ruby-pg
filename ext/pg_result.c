@@ -136,6 +136,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->p_typemap = DATA_PTR( this->typemap );
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
+	this->field_map = Qnil;
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 
@@ -310,6 +311,7 @@ pgresult_gc_mark( t_pg_result *this )
 	rb_gc_mark( this->connection );
 	rb_gc_mark( this->typemap );
 	rb_gc_mark( this->tuple_hash );
+	rb_gc_mark( this->field_map );
 
 	for( i=0; i < this->nfields; i++ ){
 		rb_gc_mark( this->fnames[i] );
@@ -1135,13 +1137,13 @@ pgresult_tuple_values(VALUE self, VALUE index)
 
 /*
  *  call-seq:
- *     res.tuple_values_very_lazy( n )   -> array
+ *     res.tuple( n )   -> PG::Tuple
  *
- *  Returns a PG::VeryLazyTuple of the field values from the nth row of the result.
+ *  Returns a PG::Tuple from the nth row of the result.
  *
  */
 static VALUE
-pgresult_tuple_values_vl(VALUE self, VALUE index)
+pgresult_tuple(VALUE self, VALUE index)
 {
 	int tuple_num = NUM2INT( index );
 	t_pg_result *this;
@@ -1153,7 +1155,21 @@ pgresult_tuple_values_vl(VALUE self, VALUE index)
 	if ( tuple_num < 0 || tuple_num >= num_tuples )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
 
-  return pgvlt_new(self, tuple_num);
+	if( this->field_map == Qnil ){
+		int i;
+		VALUE field_map = rb_hash_new();
+
+		if( this->nfields == -1 )
+			pgresult_init_fnames( self );
+
+		for( i = 0; i < this->nfields; i++ ){
+			rb_hash_aset(field_map, this->fnames[i], INT2FIX(i));
+		}
+		rb_obj_freeze(field_map);
+		this->field_map = field_map;
+	}
+
+  return pg_tuple_new(self, tuple_num, this->field_map);
 }
 
 
@@ -1429,7 +1445,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 	rb_define_method(rb_cPGresult, "tuple_values", pgresult_tuple_values, 1);
-	rb_define_method(rb_cPGresult, "tuple_values_very_lazy", pgresult_tuple_values_vl, 1);
+	rb_define_method(rb_cPGresult, "tuple", pgresult_tuple, 1);
 	rb_define_method(rb_cPGresult, "cleared?", pgresult_cleared_p, 0);
 	rb_define_method(rb_cPGresult, "autoclear?", pgresult_autoclear_p, 0);
 
