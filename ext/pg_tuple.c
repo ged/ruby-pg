@@ -51,6 +51,7 @@ pg_tuple_gc_free( t_pg_tuple *this )
 static size_t
 pg_tuple_memsize( t_pg_tuple *this )
 {
+	if( this==NULL ) return 0;
 	return sizeof(*this) +  sizeof(*this->values) * RHASH_SIZE(this->field_map);
 }
 
@@ -244,7 +245,7 @@ static VALUE
 pg_tuple_num_fields_for_enum(VALUE self, VALUE args, VALUE eobj)
 {
 	t_pg_tuple *this = pg_tuple_get_this(self);
-	return rb_hash_size(this->field_map);
+	return SIZET2NUM(RHASH_SIZE(this->field_map));
 }
 
 static int
@@ -331,7 +332,7 @@ static VALUE
 pg_tuple_length(VALUE self)
 {
 	t_pg_tuple *this = pg_tuple_get_this(self);
-	return rb_hash_size(this->field_map);
+	return SIZET2NUM(RHASH_SIZE(this->field_map));
 }
 
 /*
