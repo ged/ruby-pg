@@ -8,11 +8,11 @@ require 'objspace'
 describe PG::Tuple do
 	let!(:typemap) { PG::BasicTypeMapForResults.new(@conn) }
 	let!(:result2x2) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ) }
-	let!(:result2x2cast) { @conn.exec( "VALUES(1, TRUE), (2, FALSE)" ).map_types!(typemap) }
+	let!(:result2x3cast) { @conn.exec( "SELECT * FROM (VALUES(1, TRUE, '3'), (2, FALSE, '4')) AS m (a, b, b)" ).map_types!(typemap) }
 	let!(:tuple0) { result2x2.tuple(0) }
 	let!(:tuple1) { result2x2.tuple(1) }
-	let!(:tuple2) { result2x2cast.tuple(0) }
-	let!(:tuple3) { str = Marshal.dump(result2x2cast.tuple(1)); Marshal.load(str) }
+	let!(:tuple2) { result2x3cast.tuple(0) }
+	let!(:tuple3) { str = Marshal.dump(result2x3cast.tuple(1)); Marshal.load(str) }
 	let!(:tuple_empty) { PG::Tuple.new }
 
 	describe "[]" do
@@ -31,8 +31,10 @@ describe PG::Tuple do
 			expect( tuple1[1] ).to eq( "b" )
 			expect( tuple2[0] ).to eq( 1 )
 			expect( tuple2[1] ).to eq( true )
+			expect( tuple2[2] ).to eq( "3" )
 			expect( tuple3[0] ).to eq( 2 )
 			expect( tuple3[1] ).to eq( false )
+			expect( tuple3[2] ).to eq( "4" )
 		end
 
 		it "supports negative indices" do
@@ -43,8 +45,8 @@ describe PG::Tuple do
 		it "supports hash like access" do
 			expect( tuple0["column1"] ).to eq( "1" )
 			expect( tuple0["column2"] ).to eq( "a" )
-			expect( tuple2["column1"] ).to eq( 1 )
-			expect( tuple2["column2"] ).to eq( true )
+			expect( tuple2["a"] ).to eq( 1 )
+			expect( tuple2["b"] ).to eq( "3" )
 			expect( tuple0["x"] ).to be_nil
 		end
 
@@ -105,8 +107,8 @@ describe PG::Tuple do
 		it "supports hash like access" do
 			expect( tuple0.fetch("column1") ).to eq( "1" )
 			expect( tuple0.fetch("column2") ).to eq( "a" )
-			expect( tuple2.fetch("column1") ).to eq( 1 )
-			expect( tuple2.fetch("column2") ).to eq( true )
+			expect( tuple2.fetch("a") ).to eq( 1 )
+			expect( tuple2.fetch("b") ).to eq( "3" )
 		end
 
 		it "supports default value for name keys" do
@@ -120,8 +122,8 @@ describe PG::Tuple do
 			expect( tuple0.each ).to be_kind_of(Enumerator)
 			expect( tuple0.each.to_a ).to eq( [["column1", "1"], ["column2", "a"]] )
 			expect( tuple1.each.to_a ).to eq( [["column1", "2"], ["column2", "b"]] )
-			expect( tuple2.each.to_a ).to eq( [["column1", 1], ["column2", true]] )
-			expect( tuple3.each.to_a ).to eq( [["column1", 2], ["column2", false]] )
+			expect( tuple2.each.to_a ).to eq( [["a", 1], ["b", "3"]] )
+			expect( tuple3.each.to_a ).to eq( [["a", 2], ["b", "4"]] )
 			expect{ tuple_empty.each }.to raise_error(TypeError)
 		end
 
@@ -139,8 +141,8 @@ describe PG::Tuple do
 			expect( tuple0.each_value ).to be_kind_of(Enumerator)
 			expect( tuple0.each_value.to_a ).to eq( ["1", "a"] )
 			expect( tuple1.each_value.to_a ).to eq( ["2", "b"] )
-			expect( tuple2.each_value.to_a ).to eq( [1, true] )
-			expect( tuple3.each_value.to_a ).to eq( [2, false] )
+			expect( tuple2.each_value.to_a ).to eq( [1, true, "3"] )
+			expect( tuple3.each_value.to_a ).to eq( [2, false, "4"] )
 			expect{ tuple_empty.each_value }.to raise_error(TypeError)
 		end
 
@@ -155,7 +157,7 @@ describe PG::Tuple do
 
 	it "responds to values" do
 		expect( tuple0.values ).to eq( ["1", "a"] )
-		expect( tuple3.values ).to eq( [2, false] )
+		expect( tuple3.values ).to eq( [2, false, "4"] )
 		expect{ tuple_empty.values }.to raise_error(TypeError)
 	end
 
@@ -199,8 +201,8 @@ describe PG::Tuple do
 	it "can be used as Enumerable" do
 		expect( tuple0.to_a ).to eq( [["column1", "1"], ["column2", "a"]] )
 		expect( tuple1.to_a ).to eq( [["column1", "2"], ["column2", "b"]] )
-		expect( tuple2.to_a ).to eq( [["column1", 1], ["column2", true]] )
-		expect( tuple3.to_a ).to eq( [["column1", 2], ["column2", false]] )
+		expect( tuple2.to_a ).to eq( [["a", 1], ["b", "3"]] )
+		expect( tuple3.to_a ).to eq( [["a", 2], ["b", "4"]] )
 	end
 
 	it "can be marshaled" do
@@ -234,7 +236,7 @@ describe PG::Tuple do
 
 	it "should override #inspect" do
 		expect( tuple1.inspect ).to eq('#<PG::Tuple column1: "2", column2: "b">')
-		expect( tuple2.inspect ).to eq('#<PG::Tuple column1: 1, column2: true>')
+		expect( tuple2.inspect ).to eq('#<PG::Tuple a: 1, b: "3">')
 		expect{ tuple_empty.inspect }.to raise_error(TypeError)
 	end
 end

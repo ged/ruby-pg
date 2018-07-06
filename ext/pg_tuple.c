@@ -22,6 +22,9 @@ typedef struct {
 	/* Row number within the result set. */
 	int row_num;
 
+	/* Number of fields in the result set. */
+	int num_fields;
+
 	/* Materialized values. */
 	VALUE values[0];
 } t_pg_tuple;
@@ -36,7 +39,7 @@ pg_tuple_gc_mark( t_pg_tuple *this )
 	rb_gc_mark( this->typemap );
 	rb_gc_mark( this->field_map );
 
-	for( i = 0; i < (int)RHASH_SIZE(this->field_map); i++ ){
+	for( i = 0; i < this->num_fields; i++ ){
 		rb_gc_mark( this->values[i] );
 	}
 }
@@ -52,7 +55,7 @@ static size_t
 pg_tuple_memsize( t_pg_tuple *this )
 {
 	if( this==NULL ) return 0;
-	return sizeof(*this) +  sizeof(*this->values) * RHASH_SIZE(this->field_map);
+	return sizeof(*this) +  sizeof(*this->values) * this->num_fields;
 }
 
 static const rb_data_type_t pg_tuple_type = {
@@ -86,7 +89,7 @@ pg_tuple_new(VALUE result, int row_num, VALUE field_map)
 	t_pg_tuple *this;
 	VALUE self = pg_tuple_s_allocate( rb_cPG_Tuple );
 	t_pg_result *p_result = pgresult_get_this(result);
-	int num_fields = RHASH_SIZE(field_map);
+	int num_fields = p_result->nfields;
 	int i;
 
 	this = (t_pg_tuple *)xmalloc(sizeof(*this) +  sizeof(*this->values) * num_fields);
@@ -96,6 +99,7 @@ pg_tuple_new(VALUE result, int row_num, VALUE field_map)
 	this->typemap = p_result->typemap;
 	this->field_map = field_map;
 	this->row_num = row_num;
+	this->num_fields = num_fields;
 
 	for( i = 0; i < num_fields; i++ ){
 		this->values[i] = Qundef;
@@ -141,7 +145,7 @@ static void
 pg_tuple_materialize(t_pg_tuple *this)
 {
 	int field_num;
-	for(field_num = 0; field_num < (int)RHASH_SIZE(this->field_map); field_num++) {
+	for(field_num = 0; field_num < this->num_fields; field_num++) {
 		pg_tuple_materialize_field(this, field_num);
 	}
 
@@ -188,8 +192,8 @@ pg_tuple_fetch(int argc, VALUE *argv, VALUE self)
 		case T_BIGNUM:
 			field_num = NUM2INT(key);
 			if ( field_num < 0 )
-				field_num = (int)RHASH_SIZE(this->field_map) + field_num;
-			if ( field_num < 0 || field_num >= (int)RHASH_SIZE(this->field_map) ){
+				field_num = this->num_fields + field_num;
+			if ( field_num < 0 || field_num >= this->num_fields ){
 				if (block_given) return rb_yield(key);
 				if (argc == 1) rb_raise( rb_eIndexError, "Index %d is out of range", field_num );
 				return argv[1];
@@ -228,8 +232,8 @@ pg_tuple_aref(VALUE self, VALUE key)
 		case T_BIGNUM:
 			field_num = NUM2INT(key);
 			if ( field_num < 0 )
-				field_num = (int)RHASH_SIZE(this->field_map) + field_num;
-			if ( field_num < 0 || field_num >= (int)RHASH_SIZE(this->field_map) )
+				field_num = this->num_fields + field_num;
+			if ( field_num < 0 || field_num >= this->num_fields )
 				return Qnil;
 			break;
 		default:
@@ -245,7 +249,7 @@ static VALUE
 pg_tuple_num_fields_for_enum(VALUE self, VALUE args, VALUE eobj)
 {
 	t_pg_tuple *this = pg_tuple_get_this(self);
-	return SIZET2NUM(RHASH_SIZE(this->field_map));
+	return INT2NUM(this->num_fields);
 }
 
 static int
@@ -290,7 +294,7 @@ pg_tuple_each_value(VALUE self)
 
 	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pg_tuple_num_fields_for_enum);
 
-	for(field_num = 0; field_num < (int)RHASH_SIZE(this->field_map); field_num++) {
+	for(field_num = 0; field_num < this->num_fields; field_num++) {
 		rb_yield(pg_tuple_aref(self, INT2NUM(field_num)));
 	}
 
@@ -312,7 +316,7 @@ pg_tuple_values(VALUE self)
 	t_pg_tuple *this = pg_tuple_get_this(self);
 
 	pg_tuple_materialize(this);
-	return rb_ary_new4(RHASH_SIZE(this->field_map), &this->values[0]);
+	return rb_ary_new4(this->num_fields, &this->values[0]);
 }
 
 static VALUE
@@ -332,7 +336,7 @@ static VALUE
 pg_tuple_length(VALUE self)
 {
 	t_pg_tuple *this = pg_tuple_get_this(self);
-	return SIZET2NUM(RHASH_SIZE(this->field_map));
+	return INT2NUM(this->num_fields);
 }
 
 /*
@@ -357,7 +361,7 @@ pg_tuple_dump(VALUE self)
 	t_pg_tuple *this = pg_tuple_get_this(self);
 
 	pg_tuple_materialize(this);
-	values = rb_ary_new4(RHASH_SIZE(this->field_map), &this->values[0]);
+	values = rb_ary_new4(this->num_fields, &this->values[0]);
 	a = rb_ary_new3(2, values, this->field_map);
 
 	if (FL_TEST(self, FL_EXIVAR)) {
@@ -394,6 +398,7 @@ pg_tuple_load(VALUE self, VALUE a)
 	this->result = Qnil;
 	this->typemap = Qnil;
 	this->row_num = -1;
+	this->num_fields = num_fields;
 	this->field_map = RARRAY_AREF(a, 1);
 
 	for( i = 0; i < num_fields; i++ ){
