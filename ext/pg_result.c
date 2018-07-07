@@ -1169,7 +1169,7 @@ pgresult_tuple(VALUE self, VALUE index)
 		this->field_map = field_map;
 	}
 
-  return pg_tuple_new(self, tuple_num, this->field_map);
+  return pg_tuple_new(self, tuple_num);
 }
 
 

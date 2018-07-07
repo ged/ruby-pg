@@ -17,10 +17,14 @@ class PG::Tuple
 	alias key? has_key?
 
 	def keys
-		field_map.keys
+		field_names || field_map.keys.freeze
 	end
 
 	def each_key(&block)
-		field_map.each_key(&block)
+		if fn=field_names
+			fn.each(&block)
+		else
+			field_map.each_key(&block)
+		end
 	end
 end

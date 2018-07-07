@@ -314,7 +314,7 @@ VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));
 PGresult* pgresult_get                                 _(( VALUE ));
 VALUE pg_result_check                                  _(( VALUE ));
 VALUE pg_result_clear                                  _(( VALUE ));
-VALUE pg_tuple_new                                     _(( VALUE, int, VALUE ));
+VALUE pg_tuple_new                                     _(( VALUE, int ));
 
 /*
  * Fetch the data pointer for the result object

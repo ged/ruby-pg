@@ -122,8 +122,8 @@ describe PG::Tuple do
 			expect( tuple0.each ).to be_kind_of(Enumerator)
 			expect( tuple0.each.to_a ).to eq( [["column1", "1"], ["column2", "a"]] )
 			expect( tuple1.each.to_a ).to eq( [["column1", "2"], ["column2", "b"]] )
-			expect( tuple2.each.to_a ).to eq( [["a", 1], ["b", "3"]] )
-			expect( tuple3.each.to_a ).to eq( [["a", 2], ["b", "4"]] )
+			expect( tuple2.each.to_a ).to eq( [["a", 1], ["b", true], ["b", "3"]] )
+			expect( tuple3.each.to_a ).to eq( [["a", 2], ["b", false], ["b", "4"]] )
 			expect{ tuple_empty.each }.to raise_error(TypeError)
 		end
 
@@ -170,12 +170,14 @@ describe PG::Tuple do
 
 	it "responds to keys" do
 		expect( tuple0.keys ).to eq( ["column1", "column2"] )
+		expect( tuple2.keys ).to eq( ["a", "b", "b"] )
 	end
 
 	describe "each_key" do
 		it "can be used as an enumerator" do
 			expect( tuple0.each_key ).to be_kind_of(Enumerator)
 			expect( tuple0.each_key.to_a ).to eq( ["column1", "column2"] )
+			expect( tuple2.each_key.to_a ).to eq( ["a", "b", "b"] )
 		end
 
 		it "can be used with block" do
@@ -190,19 +192,22 @@ describe PG::Tuple do
 	it "responds to length" do
 		expect( tuple0.length ).to eq( 2 )
 		expect( tuple0.size ).to eq( 2 )
+		expect( tuple2.size ).to eq( 3 )
 	end
 
 	it "responds to index" do
 		expect( tuple0.index("column1") ).to eq( 0 )
 		expect( tuple0.index("column2") ).to eq( 1 )
 		expect( tuple0.index("x") ).to eq( nil )
+		expect( tuple2.index("a") ).to eq( 0 )
+		expect( tuple2.index("b") ).to eq( 2 )
 	end
 
 	it "can be used as Enumerable" do
 		expect( tuple0.to_a ).to eq( [["column1", "1"], ["column2", "a"]] )
 		expect( tuple1.to_a ).to eq( [["column1", "2"], ["column2", "b"]] )
-		expect( tuple2.to_a ).to eq( [["a", 1], ["b", "3"]] )
-		expect( tuple3.to_a ).to eq( [["a", 2], ["b", "4"]] )
+		expect( tuple2.to_a ).to eq( [["a", 1], ["b", true], ["b", "3"]] )
+		expect( tuple3.to_a ).to eq( [["a", 2], ["b", false], ["b", "4"]] )
 	end
 
 	it "can be marshaled" do
@@ -236,7 +241,7 @@ describe PG::Tuple do
 
 	it "should override #inspect" do
 		expect( tuple1.inspect ).to eq('#<PG::Tuple column1: "2", column2: "b">')
-		expect( tuple2.inspect ).to eq('#<PG::Tuple a: 1, b: "3">')
+		expect( tuple2.inspect ).to eq('#<PG::Tuple a: 1, b: true, b: "3">')
 		expect{ tuple_empty.inspect }.to raise_error(TypeError)
 	end
 end

@@ -25,9 +25,21 @@ typedef struct {
 	/* Number of fields in the result set. */
 	int num_fields;
 
-	/* Materialized values. */
+	/* Materialized values.
+	 * And in case of dup column names, a field_names Array subsequently.
+	 */
 	VALUE values[0];
 } t_pg_tuple;
+
+static inline VALUE
+pg_tuple_get_field_names( t_pg_tuple *this )
+{
+	if( this->num_fields != (int)RHASH_SIZE(this->field_map) ){
+		return this->values[this->num_fields];
+	} else {
+		return Qfalse;
+	}
+}
 
 static void
 pg_tuple_gc_mark( t_pg_tuple *this )
@@ -42,6 +54,7 @@ pg_tuple_gc_mark( t_pg_tuple *this )
 	for( i = 0; i < this->num_fields; i++ ){
 		rb_gc_mark( this->values[i] );
 	}
+	rb_gc_mark( pg_tuple_get_field_names(this) );
 }
 
 static void
@@ -84,15 +97,20 @@ pg_tuple_s_allocate( VALUE klass )
 }
 
 VALUE
-pg_tuple_new(VALUE result, int row_num, VALUE field_map)
+pg_tuple_new(VALUE result, int row_num)
 {
 	t_pg_tuple *this;
 	VALUE self = pg_tuple_s_allocate( rb_cPG_Tuple );
 	t_pg_result *p_result = pgresult_get_this(result);
 	int num_fields = p_result->nfields;
 	int i;
+	VALUE field_map = p_result->field_map;
+	int dup_names = num_fields != (int)RHASH_SIZE(field_map);
 
-	this = (t_pg_tuple *)xmalloc(sizeof(*this) +  sizeof(*this->values) * num_fields);
+	this = (t_pg_tuple *)xmalloc(
+		sizeof(*this) +
+		sizeof(*this->values) * num_fields +
+		sizeof(*this->values) * (dup_names ? 1 : 0));
 	RTYPEDDATA_DATA(self) = this;
 
 	this->result = result;
@@ -103,6 +121,13 @@ pg_tuple_new(VALUE result, int row_num, VALUE field_map)
 
 	for( i = 0; i < num_fields; i++ ){
 		this->values[i] = Qundef;
+	}
+
+	if( dup_names ){
+		/* Some of the column names are duplicated -> we need the keys as Array in addition.
+		 * Store it behind the values to save the space in the common case of no dups.
+		 */
+		this->values[num_fields] = rb_obj_freeze(rb_ary_new4(num_fields, p_result->fnames));
 	}
 
 	return self;
@@ -271,10 +296,21 @@ static VALUE
 pg_tuple_each(VALUE self)
 {
 	t_pg_tuple *this = pg_tuple_get_this(self);
+	VALUE field_names;
 
 	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pg_tuple_num_fields_for_enum);
 
-	rb_hash_foreach(this->field_map, pg_tuple_yield_key_value, (VALUE)this);
+	field_names = pg_tuple_get_field_names(this);
+
+	if( field_names == Qfalse ){
+		rb_hash_foreach(this->field_map, pg_tuple_yield_key_value, (VALUE)this);
+	} else {
+		int i;
+		for( i = 0; i < this->num_fields; i++ ){
+			VALUE value = pg_tuple_materialize_field(this, i);
+			rb_yield_values(2, RARRAY_AREF(field_names, i), value);
+		}
+	}
 
 	pg_tuple_detach(this);
 	return self;
@@ -326,6 +362,13 @@ pg_tuple_field_map(VALUE self)
 	return this->field_map;
 }
 
+static VALUE
+pg_tuple_field_names(VALUE self)
+{
+	t_pg_tuple *this = pg_tuple_get_this(self);
+	return pg_tuple_get_field_names(this);
+}
+
 /*
  * call-seq:
  *    tup.length → integer
@@ -356,18 +399,25 @@ pg_tuple_index(VALUE self, VALUE key)
 static VALUE
 pg_tuple_dump(VALUE self)
 {
+	VALUE field_names;
 	VALUE values;
 	VALUE a;
 	t_pg_tuple *this = pg_tuple_get_this(self);
 
 	pg_tuple_materialize(this);
+
+	field_names = pg_tuple_get_field_names(this);
+	if( field_names == Qfalse )
+		field_names = rb_funcall(this->field_map, rb_intern("keys"), 0);
+
 	values = rb_ary_new4(this->num_fields, &this->values[0]);
-	a = rb_ary_new3(2, values, this->field_map);
+	a = rb_ary_new3(2, field_names, values);
 
 	if (FL_TEST(self, FL_EXIVAR)) {
 		rb_copy_generic_ivar(a, self);
 		FL_SET(a, FL_EXIVAR);
 	}
+
 	return a;
 }
 
@@ -378,6 +428,9 @@ pg_tuple_load(VALUE self, VALUE a)
 	int i;
 	t_pg_tuple *this;
 	VALUE values;
+	VALUE field_names;
+	VALUE field_map;
+	int dup_names;
 
 	rb_check_frozen(self);
 	rb_check_trusted(self);
@@ -386,26 +439,49 @@ pg_tuple_load(VALUE self, VALUE a)
 	if (this)
 		rb_raise(rb_eTypeError, "tuple is not empty");
 
-	if (!RB_TYPE_P(a, T_ARRAY) || RARRAY_LEN(a) != 2)
+	Check_Type(a, T_ARRAY);
+	if (RARRAY_LEN(a) != 2)
 		rb_raise(rb_eTypeError, "expected an array of 2 elements");
 
-	values = RARRAY_AREF(a, 0);
+	field_names = RARRAY_AREF(a, 0);
+	Check_Type(field_names, T_ARRAY);
+	rb_obj_freeze(field_names);
+	values = RARRAY_AREF(a, 1);
+	Check_Type(values, T_ARRAY);
 	num_fields = RARRAY_LEN(values);
 
-	this = (t_pg_tuple *)xmalloc(sizeof(*this) +  sizeof(*this->values) * num_fields);
+	if (RARRAY_LEN(field_names) != num_fields)
+		rb_raise(rb_eTypeError, "different number of fields and values");
+
+	field_map = rb_hash_new();
+	for( i = 0; i < num_fields; i++ ){
+		rb_hash_aset(field_map, RARRAY_AREF(field_names, i), INT2FIX(i));
+	}
+	rb_obj_freeze(field_map);
+
+	dup_names = num_fields != (int)RHASH_SIZE(field_map);
+
+	this = (t_pg_tuple *)xmalloc(
+		sizeof(*this) +
+		sizeof(*this->values) * num_fields +
+		sizeof(*this->values) * (dup_names ? 1 : 0));
 	RTYPEDDATA_DATA(self) = this;
 
 	this->result = Qnil;
 	this->typemap = Qnil;
 	this->row_num = -1;
 	this->num_fields = num_fields;
-	this->field_map = RARRAY_AREF(a, 1);
+	this->field_map = field_map;
 
 	for( i = 0; i < num_fields; i++ ){
 		VALUE v = RARRAY_AREF(values, i);
 		if( v == Qundef )
 			rb_raise(rb_eTypeError, "field %d is not materialized", i);
 		this->values[i] = v;
+	}
+
+	if( dup_names ){
+		this->values[num_fields] = field_names;
 	}
 
 	if (FL_TEST(a, FL_EXIVAR)) {
@@ -433,6 +509,7 @@ init_pg_tuple()
 	rb_define_method(rb_cPG_Tuple, "index", pg_tuple_index, 1);
 
 	rb_define_private_method(rb_cPG_Tuple, "field_map", pg_tuple_field_map, 0);
+	rb_define_private_method(rb_cPG_Tuple, "field_names", pg_tuple_field_names, 0);
 
 	/* methods for marshaling */
 	rb_define_private_method(rb_cPG_Tuple, "marshal_dump", pg_tuple_dump, 0);
