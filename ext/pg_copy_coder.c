@@ -354,7 +354,7 @@ GetDecimalFromHex(char hex)
  * src/backend/commands/copy.c
  */
 static VALUE
-pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, int _field, int enc_idx)
+pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tuple, int _field, int enc_idx)
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 
@@ -368,8 +368,8 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	int fieldno;
 	int expected_fields;
 	char *output_ptr;
-	char *cur_ptr;
-	char *line_end_ptr;
+	const char *cur_ptr;
+	const char *line_end_ptr;
 	char *end_capa_ptr;
 	t_typemap *p_typemap;
 
@@ -392,8 +392,8 @@ pg_text_dec_copy_row(t_pg_coder *conv, char *input_line, int len, int _tuple, in
 	for (;;)
 	{
 		int found_delim = 0;
-		char *start_ptr;
-		char *end_ptr;
+		const char *start_ptr;
+		const char *end_ptr;
 		int input_len;
 
 		/* Remember start of field on input side */
@@ -585,7 +585,12 @@ init_pg_copycoder()
 	/* rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "CopyRow", rb_cPG_CopyEncoder ); */
 	pg_define_coder( "CopyRow", pg_text_enc_copy_row, rb_cPG_CopyEncoder, rb_mPG_TextEncoder );
+	rb_include_module( rb_cPG_CopyEncoder, rb_mPG_BinaryFormatting );
+
 	/* rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "CopyRow", rb_cPG_CopyDecoder ); */
 	pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
+	/* Although CopyRow is a text decoder, data can contain zero bytes and are not zero terminated.
+	 * They are handled like binaries. So format is set to 1 (binary). */
+	rb_include_module( rb_cPG_CopyDecoder, rb_mPG_BinaryFormatting );
 }

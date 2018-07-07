@@ -21,7 +21,7 @@ VALUE rb_mPG_BinaryDecoder;
  *
  */
 static VALUE
-pg_bin_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_boolean(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for binary boolean converter in tuple %d field %d", tuple, field);
@@ -37,7 +37,7 @@ pg_bin_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, i
  *
  */
 static VALUE
-pg_bin_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	switch( len ){
 		case 2:
@@ -59,7 +59,7 @@ pg_bin_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, i
  *
  */
 static VALUE
-pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	union {
 		float f;
@@ -91,7 +91,7 @@ pg_bin_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int
  *
  */
 VALUE
-pg_bin_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret;
 	ret = rb_tainted_str_new( val, len );
@@ -106,7 +106,7 @@ pg_bin_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int
  *
  */
 static VALUE
-pg_bin_dec_to_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_to_base64(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);

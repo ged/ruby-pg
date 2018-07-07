@@ -22,7 +22,7 @@
 #include "ruby/encoding.h"
 
 /* exported by ruby-1.9.3+ but not declared */
-extern int rb_encdb_alias(const char *, const char *);
+extern int rb_enc_alias(const char *, const char *);
 
 #define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
@@ -75,6 +75,10 @@ typedef long suseconds_t;
 		type name[(maxlen)] = {(len)>(maxlen) ? (rb_raise(rb_eArgError, "Number of " #name " (%d) exceeds allowed maximum of " #maxlen, (len) ), (type)1) : (type)0};
 
 	#define PG_MAX_COLUMNS 4000
+#endif
+
+#ifndef RARRAY_AREF
+#define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
 /* The data behind each PG::Connection object */
@@ -149,7 +153,7 @@ typedef struct {
 
 
 typedef int (* t_pg_coder_enc_func)(t_pg_coder *, VALUE, char *, VALUE *, int);
-typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, char *, int, int, int, int);
+typedef VALUE (* t_pg_coder_dec_func)(t_pg_coder *, const char *, int, int, int, int);
 typedef VALUE (* t_pg_fit_to_result)(VALUE, VALUE);
 typedef VALUE (* t_pg_fit_to_query)(VALUE, VALUE);
 typedef int (* t_pg_fit_to_copy_get)(VALUE);
@@ -262,8 +266,8 @@ void init_pg_text_decoder                              _(( void ));
 void init_pg_binary_encoder                            _(( void ));
 void init_pg_binary_decoder                            _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
-VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, char *, int, int, int, int ));
-VALUE pg_text_dec_string                               _(( t_pg_coder*, char *, int, int, int, int ));
+VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, const char *, int, int, int, int ));
+VALUE pg_text_dec_string                               _(( t_pg_coder*, const char *, int, int, int, int ));
 int pg_coder_enc_to_s                                  _(( t_pg_coder*, VALUE, char *, VALUE *, int));
 int pg_text_enc_identifier                             _(( t_pg_coder*, VALUE, char *, VALUE *, int));
 t_pg_coder_enc_func pg_coder_enc_func                  _(( t_pg_coder* ));
@@ -313,7 +317,7 @@ VALUE pg_result_clear                                  _(( VALUE ));
 static inline t_pg_result *
 pgresult_get_this( VALUE self )
 {
-	t_pg_result *this = DATA_PTR(self);
+	t_pg_result *this = RTYPEDDATA_DATA(self);
 
 	if( this == NULL )
 		rb_raise(rb_ePGerror, "result has been cleared");

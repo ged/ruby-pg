@@ -12,13 +12,13 @@
  * assigns a decoder function.
  *
  * Signature of all type cast decoders is:
- *    VALUE decoder_function(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+ *    VALUE decoder_function(t_pg_coder *this, const char *val, int len, int tuple, int field, int enc_idx)
  *
  * Params:
  *   this     - The data part of the coder object that belongs to the decoder function.
- *   val, len - The text or binary data to decode. The caller ensures, that the data is
- *              zero terminated ( that is val[len] = 0 ). The memory should be used read
- *              only by the callee.
+ *   val, len - The text or binary data to decode.
+ *              The caller ensures, that text data (format=0) is zero terminated so that val[len]=0.
+ *              The memory should be used read-only by the callee.
  *   tuple    - Row of the value within the result set.
  *   field    - Column of the value within the result set.
  *   enc_idx  - Index of the Encoding that any output String should get assigned.
@@ -69,7 +69,7 @@ static ID s_ivar_mask_addr;
  *
  */
 static VALUE
-pg_text_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_boolean(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len < 1) {
 		rb_raise( rb_eTypeError, "wrong data for text boolean converter in tuple %d field %d", tuple, field);
@@ -86,7 +86,7 @@ pg_text_dec_boolean(t_pg_coder *conv, char *val, int len, int tuple, int field, 
  *
  */
 VALUE
-pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_string(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret = rb_tainted_str_new( val, len );
 	PG_ENCODING_SET_NOCHECK( ret, enc_idx );
@@ -101,7 +101,7 @@ pg_text_dec_string(t_pg_coder *conv, char *val, int len, int tuple, int field, i
  *
  */
 static VALUE
-pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	long i;
 	int max_len;
@@ -126,7 +126,7 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
 		 *     conn.exec("select generate_series(1,1000000)").values }
 		 *   end
 		 */
-		char *val_pos = val;
+		const char *val_pos = val;
 		char digit = *val_pos;
 		int neg;
 		int error = 0;
@@ -165,7 +165,7 @@ pg_text_dec_integer(t_pg_coder *conv, char *val, int len, int tuple, int field, 
  *
  */
 static VALUE
-pg_text_dec_numeric(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
 }
@@ -178,9 +178,19 @@ pg_text_dec_numeric(t_pg_coder *conv, char *val, int len, int tuple, int field, 
  *
  */
 static VALUE
-pg_text_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_float_new(strtod(val, NULL));
+}
+
+struct pg_blob_initialization {
+	char *blob_string;
+	size_t length;
+};
+
+static VALUE pg_create_blob(VALUE v) {
+	struct pg_blob_initialization *bi = (struct pg_blob_initialization *)v;
+	return rb_tainted_str_new(bi->blob_string, bi->length);
 }
 
 /*
@@ -191,18 +201,15 @@ pg_text_dec_float(t_pg_coder *conv, char *val, int len, int tuple, int field, in
  *
  */
 static VALUE
-pg_text_dec_bytea(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	unsigned char *to;
-	size_t to_len;
-	VALUE ret;
+	struct pg_blob_initialization bi;
 
-	to = PQunescapeBytea( (unsigned char *)val, &to_len);
-
-	ret = rb_tainted_str_new((char*)to, to_len);
-	PQfreemem(to);
-
-	return ret;
+	bi.blob_string = (char *)PQunescapeBytea((unsigned char*)val, &bi.length);
+	if (bi.blob_string == NULL) {
+		rb_raise(rb_eNoMemError, "PQunescapeBytea failure: probably not enough memory");
+	}
+	return rb_ensure(pg_create_blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
 }
 
 /*
@@ -255,7 +262,7 @@ array_parser_error(const char *text){
  * https://github.com/dockyard/pg_array_parser
  */
 static VALUE
-read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
+read_array_without_dim(t_pg_composite_coder *this, int *index, const char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
 {
 	/* Return value: array */
 	VALUE array;
@@ -360,80 +367,6 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, char *c_pg_array_
 	return array;
 }
 
-static VALUE
-read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int array_string_length, char *word, int enc_idx, int tuple, int field, t_pg_coder_dec_func dec_func)
-{
-	int ndim = 0;
-	VALUE ret;
-	/*
-	 * If the input string starts with dimension info, read and use that.
-	 * Otherwise, we require the input to be in curly-brace style, and we
-	 * prescan the input to determine dimensions.
-	 *
-	 * Dimension info takes the form of one or more [n] or [m:n] items. The
-	 * outer loop iterates once per dimension item.
-	 */
-	for (;;)
-	{
-		/*
-		 * Note: we currently allow whitespace between, but not within,
-		 * dimension items.
-		 */
-		while (array_isspace(c_pg_array_string[*index]))
-			(*index)++;
-		if (c_pg_array_string[*index] != '[')
-			break;				/* no more dimension items */
-		(*index)++;
-
-		while (array_isdim(c_pg_array_string[*index]))
-			(*index)++;
-
-		if (c_pg_array_string[*index] != ']'){
-			array_parser_error( "missing \"]\" in array dimensions");
-			break;
-		}
-		(*index)++;
-
-		ndim++;
-	}
-
-	if (ndim == 0)
-	{
-		/* No array dimensions */
-	}
-	else
-	{
-		/* If array dimensions are given, expect '=' operator */
-		if (c_pg_array_string[*index] != '=') {
-			array_parser_error( "missing assignment operator");
-			(*index)-=2; /* jump back to before "]" so that we don't break behavior to pg < 1.1 */
-		}
-		(*index)++;
-
-		while (array_isspace(c_pg_array_string[*index]))
-			(*index)++;
-	}
-
-	if (c_pg_array_string[*index] != '{')
-		array_parser_error( "array value must start with \"{\" or dimension information");
-	(*index)++;
-
-	ret = read_array_without_dim(this, index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
-
-	if (c_pg_array_string[*index] != '}' )
-		array_parser_error( "array value must end with \"}\"");
-	(*index)++;
-
-	/* only whitespace is allowed after the closing brace */
-	for(;(*index) < array_string_length; ++(*index))
-	{
-		if (!array_isspace(c_pg_array_string[*index]))
-			array_parser_error( "malformed array literal: Junk after closing right brace.");
-	}
-
-	return ret;
-}
-
 /*
  * Document-class: PG::TextDecoder::Array < PG::CompositeDecoder
  *
@@ -450,17 +383,92 @@ read_array(t_pg_composite_coder *this, int *index, char *c_pg_array_string, int 
  *
  */
 static VALUE
-pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_string_length, int tuple, int field, int enc_idx)
 {
-	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
-	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
-	/* create a buffer of the same length, as that will be the worst case */
-	char *word = xmalloc(len + 1);
 	int index = 0;
+	int ndim = 0;
+	VALUE ret;
 
-	VALUE return_value = read_array(this, &index, val, len, word, enc_idx, tuple, field, dec_func);
-	free(word);
-	return return_value;
+	/*
+	 * If the input string starts with dimension info, read and use that.
+	 * Otherwise, we require the input to be in curly-brace style, and we
+	 * prescan the input to determine dimensions.
+	 *
+	 * Dimension info takes the form of one or more [n] or [m:n] items. The
+	 * outer loop iterates once per dimension item.
+	 */
+	for (;;)
+	{
+		/*
+		 * Note: we currently allow whitespace between, but not within,
+		 * dimension items.
+		 */
+		while (array_isspace(c_pg_array_string[index]))
+			index++;
+		if (c_pg_array_string[index] != '[')
+			break;				/* no more dimension items */
+		index++;
+
+		while (array_isdim(c_pg_array_string[index]))
+			index++;
+
+		if (c_pg_array_string[index] != ']'){
+			array_parser_error( "missing \"]\" in array dimensions");
+			break;
+		}
+		index++;
+
+		ndim++;
+	}
+
+	if (ndim == 0)
+	{
+		/* No array dimensions */
+	}
+	else
+	{
+		/* If array dimensions are given, expect '=' operator */
+		if (c_pg_array_string[index] != '=') {
+			array_parser_error( "missing assignment operator");
+			index-=2; /* jump back to before "]" so that we don't break behavior to pg < 1.1 */
+		}
+		index++;
+
+		while (array_isspace(c_pg_array_string[index]))
+			index++;
+	}
+
+	if (c_pg_array_string[index] != '{')
+		array_parser_error( "array value must start with \"{\" or dimension information");
+	index++;
+
+	if ( index < array_string_length && c_pg_array_string[index] == '}' ) {
+		/* avoid buffer allocation for empty array */
+		ret = rb_ary_new();
+	} else {
+		t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+		t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
+		/* create a buffer of the same length, as that will be the worst case */
+		VALUE buf = rb_str_new(NULL, array_string_length);
+		char *word = RSTRING_PTR(buf);
+
+		ret = read_array_without_dim(this, &index, c_pg_array_string, array_string_length, word, enc_idx, tuple, field, dec_func);
+
+		RB_GC_GUARD(buf);
+	}
+
+	if (c_pg_array_string[index] != '}' )
+		array_parser_error( "array value must end with \"}\"");
+	index++;
+
+	/* only whitespace is allowed after the closing brace */
+	for(;index < array_string_length; ++index)
+	{
+		if (!array_isspace(c_pg_array_string[index]))
+			array_parser_error( "malformed array literal: Junk after closing right brace.");
+	}
+
+	return ret;
 }
 
 /*
@@ -474,7 +482,7 @@ pg_text_dec_array(t_pg_coder *conv, char *val, int len, int tuple, int field, in
  *
  */
 static VALUE
-pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_identifier(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	/* Return value: array */
 	VALUE array;
@@ -536,7 +544,7 @@ pg_text_dec_identifier(t_pg_coder *conv, char *val, int len, int tuple, int fiel
  *
  */
 static VALUE
-pg_text_dec_from_base64(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_from_base64(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
@@ -580,7 +588,7 @@ static int str2_to_int(const char *str)
 			+ char_to_digit(str[1]);
 }
 
-static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx, int without_timezone)
+static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx, int without_timezone)
 {
 	const char *str = val;
 
@@ -789,22 +797,22 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, char *val, int len, 
 }
 
 static VALUE
-pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 0);
 }
 static VALUE
-pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 1);
 }
 static VALUE
-pg_text_dec_timestamp_utc_to_local(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_utc_to_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 2);
 }
 static VALUE
-pg_text_dec_timestamp_utc(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_utc(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 3);
 }
@@ -817,7 +825,7 @@ pg_text_dec_timestamp_utc(t_pg_coder *conv, char *val, int len, int tuple, int f
  *
  */
 static VALUE
-pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ip;
 #if defined(_WIN32)
@@ -827,19 +835,30 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 	VALUE ip_int;
 	VALUE vmasks;
 	char dst[16];
+	char buf[64];
 	int af = strchr(val, '.') ? AF_INET : AF_INET6;
 	int mask = -1;
+
+	if (len >= 64) {
+		rb_raise(rb_eTypeError, "too long data for text inet converter in tuple %d field %d", tuple, field);
+	}
 
 	if (len >= 4) {
 		if (val[len-2] == '/') {
 			mask = val[len-1] - '0';
-			val[len-2] = '\0';
+			memcpy(buf, val, len-2);
+			buf[len-2] = '\0';
+			val = buf;
 		} else if (val[len-3] == '/') {
-			mask = (val[len-2]- '0') *10 + val[len-1] - '0';
-			val[len-3] = '\0';
+			mask = (val[len-2]- '0')*10 + val[len-1] - '0';
+			memcpy(buf, val, len-3);
+			buf[len-3] = '\0';
+			val = buf;
 		} else if (val[len-4] == '/') {
 			mask = (val[len-3]- '0')*100 + (val[len-2]- '0')*10 + val[len-1] - '0';
-			val[len-4] = '\0';
+			memcpy(buf, val, len-4);
+			buf[len-4] = '\0';
+			val = buf;
 		}
 	}
 
@@ -848,6 +867,8 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 	}
 
 	if (af == AF_INET) {
+		unsigned int ip_int_native;
+
 		if (mask == -1) {
 			mask = 32;
 		} else if (mask < 0 || mask > 32) {
@@ -855,9 +876,27 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 		}
 		vmasks = s_vmasks4;
 
-		ip_int = UINT2NUM(read_nbo32(dst));
+		ip_int_native = read_nbo32(dst);
+
+		/* Work around broken IPAddr behavior of convering portion
+		   of address after netmask to 0 */
+		switch (mask) {
+			case 0:
+				ip_int_native = 0;
+				break;
+			case 32:
+				/* nothing to do */
+				break;
+			default:
+				ip_int_native &= ~((1UL<<(32-mask))-1);
+				break;
+		}
+
+		ip_int = UINT2NUM(ip_int_native);
 	} else {
 		unsigned long long * dstllp = (unsigned long long *)dst;
+		unsigned long long ip_int_native1;
+		unsigned long long ip_int_native2;
 
 		if (mask == -1) {
 			mask = 128;
@@ -866,11 +905,28 @@ pg_text_dec_inet(t_pg_coder *conv, char *val, int len, int tuple, int field, int
 		}
 		vmasks = s_vmasks6;
 
-		/* 4 Bignum allocations */
-		ip_int = ULL2NUM(read_nbo64(dstllp));
-		ip_int = rb_funcall(ip_int, s_id_lshift, 1, INT2NUM(64));
+		ip_int_native1 = read_nbo64(dstllp);
 		dstllp++;
-		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(read_nbo64(dstllp)));
+		ip_int_native2 = read_nbo64(dstllp);
+
+		if (mask == 128) {
+			/* nothing to do */
+		} else if (mask == 64) {
+			ip_int_native2 = 0;
+		} else if (mask == 0) {
+			ip_int_native1 = 0;
+			ip_int_native2 = 0;
+		} else if (mask < 64) {
+			ip_int_native1 &= ~((1ULL<<(64-mask))-1);
+			ip_int_native2 = 0;
+		} else {
+			ip_int_native2 &= ~((1ULL<<(128-mask))-1);
+		}
+
+		/* 4 Bignum allocations */
+		ip_int = ULL2NUM(ip_int_native1);
+		ip_int = rb_funcall(ip_int, s_id_lshift, 1, INT2NUM(64));
+		ip_int = rb_funcall(ip_int, s_id_add, 1, ULL2NUM(ip_int_native2));
 	}
 
 	if (use_ipaddr_alloc) {
@@ -895,6 +951,7 @@ init_pg_text_decoder()
 {
 	rb_require("ipaddr");
 	s_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
+	rb_global_variable(&s_IPAddr);
 	s_ivar_family = rb_intern("@family");
 	s_ivar_addr = rb_intern("@addr");
 	s_ivar_mask_addr = rb_intern("@mask_addr");

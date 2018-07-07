@@ -192,7 +192,11 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	if( NIL_P(argv[0]) )
 		return Qnil;
 
-	val = StringValuePtr(argv[0]);
+	if( this->format == 0 ){
+		val = StringValueCStr(argv[0]);
+	}else{
+		val = StringValuePtr(argv[0]);
+	}
 	if( !this->dec_func ){
 		rb_raise(rb_eRuntimeError, "no decoder function defined");
 	}
@@ -403,14 +407,14 @@ pg_coder_enc_func(t_pg_coder *this)
 }
 
 static VALUE
-pg_text_dec_in_ruby(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_in_ruby(t_pg_coder *this, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE string = pg_text_dec_string(this, val, len, tuple, field, enc_idx);
 	return rb_funcall( this->coder_obj, s_id_decode, 3, string, INT2NUM(tuple), INT2NUM(field) );
 }
 
 static VALUE
-pg_bin_dec_in_ruby(t_pg_coder *this, char *val, int len, int tuple, int field, int enc_idx)
+pg_bin_dec_in_ruby(t_pg_coder *this, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE string = pg_bin_dec_bytea(this, val, len, tuple, field, enc_idx);
 	return rb_funcall( this->coder_obj, s_id_decode, 3, string, INT2NUM(tuple), INT2NUM(field) );

@@ -555,7 +555,7 @@ pgresult_ntuples(VALUE self)
 static VALUE
 pgresult_ntuples_for_enum(VALUE self, VALUE args, VALUE eobj)
 {
-    return pgresult_ntuples(self);
+	return pgresult_ntuples(self);
 }
 
 /*
