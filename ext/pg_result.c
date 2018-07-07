@@ -1219,6 +1219,84 @@ pgresult_type_map_get(VALUE self)
 	return this->typemap;
 }
 
+
+static void
+yield_hash(VALUE self, int ntuples, int nfields)
+{
+	int tuple_num;
+	UNUSED(nfields);
+
+	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
+		rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
+	}
+}
+
+static void
+yield_array(VALUE self, int ntuples, int nfields)
+{
+	int row;
+	t_pg_result *this = pgresult_get_this(self);
+
+	for ( row = 0; row < ntuples; row++ ) {
+		PG_VARIABLE_LENGTH_ARRAY(VALUE, row_values, nfields, PG_MAX_COLUMNS)
+		int field;
+
+		/* populate the row */
+		for ( field = 0; field < nfields; field++ ) {
+			row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
+		}
+		rb_yield( rb_ary_new4( nfields, row_values ));
+	}
+}
+
+static VALUE
+pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
+{
+	t_pg_result *this;
+	int nfields;
+	PGconn *pgconn;
+	PGresult *pgresult;
+
+	RETURN_ENUMERATOR(self, 0, NULL);
+
+	this = pgresult_get_this_safe(self);
+	pgconn = pg_get_pgconn(this->connection);
+	pgresult = this->pgresult;
+	nfields = PQnfields(pgresult);
+
+	for(;;){
+		int ntuples = PQntuples(pgresult);
+
+		switch( PQresultStatus(pgresult) ){
+			case PGRES_TUPLES_OK:
+				if( ntuples == 0 )
+					return self;
+				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
+			case PGRES_SINGLE_TUPLE:
+				break;
+			default:
+				pg_result_check( self );
+		}
+
+		yielder( self, ntuples, nfields );
+
+		pgresult_clear( this );
+
+		pgresult = gvl_PQgetResult(pgconn);
+		if( pgresult == NULL )
+			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");
+
+		if( nfields != PQnfields(pgresult) )
+			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields must not change in single row mode");
+
+		this->pgresult = pgresult;
+	}
+
+	/* never reached */
+	return self;
+}
+
+
 /*
  * call-seq:
  *    res.stream_each{ |tuple| ... }
@@ -1255,52 +1333,10 @@ pgresult_type_map_get(VALUE self)
 static VALUE
 pgresult_stream_each(VALUE self)
 {
-	t_pg_result *this;
-	int nfields;
-	PGconn *pgconn;
-	PGresult *pgresult;
-
-	RETURN_ENUMERATOR(self, 0, NULL);
-
-	this = pgresult_get_this_safe(self);
-	pgconn = pg_get_pgconn(this->connection);
-	pgresult = this->pgresult;
-	nfields = PQnfields(pgresult);
-
-	for(;;){
-		int tuple_num;
-		int ntuples = PQntuples(pgresult);
-
-		switch( PQresultStatus(pgresult) ){
-			case PGRES_TUPLES_OK:
-				if( ntuples == 0 )
-					return self;
-				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
-			case PGRES_SINGLE_TUPLE:
-				break;
-			default:
-				pg_result_check( self );
-		}
-
-		for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
-			rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
-		}
-
-		pgresult_clear( this );
-
-		pgresult = gvl_PQgetResult(pgconn);
-		if( pgresult == NULL )
-			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");
-
-		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields must not change in single row mode");
-
-		this->pgresult = pgresult;
-	}
-
-	/* never reached */
-	return self;
+	return pgresult_stream_any(self, yield_hash);
 }
+
+
 
 /*
  * call-seq:
@@ -1317,58 +1353,7 @@ pgresult_stream_each(VALUE self)
 static VALUE
 pgresult_stream_each_row(VALUE self)
 {
-	t_pg_result *this;
-	int row;
-	int nfields;
-	PGconn *pgconn;
-	PGresult *pgresult;
-
-	RETURN_ENUMERATOR(self, 0, NULL);
-
-	this = pgresult_get_this_safe(self);
-	pgconn = pg_get_pgconn(this->connection);
-	pgresult = this->pgresult;
-	nfields = PQnfields(pgresult);
-
-	for(;;){
-		int ntuples = PQntuples(pgresult);
-
-		switch( PQresultStatus(pgresult) ){
-			case PGRES_TUPLES_OK:
-				if( ntuples == 0 )
-					return self;
-				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
-			case PGRES_SINGLE_TUPLE:
-				break;
-			default:
-				pg_result_check( self );
-		}
-
-		for ( row = 0; row < ntuples; row++ ) {
-			PG_VARIABLE_LENGTH_ARRAY(VALUE, row_values, nfields, PG_MAX_COLUMNS)
-			int field;
-
-			/* populate the row */
-			for ( field = 0; field < nfields; field++ ) {
-				row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
-			}
-			rb_yield( rb_ary_new4( nfields, row_values ));
-		}
-
-		pgresult_clear( this );
-
-		pgresult = gvl_PQgetResult(pgconn);
-		if( pgresult == NULL )
-			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");
-
-		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields must not change in single row mode");
-
-		this->pgresult = pgresult;
-	}
-
-	/* never reached */
-	return self;
+	return pgresult_stream_any(self, yield_array);
 }
 
 
