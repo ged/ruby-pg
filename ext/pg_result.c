@@ -1263,11 +1263,14 @@ static void
 yield_hash(VALUE self, int ntuples, int nfields)
 {
 	int tuple_num;
+	t_pg_result *this = pgresult_get_this(self);
 	UNUSED(nfields);
 
 	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
 		rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
 	}
+
+	pgresult_clear( this );
 }
 
 static void
@@ -1285,6 +1288,22 @@ yield_array(VALUE self, int ntuples, int nfields)
 			row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
 		}
 		rb_yield( rb_ary_new4( nfields, row_values ));
+	}
+
+	pgresult_clear( this );
+}
+
+static void
+yield_tuple(VALUE self, int ntuples, int nfields)
+{
+	int tuple_num;
+	t_pg_result *this = pgresult_get_this(self);
+	VALUE result = pg_new_result(this->pgresult, this->connection);
+	UNUSED(nfields);
+
+	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
+		VALUE tuple = pgresult_tuple(result, INT2FIX(tuple_num));
+		rb_yield( tuple );
 	}
 }
 
@@ -1318,8 +1337,6 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
 		}
 
 		yielder( self, ntuples, nfields );
-
-		pgresult_clear( this );
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
@@ -1375,8 +1392,6 @@ pgresult_stream_each(VALUE self)
 	return pgresult_stream_any(self, yield_hash);
 }
 
-
-
 /*
  * call-seq:
  *    res.stream_each_row { |row| ... }
@@ -1393,6 +1408,22 @@ static VALUE
 pgresult_stream_each_row(VALUE self)
 {
 	return pgresult_stream_any(self, yield_array);
+}
+
+/*
+ * call-seq:
+ *    res.stream_each_tuple { |tuple| ... }
+ *
+ * Yields each row of the result set in single row mode.
+ *
+ * This method works equally to #stream_each , but yields a PG::Tuple object.
+ *
+ * Available since PostgreSQL-9.2
+ */
+static VALUE
+pgresult_stream_each_tuple(VALUE self)
+{
+	return pgresult_stream_any(self, yield_tuple);
 }
 
 
@@ -1455,6 +1486,7 @@ init_pg_result()
 	/******     PG::Result INSTANCE METHODS: streaming     ******/
 	rb_define_method(rb_cPGresult, "stream_each", pgresult_stream_each, 0);
 	rb_define_method(rb_cPGresult, "stream_each_row", pgresult_stream_each_row, 0);
+	rb_define_method(rb_cPGresult, "stream_each_tuple", pgresult_stream_each_tuple, 0);
 }
 
 
