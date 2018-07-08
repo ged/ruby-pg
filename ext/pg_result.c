@@ -1309,7 +1309,7 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
  * wrapping each row into a dedicated result object, it delivers data in nearly
  * the same speed as with ordinary results.
  *
- * The result must be in status PGRES_SINGLE_TUPLE.
+ * The base result must be in status PGRES_SINGLE_TUPLE.
  * It iterates over all tuples until the status changes to PGRES_TUPLES_OK.
  * A PG::Error is raised for any errors from the server.
  *
@@ -1321,10 +1321,10 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
  *   conn.send_query( "first SQL query; second SQL query" )
  *   conn.set_single_row_mode
  *   conn.get_result.stream_each do |row|
- *     # do something with the received row of the first query
+ *     # do something with each received row of the first query
  *   end
  *   conn.get_result.stream_each do |row|
- *     # do something with the received row of the second query
+ *     # do something with each received row of the second query
  *   end
  *   conn.get_result  # => nil   (no more results)
  *
