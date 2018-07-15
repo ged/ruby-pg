@@ -50,9 +50,10 @@ static ID s_id_utc;
 static ID s_id_getlocal;
 static ID s_id_BigDecimal;
 
-VALUE s_IPAddr;
-VALUE s_vmasks4;
-VALUE s_vmasks6;
+static VALUE s_IPAddr;
+static VALUE s_vmasks4;
+static VALUE s_vmasks6;
+static VALUE s_nan, s_pos_inf, s_neg_inf;
 static int use_ipaddr_alloc;
 static ID s_id_lshift;
 static ID s_id_add;
@@ -180,7 +181,20 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 static VALUE
 pg_text_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return rb_float_new(strtod(val, NULL));
+	switch(*val) {
+		case 'N':
+			return s_nan;
+		case 'I':
+			return s_pos_inf;
+		case '-':
+			if (val[1] == 'I') {
+				return s_neg_inf;
+			} else {
+				return rb_float_new(rb_cstr_to_dbl(val, Qfalse));
+			}
+		default:
+			return rb_float_new(rb_cstr_to_dbl(val, Qfalse));
+	}
 }
 
 struct pg_blob_initialization {
@@ -974,6 +988,12 @@ init_pg_text_decoder()
 
 	rb_require("bigdecimal");
 	s_id_BigDecimal = rb_intern("BigDecimal");
+	s_nan = rb_eval_string("0.0/0.0");
+	rb_global_variable(&s_nan);
+	s_pos_inf = rb_eval_string("1.0/0.0");
+	rb_global_variable(&s_pos_inf);
+	s_neg_inf = rb_eval_string("-1.0/0.0");
+	rb_global_variable(&s_neg_inf);
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
