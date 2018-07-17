@@ -195,6 +195,21 @@ pg_bin_dec_timestamp_utc(t_pg_coder *conv, const char *val, int len, int tuple, 
 }
 
 /*
+ * Document-class: PG::BinaryDecoder::TimestampLocal < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary timestamps
+ * to Ruby Time objects.
+ *
+ */
+static VALUE
+pg_bin_dec_timestamp_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
+{
+	VALUE t = dec_timestamp(val, len, tuple, field, 0);
+	if( TYPE(t) == T_STRING ) return t;
+	return rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
+}
+
+/*
  * Document-class: PG::BinaryDecoder::String < PG::SimpleDecoder
  *
  * This is a decoder class for conversion of PostgreSQL text output to
@@ -224,6 +239,8 @@ init_pg_binary_decoder()
 	pg_define_coder( "TimestampUtc", pg_bin_dec_timestamp_utc, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "TimestampUtcToLocal", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "TimestampUtcToLocal", pg_bin_dec_timestamp_utc_to_local, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "TimestampLocal", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "TimestampLocal", pg_bin_dec_timestamp_local, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "ToBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "ToBase64", pg_bin_dec_to_base64, rb_cPG_CompositeDecoder, rb_mPG_BinaryDecoder );

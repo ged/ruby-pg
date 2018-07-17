@@ -816,7 +816,7 @@ pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, const char *val, int len,
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 0);
 }
 static VALUE
-pg_text_dec_timestamp_without_time_zone(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
+pg_text_dec_timestamp_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 1);
 }
@@ -1021,8 +1021,8 @@ init_pg_text_decoder()
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithTimeZone", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "TimestampWithTimeZone", pg_text_dec_timestamp_with_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
-	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampWithoutTimeZone", rb_cPG_SimpleDecoder ); */
-	pg_define_coder( "TimestampWithoutTimeZone", pg_text_dec_timestamp_without_time_zone, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampLocal", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "TimestampLocal", pg_text_dec_timestamp_local, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampUtcToLocal", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "TimestampUtcToLocal", pg_text_dec_timestamp_utc_to_local, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "TimestampUtc", rb_cPG_SimpleDecoder ); */

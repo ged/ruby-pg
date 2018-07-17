@@ -22,6 +22,9 @@ module PG
 				::JSON.parse(string, quirks_mode: true)
 			end
 		end
+
+		# For backward compatibility
+		TimestampWithoutTimeZone = TimestampLocal
 	end
 end # module PG
 

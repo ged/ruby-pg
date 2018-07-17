@@ -166,8 +166,14 @@ module PG::BasicTypeRegistry
 
 	# Alias the +old+ type to the +new+ type.
 	def self.alias_type(format, new, old)
-		CODERS_BY_NAME[format][:encoder][new] = CODERS_BY_NAME[format][:encoder][old]
-		CODERS_BY_NAME[format][:decoder][new] = CODERS_BY_NAME[format][:decoder][old]
+		[:encoder, :decoder].each do |ende|
+			enc = CODERS_BY_NAME[format][ende][old]
+			if enc
+				CODERS_BY_NAME[format][ende][new] = enc
+			else
+				CODERS_BY_NAME[format][ende].delete(new)
+			end
+		end
 	end
 
 	register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer

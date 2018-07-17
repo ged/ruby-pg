@@ -4,6 +4,22 @@
 require_relative '../helpers'
 
 require 'pg'
+require 'time'
+
+def restore_type(types)
+	[0, 1].each do |format|
+		[types].flatten.each do |type|
+			PG::BasicTypeRegistry.alias_type(format, "restore_#{type}", type)
+		end
+	end
+	yield
+ensure
+	[0, 1].each do |format|
+		[types].flatten.each do |type|
+			PG::BasicTypeRegistry.alias_type(format, type, "restore_#{type}")
+		end
+	end
+end
 
 describe 'Basic type mapping' do
 
@@ -165,16 +181,56 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do binary datetime without time zone type conversions" do
-				[1].each do |format|
-					res = @conn.exec_params( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
-																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE),
-																		CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
-																		CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
-					expect( res.getvalue(0,0) ).to eq( Time.utc(2013, 12, 31, 23, 58, 59) )
-					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.utc(1913, 12, 31, 23, 58, 59.123))
-					expect( res.getvalue(0,2) ).to eq( 'infinity' )
-					expect( res.getvalue(0,3) ).to eq( '-infinity' )
+			[1, 0].each do |format|
+				it "should convert format #{format} timestamps per TimestampUtc" do
+					restore_type("timestamp") do
+						PG::BasicTypeRegistry.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampUtc
+						@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('1913-12-31 23:58:59.1231-03' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
+						expect( res.getvalue(0,0).iso8601(3) ).to eq( Time.utc(2013, 7, 31, 23, 58, 59).iso8601(3) )
+						expect( res.getvalue(0,1).iso8601(3) ).to eq( Time.utc(1913, 12, 31, 23, 58, 59.1231).iso8601(3) )
+						expect( res.getvalue(0,2) ).to eq( 'infinity' )
+						expect( res.getvalue(0,3) ).to eq( '-infinity' )
+					end
+				end
+			end
+
+			[1, 0].each do |format|
+				it "should convert format #{format} timestamps per TimestampUtcToLocal" do
+					restore_type("timestamp") do
+						PG::BasicTypeRegistry.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampUtcToLocal
+						PG::BasicTypeRegistry.register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtcToLocal
+						@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('1913-12-31 23:58:59.1231-03' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
+						expect( res.getvalue(0,0).iso8601(3) ).to eq( Time.utc(2013, 7, 31, 23, 58, 59).getlocal.iso8601(3) )
+						expect( res.getvalue(0,1).iso8601(3) ).to eq( Time.utc(1913, 12, 31, 23, 58, 59.1231).getlocal.iso8601(3) )
+						expect( res.getvalue(0,2) ).to eq( 'infinity' )
+						expect( res.getvalue(0,3) ).to eq( '-infinity' )
+					end
+				end
+			end
+
+			[1, 0].each do |format|
+				it "should convert format #{format} timestamps per TimestampLocal" do
+					restore_type("timestamp") do
+						PG::BasicTypeRegistry.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampLocal
+						PG::BasicTypeRegistry.register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampLocal
+						@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('1913-12-31 23:58:59.1231' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
+																			CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
+						expect( res.getvalue(0,0).iso8601(3) ).to eq( Time.new(2013, 7, 31, 23, 58, 59).iso8601(3) )
+						expect( res.getvalue(0,1).iso8601(3) ).to eq( Time.new(1913, 12, 31, 23, 58, 59.1231).iso8601(3) )
+						expect( res.getvalue(0,2) ).to eq( 'infinity' )
+						expect( res.getvalue(0,3) ).to eq( '-infinity' )
+					end
 				end
 			end
 
