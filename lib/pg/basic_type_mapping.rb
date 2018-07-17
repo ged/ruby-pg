@@ -234,6 +234,8 @@ module PG::BasicTypeRegistry
 	register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
 	register_type 1, 'float4', nil, PG::BinaryDecoder::Float
 	register_type 1, 'float8', nil, PG::BinaryDecoder::Float
+	register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtc
+	register_type 1, 'timestamptz', nil, PG::BinaryDecoder::TimestampUtcToLocal
 end
 
 # Simple set of rules for type casting common PostgreSQL types to Ruby.

@@ -151,7 +151,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do datetime without time zone type conversions" do
+			it "should do text datetime without time zone type conversions" do
+				# for backward compat text timestamps without time zone are treated as local times
 				[0].each do |format|
 					res = @conn.exec_params( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
 																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE),
@@ -164,8 +165,21 @@ describe 'Basic type mapping' do
 				end
 			end
 
+			it "should do binary datetime without time zone type conversions" do
+				[1].each do |format|
+					res = @conn.exec_params( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
+																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITHOUT TIME ZONE),
+																		CAST('infinity' AS TIMESTAMP WITHOUT TIME ZONE),
+																		CAST('-infinity' AS TIMESTAMP WITHOUT TIME ZONE)", [], format )
+					expect( res.getvalue(0,0) ).to eq( Time.utc(2013, 12, 31, 23, 58, 59) )
+					expect( res.getvalue(0,1) ).to be_within(1e-3).of(Time.utc(1913, 12, 31, 23, 58, 59.123))
+					expect( res.getvalue(0,2) ).to eq( 'infinity' )
+					expect( res.getvalue(0,3) ).to eq( '-infinity' )
+				end
+			end
+
 			it "should do datetime with time zone type conversions" do
-				[0].each do |format|
+				[0, 1].each do |format|
 					res = @conn.exec_params( "SELECT CAST('2013-12-31 23:58:59+02' AS TIMESTAMP WITH TIME ZONE),
 																		CAST('1913-12-31 23:58:59.123-03' AS TIMESTAMP WITH TIME ZONE),
 																		CAST('infinity' AS TIMESTAMP WITH TIME ZONE),
