@@ -588,55 +588,60 @@ static inline int char_to_digit(char c)
 	return c - '0';
 }
 
-static int str4_to_int(const char *str)
-{
-	return char_to_digit(str[0]) * 1000
-			+ char_to_digit(str[1]) * 100
-			+ char_to_digit(str[2]) * 10
-			+ char_to_digit(str[3]);
-}
-
 static int str2_to_int(const char *str)
 {
 	return char_to_digit(str[0]) * 10
 			+ char_to_digit(str[1]);
 }
 
-static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx, int without_timezone)
+static int parse_year(const char **str) {
+	int year = 0;
+	int i;
+	const char * p = *str;
+
+	for(i = 0; isdigit(*p) && i < 7; i++, p++) {
+		year = 10 * year + char_to_digit(*p);
+	}
+
+	*str = p;
+	return year;
+}
+
+#define DB_UTC 0x0
+#define DB_LOCAL 0x1
+#define APP_UTC 0x0
+#define APP_LOCAL 0x2
+#define TZ_NEG 1
+#define TZ_POS 2
+
+static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx, int flags)
 {
 	const char *str = val;
+	int year, mon, day;
+	int hour, min, sec;
+	int nsec = 0;
+	int tz_given = 0;
+	int tz_hour = 0;
+	int tz_min = 0;
+	int tz_sec = 0;
 
-	if (isdigit(str[0]) && isdigit(str[1]) && isdigit(str[2]) && isdigit(str[3])
-	&& str[4] == '-'
-	&& isdigit(str[5]) && isdigit(str[6])
-	&& str[7] == '-'
-	&& isdigit(str[8]) && isdigit(str[9])
-	&& str[10] == ' '
-	&& isdigit(str[11]) && isdigit(str[12])
-	&& str[13] == ':'
-	&& isdigit(str[14]) && isdigit(str[15])
-	&& str[16] == ':'
-	&& isdigit(str[17]) && isdigit(str[18])
-	)
-	{
-		int year, mon, day;
-		int hour, min, sec;
-		int nsec = 0;
-		int tz_neg = 0;
-		int tz_hour = 0;
-		int tz_min = 0;
-		int tz_sec = 0;
+	year = parse_year(&str);
 
-		year = str4_to_int(&str[0]);
-		mon = str2_to_int(&str[5]);
-		day = str2_to_int(&str[8]);
-		hour = str2_to_int(&str[11]);
-		min = str2_to_int(&str[14]);
-		sec = str2_to_int(&str[17]);
-		str += 19;
+	if ( year > 0
+		&& str[0] == '-' && isdigit(str[1]) && isdigit(str[2])
+		&& str[3] == '-' && isdigit(str[4]) && isdigit(str[5])
+		&& str[6] == ' ' && isdigit(str[7]) && isdigit(str[8])
+		&& str[9] == ':' && isdigit(str[10]) && isdigit(str[11])
+		&& str[12] == ':' && isdigit(str[13]) && isdigit(str[14])
+	) {
 
-		if (str[0] == '.' && isdigit(str[1]))
-		{
+		mon = str2_to_int(str+1); str += 3;
+		day = str2_to_int(str+1); str += 3;
+		hour = str2_to_int(str+1); str += 3;
+		min = str2_to_int(str+1); str += 3;
+		sec = str2_to_int(str+1); str += 3;
+
+		if (str[0] == '.' && isdigit(str[1])) {
 			/* nano second part, up to 9 digits */
 			static const int coef[9] = {
 				100000000, 10000000, 1000000,
@@ -653,36 +658,26 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int
 			while(isdigit(*str)) str++;
 		}
 
-		if (!without_timezone)
-		{
-			if ((str[0] == '+' || str[0] == '-') && isdigit(str[1]) && isdigit(str[2]))
+		if ((str[0] == '+' || str[0] == '-') && isdigit(str[1]) && isdigit(str[2])) {
+			tz_given = str[0] == '-' ? TZ_NEG : TZ_POS;
+			tz_hour = str2_to_int(str+1); str += 3;
+
+			if (str[0] == ':' && isdigit(str[1]) && isdigit(str[2]))
 			{
-				tz_neg = str[0] == '-';
-				tz_hour = str2_to_int(&str[1]);
-				str += 3;
+				tz_min = str2_to_int(str+1); str += 3;
 			}
-			if (str[0] == ':')
+			if (str[0] == ':' && isdigit(str[1]) && isdigit(str[2]))
 			{
-				str++;
-			}
-			if (isdigit(str[0]) && isdigit(str[1]))
-			{
-				tz_min = str2_to_int(str);
-				str += 2;
-			}
-			if (str[0] == ':')
-			{
-				str++;
-			}
-			if (isdigit(str[0]) && isdigit(str[1]))
-			{
-				tz_sec = str2_to_int(str);
-				str += 2;
+				tz_sec = str2_to_int(str+1); str += 3;
 			}
 		}
 
-		if (*str == '\0') /* must have consumed all the string */
-		{
+		if (str[0] == ' ' && str[1] == 'B' && str[2] == 'C') {
+			year = -year + 1;
+			str += 3;
+		}
+
+		if (*str == '\0') { /* must have consumed all the string */
 			VALUE sec_value;
 			VALUE gmt_offset_value;
 			VALUE res;
@@ -699,90 +694,89 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int
 			tm.tm_sec = sec;
 			tm.tm_isdst = -1;
 
-			switch(without_timezone){
-				case 0: /* with timezone */
-				{
-					time_t time = timegm(&tm);
-					if (time != -1){
-						int gmt_offset;
+			if (tz_given) {
+				/* with timezone */
+				time_t time = timegm(&tm);
+				if (time != -1){
+					int gmt_offset;
 
-						gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-						if (tz_neg)
-						{
-							gmt_offset = - gmt_offset;
+					gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+					if (tz_given == TZ_NEG)
+					{
+						gmt_offset = - gmt_offset;
+					}
+					ts.tv_sec = time - gmt_offset;
+					ts.tv_nsec = nsec;
+					return rb_time_timespec_new(&ts, gmt_offset);
+				}
+			} else {
+				/* without timezone */
+				switch(flags){
+					case DB_LOCAL | APP_LOCAL: /* interpret as local time, return as local time */
+					{
+						time_t time = mktime(&tm);
+						if (time != -1){
+							ts.tv_sec = time;
+							ts.tv_nsec = nsec;
+							return rb_time_timespec_new(&ts, INT_MAX);
 						}
-						ts.tv_sec = time - gmt_offset;
-						ts.tv_nsec = nsec;
-						return rb_time_timespec_new(&ts, gmt_offset);
+						break;
 					}
-					break;
-				}
-				case 1: /* interpret as local time, return as local time */
-				{
-					time_t time = mktime(&tm);
-					if (time != -1){
-						ts.tv_sec = time;
-						ts.tv_nsec = nsec;
-						return rb_time_timespec_new(&ts, INT_MAX);
+					case DB_UTC | APP_LOCAL: /* interpret as UTC time, return as local time */
+					{
+						time_t time = timegm(&tm);
+						if (time != -1){
+							ts.tv_sec = time;
+							ts.tv_nsec = nsec;
+							return rb_time_timespec_new(&ts, INT_MAX);
+						}
+						break;
 					}
-					break;
-				}
-				case 2: /* interpret as UTC time, return as local time */
-				{
-					time_t time = timegm(&tm);
-					if (time != -1){
-						ts.tv_sec = time;
-						ts.tv_nsec = nsec;
-						return rb_time_timespec_new(&ts, INT_MAX);
+					case DB_UTC | APP_UTC: /* interpret as UTC time, return as UTC time */
+					{
+						time_t time = timegm(&tm);
+						if (time != -1){
+							ts.tv_sec = time;
+							ts.tv_nsec = nsec;
+							return rb_time_timespec_new(&ts, INT_MAX-1);
+						}
+						break;
 					}
-					break;
-				}
-				case 3: /* interpret as UTC time, return as UTC time */
-				{
-					time_t time = timegm(&tm);
-					if (time != -1){
-						ts.tv_sec = time;
-						ts.tv_nsec = nsec;
-						return rb_time_timespec_new(&ts, INT_MAX-1);
-					}
-					break;
 				}
 			}
 			/* Some libc implementations fail to convert certain values,
-			 * so that we fall through to the slow path.
-			 */
+			* so that we fall through to the slow path.
+			*/
 #endif
-			if (nsec)
-			{
+			if (nsec) {
 				int sec_numerator = sec * 1000000 + nsec / 1000;
 				int sec_denominator = 1000000;
 				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
 						INT2NUM(sec_numerator), INT2NUM(sec_denominator));
-			}
-			else
-			{
+			} else {
 				sec_value = INT2NUM(sec);
 			}
-			switch(without_timezone){
-				case 0: /* with timezone */
-				{
-					int gmt_offset;
 
-					gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-					if (tz_neg)
-					{
-						gmt_offset = - gmt_offset;
-					}
-					gmt_offset_value = INT2NUM(gmt_offset);
-					break;
+			if (tz_given) {
+				/* with timezone */
+				int gmt_offset;
+
+				gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+				if (tz_given == TZ_NEG)
+				{
+					gmt_offset = - gmt_offset;
 				}
-				case 1: /* interpret as local time, return as local time */
-					gmt_offset_value = Qnil;
-					break;
-				case 2: /* interpret as UTC time, return as local time */
-				case 3: /* interpret as UTC time, return as UTC time */
-					gmt_offset_value = INT2NUM(0);
-					break;
+				gmt_offset_value = INT2NUM(gmt_offset);
+			} else {
+				switch(flags){
+					case DB_LOCAL | APP_LOCAL: /* interpret as local time, return as local time */
+						gmt_offset_value = Qnil;
+						break;
+					case DB_UTC | APP_LOCAL: /* interpret as UTC time, return as local time */
+					case DB_UTC | APP_UTC: /* interpret as UTC time, return as UTC time */
+						gmt_offset_value = INT2NUM(0);
+						break;
+				}
 			}
 
 			res = rb_funcall(rb_cTime, s_id_new, 7,
@@ -794,14 +788,18 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int
 					sec_value,
 					gmt_offset_value);
 
-			switch(without_timezone){
-				case 0: /* with timezone */
-				case 1: /* interpret as local time, return as local time */
-					return res;
-				case 2: /* interpret as UTC time, return as local time */
-					return rb_funcall(res, s_id_getlocal, 0);
-				case 3: /* interpret as UTC time, return as UTC time */
-					return rb_funcall(res, s_id_utc, 0);
+			if (tz_given) {
+				/* with timezone */
+				return res;
+			} else {
+				switch(flags){
+					case DB_LOCAL | APP_LOCAL: /* interpret as local time, return as local time */
+						return res;
+					case DB_UTC | APP_LOCAL: /* interpret as UTC time, return as local time */
+						return rb_funcall(res, s_id_getlocal, 0);
+					case DB_UTC | APP_UTC: /* interpret as UTC time, return as UTC time */
+						return rb_funcall(res, s_id_utc, 0);
+				}
 			}
 		}
 	}
@@ -813,22 +811,22 @@ static VALUE pg_text_decoder_timestamp_do(t_pg_coder *conv, const char *val, int
 static VALUE
 pg_text_dec_timestamp_with_time_zone(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 0);
+	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, DB_LOCAL | APP_LOCAL);
 }
 static VALUE
 pg_text_dec_timestamp_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 1);
+	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, DB_LOCAL | APP_LOCAL);
 }
 static VALUE
 pg_text_dec_timestamp_utc_to_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 2);
+	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, DB_UTC | APP_LOCAL);
 }
 static VALUE
 pg_text_dec_timestamp_utc(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, 3);
+	return pg_text_decoder_timestamp_do(conv, val, len, tuple, field, enc_idx, DB_UTC | APP_UTC);
 }
 
 /*

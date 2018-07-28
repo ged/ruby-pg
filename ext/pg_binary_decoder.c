@@ -153,9 +153,7 @@ dec_timestamp(const char *val, int len, int tuple, int field, int timezone)
 		default:
 			/* PostgreSQL's timestamp is based on year 2000 and Ruby's time is based on 1970.
 			 * Adjust the 30 years difference. */
-			timestamp += 10957L * 24L * 3600L * 1000000L;
-
-			ts.tv_sec = timestamp / 1000000;
+			ts.tv_sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
 			ts.tv_nsec = (timestamp % 1000000) * 1000;
 
 			switch(timezone){
