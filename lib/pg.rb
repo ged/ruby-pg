@@ -58,6 +58,15 @@ module PG
 
 
 	require 'pg/exceptions'
+	### Allow connecting to postgres:// URLs
+	def self::connect_url(url)
+		uri = URI.parse(url)
+		raise PG::Error.new("Invalid scheme: #{uri.scheme}") unless uri.scheme == 'postgres'
+		return PG.connect(dbname: uri.path[1..-1],
+		                  user: uri.user,
+		                  password: uri.password,
+		                  host: uri.host)
+	end
 	require 'pg/constants'
 	require 'pg/coder'
 	require 'pg/text_encoder'
