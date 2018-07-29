@@ -4,6 +4,7 @@
  *
  */
 
+#include "ruby/version.h"
 #include "pg.h"
 #include "util.h"
 #ifdef HAVE_INTTYPES_H
@@ -173,7 +174,15 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 			ts.tv_sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
 			ts.tv_nsec = (timestamp % 1000000) * 1000;
 
+#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(NEGATIVE_TIME_T)
+			/* Fast path for time conversion */
 			t = rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+#else
+			t = rb_funcall(rb_cTime, rb_intern("at"), 2, LL2NUM(ts.tv_sec), LL2NUM(ts.tv_nsec / 1000));
+			if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
+				t = rb_funcall(t, rb_intern("utc"), 0);
+			}
+#endif
 			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
 				/* interpret it as local time */
 				t = rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
