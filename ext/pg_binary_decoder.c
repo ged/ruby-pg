@@ -133,11 +133,28 @@ pg_bin_dec_to_base64(t_pg_coder *conv, const char *val, int len, int tuple, int 
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
 
+/*
+ * Document-class: PG::BinaryDecoder::Timestamp < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary timestamps
+ * to Ruby Time objects.
+ *
+ * The following flags can be used to specify timezone interpretation:
+ * * +PG::Coder::TIMESTAMP_DB_UTC+ : Interpret timestamp as UTC time (default)
+ * * +PG::Coder::TIMESTAMP_DB_LOCAL+ : Interpret timestamp as local time
+ * * +PG::Coder::TIMESTAMP_APP_UTC+ : Return timestamp as UTC time (default)
+ * * +PG::Coder::TIMESTAMP_APP_LOCAL+ : Return timestamp as local time
+ *
+ * Example:
+ *   deco = PG::BinaryDecoder::Timestamp.new(flags: PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_LOCAL)
+ *   deco.decode("\0"*8)  # => 2000-01-01 01:00:00 +0100
+ */
 static VALUE
-dec_timestamp(const char *val, int len, int tuple, int field, int timezone)
+pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	int64_t timestamp;
 	struct timespec ts;
+	VALUE t;
 
 	if( len != sizeof(timestamp) ){
 		rb_raise( rb_eTypeError, "wrong data for timestamp converter in tuple %d field %d length %d", tuple, field, len);
@@ -156,55 +173,13 @@ dec_timestamp(const char *val, int len, int tuple, int field, int timezone)
 			ts.tv_sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
 			ts.tv_nsec = (timestamp % 1000000) * 1000;
 
-			switch(timezone){
-				case 0:
-					return rb_time_timespec_new(&ts, INT_MAX); /* create local time */
-				case 1:
-					return rb_time_timespec_new(&ts, INT_MAX-1); /* create UTC time */
+			t = rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
+				/* interpret it as local time */
+				t = rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
 			}
-			return Qnil; /* not reached */
+			return t;
 	}
-}
-
-/*
- * Document-class: PG::BinaryDecoder::TimestampUtcToLocal < PG::SimpleDecoder
- *
- * This is a decoder class for conversion of PostgreSQL binary timestamps
- * to Ruby Time objects.
- *
- */
-static VALUE
-pg_bin_dec_timestamp_utc_to_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
-{
-	return dec_timestamp(val, len, tuple, field, 0);
-}
-
-/*
- * Document-class: PG::BinaryDecoder::TimestampUtc < PG::SimpleDecoder
- *
- * This is a decoder class for conversion of PostgreSQL binary timestamps
- * to Ruby Time objects.
- *
- */
-static VALUE
-pg_bin_dec_timestamp_utc(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
-{
-	return dec_timestamp(val, len, tuple, field, 1);
-}
-
-/*
- * Document-class: PG::BinaryDecoder::TimestampLocal < PG::SimpleDecoder
- *
- * This is a decoder class for conversion of PostgreSQL binary timestamps
- * to Ruby Time objects.
- *
- */
-static VALUE
-pg_bin_dec_timestamp_local(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
-{
-	VALUE t = dec_timestamp(val, len, tuple, field, 0);
-	if( TYPE(t) == T_STRING ) return t;
-	return rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
 }
 
 /*
@@ -233,12 +208,8 @@ init_pg_binary_decoder()
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Bytea", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Bytea", pg_bin_dec_bytea, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
-	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "TimestampUtc", rb_cPG_SimpleDecoder ); */
-	pg_define_coder( "TimestampUtc", pg_bin_dec_timestamp_utc, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
-	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "TimestampUtcToLocal", rb_cPG_SimpleDecoder ); */
-	pg_define_coder( "TimestampUtcToLocal", pg_bin_dec_timestamp_utc_to_local, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
-	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "TimestampLocal", rb_cPG_SimpleDecoder ); */
-	pg_define_coder( "TimestampLocal", pg_bin_dec_timestamp_local, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Timestamp", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Timestamp", pg_bin_dec_timestamp, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "ToBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "ToBase64", pg_bin_dec_to_base64, rb_cPG_CompositeDecoder, rb_mPG_BinaryDecoder );

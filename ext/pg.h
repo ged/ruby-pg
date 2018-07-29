@@ -161,12 +161,19 @@ typedef VALUE (* t_pg_typecast_result)(t_typemap *, VALUE, int, int);
 typedef t_pg_coder *(* t_pg_typecast_query_param)(t_typemap *, VALUE, int);
 typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 
+#define PG_CODER_TIMESTAMP_DB_UTC 0x0
+#define PG_CODER_TIMESTAMP_DB_LOCAL 0x1
+#define PG_CODER_TIMESTAMP_APP_UTC 0x0
+#define PG_CODER_TIMESTAMP_APP_LOCAL 0x2
+
 struct pg_coder {
 	t_pg_coder_enc_func enc_func;
 	t_pg_coder_dec_func dec_func;
 	VALUE coder_obj;
 	Oid oid;
 	int format;
+	/* OR-ed values out of PG_CODER_* */
+	int flags;
 };
 
 typedef struct {
