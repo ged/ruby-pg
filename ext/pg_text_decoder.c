@@ -694,7 +694,7 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			VALUE gmt_offset_value;
 			VALUE res;
 
-#if RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3) && defined(HAVE_TIMEGM)
+#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(HAVE_TIMEGM)
 			/* Fast path for time conversion */
 			struct tm tm;
 			struct timespec ts;
