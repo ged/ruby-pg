@@ -136,6 +136,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->p_typemap = DATA_PTR( this->typemap );
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
+	this->field_map = Qnil;
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 
@@ -310,6 +311,7 @@ pgresult_gc_mark( t_pg_result *this )
 	rb_gc_mark( this->connection );
 	rb_gc_mark( this->typemap );
 	rb_gc_mark( this->tuple_hash );
+	rb_gc_mark( this->field_map );
 
 	for( i=0; i < this->nfields; i++ ){
 		rb_gc_mark( this->fnames[i] );
@@ -1133,6 +1135,43 @@ pgresult_tuple_values(VALUE self, VALUE index)
 	}
 }
 
+/*
+ *  call-seq:
+ *     res.tuple( n )   -> PG::Tuple
+ *
+ *  Returns a PG::Tuple from the nth row of the result.
+ *
+ */
+static VALUE
+pgresult_tuple(VALUE self, VALUE index)
+{
+	int tuple_num = NUM2INT( index );
+	t_pg_result *this;
+	int num_tuples;
+
+	this = pgresult_get_this_safe(self);
+	num_tuples = PQntuples(this->pgresult);
+
+	if ( tuple_num < 0 || tuple_num >= num_tuples )
+		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
+
+	if( this->field_map == Qnil ){
+		int i;
+		VALUE field_map = rb_hash_new();
+
+		if( this->nfields == -1 )
+			pgresult_init_fnames( self );
+
+		for( i = 0; i < this->nfields; i++ ){
+			rb_hash_aset(field_map, this->fnames[i], INT2FIX(i));
+		}
+		rb_obj_freeze(field_map);
+		this->field_map = field_map;
+	}
+
+  return pg_tuple_new(self, tuple_num);
+}
+
 
 /*
  * call-seq:
@@ -1224,11 +1263,14 @@ static void
 yield_hash(VALUE self, int ntuples, int nfields)
 {
 	int tuple_num;
+	t_pg_result *this = pgresult_get_this(self);
 	UNUSED(nfields);
 
 	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
 		rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
 	}
+
+	pgresult_clear( this );
 }
 
 static void
@@ -1246,6 +1288,22 @@ yield_array(VALUE self, int ntuples, int nfields)
 			row_values[field] = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, row, field);
 		}
 		rb_yield( rb_ary_new4( nfields, row_values ));
+	}
+
+	pgresult_clear( this );
+}
+
+static void
+yield_tuple(VALUE self, int ntuples, int nfields)
+{
+	int tuple_num;
+	t_pg_result *this = pgresult_get_this(self);
+	VALUE result = pg_new_result(this->pgresult, this->connection);
+	UNUSED(nfields);
+
+	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
+		VALUE tuple = pgresult_tuple(result, INT2FIX(tuple_num));
+		rb_yield( tuple );
 	}
 }
 
@@ -1279,8 +1337,6 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
 		}
 
 		yielder( self, ntuples, nfields );
-
-		pgresult_clear( this );
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
@@ -1336,8 +1392,6 @@ pgresult_stream_each(VALUE self)
 	return pgresult_stream_any(self, yield_hash);
 }
 
-
-
 /*
  * call-seq:
  *    res.stream_each_row { |row| ... }
@@ -1354,6 +1408,22 @@ static VALUE
 pgresult_stream_each_row(VALUE self)
 {
 	return pgresult_stream_any(self, yield_array);
+}
+
+/*
+ * call-seq:
+ *    res.stream_each_tuple { |tuple| ... }
+ *
+ * Yields each row of the result set in single row mode.
+ *
+ * This method works equally to #stream_each , but yields a PG::Tuple object.
+ *
+ * Available since PostgreSQL-9.2
+ */
+static VALUE
+pgresult_stream_each_tuple(VALUE self)
+{
+	return pgresult_stream_any(self, yield_tuple);
 }
 
 
@@ -1406,6 +1476,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
 	rb_define_method(rb_cPGresult, "tuple_values", pgresult_tuple_values, 1);
+	rb_define_method(rb_cPGresult, "tuple", pgresult_tuple, 1);
 	rb_define_method(rb_cPGresult, "cleared?", pgresult_cleared_p, 0);
 	rb_define_method(rb_cPGresult, "autoclear?", pgresult_autoclear_p, 0);
 
@@ -1415,6 +1486,7 @@ init_pg_result()
 	/******     PG::Result INSTANCE METHODS: streaming     ******/
 	rb_define_method(rb_cPGresult, "stream_each", pgresult_stream_each, 0);
 	rb_define_method(rb_cPGresult, "stream_each_row", pgresult_stream_each_row, 0);
+	rb_define_method(rb_cPGresult, "stream_each_tuple", pgresult_stream_each_tuple, 0);
 }
 
 

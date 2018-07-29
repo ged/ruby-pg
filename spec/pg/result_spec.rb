@@ -39,8 +39,8 @@ describe PG::Result do
 		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
 	end
 
-	context "result streaming" do
-		it "can iterate over all tuples in single row mode" do
+	context "result streaming in single row mode" do
+		it "can iterate over all rows as Hash" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
 			@conn.set_single_row_mode
 			expect(
@@ -56,7 +56,7 @@ describe PG::Result do
 			expect( @conn.get_result ).to be_nil
 		end
 
-		it "can iterate over all rows in single row mode" do
+		it "can iterate over all rows as Array" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
 			@conn.set_single_row_mode
 			expect(
@@ -69,6 +69,22 @@ describe PG::Result do
 			).to eq(
 				[["1", "5"], ["1", "6"]]
 			)
+			expect( @conn.get_result ).to be_nil
+		end
+
+		it "can iterate over all rows as PG::Tuple" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
+			@conn.set_single_row_mode
+			tuples = @conn.get_result.stream_each_tuple.to_a
+			expect( tuples[0][0] ).to eq( "2" )
+			expect( tuples[1]["a"] ).to eq( "3" )
+			expect( tuples.size ).to eq( 3 )
+
+			tuples = @conn.get_result.enum_for(:stream_each_tuple).to_a
+			expect( tuples[-1][-1] ).to eq( "6" )
+			expect( tuples[-2]["b"] ).to eq( "1" )
+			expect( tuples.size ).to eq( 2 )
+
 			expect( @conn.get_result ).to be_nil
 		end
 
@@ -350,6 +366,15 @@ describe PG::Result do
 		expect{ res.tuple_values(2) }.to raise_error(IndexError)
 		expect{ res.tuple_values(-1) }.to raise_error(IndexError)
 		expect{ res.tuple_values("x") }.to raise_error(TypeError)
+	end
+
+	it "can return the values of a single vary lazy tuple" do
+		res = @conn.exec( "VALUES(1),(2)" )
+		expect( res.tuple(0) ).to be_kind_of( PG::Tuple )
+		expect( res.tuple(1) ).to be_kind_of( PG::Tuple )
+		expect{ res.tuple(2) }.to raise_error(IndexError)
+		expect{ res.tuple(-1) }.to raise_error(IndexError)
+		expect{ res.tuple("x") }.to raise_error(TypeError)
 	end
 
 	it "raises a proper exception for a nonexistant table" do

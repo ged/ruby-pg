@@ -145,6 +145,9 @@ typedef struct {
 	/* Prefilled tuple Hash with fnames[] as keys. */
 	VALUE tuple_hash;
 
+	/* Hash with fnames[] to field number mapping. */
+	VALUE field_map;
+
 	/* List of field names as frozen String objects.
 	 * Only valid if nfields != -1
 	 */
@@ -265,6 +268,7 @@ void init_pg_text_encoder                              _(( void ));
 void init_pg_text_decoder                              _(( void ));
 void init_pg_binary_encoder                            _(( void ));
 void init_pg_binary_decoder                            _(( void ));
+void init_pg_tuple                                     _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, const char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_coder*, const char *, int, int, int, int ));
@@ -310,6 +314,7 @@ VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));
 PGresult* pgresult_get                                 _(( VALUE ));
 VALUE pg_result_check                                  _(( VALUE ));
 VALUE pg_result_clear                                  _(( VALUE ));
+VALUE pg_tuple_new                                     _(( VALUE, int ));
 
 /*
  * Fetch the data pointer for the result object
