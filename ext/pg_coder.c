@@ -38,6 +38,7 @@ pg_coder_init_encoder( VALUE self )
 	this->coder_obj = self;
 	this->oid = 0;
 	this->format = 0;
+	this->flags = 0;
 	rb_iv_set( self, "@name", Qnil );
 }
 
@@ -56,6 +57,7 @@ pg_coder_init_decoder( VALUE self )
 	this->coder_obj = self;
 	this->oid = 0;
 	this->format = 0;
+	this->flags = 0;
 	rb_iv_set( self, "@name", Qnil );
 }
 
@@ -271,6 +273,36 @@ pg_coder_format_get(VALUE self)
 
 /*
  * call-seq:
+ *    coder.flags = Integer
+ *
+ * Set coder specific bitwise OR-ed flags.
+ * See the particular en- or decoder description for available flags.
+ *
+ * The default is +0+.
+ */
+static VALUE
+pg_coder_flags_set(VALUE self, VALUE flags)
+{
+	t_pg_coder *this = DATA_PTR(self);
+	this->flags = NUM2INT(flags);
+	return flags;
+}
+
+/*
+ * call-seq:
+ *    coder.flags -> Integer
+ *
+ * Get current bitwise OR-ed coder flags.
+ */
+static VALUE
+pg_coder_flags_get(VALUE self)
+{
+	t_pg_coder *this = DATA_PTR(self);
+	return INT2NUM(this->flags);
+}
+
+/*
+ * call-seq:
  *    coder.needs_quotation = Boolean
  *
  * Specifies whether the assigned #elements_type requires quotation marks to
@@ -461,6 +493,15 @@ init_pg_coder()
 	rb_define_method( rb_cPG_Coder, "oid", pg_coder_oid_get, 0 );
 	rb_define_method( rb_cPG_Coder, "format=", pg_coder_format_set, 1 );
 	rb_define_method( rb_cPG_Coder, "format", pg_coder_format_get, 0 );
+	rb_define_method( rb_cPG_Coder, "flags=", pg_coder_flags_set, 1 );
+	rb_define_method( rb_cPG_Coder, "flags", pg_coder_flags_get, 0 );
+
+	/* define flags to be used with PG::Coder#flags= */
+	rb_define_const( rb_cPG_Coder, "TIMESTAMP_DB_UTC", INT2NUM(PG_CODER_TIMESTAMP_DB_UTC));
+	rb_define_const( rb_cPG_Coder, "TIMESTAMP_DB_LOCAL", INT2NUM(PG_CODER_TIMESTAMP_DB_LOCAL));
+	rb_define_const( rb_cPG_Coder, "TIMESTAMP_APP_UTC", INT2NUM(PG_CODER_TIMESTAMP_APP_UTC));
+	rb_define_const( rb_cPG_Coder, "TIMESTAMP_APP_LOCAL", INT2NUM(PG_CODER_TIMESTAMP_APP_LOCAL));
+
 	/*
 	 * Name of the coder or the corresponding data type.
 	 *

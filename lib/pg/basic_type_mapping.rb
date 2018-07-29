@@ -166,8 +166,14 @@ module PG::BasicTypeRegistry
 
 	# Alias the +old+ type to the +new+ type.
 	def self.alias_type(format, new, old)
-		CODERS_BY_NAME[format][:encoder][new] = CODERS_BY_NAME[format][:encoder][old]
-		CODERS_BY_NAME[format][:decoder][new] = CODERS_BY_NAME[format][:decoder][old]
+		[:encoder, :decoder].each do |ende|
+			enc = CODERS_BY_NAME[format][ende][old]
+			if enc
+				CODERS_BY_NAME[format][ende][new] = enc
+			else
+				CODERS_BY_NAME[format][ende].delete(new)
+			end
+		end
 	end
 
 	register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
@@ -234,6 +240,8 @@ module PG::BasicTypeRegistry
 	register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
 	register_type 1, 'float4', nil, PG::BinaryDecoder::Float
 	register_type 1, 'float8', nil, PG::BinaryDecoder::Float
+	register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtc
+	register_type 1, 'timestamptz', nil, PG::BinaryDecoder::TimestampUtcToLocal
 end
 
 # Simple set of rules for type casting common PostgreSQL types to Ruby.

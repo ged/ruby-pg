@@ -127,8 +127,8 @@ describe "PG::Type derivations" do
 				it 'decodes timestamps with hour:minute timezone' do
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04:15') ).
 						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:15") )
-					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-0430') ).
-						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "-04:30") )
+					expect( textdec_timestamptz.decode('2015-07-26 17:26:42.691511-04:30') ).
+						to be_within(0.000001).of( Time.new(2015,07,26, 17, 26, 42.691511, "-04:30") )
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511+10:45') ).
 						to be_within(0.000001).of( Time.new(2015,01,26, 17, 26, 42.691511, "+10:45") )
 				end
@@ -179,7 +179,6 @@ describe "PG::Type derivations" do
 					textdec_timestamptz_decode_should_fail('')
 				end
 				it 'fails when the timestamp contains values with less digits than expected' do
-					textdec_timestamptz_decode_should_fail('201-01-02 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-0-02 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-01-0 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-01-02 2:23:59.123456+00:25:21')
@@ -191,7 +190,6 @@ describe "PG::Type derivations" do
 					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:2')
 				end
 				it 'fails when the timestamp contains values with more digits than expected' do
-					textdec_timestamptz_decode_should_fail('20166-01-02 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-011-02 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-01-022 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-01-02 233:23:59.123456+00:25:21')
