@@ -168,6 +168,10 @@ typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 #define PG_CODER_TIMESTAMP_DB_LOCAL 0x1
 #define PG_CODER_TIMESTAMP_APP_UTC 0x0
 #define PG_CODER_TIMESTAMP_APP_LOCAL 0x2
+#define PG_CODER_FORMAT_ERROR_MASK 0xc
+#define PG_CODER_FORMAT_ERROR_TO_RAISE 0x4
+#define PG_CODER_FORMAT_ERROR_TO_STRING 0x8
+#define PG_CODER_FORMAT_ERROR_TO_PARTIAL 0xc
 
 struct pg_coder {
 	t_pg_coder_enc_func enc_func;

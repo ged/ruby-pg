@@ -501,6 +501,10 @@ init_pg_coder()
 	rb_define_const( rb_cPG_Coder, "TIMESTAMP_DB_LOCAL", INT2NUM(PG_CODER_TIMESTAMP_DB_LOCAL));
 	rb_define_const( rb_cPG_Coder, "TIMESTAMP_APP_UTC", INT2NUM(PG_CODER_TIMESTAMP_APP_UTC));
 	rb_define_const( rb_cPG_Coder, "TIMESTAMP_APP_LOCAL", INT2NUM(PG_CODER_TIMESTAMP_APP_LOCAL));
+	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_MASK", INT2NUM(PG_CODER_FORMAT_ERROR_MASK));
+	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_TO_RAISE", INT2NUM(PG_CODER_FORMAT_ERROR_TO_RAISE));
+	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_TO_STRING", INT2NUM(PG_CODER_FORMAT_ERROR_TO_STRING));
+	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_TO_PARTIAL", INT2NUM(PG_CODER_FORMAT_ERROR_TO_PARTIAL));
 
 	/*
 	 * Name of the coder or the corresponding data type.

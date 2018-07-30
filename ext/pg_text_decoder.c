@@ -258,17 +258,11 @@ array_isdim(char ch)
 	return 0;
 }
 
-static VALUE
-array_parser_error(const char *text){
-/* TODO: Parsing malformed arrays is deprecated and will raise a TypeError
- * with pg-2.0+ :
- *
- * rb_raise( rb_eTypeError, text );
- */
-
-	rb_warn("Parsing and returning of broken array strings is deprecated. "
-	        "pg-2.0 will raise a TypeError (%s) in this case.", text);
-	return 0;
+static void
+array_parser_error(t_pg_composite_coder *this, const char *text){
+	if( (this->comp.flags & PG_CODER_FORMAT_ERROR_MASK) == PG_CODER_FORMAT_ERROR_TO_RAISE ){
+		rb_raise( rb_eTypeError, "%s", text );
+	}
 }
 
 /*
@@ -348,7 +342,7 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, const char *c_pg_
 			}
 			else if(c == 0)
 			{
-				array_parser_error( "premature end of the array string" );
+				array_parser_error( this, "premature end of the array string" );
 				return array;
 			}
 			else
@@ -377,7 +371,7 @@ read_array_without_dim(t_pg_composite_coder *this, int *index, const char *c_pg_
 		}
 	}
 
-	array_parser_error( "premature end of the array string" );
+	array_parser_error( this, "premature end of the array string" );
 	return array;
 }
 
@@ -402,6 +396,7 @@ pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_str
 	int index = 0;
 	int ndim = 0;
 	VALUE ret;
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 
 	/*
 	 * If the input string starts with dimension info, read and use that.
@@ -427,7 +422,7 @@ pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_str
 			index++;
 
 		if (c_pg_array_string[index] != ']'){
-			array_parser_error( "missing \"]\" in array dimensions");
+			array_parser_error( this, "missing \"]\" in array dimensions");
 			break;
 		}
 		index++;
@@ -443,7 +438,7 @@ pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_str
 	{
 		/* If array dimensions are given, expect '=' operator */
 		if (c_pg_array_string[index] != '=') {
-			array_parser_error( "missing assignment operator");
+			array_parser_error( this, "missing assignment operator");
 			index-=2; /* jump back to before "]" so that we don't break behavior to pg < 1.1 */
 		}
 		index++;
@@ -453,14 +448,13 @@ pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_str
 	}
 
 	if (c_pg_array_string[index] != '{')
-		array_parser_error( "array value must start with \"{\" or dimension information");
+		array_parser_error( this, "array value must start with \"{\" or dimension information");
 	index++;
 
 	if ( index < array_string_length && c_pg_array_string[index] == '}' ) {
 		/* avoid buffer allocation for empty array */
 		ret = rb_ary_new();
 	} else {
-		t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 		t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, 0);
 		/* create a buffer of the same length, as that will be the worst case */
 		VALUE buf = rb_str_new(NULL, array_string_length);
@@ -472,14 +466,14 @@ pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_str
 	}
 
 	if (c_pg_array_string[index] != '}' )
-		array_parser_error( "array value must end with \"}\"");
+		array_parser_error( this, "array value must end with \"}\"");
 	index++;
 
 	/* only whitespace is allowed after the closing brace */
 	for(;index < array_string_length; ++index)
 	{
 		if (!array_isspace(c_pg_array_string[index]))
-			array_parser_error( "malformed array literal: Junk after closing right brace.");
+			array_parser_error( this, "malformed array literal: Junk after closing right brace.");
 	}
 
 	return ret;
