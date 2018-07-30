@@ -244,4 +244,23 @@ describe PG::Tuple do
 		expect( tuple2.inspect ).to eq('#<PG::Tuple a: 1, b: true, b: "3">')
 		expect{ tuple_empty.inspect }.to raise_error(TypeError)
 	end
+
+	context "with cleared result" do
+		it "should raise an error when materialized fields are used" do
+			r = result2x2
+			t = r.tuple(0)
+			t[0] # materialize first field only
+			r.clear
+			expect{ t[1] }.to raise_error(PG::Error)
+			expect{ t.fetch(1) }.to raise_error(PG::Error)
+			expect{ t.fetch("column2") }.to raise_error(PG::Error)
+			expect{ t.values }.to raise_error(PG::Error)
+
+			expect( t[0] ).to eq( "1" )
+			expect( t.fetch(0) ).to eq( "1" )
+			expect( t.fetch("column1") ).to eq( "1" )
+
+			expect{ t.values }.to raise_error(PG::Error)
+		end
+	end
 end
