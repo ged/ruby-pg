@@ -253,7 +253,13 @@ pg_result_check( VALUE self )
  * call-seq:
  *    res.clear() -> nil
  *
- * Clears the PG::Result object as the result of the query.
+ * Clears the PG::Result object as the result of a query.
+ * This frees all underlying memory consumed by the result object.
+ * Afterwards access to result methods raises PG::Error "result has been cleared".
+ *
+ * Explicit calling #clear can lead to better memory performance, but is not generally necessary.
+ * Special care must be taken when PG::Tuple objects are used.
+ * In this case #clear must not be called unless all PG::Tuple objects of this result are fully materialized.
  *
  * If PG::Result#autoclear? is true then the result is marked as cleared
  * and the underlying C struct will be cleared automatically by libpq.
@@ -413,8 +419,9 @@ static void pgresult_init_fnames(VALUE self)
  *
  * The class to represent the query result tuples (rows).
  * An instance of this class is created as the result of every query.
- * You may need to invoke the #clear method of the instance when finished with
- * the result for better memory performance.
+ *
+ * Since pg-1.1 the amount of memory in use by a PG::Result object is estimated and passed to ruby's garbage collector.
+ * You can invoke the #clear method to force deallocation of memory of the instance when finished with the result for better memory performance.
  *
  * Example:
  *    require 'pg'

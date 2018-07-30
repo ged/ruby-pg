@@ -1,5 +1,26 @@
 #include "pg.h"
 
+/********************************************************************
+ *
+ * Document-class: PG::Tuple
+ *
+ * The class to represent one query result tuple (row).
+ * An instance of this class can be created by PG::Result#tuple .
+ *
+ * All field values of the tuple are retrieved on demand from the underlying PGresult object and converted to a Ruby object.
+ * Subsequent access to the same field returns the same object, since they are cached when materialized.
+ * Each PG::Tuple holds a reference to the related PG::Result object, but gets detached, when all fields are materialized.
+ *
+ * Example:
+ *    require 'pg'
+ *    conn = PG.connect(:dbname => 'test')
+ *    res  = conn.exec('VALUES(1,2), (3,4)')
+ *    t0 = res.tuple(0)  # => #<PG::Tuple column1: "1", column2: "2">
+ *    t1 = res.tuple(1)  # => #<PG::Tuple column1: "3", column2: "4">
+ *    t1[0]  # => "3"
+ *    t1["column2"]  # => "4"
+ */
+
 static VALUE rb_cPG_Tuple;
 
 typedef struct {
