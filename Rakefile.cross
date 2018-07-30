@@ -293,6 +293,6 @@ task 'gem:windows' => ['ChangeLog'] do
     mkdir ~/.gem &&
     (cp build/gem/gem-*.pem ~/.gem/ || true) &&
     bundle install --local &&
-    rake cross native gem RUBY_CC_VERSION=2.5.0:2.4.0:2.3.0:2.2.2:2.1.6:2.0.0
+    rake cross native gem RUBY_CC_VERSION=2.5.0:2.4.0:2.3.0:2.2.2:2.1.6:2.0.0 MAKE="make -j`nproc`"
   EOT
 end
