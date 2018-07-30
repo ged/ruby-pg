@@ -3,9 +3,6 @@
 Removed:
 - Removed query method variants deprecated in pg-1.1.0.
 
-Changed:
-- Parsing of broken array strings raises a TypeError.
-
 
 == v1.1.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
@@ -15,19 +12,41 @@ Deprecated:
 - Forwarding conn.async_exec to conn.async_exec_params.
 - Forwarding conn.send_query to conn.send_query_params is deprecated.
 - Forwarding conn.async_exec_params to conn.async_exec is deprecated.
-- Parsing and returning of broken array strings is deprecated.
-  pg-2.0 will raise a TypeError in this case.
 
-Enhancements:
-- Replace Ruby code by a faster C implementation of the SimpleDecoder's timestamp decode functions. github #20
+PG::Connection enhancements:
+- Provide PG::Connection#sync_* and PG::Connection#async_* query methods for explicit calling syncronous or asynchronous libpq API.
+- Make PG::Connection#exec and siblings switchable between sync and async API per PG::Connection.async_api= and change the default to async flavors.
+- Add async flavors of exec_params, prepare, exec_prepared, describe_prepared and describe_portal.
+  They are identical to their syncronous counterpart, but make use of PostgreSQL's async API.
 - Replace `rb_thread_fd_select()` by faster `rb_wait_for_single_fd()` in `conn.block` and `conn.async_exec` .
+- Add PG::Connection#discard_results .
+
+Result retrieval enhancements:
+- Add PG::Result#tuple_values to retrieve all field values of a row as array.
+- Add PG::Tuple, PG::Result#tuple_values and PG::Result#stream_each_tuple .
+  PG::Tuple offers a way to lazy cast result values.
+- Estimate PG::Result size allocated by libpq and notify the garbage collector about it when running on Ruby-2.4 or newer.
+- Make the estimated PG::Result size available to ObjectSpace.memsize_of(result) .
+
+Type cast enhancements:
+- Replace Ruby code by a faster C implementation of the SimpleDecoder's timestamp decode functions. github #20
+- Interpret years with up to 7 digists and BC dates by timestamp decoder.
+- Add text timestamp decoders for UTC vs. local timezone variations.
+- Add text timestamp encoders for UTC timezone.
+- Add decoders for binary timestamps: PG::BinaryDecoder::Timestamp and variations.
+- Add PG::Coder#flags accessor to allow modifications of de- respectively encoder behaviour.
+- Add a flag to raise TypeError for invalid input values to PG::TextDecoder::Array .
+- Add a text decoder for inet/cidr written in C.
+- Add a numeric decoder written in C.
+- Ensure input text is zero terminated for text format in PG::Coder#decode .
+
+Source code enhancements:
 - Fix headers and permission bits of various repository files.
-- Add PG::Result#tuple_values
 
 Bugfixes:
 - Properly decode array with prepended dimensions. #272
-  For now dimension decorations are ignored, but a valid Array is returned.
-  Moreover it raises TypeError for invalid input values.
+  For now dimension decorations are ignored, but a correct Array is returned.
+- Array-Decoder: Avoid leaking memory when an Exception is raised while parsing. Fixes #279
 
 
 == v1.0.0 [2018-01-10] Michael Granger <ged@FaerieMUD.org>
