@@ -1006,7 +1006,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 		}
 		return rb_pgresult;
 	}
-	rb_warn("forwarding exec to exec_params is deprecated");
+	rb_warning("forwarding exec to exec_params is deprecated");
 
 	/* Otherwise, just call #exec_params instead for backward-compatibility */
 	return pgconn_exec_params( argc, argv, self );
@@ -1321,7 +1321,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	 * is passed to #exec
 	 */
 	if ( NIL_P(paramsData.params) ) {
-		rb_warn("forwarding exec_params to exec is deprecated");
+		rb_warning("forwarding exec_params to exec is deprecated");
 		return pgconn_exec( 1, argv, self );
 	}
 	pgconn_query_assign_typemap( self, &paramsData );
@@ -1851,10 +1851,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 		return Qnil;
 	}
 
-	/* TODO: Enable this warning, after pg-1.1.0 is released, so that there's a transition phase for frameworks to use the new methods.
-	 * Otherwise we would bother users with warnings they can not fix.
-	 */
-	/* rb_warn("forwarding async_exec to async_exec_params and send_query to send_query_params is deprecated"); */
+	rb_warning("forwarding async_exec to async_exec_params and send_query to send_query_params is deprecated");
 
 	/* If called with parameters, and optionally result_format,
 	 * use PQsendQueryParams
@@ -3226,7 +3223,7 @@ pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
 	pgconn_discard_results( self );
 	/* If called with no or nil parameters, use PQsendQuery for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
-		rb_warn("forwarding async_exec_params to async_exec is deprecated");
+		rb_warning("forwarding async_exec_params to async_exec is deprecated");
 		pgconn_send_query( argc, argv, self );
 	} else {
 		pgconn_send_query_params( argc, argv, self );
@@ -3859,7 +3856,7 @@ pgconn_set_default_encoding( VALUE self )
 	if (( enc = rb_default_internal_encoding() )) {
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
 		if ( pgconn_set_client_encoding_async(self, encname) != 0 )
-			rb_warn( "Failed to set the default_internal encoding to %s: '%s'",
+			rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
 		pgconn_set_internal_encoding_index( self );
 		return rb_enc_from_encoding( enc );
