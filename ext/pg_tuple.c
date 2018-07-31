@@ -311,9 +311,9 @@ pg_tuple_yield_key_value(VALUE key, VALUE index, VALUE _this)
 
 /*
  * call-seq:
- *    tup.each{ |value| ... }
+ *    tup.each{ |key, value| ... }
  *
- * Invokes block for each field value in the tuple.
+ * Invokes block for each field name and value in the tuple.
  */
 static VALUE
 pg_tuple_each(VALUE self)
