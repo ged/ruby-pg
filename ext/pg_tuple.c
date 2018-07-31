@@ -354,7 +354,8 @@ pg_tuple_each_value(VALUE self)
 	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pg_tuple_num_fields_for_enum);
 
 	for(field_num = 0; field_num < this->num_fields; field_num++) {
-		rb_yield(pg_tuple_aref(self, INT2NUM(field_num)));
+		VALUE value = pg_tuple_materialize_field(this, field_num);
+		rb_yield(value);
 	}
 
 	pg_tuple_detach(this);
