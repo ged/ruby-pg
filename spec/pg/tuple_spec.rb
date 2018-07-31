@@ -21,6 +21,7 @@ describe PG::Tuple do
 			expect( tuple0[0.5] ).to be_nil
 			expect( tuple0[2] ).to be_nil
 			expect( tuple0[-3] ).to be_nil
+			expect( tuple2[-4] ).to be_nil
 			expect{ tuple_empty[0] }.to raise_error(TypeError)
 		end
 
@@ -40,6 +41,9 @@ describe PG::Tuple do
 		it "supports negative indices" do
 			expect( tuple0[-2] ).to eq( "1" )
 			expect( tuple0[-1] ).to eq( "a" )
+			expect( tuple2[-3] ).to eq( 1 )
+			expect( tuple2[-2] ).to eq( true )
+			expect( tuple2[-1] ).to eq( "3" )
 		end
 
 		it "supports hash like access" do
@@ -86,12 +90,16 @@ describe PG::Tuple do
 			expect{ tuple0.fetch(2) }.to raise_error(IndexError)
 			expect{ tuple0.fetch(-3) }.to raise_error(IndexError)
 			expect{ tuple0.fetch(-3) }.to raise_error(IndexError)
+			expect{ tuple2.fetch(-4) }.to raise_error(IndexError)
 			expect{ tuple_empty[0] }.to raise_error(TypeError)
 		end
 
 		it "supports array like access" do
 			expect( tuple0.fetch(0) ).to eq( "1" )
 			expect( tuple0.fetch(1) ).to eq( "a" )
+			expect( tuple2.fetch(0) ).to eq( 1 )
+			expect( tuple2.fetch(1) ).to eq( true )
+			expect( tuple2.fetch(2) ).to eq( "3" )
 		end
 
 		it "supports default value for indices" do
@@ -102,6 +110,9 @@ describe PG::Tuple do
 		it "supports negative indices" do
 			expect( tuple0.fetch(-2) ).to eq( "1" )
 			expect( tuple0.fetch(-1) ).to eq( "a" )
+			expect( tuple2.fetch(-3) ).to eq( 1 )
+			expect( tuple2.fetch(-2) ).to eq( true )
+			expect( tuple2.fetch(-1) ).to eq( "3" )
 		end
 
 		it "supports hash like access" do
