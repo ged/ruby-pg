@@ -217,6 +217,7 @@ typedef struct {
  * Globals
  **************************************************************************/
 
+extern int pg_skip_deprecation_warning;
 extern VALUE rb_mPG;
 extern VALUE rb_ePGerror;
 extern VALUE rb_eServerError;
@@ -349,5 +350,11 @@ rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 
 void notice_receiver_proxy(void *arg, const PGresult *result);
 void notice_processor_proxy(void *arg, const char *message);
+
+/* reports if `-W' specified and PG_SKIP_DEPRECATION_WARNING environment variable isn't set */
+#define pg_warning(x) \
+	do { \
+		if( !pg_skip_deprecation_warning ) rb_warning x; \
+	} while(0);
 
 #endif /* end __pg_h */

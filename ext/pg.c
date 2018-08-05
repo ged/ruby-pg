@@ -48,6 +48,7 @@
 
 #include "pg.h"
 
+int pg_skip_deprecation_warning;
 VALUE rb_mPG;
 VALUE rb_mPGconstants;
 
@@ -381,6 +382,8 @@ pg_s_init_ssl(VALUE self, VALUE do_ssl)
 void
 Init_pg_ext()
 {
+	pg_skip_deprecation_warning = RTEST(rb_eval_string("ENV['PG_SKIP_DEPRECATION_WARNING']"));
+
 	rb_mPG = rb_define_module( "PG" );
 	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );
 
