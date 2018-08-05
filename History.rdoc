@@ -6,7 +6,7 @@ Removed:
 
 == v1.1.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
-Deprecated:
+Deprecated (disable warnings per PG_SKIP_DEPRECATION_WARNING=1):
 - Forwarding conn.exec to conn.exec_params is deprecated.
 - Forwarding conn.exec_params to conn.exec is deprecated.
 - Forwarding conn.async_exec to conn.async_exec_params.
