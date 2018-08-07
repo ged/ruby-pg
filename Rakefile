@@ -55,7 +55,6 @@ $hoespec = Hoe.spec 'pg' do
 	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
 	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
 	self.extra_rdoc_files.include( 'ext/*.c' )
-	self.spec_extras[:files] = `git ls-files || hg manifest`.split
 	self.license 'BSD-3-Clause'
 
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
