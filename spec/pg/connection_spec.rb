@@ -1261,11 +1261,11 @@ describe PG::Connection do
 			end
 
 			it "uses the client encoding for quote_ident" do
-				original = "Möhre to\0 escape".encode( "utf-16le" )
+				original = "Möhre to 'scape".encode( "utf-16le" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.quote_ident( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "\"Möhre to\"".encode(Encoding::EUC_JP) )
+				expect( escaped ).to eq( "\"Möhre to 'scape\"".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the previous string encoding for escaped string" do
@@ -1277,11 +1277,11 @@ describe PG::Connection do
 			end
 
 			it "uses the previous string encoding for quote_ident" do
-				original = "Möhre to\0 escape".encode( "iso-8859-1" )
+				original = "Möhre to 'scape".encode( "iso-8859-1" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = described_class.quote_ident( original )
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
-				expect( escaped.encode ).to eq( "\"Möhre to\"".encode(Encoding::ISO8859_1) )
+				expect( escaped.encode ).to eq( "\"Möhre to 'scape\"".encode(Encoding::ISO8859_1) )
 			end
 
 			it "raises appropriate error if set_client_encoding is called with invalid arguments" do
@@ -1366,9 +1366,19 @@ describe PG::Connection do
 			end
 		end
 
+		it "rejects string with zero bytes" do
+			original = "012\x0034567"
+			expect{ described_class.quote_ident( original ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects Array with string with zero bytes" do
+			original = ["xyz", "2\x00"]
+			expect{ described_class.quote_ident( original ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
 		it "can quote bigger strings with quote_ident" do
 			original = "'01234567\"" * 100
-			escaped = described_class.quote_ident( original + "\0afterzero" )
+			escaped = described_class.quote_ident( original )
 			expect( escaped ).to eq( "\"" + original.gsub("\"", "\"\"") + "\"" )
 		end
 
