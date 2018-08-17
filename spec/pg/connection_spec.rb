@@ -1366,6 +1366,30 @@ describe PG::Connection do
 			end
 		end
 
+		it "rejects command strings with zero bytes" do
+			expect{ @conn.exec( "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.exec_params( "SELECT 1;\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.prepare( "abc\x00", "SELECT 1;" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.prepare( "abc", "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.exec_prepared( "abc\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.describe_prepared( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.describe_portal( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query( "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_params( "SELECT 1;\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_prepare( "abc\x00", "SELECT 1;" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_prepare( "abc", "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_prepared( "abc\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_describe_prepared( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_describe_portal( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects query params with zero bytes" do
+			expect{ @conn.exec_params( "SELECT 1;\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.exec_prepared( "abc\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_params( "SELECT 1;\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_prepared( "abc\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
 		it "rejects string with zero bytes in escape" do
 			expect{ @conn.escape( "ab\x00cd" ) }.to raise_error(ArgumentError, /null byte/)
 		end
