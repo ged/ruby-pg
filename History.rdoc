@@ -20,6 +20,7 @@ PG::Connection enhancements:
   They are identical to their syncronous counterpart, but make use of PostgreSQL's async API.
 - Replace `rb_thread_fd_select()` by faster `rb_wait_for_single_fd()` in `conn.block` and `conn.async_exec` .
 - Add PG::Connection#discard_results .
+- Raise an ArgumentError for strings containing zero bytes by #escape, #escape_literal, #escape_identifier, #quote_ident and PG::TextEncoder::Identifier. These methods previously truncated strings.
 
 Result retrieval enhancements:
 - Add PG::Result#tuple_values to retrieve all field values of a row as array.
