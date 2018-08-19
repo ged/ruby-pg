@@ -258,7 +258,7 @@ describe 'Basic type mapping' do
 																		CAST('-infinity' AS TIMESTAMP WITH TIME ZONE)", [], format )
 					expect( res.getvalue(0,0).iso8601(3) ).to eq( Time.new(2013, 12, 31, 23, 58, 59, "+02:00").getlocal.iso8601(3) )
 					expect( res.getvalue(0,1).iso8601(3) ).to eq( Time.new(1913, 12, 31, 23, 58, 59.1231, "-03:00").getlocal.iso8601(3) )
-					expect( res.getvalue(0,2).iso8601(3) ).to eq( Time.new(-4713, 11, 24, 23, 58, 59.1231, "-03:00").getlocal.iso8601(3) )
+					expect( res.getvalue(0,2) ).to be_within(1e-3).of( Time.new(-4713, 11, 24, 23, 58, 59.1231, "-03:00").getlocal )
 					expect( res.getvalue(0,3).iso8601(3) ).to eq( Time.new(294276, 12, 31, 23, 58, 59.1231, "+03:00").getlocal.iso8601(3) )
 					expect( res.getvalue(0,4) ).to eq( 'infinity' )
 					expect( res.getvalue(0,5) ).to eq( '-infinity' )
