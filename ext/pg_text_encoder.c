@@ -468,20 +468,19 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 static char *
 quote_identifier( VALUE value, VALUE out_string, char *current_out ){
 	char *p_in = RSTRING_PTR(value);
-	char *ptr1;
 	size_t strlen = RSTRING_LEN(value);
+	char *p_inend = p_in + strlen;
 	char *end_capa = current_out;
 
 	PG_RB_STR_ENSURE_CAPA( out_string, strlen + 2, current_out, end_capa );
 	*current_out++ = '"';
-	for(ptr1 = p_in; ptr1 != p_in + strlen; ptr1++) {
-		char c = *ptr1;
+	for(; p_in != p_inend; p_in++) {
+		char c = *p_in;
 		if (c == '"'){
-			strlen++;
-			PG_RB_STR_ENSURE_CAPA( out_string, p_in - ptr1 + strlen + 1, current_out, end_capa );
+			PG_RB_STR_ENSURE_CAPA( out_string, p_inend - p_in + 2, current_out, end_capa );
 			*current_out++ = '"';
 		} else if (c == 0){
-			break;
+			rb_raise(rb_eArgError, "string contains null byte");
 		}
 		*current_out++ = c;
 	}

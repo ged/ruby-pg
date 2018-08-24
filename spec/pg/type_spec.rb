@@ -123,6 +123,12 @@ describe "PG::Type derivations" do
 						to eq( Time.new(2016,1,2, 23,23,59.123456, "-04:00").iso8601(5) )
 					expect( textdec_timestamptz.decode('2016-08-02 23:23:59.123456+10').iso8601(5) ).
 						to eq( Time.new(2016,8,2, 23,23,59.123456, "+10:00").iso8601(5) )
+					expect( textdec_timestamptz.decode('1913-12-31 23:58:59.1231-03').iso8601(5) ).
+						to eq( Time.new(1913, 12, 31, 23, 58, 59.1231, "-03:00").iso8601(5) )
+					expect( textdec_timestamptz.decode('4714-11-24 23:58:59.1231-03 BC').iso8601(5) ).
+						to eq( Time.new(-4713, 11, 24, 23, 58, 59.1231, "-03:00").iso8601(5) )
+					expect( textdec_timestamptz.decode('294276-12-31 23:58:59.1231+03').iso8601(5) ).
+						to eq( Time.new(294276, 12, 31, 23, 58, 59.1231, "+03:00").iso8601(5) )
 				end
 				it 'decodes timestamps with hour:minute timezone' do
 					expect( textdec_timestamptz.decode('2015-01-26 17:26:42.691511-04:15') ).

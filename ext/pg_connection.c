@@ -1587,7 +1587,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	int enc_idx;
 	int singleton = !rb_obj_is_kind_of(self, rb_cPGconn);
 
-	Check_Type(string, T_STRING);
+	StringValueCStr(string);
 	enc_idx = ENCODING_GET( singleton ? string : self );
 	if( ENCODING_GET(string) != enc_idx ){
 		string = rb_str_export_to_enc(string, rb_enc_from_index(enc_idx));
@@ -1703,7 +1703,7 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	VALUE result = Qnil;
 	int enc_idx = ENCODING_GET(self);
 
-	Check_Type(string, T_STRING);
+	StringValueCStr(string);
 	if( ENCODING_GET(string) != enc_idx ){
 		string = rb_str_export_to_enc(string, rb_enc_from_index(enc_idx));
 	}
@@ -1745,7 +1745,7 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	VALUE result = Qnil;
 	int enc_idx = ENCODING_GET(self);
 
-	Check_Type(string, T_STRING);
+	StringValueCStr(string);
 	if( ENCODING_GET(string) != enc_idx ){
 		string = rb_str_export_to_enc(string, rb_enc_from_index(enc_idx));
 	}

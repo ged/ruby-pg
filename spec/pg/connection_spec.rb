@@ -1237,51 +1237,51 @@ describe PG::Connection do
 			end
 
 			it "uses the client encoding for escaped string" do
-				original = "Möhre to\0 escape".encode( "utf-16be" )
+				original = "Möhre to 'scape".encode( "utf-16be" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "Möhre to".encode(Encoding::EUC_JP) )
+				expect( escaped ).to eq( "Möhre to ''scape".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the client encoding for escaped literal" do
-				original = "Möhre to\0 escape".encode( "utf-16be" )
+				original = "Möhre to 'scape".encode( "utf-16be" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_literal( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "'Möhre to'".encode(Encoding::EUC_JP) )
+				expect( escaped ).to eq( "'Möhre to ''scape'".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the client encoding for escaped identifier" do
-				original = "Möhre to\0 escape".encode( "utf-16le" )
+				original = "Möhre to 'scape".encode( "utf-16le" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.escape_identifier( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "\"Möhre to\"".encode(Encoding::EUC_JP) )
+				expect( escaped ).to eq( "\"Möhre to 'scape\"".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the client encoding for quote_ident" do
-				original = "Möhre to\0 escape".encode( "utf-16le" )
+				original = "Möhre to 'scape".encode( "utf-16le" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = @conn.quote_ident( original )
 				expect( escaped.encoding ).to eq( Encoding::EUC_JP )
-				expect( escaped ).to eq( "\"Möhre to\"".encode(Encoding::EUC_JP) )
+				expect( escaped ).to eq( "\"Möhre to 'scape\"".encode(Encoding::EUC_JP) )
 			end
 
 			it "uses the previous string encoding for escaped string" do
-				original = "Möhre to\0 escape".encode( "iso-8859-1" )
+				original = "Möhre to 'scape".encode( "iso-8859-1" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = described_class.escape( original )
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
-				expect( escaped ).to eq( "Möhre to".encode(Encoding::ISO8859_1) )
+				expect( escaped ).to eq( "Möhre to ''scape".encode(Encoding::ISO8859_1) )
 			end
 
 			it "uses the previous string encoding for quote_ident" do
-				original = "Möhre to\0 escape".encode( "iso-8859-1" )
+				original = "Möhre to 'scape".encode( "iso-8859-1" )
 				@conn.set_client_encoding( "euc_jp" )
 				escaped  = described_class.quote_ident( original )
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
-				expect( escaped.encode ).to eq( "\"Möhre to\"".encode(Encoding::ISO8859_1) )
+				expect( escaped.encode ).to eq( "\"Möhre to 'scape\"".encode(Encoding::ISO8859_1) )
 			end
 
 			it "raises appropriate error if set_client_encoding is called with invalid arguments" do
@@ -1366,9 +1366,54 @@ describe PG::Connection do
 			end
 		end
 
+		it "rejects command strings with zero bytes" do
+			expect{ @conn.exec( "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.exec_params( "SELECT 1;\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.prepare( "abc\x00", "SELECT 1;" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.prepare( "abc", "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.exec_prepared( "abc\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.describe_prepared( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.describe_portal( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query( "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_params( "SELECT 1;\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_prepare( "abc\x00", "SELECT 1;" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_prepare( "abc", "SELECT 1;\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_prepared( "abc\x00", [] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_describe_prepared( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_describe_portal( "abc\x00" ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects query params with zero bytes" do
+			expect{ @conn.exec_params( "SELECT 1;\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.exec_prepared( "abc\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_params( "SELECT 1;\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+			expect{ @conn.send_query_prepared( "abc\x00", ["ab\x00"] ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects string with zero bytes in escape" do
+			expect{ @conn.escape( "ab\x00cd" ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects string with zero bytes in escape_literal" do
+			expect{ @conn.escape_literal( "ab\x00cd" ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects string with zero bytes in escape_identifier" do
+			expect{ @conn.escape_identifier( "ab\x00cd" ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects string with zero bytes in quote_ident" do
+			expect{ described_class.quote_ident( "ab\x00cd" ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
+		it "rejects Array with string with zero bytes" do
+			original = ["xyz", "2\x00"]
+			expect{ described_class.quote_ident( original ) }.to raise_error(ArgumentError, /null byte/)
+		end
+
 		it "can quote bigger strings with quote_ident" do
 			original = "'01234567\"" * 100
-			escaped = described_class.quote_ident( original + "\0afterzero" )
+			escaped = described_class.quote_ident( original )
 			expect( escaped ).to eq( "\"" + original.gsub("\"", "\"\"") + "\"" )
 		end
 
