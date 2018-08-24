@@ -1,10 +1,4 @@
-== v2.0.0 - far from release -
-
-Removed:
-- Removed query method variants deprecated in pg-1.1.0.
-
-
-== v1.1.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v1.1.0 [2018-08-24] Michael Granger <ged@FaerieMUD.org>
 
 Deprecated (disable warnings per PG_SKIP_DEPRECATION_WARNING=1):
 - Forwarding conn.exec to conn.exec_params is deprecated.
