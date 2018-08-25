@@ -351,10 +351,16 @@ rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 void notice_receiver_proxy(void *arg, const PGresult *result);
 void notice_processor_proxy(void *arg, const char *message);
 
-/* reports if `-W' specified and PG_SKIP_DEPRECATION_WARNING environment variable isn't set */
-#define pg_deprecated(x) \
+/* reports if `-W' specified and PG_SKIP_DEPRECATION_WARNING environment variable isn't set
+ *
+ * message_id identifies the warning, so that it's reported only once.
+ */
+#define pg_deprecated(message_id, format_args) \
 	do { \
-		if( !pg_skip_deprecation_warning ) rb_warning x; \
+		if( !(pg_skip_deprecation_warning & (1 << message_id)) ){ \
+			pg_skip_deprecation_warning |= 1 << message_id; \
+			rb_warning format_args; \
+		} \
 	} while(0);
 
 #endif /* end __pg_h */

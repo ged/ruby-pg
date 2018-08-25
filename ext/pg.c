@@ -382,7 +382,12 @@ pg_s_init_ssl(VALUE self, VALUE do_ssl)
 void
 Init_pg_ext()
 {
-	pg_skip_deprecation_warning = RTEST(rb_eval_string("ENV['PG_SKIP_DEPRECATION_WARNING']"));
+	if( RTEST(rb_eval_string("ENV['PG_SKIP_DEPRECATION_WARNING']")) ){
+		/* Set all bits to disable all deprecation warnings. */
+		pg_skip_deprecation_warning = 0xFFFF;
+	} else {
+		pg_skip_deprecation_warning = 0;
+	}
 
 	rb_mPG = rb_define_module( "PG" );
 	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );

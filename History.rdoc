@@ -1,3 +1,8 @@
+== v1.1.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+- Reduce deprecation warnings to only one message per deprecation.
+
+
 == v1.1.0 [2018-08-24] Michael Granger <ged@FaerieMUD.org>
 
 Deprecated (disable warnings per PG_SKIP_DEPRECATION_WARNING=1):
