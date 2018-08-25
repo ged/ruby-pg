@@ -18,7 +18,7 @@ PG::Connection enhancements:
 
 Result retrieval enhancements:
 - Add PG::Result#tuple_values to retrieve all field values of a row as array.
-- Add PG::Tuple, PG::Result#tuple_values and PG::Result#stream_each_tuple .
+- Add PG::Tuple, PG::Result#tuple and PG::Result#stream_each_tuple .
   PG::Tuple offers a way to lazy cast result values.
 - Estimate PG::Result size allocated by libpq and notify the garbage collector about it when running on Ruby-2.4 or newer.
 - Make the estimated PG::Result size available to ObjectSpace.memsize_of(result) .
