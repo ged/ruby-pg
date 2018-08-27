@@ -1236,6 +1236,22 @@ describe PG::Connection do
 				expect( @conn.internal_encoding ).to eq( Encoding::ASCII_8BIT )
 			end
 
+			it "the connection should use JOHAB dummy encoding when it's set to JOHAB" do
+				@conn.set_client_encoding "JOHAB"
+				val = @conn.exec("SELECT chr(x'3391'::int)").values[0][0]
+				expect( val.encoding.name ).to eq( "JOHAB" )
+				expect( val.unpack("H*")[0] ).to eq( "dc65" )
+			end
+
+			it "can retrieve server encoding as text" do
+				enc = @conn.parameter_status "server_encoding"
+				expect( enc ).to eq( "UTF8" )
+			end
+
+			it "can retrieve server encoding as ruby encoding" do
+				expect( @conn.external_encoding ).to eq( Encoding::UTF_8 )
+			end
+
 			it "uses the client encoding for escaped string" do
 				original = "Möhre to 'scape".encode( "utf-16be" )
 				@conn.set_client_encoding( "euc_jp" )
