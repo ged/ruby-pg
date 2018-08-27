@@ -1,6 +1,8 @@
 == v1.1.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
 
 - Reduce deprecation warnings to only one message per deprecation.
+- Don't generate aliases for JOHAB encoding.
+  This avoids linking to deprecated/private function rb_enc(db)_alias().
 
 
 == v1.1.0 [2018-08-24] Michael Granger <ged@FaerieMUD.org>

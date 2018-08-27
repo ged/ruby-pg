@@ -21,9 +21,6 @@
 #include "ruby/st.h"
 #include "ruby/encoding.h"
 
-/* exported by ruby-1.9.3+ but not declared */
-extern int rb_enc_alias(const char *, const char *);
-
 #define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
 		if ((i) < ENCODING_INLINE_MAX) \
