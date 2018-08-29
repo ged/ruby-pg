@@ -22,6 +22,7 @@ module PG::TestingHelpers
 
 			mod.around( :each ) do |example|
 				begin
+					@conn.set_default_encoding
 					@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
 					desc = example.source_location.join(':')
 					@conn.exec %Q{SET application_name TO '%s'} %
