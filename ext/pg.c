@@ -143,9 +143,6 @@ pg_find_or_create_johab(void)
 	}
 
 	enc_index = rb_define_dummy_encoding(aliases[0]);
-	for (i = 1; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
-		rb_enc_alias(aliases[i], aliases[0]);
-	}
 	return rb_enc_from_index(enc_index);
 }
 
