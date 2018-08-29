@@ -1,16 +1,16 @@
 # -*- encoding: utf-8 -*-
-# stub: pg 1.2.0.pre20180827144325 ruby lib
+# stub: pg 1.2.0.pre20180828173948 ruby lib
 # stub: ext/extconf.rb
 
 Gem::Specification.new do |s|
   s.name = "pg".freeze
-  s.version = "1.2.0.pre20180827144325"
+  s.version = "1.2.0.pre20180828173948"
 
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1".freeze) if s.respond_to? :required_rubygems_version=
   s.require_paths = ["lib".freeze]
   s.authors = ["Michael Granger".freeze, "Lars Kanis".freeze]
   s.cert_chain = ["certs/ged.pem".freeze]
-  s.date = "2018-08-27"
+  s.date = "2018-08-29"
   s.description = "Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].\n\nIt works with {PostgreSQL 9.2 and later}[http://www.postgresql.org/support/versioning/].\n\nA small example usage:\n\n  #!/usr/bin/env ruby\n\n  require 'pg'\n\n  # Output a table of current connections to the DB\n  conn = PG.connect( dbname: 'sales' )\n  conn.exec( \"SELECT * FROM pg_stat_activity\" ) do |result|\n    puts \"     PID | User             | Query\"\n    result.each do |row|\n      puts \" %7d | %-16s | %s \" %\n        row.values_at('procpid', 'usename', 'current_query')\n    end\n  end".freeze
   s.email = ["ged@FaerieMUD.org".freeze, "lars@greiz-reinsdorf.de".freeze]
   s.extensions = ["ext/extconf.rb".freeze]
