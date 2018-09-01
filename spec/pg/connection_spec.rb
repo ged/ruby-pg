@@ -228,6 +228,21 @@ describe PG::Connection do
 
 			res = @conn2.query("SELECT 4")
 		end
+
+		it "can use conn.reset_start to restart the connection" do
+			ios = IO.pipe
+			conn = described_class.connect_start( @conninfo )
+			wait_for_polling_ok(conn)
+
+			# Close the two pipe file descriptors, so that the file descriptor of
+			# newly established connection is probably distinct from the previous one.
+			ios.each(&:close)
+			conn.reset_start
+			wait_for_polling_ok(conn)
+
+			# The new connection should work even when the file descriptor has changed.
+			expect( conn.exec("SELECT 1").values ).to eq([["1"]])
+		end
 	end
 
 	it "raises proper error when sending fails" do
@@ -912,6 +927,20 @@ describe PG::Connection do
 
 		conn.finish
 		expect { conn.finish }.to raise_error( PG::ConnectionBad, /connection is closed/i )
+	end
+
+	it "can use conn.reset to restart the connection" do
+		ios = IO.pipe
+		conn = PG.connect( @conninfo )
+
+		# Close the two pipe file descriptors, so that the file descriptor of
+		# newly established connection is probably distinct from the previous one.
+		ios.each(&:close)
+		conn.reset
+
+		# The new connection should work even when the file descriptor has changed.
+		expect( conn.exec("SELECT 1").values ).to eq([["1"]])
+		conn.close
 	end
 
 	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction, :socket_io do
