@@ -101,9 +101,6 @@ typedef struct {
 	/* Kind of PG::Coder object for casting COPY rows to ruby values */
 	VALUE decoder_for_get_copy_data;
 
-	/* The connection socket, used for rb_wait_for_single_fd() */
-	int socket;
-
 	/* enable/disable guessing size of PGresult's allocated memory */
 	int guess_result_memsize;
 } t_pg_connection;

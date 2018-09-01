@@ -968,7 +968,7 @@ describe PG::Connection do
 		end
 		serv.close
 		expect{ conn.block }.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
-		expect{ conn.block }.to raise_error(PG::ConnectionBad, /connection not open/)
+		expect{ conn.block }.to raise_error(PG::ConnectionBad, /can't get socket descriptor/)
 	end
 
 	it "sets the fallback_application_name on new connections" do
