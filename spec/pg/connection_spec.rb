@@ -242,6 +242,7 @@ describe PG::Connection do
 
 			# The new connection should work even when the file descriptor has changed.
 			expect( conn.exec("SELECT 1").values ).to eq([["1"]])
+			conn.close
 		end
 	end
 
