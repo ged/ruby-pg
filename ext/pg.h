@@ -103,6 +103,11 @@ typedef struct {
 
 	/* enable/disable guessing size of PGresult's allocated memory */
 	int guess_result_memsize;
+
+#if defined(_WIN32)
+	/* File descriptor to be used for rb_w32_unwrap_io_handle() */
+	int ruby_sd;
+#endif
 } t_pg_connection;
 
 typedef struct pg_coder t_pg_coder;

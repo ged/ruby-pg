@@ -247,6 +247,18 @@ describe PG::Connection do
 
 			conn.close
 		end
+
+		it "should properly close a socket IO when GC'ed" do
+			# This results in
+			#    Errno::ENOTSOCK: An operation was attempted on something that is not a socket.
+			# on Windows when rb_w32_unwrap_io_handle() isn't called in pgconn_gc_free().
+			5.times do
+				conn = described_class.connect( @conninfo )
+				conn.socket_io.close
+			end
+			GC.start
+			IO.pipe.each(&:close)
+		end
 	end
 
 	it "raises proper error when sending fails" do

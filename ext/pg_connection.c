@@ -85,8 +85,7 @@ pgconn_close_socket_io( VALUE self )
 
 	if ( RTEST(socket_io) ) {
 #if defined(_WIN32)
-		int ruby_sd = NUM2INT(rb_funcall( socket_io, rb_intern("fileno"), 0 ));
-		if( rb_w32_unwrap_io_handle(ruby_sd) ){
+		if( rb_w32_unwrap_io_handle(this->ruby_sd) ){
 			rb_raise(rb_eConnectionBad, "Could not unwrap win32 socket handle");
 		}
 #endif
@@ -165,6 +164,10 @@ pgconn_gc_mark( t_pg_connection *this )
 static void
 pgconn_gc_free( t_pg_connection *this )
 {
+#if defined(_WIN32)
+	if ( RTEST(this->socket_io) )
+		rb_w32_unwrap_io_handle( this->ruby_sd );
+#endif
 	if (this->pgconn != NULL)
 		PQfinish( this->pgconn );
 
@@ -894,6 +897,7 @@ pgconn_socket_io(VALUE self)
 
 		#ifdef _WIN32
 			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
+			this->ruby_sd = ruby_sd;
 		#else
 			ruby_sd = sd;
 		#endif
