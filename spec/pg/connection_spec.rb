@@ -238,10 +238,13 @@ describe PG::Connection do
 			# newly established connection is probably distinct from the previous one.
 			ios.each(&:close)
 			conn.reset_start
-			wait_for_polling_ok(conn)
+			wait_for_polling_ok(conn, :reset_poll)
 
 			# The new connection should work even when the file descriptor has changed.
-			expect( conn.exec("SELECT 1").values ).to eq([["1"]])
+			conn.send_query("SELECT 1")
+			res = wait_for_query_result(conn)
+			expect( res.values ).to eq([["1"]])
+
 			conn.close
 		end
 	end

@@ -319,20 +319,19 @@ module PG::TestingHelpers
 		return ConnStillUsableMatcher.new
 	end
 
-	def wait_for_polling_ok(conn)
-		socket = conn.socket_io
-		status = conn.connect_poll
+	def wait_for_polling_ok(conn, meth = :connect_poll)
+		status = conn.send(meth)
 
 		while status != PG::PGRES_POLLING_OK
 			if status == PG::PGRES_POLLING_READING
-				select( [socket], [], [], 5.0 ) or
+				select( [conn.socket_io], [], [], 5.0 ) or
 					raise "Asynchronous connection timed out!"
 
 			elsif status == PG::PGRES_POLLING_WRITING
-				select( [], [socket], [], 5.0 ) or
+				select( [], [conn.socket_io], [], 5.0 ) or
 					raise "Asynchronous connection timed out!"
 			end
-			status = conn.connect_poll
+			status = conn.send(meth)
 		end
 	end
 
