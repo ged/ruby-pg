@@ -34,6 +34,8 @@ before_install:
         sudo ./postgresql-$PGVERSION.run --extract-only 1 --mode unattended
     fi
 script: |
+  # Set random port.
+  export PGPORT=14321
   if [ -z "$PGCROSS" ]; then
     rake compile test
   else

@@ -279,7 +279,7 @@ describe PG::Connection do
 		expect( @conn.db ).to eq( "test" )
 		expect( @conn.user ).to be_a_kind_of( String )
 		expect( @conn.pass ).to eq( "" )
-		expect( @conn.port ).to eq( 54321 )
+		expect( @conn.port ).to eq( @port )
 		expect( @conn.tty ).to eq( "" )
 		expect( @conn.options ).to eq( "" )
 	end
@@ -765,7 +765,7 @@ describe PG::Connection do
 	it "can return the default connection options as a Hash" do
 		expect( described_class.conndefaults_hash ).to be_a( Hash )
 		expect( described_class.conndefaults_hash ).to include( :user, :password, :dbname, :host, :port )
-		expect( ['5432', '54321'] ).to include( described_class.conndefaults_hash[:port] )
+		expect( ['5432', '54321', @port.to_s] ).to include( described_class.conndefaults_hash[:port] )
 		expect( @conn.conndefaults_hash ).to eq( described_class.conndefaults_hash )
 	end
 
