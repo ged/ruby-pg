@@ -187,6 +187,10 @@
   register_error_class( "22023", klass );
 }
 {
+  VALUE klass = define_error_class( "InvalidPrecedingOrFollowingSize", "22" );
+  register_error_class( "22013", klass );
+}
+{
   VALUE klass = define_error_class( "InvalidRegularExpression", "22" );
   register_error_class( "2201B", klass );
 }
