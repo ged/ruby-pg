@@ -1,22 +1,20 @@
 sudo: required
+dist: xenial
 services:
   - docker
 language: ruby
 rvm:
   - "2.2"
-  - "2.4.2"
-  - "2.5"
+  - "2.6"
   - ruby-head
 env:
-  - "PGVERSION=10.0-1-linux-x64 PATH=\"/opt/PostgreSQL/10/bin:$PATH\""
-  - "PGVERSION=9.3.19-1-linux-x64 PATH=\"/opt/PostgreSQL/9.3/bin:$PATH\""
+  - "PGVERSION=11"
+  - "PGVERSION=9.3"
   - "PGCROSS=true"
 matrix:
-  # Test cross compilation only with 2.4
+  # Test cross compilation only with 2.6
   exclude:
     - rvm: "2.2"
-      env: "PGCROSS=true"
-    - rvm: "2.5"
       env: "PGCROSS=true"
     - rvm: ruby-head
       env: "PGCROSS=true"
@@ -29,13 +27,19 @@ before_install:
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
   - |
     if [ -z "$PGCROSS" ]; then
-      wget http://get.enterprisedb.com/postgresql/postgresql-$PGVERSION.run && \
-        chmod +x postgresql-$PGVERSION.run && \
-        sudo ./postgresql-$PGVERSION.run --extract-only 1 --mode unattended
+      echo "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main $PGVERSION" | sudo tee -a /etc/apt/sources.list.d/pgdg.list && \
+      wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - && \
+      sudo apt -y update && \
+      sudo apt -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION* && \
+      export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
     fi
 script: |
   if [ -z "$PGCROSS" ]; then
     rake compile test
   else
+    # Create a dummy cert to satisfy the build
+    ruby -ropenssl -e "puts OpenSSL::PKey::RSA.new(2048).to_pem" > ~/.gem/gem-private_key.pem && \
+    gem cert --build travis-ci@dummy.org --private-key ~/.gem/gem-private_key.pem && \
+    cp gem-public_cert.pem ~/.gem/gem-public_cert.pem && \
     rake gem:windows
   fi

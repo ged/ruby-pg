@@ -28,20 +28,20 @@ environment:
   matrix:
     - ruby_version: "head"
       RUBYDOWNLOAD: x64
-      PGVERSION: 10.0-1-windows-x64
-      PGVER: 10
+      PGVERSION: 11.1-1-windows-x64
+      PGVER: 11
     - ruby_version: "head"
       RUBYDOWNLOAD: x86
-      PGVERSION: 10.0-1-windows
+      PGVERSION: 10.6-1-windows
       PGVER: 10
     - ruby_version: "24-x64"
-      PGVERSION: 10.0-1-windows-x64
-      PGVER: 10
+      PGVERSION: 11.1-1-windows-x64
+      PGVER: 11
     - ruby_version: "24"
-      PGVERSION: 10.0-1-windows
+      PGVERSION: 10.6-1-windows
       PGVER: 10
     - ruby_version: "22"
-      PGVERSION: 9.3.19-1-windows
+      PGVERSION: 9.3.25-1-windows
       PGVER: 9.3
     - ruby_version: "22-x64"
       PGVER: 9.6
