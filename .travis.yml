@@ -3,43 +3,54 @@ dist: xenial
 services:
   - docker
 language: ruby
-rvm:
-  - "2.2"
-  - "2.6"
-  - ruby-head
-env:
-  - "PGVERSION=11"
-  - "PGVERSION=9.3"
-  - "PGCROSS=true"
 matrix:
   # Test cross compilation only with 2.6
-  exclude:
+  include:
+    # i386: Intel 32-bit
+    - name: i386
+      language: generic
+      env:
+        - PGPATH="/usr/lib/postgresql/10/bin"
+      before_install: |
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset &&
+          docker build --rm --build-arg PGPATH="${PGPATH}" -t ruby-pg -f spec/env/Dockerfile.i386 .
+      script: |
+        docker run --rm -t --network=host ruby-pg
+
     - rvm: "2.2"
-      env: "PGCROSS=true"
+      env:
+        - "PGVERSION=9.3"
+    - rvm: "2.6"
+      env:
+        - "PGVERSION=10"
     - rvm: ruby-head
-      env: "PGCROSS=true"
+      env:
+        - "PGVERSION=11"
+
+    - name: gem-windows
+      rvm: "2.6"
+      before_install:
+        - gem install bundler
+        - bundle install
+        # Create a dummy cert to satisfy the build
+        - ruby -ropenssl -e "puts OpenSSL::PKey::RSA.new(2048).to_pem" > ~/.gem/gem-private_key.pem
+        - gem cert --build travis-ci@dummy.org --private-key ~/.gem/gem-private_key.pem
+        - cp gem-public_cert.pem ~/.gem/gem-public_cert.pem
+      script:
+        - rake gem:windows
   allow_failures:
     - rvm: ruby-head
+    - name: i386
   fast_finish: true
+
 before_install:
   - gem install bundler
   - bundle install
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
-  - |
-    if [ -z "$PGCROSS" ]; then
-      echo "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main $PGVERSION" | sudo tee -a /etc/apt/sources.list.d/pgdg.list && \
-      wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - && \
-      sudo apt -y update && \
-      sudo apt -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION* && \
-      export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
-    fi
-script: |
-  if [ -z "$PGCROSS" ]; then
-    rake compile test
-  else
-    # Create a dummy cert to satisfy the build
-    ruby -ropenssl -e "puts OpenSSL::PKey::RSA.new(2048).to_pem" > ~/.gem/gem-private_key.pem && \
-    gem cert --build travis-ci@dummy.org --private-key ~/.gem/gem-private_key.pem && \
-    cp gem-public_cert.pem ~/.gem/gem-public_cert.pem && \
-    rake gem:windows
-  fi
+  - echo "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main $PGVERSION" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
+  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+  - sudo apt -y update
+  - sudo apt -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION*
+  - export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
+script:
+  - rake compile test
