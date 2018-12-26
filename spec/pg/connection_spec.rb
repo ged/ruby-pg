@@ -1155,8 +1155,16 @@ describe PG::Connection do
 			expect( ping ).to eq( PG::PQPING_NO_RESPONSE )
 		end
 
-		it "returns correct response when ping connection arguments are wrong" do
+		it "returns error when ping connection arguments are wrong" do
 			ping = described_class.ping('localhost', 'localhost', nil, nil, :test, nil, nil)
+			expect( ping ).to_not eq( PG::PQPING_OK )
+		end
+
+		it "returns correct response when ping connection arguments are wrong" do
+			ping = described_class.ping(
+				:host => 'localhost',
+				:invalid_option => 9999,
+				:dbname => :test)
 			expect( ping ).to eq( PG::PQPING_NO_ATTEMPT )
 		end
 
