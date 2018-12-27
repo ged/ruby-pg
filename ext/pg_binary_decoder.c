@@ -154,7 +154,8 @@ static VALUE
 pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	int64_t timestamp;
-	struct timespec ts;
+	int64_t sec;
+	int64_t nsec;
 	VALUE t;
 
 	if( len != sizeof(timestamp) ){
@@ -171,14 +172,17 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 		default:
 			/* PostgreSQL's timestamp is based on year 2000 and Ruby's time is based on 1970.
 			 * Adjust the 30 years difference. */
-			ts.tv_sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
-			ts.tv_nsec = (timestamp % 1000000) * 1000;
+			sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
+			nsec = (timestamp % 1000000) * 1000;
 
-#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(NEGATIVE_TIME_T)
+#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(NEGATIVE_TIME_T) && defined(SIZEOF_TIME_T) && SIZEOF_TIME_T >= 8
 			/* Fast path for time conversion */
-			t = rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+			{
+				struct timespec ts = {sec, nsec};
+				t = rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+			}
 #else
-			t = rb_funcall(rb_cTime, rb_intern("at"), 2, LL2NUM(ts.tv_sec), LL2NUM(ts.tv_nsec / 1000));
+			t = rb_funcall(rb_cTime, rb_intern("at"), 2, LL2NUM(sec), LL2NUM(nsec / 1000));
 			if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
 				t = rb_funcall(t, rb_intern("utc"), 0);
 			}
