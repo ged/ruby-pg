@@ -62,7 +62,7 @@ describe 'Basic type mapping' do
 		it "should do bigdecimal param encoding" do
 			large = ('123456790'*10) << '.' << ('012345679')
 			res = @conn.exec_params( "SELECT $1::numeric,$2::numeric",
-				[BigDecimal.new('1'), BigDecimal.new(large)], nil, basic_type_mapping )
+				[BigDecimal('1'), BigDecimal(large)], nil, basic_type_mapping )
 
 			expect( res.values ).to eq( [
 					[ "1.0", large ],
