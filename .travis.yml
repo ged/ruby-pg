@@ -40,7 +40,6 @@ matrix:
         - rake gem:windows
   allow_failures:
     - rvm: ruby-head
-    - name: i386
   fast_finish: true
 
 before_install:
