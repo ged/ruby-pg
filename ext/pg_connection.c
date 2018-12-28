@@ -965,7 +965,7 @@ static VALUE pgconn_exec_params( int, VALUE *, VALUE );
  *    conn.exec(sql) {|pg_result| block }
  *
  * Sends SQL query request specified by _sql_ to PostgreSQL.
- * Returns a PG::Result instance on success.
+ * On success, it returns a PG::Result instance with all result rows and columns.
  * On failure, it raises a PG::Error.
  *
  * For backward compatibility, if you pass more than one parameter to this method,

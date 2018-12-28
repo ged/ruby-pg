@@ -419,6 +419,8 @@ static void pgresult_init_fnames(VALUE self)
  *
  * The class to represent the query result tuples (rows).
  * An instance of this class is created as the result of every query.
+ * All result rows and columns are stored in a memory block attached to the PG::Result object.
+ * Whenever a value is accessed it is casted to a Ruby object by the assigned #type_map .
  *
  * Since pg-1.1 the amount of memory in use by a PG::Result object is estimated and passed to ruby's garbage collector.
  * You can invoke the #clear method to force deallocation of memory of the instance when finished with the result for better memory performance.
