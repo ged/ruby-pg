@@ -35,10 +35,10 @@ end
 module PG
 
 	# Library version
-	VERSION = '1.1.3'
+	VERSION = '1.1.4'
 
 	# VCS revision
-	REVISION = %q$Revision$
+	REVISION = %q$Revision: 6f611e78845a $
 
 	class NotAllCopyDataRetrieved < PG::Error
 	end
