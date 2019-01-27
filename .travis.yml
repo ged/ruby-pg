@@ -30,7 +30,6 @@ matrix:
     - name: gem-windows
       rvm: "2.6"
       before_install:
-        - gem install bundler
         - bundle install
         # Create a dummy cert to satisfy the build
         - ruby -ropenssl -e "puts OpenSSL::PKey::RSA.new(2048).to_pem" > ~/.gem/gem-private_key.pem
@@ -43,7 +42,6 @@ matrix:
   fast_finish: true
 
 before_install:
-  - gem install bundler
   - bundle install
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
   - echo "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main $PGVERSION" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
