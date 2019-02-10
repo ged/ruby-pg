@@ -99,7 +99,7 @@ init_pg_type_map_all_strings()
 	 * This type map casts all values received from the database server to Strings
 	 * and sends all values to the server after conversion to String by +#to_s+ .
 	 * That means, it is hard coded to PG::TextEncoder::String for value encoding
-	 * and to PG::TextDecoder::String for text format respectivly PG::BinaryDecoder::Bytea
+	 * and to PG::TextDecoder::String for text format respectively PG::BinaryDecoder::Bytea
 	 * for binary format received from the server.
 	 *
 	 * It is suitable for type casting query bind parameters, result values and
