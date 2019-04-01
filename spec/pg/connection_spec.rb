@@ -371,13 +371,13 @@ describe PG::Connection do
 
 	it "should work together with signal handlers", :unix do
 		signal_received = false
-		trap 'USR1' do
+		trap 'USR2' do
 			signal_received = true
 		end
 
 		Thread.new do
 			sleep 0.1
-			Process.kill("USR1", Process.pid)
+			Process.kill("USR2", Process.pid)
 		end
 		@conn.exec("select pg_sleep(0.3)")
 		expect( signal_received ).to be_truthy
@@ -385,7 +385,7 @@ describe PG::Connection do
 		signal_received = false
 		Thread.new do
 			sleep 0.1
-			Process.kill("USR1", Process.pid)
+			Process.kill("USR2", Process.pid)
 		end
 		@conn.async_exec("select pg_sleep(0.3)")
 		expect( signal_received ).to be_truthy
