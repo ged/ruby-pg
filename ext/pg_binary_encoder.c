@@ -25,11 +25,12 @@ static int
 pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	char mybool;
-	switch(value){
-		case Qtrue : mybool = 1; break;
-		case Qfalse : mybool = 0; break;
-		default :
-			rb_raise( rb_eTypeError, "wrong data for binary boolean converter" );
+    if (value == Qtrue) {
+      mybool = 1;
+    } else if (value == Qfalse) {
+      mybool = 0;
+    } else {
+      rb_raise( rb_eTypeError, "wrong data for binary boolean converter" );
 	}
 	if(out) *out = mybool;
 	return 1;
