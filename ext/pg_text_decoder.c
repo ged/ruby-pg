@@ -207,6 +207,11 @@ static VALUE pg_create_blob(VALUE v) {
 	return rb_tainted_str_new(bi->blob_string, bi->length);
 }
 
+static VALUE pg_pq_freemem(VALUE mem) {
+  PQfreemem((void *)mem);
+  return Qfalse;
+}
+
 /*
  * Document-class: PG::TextDecoder::Bytea < PG::SimpleDecoder
  *
@@ -223,7 +228,7 @@ pg_text_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int fie
 	if (bi.blob_string == NULL) {
 		rb_raise(rb_eNoMemError, "PQunescapeBytea failure: probably not enough memory");
 	}
-	return rb_ensure(pg_create_blob, (VALUE)&bi, (VALUE(*)())PQfreemem, (VALUE)bi.blob_string);
+	return rb_ensure(pg_create_blob, (VALUE)&bi, pg_pq_freemem, (VALUE)bi.blob_string);
 }
 
 /*
