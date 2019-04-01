@@ -28,7 +28,7 @@ typedef struct {
  * We use 8 Bits of the klass object id as index to a 256 entry cache.
  * This avoids full lookups in most cases.
  */
-#define CACHE_LOOKUP(this, klass) ( &this->cache_row[(klass >> 8) & 0xff] )
+#define CACHE_LOOKUP(this, klass) ( &this->cache_row[(((unsigned long)klass) >> 8) & 0xff] )
 
 
 static t_pg_coder *
