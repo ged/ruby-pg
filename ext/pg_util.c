@@ -1,11 +1,11 @@
 /*
- * util.c - Utils for ruby-pg
+ * pg_util.c - Utils for ruby-pg
  * $Id$
  *
  */
 
 #include "pg.h"
-#include "util.h"
+#include "pg_util.h"
 
 static const char base64_encode_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 

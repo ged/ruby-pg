@@ -37,8 +37,8 @@ ext/pg_type_map_by_column.c
 ext/pg_type_map_by_mri_type.c
 ext/pg_type_map_by_oid.c
 ext/pg_type_map_in_ruby.c
-ext/util.c
-ext/util.h
+ext/pg_util.c
+ext/pg_util.h
 ext/vc/pg.sln
 ext/vc/pg_18/pg.vcproj
 ext/vc/pg_19/pg_19.vcproj

@@ -6,7 +6,7 @@
 
 #include "ruby/version.h"
 #include "pg.h"
-#include "util.h"
+#include "pg_util.h"
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
