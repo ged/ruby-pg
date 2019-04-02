@@ -144,20 +144,23 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 			char *start = out;
 			int len;
 			int neg = 0;
-			long long ll = NUM2LL(*intermediate);
+			long long sll = NUM2LL(*intermediate);
+			unsigned long long ll;
 
-			if (ll < 0) {
-				/* We don't expect problems with the most negative integer not being representable
-				 * as a positive integer, because Fixnum is only up to 63 bits.
+			if (sll < 0) {
+				/* Avoid problems with the most negative integer not being representable
+				 * as a positive integer, by using unsigned long long for encoding.
 				 */
-				ll = -ll;
+				ll = -sll;
 				neg = 1;
+			} else {
+				ll = sll;
 			}
 
 			/* Compute the result string backwards. */
 			do {
-				long long remainder;
-				long long oldval = ll;
+				unsigned long long remainder;
+				unsigned long long oldval = ll;
 
 				ll /= 10;
 				remainder = oldval - ll * 10;
@@ -186,7 +189,7 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 		if(TYPE(*intermediate) == T_FIXNUM){
 			int len;
 			long long sll = NUM2LL(*intermediate);
-			long long ll = sll < 0 ? -sll : sll;
+			unsigned long long ll = sll < 0 ? -sll : sll;
 			if( ll < 100000000 ){
 				if( ll < 10000 ){
 					if( ll < 100 ){
