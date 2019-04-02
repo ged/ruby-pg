@@ -128,8 +128,6 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	t_pg_result *this;
 
 	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
-	RTYPEDDATA_DATA(self) = this;
-
 	this->pgresult = result;
 	this->connection = rb_pgconn;
 	this->typemap = pg_typemap_all_strings;
@@ -137,6 +135,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
+	RTYPEDDATA_DATA(self) = this;
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 

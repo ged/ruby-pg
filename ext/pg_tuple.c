@@ -132,7 +132,6 @@ pg_tuple_new(VALUE result, int row_num)
 		sizeof(*this) +
 		sizeof(*this->values) * num_fields +
 		sizeof(*this->values) * (dup_names ? 1 : 0));
-	RTYPEDDATA_DATA(self) = this;
 
 	this->result = result;
 	this->typemap = p_result->typemap;
@@ -150,6 +149,8 @@ pg_tuple_new(VALUE result, int row_num)
 		 */
 		this->values[num_fields] = rb_obj_freeze(rb_ary_new4(num_fields, p_result->fnames));
 	}
+
+	RTYPEDDATA_DATA(self) = this;
 
 	return self;
 }
@@ -489,7 +490,6 @@ pg_tuple_load(VALUE self, VALUE a)
 		sizeof(*this) +
 		sizeof(*this->values) * num_fields +
 		sizeof(*this->values) * (dup_names ? 1 : 0));
-	RTYPEDDATA_DATA(self) = this;
 
 	this->result = Qnil;
 	this->typemap = Qnil;
@@ -507,6 +507,8 @@ pg_tuple_load(VALUE self, VALUE a)
 	if( dup_names ){
 		this->values[num_fields] = field_names;
 	}
+
+	RTYPEDDATA_DATA(self) = this;
 
 	if (FL_TEST(a, FL_EXIVAR)) {
 		rb_copy_generic_ivar(self, a);
