@@ -400,6 +400,11 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 	if( nsp==rb_mPG_BinaryEncoder || nsp==rb_mPG_BinaryDecoder )
 		rb_include_module( coder_klass, rb_mPG_BinaryFormatting );
 
+	if( nsp==rb_mPG_BinaryEncoder || nsp==rb_mPG_TextEncoder )
+		rb_define_method( coder_klass, "encode", pg_coder_encode, -1 );
+	if( nsp==rb_mPG_BinaryDecoder || nsp==rb_mPG_TextDecoder )
+		rb_define_method( coder_klass, "decode", pg_coder_decode, -1 );
+
 	rb_define_const( coder_klass, "CFUNC", cfunc_obj );
 
 	RB_GC_GUARD(cfunc_obj);
@@ -512,8 +517,6 @@ init_pg_coder()
 	 * This accessor is only used in PG::Coder#inspect .
 	 */
 	rb_define_attr(   rb_cPG_Coder, "name", 1, 1 );
-	rb_define_method( rb_cPG_Coder, "encode", pg_coder_encode, -1 );
-	rb_define_method( rb_cPG_Coder, "decode", pg_coder_decode, -1 );
 
 	/* Document-class: PG::SimpleCoder < PG::Coder */
 	rb_cPG_SimpleCoder = rb_define_class_under( rb_mPG, "SimpleCoder", rb_cPG_Coder );

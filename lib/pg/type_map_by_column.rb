@@ -9,7 +9,7 @@ class PG::TypeMapByColumn
 	end
 
 	def inspect
-		type_strings = coders.map{|c| c ? "#{c.name}:#{c.format}" : 'nil' }
+		type_strings = coders.map{|c| c ? c.inspect_short : 'nil' }
 		"#<#{self.class} #{type_strings.join(' ')}>"
 	end
 end

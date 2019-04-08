@@ -254,6 +254,11 @@ describe "PG::Type derivations" do
 				expect( textdec_string.decode( nil )).to be_nil
 				expect( textdec_int.decode( nil )).to be_nil
 			end
+
+			it "should be defined on an encoder but not on a decoder instance" do
+				expect( textdec_int.respond_to?(:decode) ).to be_truthy
+				expect( textenc_int.respond_to?(:decode) ).to be_falsey
+			end
 		end
 
 		describe '#encode' do
@@ -375,6 +380,11 @@ describe "PG::Type derivations" do
 			it "should pass through nil values" do
 				expect( textenc_string.encode( nil )).to be_nil
 				expect( textenc_int.encode( nil )).to be_nil
+			end
+
+			it "should be defined on a decoder but not on an encoder instance" do
+				expect( textenc_int.respond_to?(:encode) ).to be_truthy
+				expect( textdec_int.respond_to?(:encode) ).to be_falsey
 			end
 		end
 

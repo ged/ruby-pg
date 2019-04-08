@@ -53,6 +53,18 @@ module PG
 			str[-1,0] = "#{name_str} #{oid_str}#{format_str}"
 			str
 		end
+
+		def inspect_short
+			str = case format
+				when 0 then "T"
+				when 1 then "B"
+				else format.to_s
+			end
+			str += "E" if respond_to?(:encode)
+			str += "D" if respond_to?(:decode)
+
+			"#{name}:#{str}"
+		end
 	end
 
 	class CompositeCoder < Coder
