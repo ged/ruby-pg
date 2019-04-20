@@ -154,14 +154,20 @@ module PG::BasicTypeRegistry
 	# objects as values.
 	CODERS_BY_NAME = []
 
+	def self.register_coder(coder)
+		h = CODERS_BY_NAME[coder.format] ||= { encoder: {}, decoder: {} }
+		name = coder.name || raise(ArgumentError, "name of #{coder.inspect} must be defined")
+		h[:encoder][name] = coder if coder.respond_to?(:encode)
+		h[:decoder][name] = coder if coder.respond_to?(:decode)
+	end
+
 	# Register an OID type named +name+ with a typecasting encoder and decoder object in
 	# +type+.  +name+ should correspond to the `typname` column in
 	# the `pg_type` table.
 	# +format+ can be 0 for text format and 1 for binary.
 	def self.register_type(format, name, encoder_class, decoder_class)
-		CODERS_BY_NAME[format] ||= { encoder: {}, decoder: {} }
-		CODERS_BY_NAME[format][:encoder][name] = encoder_class.new(name: name, format: format) if encoder_class
-		CODERS_BY_NAME[format][:decoder][name] = decoder_class.new(name: name, format: format) if decoder_class
+		register_coder(encoder_class.new(name: name, format: format)) if encoder_class
+		register_coder(decoder_class.new(name: name, format: format)) if decoder_class
 	end
 
 	# Alias the +old+ type to the +new+ type.
