@@ -93,7 +93,7 @@ module PG
 		end
 	end
 
-	class RowCoder < Coder
+	class RecordCoder < Coder
 		def to_h
 			super.merge!({
 				type_map: type_map,

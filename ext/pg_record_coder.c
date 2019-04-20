@@ -1,41 +1,41 @@
 /*
- * pg_row_coder.c - PG::Coder class extension
+ * pg_record_coder.c - PG::Coder class extension
  *
  */
 
 #include "pg.h"
 
-VALUE rb_cPG_RowCoder;
-VALUE rb_cPG_RowEncoder;
-VALUE rb_cPG_RowDecoder;
+VALUE rb_cPG_RecordCoder;
+VALUE rb_cPG_RecordEncoder;
+VALUE rb_cPG_RecordDecoder;
 
 typedef struct {
 	t_pg_coder comp;
 	VALUE typemap;
-} t_pg_rowcoder;
+} t_pg_recordcoder;
 
 
 static void
-pg_rowcoder_mark( t_pg_rowcoder *this )
+pg_recordcoder_mark( t_pg_recordcoder *this )
 {
 	rb_gc_mark(this->typemap);
 }
 
 static VALUE
-pg_rowcoder_encoder_allocate( VALUE klass )
+pg_recordcoder_encoder_allocate( VALUE klass )
 {
-	t_pg_rowcoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_rowcoder, pg_rowcoder_mark, -1, this );
+	t_pg_recordcoder *this;
+	VALUE self = Data_Make_Struct( klass, t_pg_recordcoder, pg_recordcoder_mark, -1, this );
 	pg_coder_init_encoder( self );
 	this->typemap = pg_typemap_all_strings;
 	return self;
 }
 
 static VALUE
-pg_rowcoder_decoder_allocate( VALUE klass )
+pg_recordcoder_decoder_allocate( VALUE klass )
 {
-	t_pg_rowcoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_rowcoder, pg_rowcoder_mark, -1, this );
+	t_pg_recordcoder *this;
+	VALUE self = Data_Make_Struct( klass, t_pg_recordcoder, pg_recordcoder_mark, -1, this );
 	pg_coder_init_decoder( self );
 	this->typemap = pg_typemap_all_strings;
 	return self;
@@ -52,9 +52,9 @@ pg_rowcoder_decoder_allocate( VALUE klass )
  *
  */
 static VALUE
-pg_rowcoder_type_map_set(VALUE self, VALUE type_map)
+pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
 {
-	t_pg_rowcoder *this = DATA_PTR( self );
+	t_pg_recordcoder *this = DATA_PTR( self );
 
 	if ( !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
@@ -71,18 +71,18 @@ pg_rowcoder_type_map_set(VALUE self, VALUE type_map)
  *
  */
 static VALUE
-pg_rowcoder_type_map_get(VALUE self)
+pg_recordcoder_type_map_get(VALUE self)
 {
-	t_pg_rowcoder *this = DATA_PTR( self );
+	t_pg_recordcoder *this = DATA_PTR( self );
 
 	return this->typemap;
 }
 
 
 /*
- * Document-class: PG::TextEncoder::RowRow < PG::RowEncoder
+ * Document-class: PG::TextEncoder::Record < PG::RecordEncoder
  *
- * This class encodes one row of arbitrary columns for transmission as COPY data in text format.
+ * This class encodes one record of arbitrary columns for transmission as COPY data in text format.
  * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
  * for description of the format.
  *
@@ -94,23 +94,23 @@ pg_rowcoder_type_map_get(VALUE self)
  *
  * Example with default type map ( TypeMapAllStrings ):
  *   conn.exec "create table my_table (a text,b int,c bool)"
- *   enco = PG::TextEncoder::RowRow.new
+ *   enco = PG::TextEncoder::Record.new
  *   conn.copy_data "COPY my_table FROM STDIN", enco do
  *     conn.put_copy_data ["astring", 7, false]
  *     conn.put_copy_data ["string2", 42, true]
  *   end
- * This creates +my_table+ and inserts two rows.
+ * This creates +my_table+ and inserts two records.
  *
  * It is possible to manually assign a type encoder for each column per PG::TypeMapByColumn,
  * or to make use of PG::BasicTypeMapBasedOnResult to assign them based on the table OIDs.
  *
- * See also PG::TextDecoder::RowRow for the decoding direction with
+ * See also PG::TextDecoder::Record for the decoding direction with
  * PG::Connection#get_copy_data .
  */
 static int
-pg_text_enc_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
-	t_pg_rowcoder *this = (t_pg_rowcoder *)conv;
+	t_pg_recordcoder *this = (t_pg_recordcoder *)conv;
 	t_pg_coder_enc_func enc_func;
 	static t_pg_coder *p_elem_coder;
 	int i;
@@ -161,7 +161,7 @@ pg_text_enc_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, i
 					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2 + 2, current_out, end_capa_ptr );
 
 					*current_out++ = '"';
-					/* Row string from subint with backslash escaping */
+					/* Record string from subint with backslash escaping */
 					for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
 						if (*ptr1 == '"' || *ptr1 == '\\') {
 							*current_out++ = *ptr1;
@@ -214,7 +214,7 @@ pg_text_enc_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, i
 }
 
 /*
- * row_isspace() --- a non-locale-dependent isspace()
+ * record_isspace() --- a non-locale-dependent isspace()
  *
  * We used to use isspace() for parsing array values, but that has
  * undesirable results: an array value might be silently interpreted
@@ -222,7 +222,7 @@ pg_text_enc_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, i
  * the traditional ASCII definition of isspace().
  */
 static int
-row_isspace(char ch)
+record_isspace(char ch)
 {
 	if (ch == ' ' ||
 		ch == '\t' ||
@@ -235,9 +235,9 @@ row_isspace(char ch)
 }
 
 /*
- * Document-class: PG::TextDecoder::RowRow < PG::RowDecoder
+ * Document-class: PG::TextDecoder::Record < PG::RecordDecoder
  *
- * This class decodes one row of arbitrary columns received as COPY data in text format.
+ * This class decodes one record of arbitrary columns received as COPY data in text format.
  * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
  * for description of the format.
  *
@@ -250,13 +250,13 @@ row_isspace(char ch)
  * Example with default type map ( TypeMapAllStrings ):
  *   conn.exec("CREATE TABLE my_table AS VALUES('astring', 7, FALSE), ('string2', 42, TRUE) ")
  *
- *   deco = PG::TextDecoder::RowRow.new
+ *   deco = PG::TextDecoder::Record.new
  *   conn.copy_data "COPY my_table TO STDOUT", deco do
- *     while row=conn.get_copy_data
- *       p row
+ *     while record=conn.get_copy_data
+ *       p record
  *     end
  *   end
- * This prints all rows of +my_table+ :
+ * This prints all records of +my_table+ :
  *   ["astring", "7", "f"]
  *   ["string2", "42", "t"]
  *
@@ -265,20 +265,20 @@ row_isspace(char ch)
  *     PG::TextDecoder::String.new,
  *     PG::TextDecoder::Integer.new,
  *     PG::TextDecoder::Boolean.new] )
- *   deco = PG::TextDecoder::RowRow.new( type_map: tm )
+ *   deco = PG::TextDecoder::Record.new( type_map: tm )
  *   conn.copy_data "COPY my_table TO STDOUT", deco do
- *     while row=conn.get_copy_data
- *       p row
+ *     while record=conn.get_copy_data
+ *       p record
  *     end
  *   end
- * This prints the rows with type casted columns:
+ * This prints the records with type casted columns:
  *   ["astring", 7, false]
  *   ["string2", 42, true]
  *
  * Instead of manually assigning a type decoder for each column, PG::BasicTypeMapForResults
  * can be used to assign them based on the table OIDs.
  *
- * See also PG::TextEncoder::RowRow for the encoding direction with
+ * See also PG::TextEncoder::Record for the encoding direction with
  * PG::Connection#put_copy_data .
  */
 /*
@@ -294,9 +294,9 @@ row_isspace(char ch)
  * src/backend/utils/adt/rowtypes.c
  */
 static VALUE
-pg_text_dec_row(t_pg_coder *conv, char *input_line, int len, int _tuple, int _field, int enc_idx)
+pg_text_dec_record(t_pg_coder *conv, char *input_line, int len, int _tuple, int _field, int enc_idx)
 {
-	t_pg_rowcoder *this = (t_pg_rowcoder *)conv;
+	t_pg_recordcoder *this = (t_pg_recordcoder *)conv;
 
 	/* Return value: array */
 	VALUE array;
@@ -329,7 +329,7 @@ pg_text_dec_row(t_pg_coder *conv, char *input_line, int len, int _tuple, int _fi
 	 * each column, which is then fed to the appropriate input converter.
 	 */
 	/* Allow leading whitespace */
-	while (*cur_ptr && row_isspace(*cur_ptr))
+	while (*cur_ptr && record_isspace(*cur_ptr))
 		cur_ptr++;
 	if (*cur_ptr++ != '(')
 		rb_raise( rb_eArgError, "malformed record literal: \"%s\" - Missing left parenthesis.", input_line );
@@ -407,7 +407,7 @@ pg_text_dec_row(t_pg_coder *conv, char *input_line, int len, int _tuple, int _fi
 	}
 
 	/* Allow trailing whitespace */
-	while (*cur_ptr && row_isspace(*cur_ptr))
+	while (*cur_ptr && record_isspace(*cur_ptr))
 		cur_ptr++;
 	if (*cur_ptr)
 		rb_raise( rb_eArgError, "malformed record literal: \"%s\" - Junk after right parenthesis.", input_line );
@@ -417,28 +417,28 @@ pg_text_dec_row(t_pg_coder *conv, char *input_line, int len, int _tuple, int _fi
 
 
 void
-init_pg_rowcoder()
+init_pg_recordcoder()
 {
-	/* Document-class: PG::RowCoder < PG::Coder
+	/* Document-class: PG::RecordCoder < PG::Coder
 	 *
 	 * This is the base class for all type cast classes for COPY data,
 	 */
-	rb_cPG_RowCoder = rb_define_class_under( rb_mPG, "RowCoder", rb_cPG_Coder );
-	rb_define_method( rb_cPG_RowCoder, "type_map=", pg_rowcoder_type_map_set, 1 );
-	rb_define_method( rb_cPG_RowCoder, "type_map", pg_rowcoder_type_map_get, 0 );
+	rb_cPG_RecordCoder = rb_define_class_under( rb_mPG, "RecordCoder", rb_cPG_Coder );
+	rb_define_method( rb_cPG_RecordCoder, "type_map=", pg_recordcoder_type_map_set, 1 );
+	rb_define_method( rb_cPG_RecordCoder, "type_map", pg_recordcoder_type_map_get, 0 );
 
-	/* Document-class: PG::RowEncoder < PG::RowCoder */
-	rb_cPG_RowEncoder = rb_define_class_under( rb_mPG, "RowEncoder", rb_cPG_RowCoder );
-	rb_define_alloc_func( rb_cPG_RowEncoder, pg_rowcoder_encoder_allocate );
-	/* Document-class: PG::RowDecoder < PG::RowCoder */
-	rb_cPG_RowDecoder = rb_define_class_under( rb_mPG, "RowDecoder", rb_cPG_RowCoder );
-	rb_define_alloc_func( rb_cPG_RowDecoder, pg_rowcoder_decoder_allocate );
+	/* Document-class: PG::RecordEncoder < PG::RecordCoder */
+	rb_cPG_RecordEncoder = rb_define_class_under( rb_mPG, "RecordEncoder", rb_cPG_RecordCoder );
+	rb_define_alloc_func( rb_cPG_RecordEncoder, pg_recordcoder_encoder_allocate );
+	/* Document-class: PG::RecordDecoder < PG::RecordCoder */
+	rb_cPG_RecordDecoder = rb_define_class_under( rb_mPG, "RecordDecoder", rb_cPG_RecordCoder );
+	rb_define_alloc_func( rb_cPG_RecordDecoder, pg_recordcoder_decoder_allocate );
 
 	/* Make RDoc aware of the encoder classes... */
 	/* rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" ); */
-	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "RowRow", rb_cPG_RowEncoder ); */
-	pg_define_coder( "Row", pg_text_enc_row, rb_cPG_RowEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Record", rb_cPG_RecordEncoder ); */
+	pg_define_coder( "Record", pg_text_enc_record, rb_cPG_RecordEncoder, rb_mPG_TextEncoder );
 	/* rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" ); */
-	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "RowRow", rb_cPG_RowDecoder ); */
-	pg_define_coder( "Row", pg_text_dec_row, rb_cPG_RowDecoder, rb_mPG_TextDecoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Record", rb_cPG_RecordDecoder ); */
+	pg_define_coder( "Record", pg_text_dec_record, rb_cPG_RecordDecoder, rb_mPG_TextDecoder );
 }

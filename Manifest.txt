@@ -26,8 +26,8 @@ ext/pg_coder.c
 ext/pg_connection.c
 ext/pg_copy_coder.c
 ext/pg_errors.c
+ext/pg_record_coder.c
 ext/pg_result.c
-ext/pg_row_coder.c
 ext/pg_text_decoder.c
 ext/pg_text_encoder.c
 ext/pg_tuple.c

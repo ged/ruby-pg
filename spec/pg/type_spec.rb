@@ -957,11 +957,11 @@ describe "PG::Type derivations" do
 		end
 	end
 
-	describe PG::RowCoder do
-		describe PG::TextEncoder::Row do
+	describe PG::RecordCoder do
+		describe PG::TextEncoder::Record do
 			context "with default typemap" do
 				let!(:encoder) do
-					PG::TextEncoder::Row.new
+					PG::TextEncoder::Record.new
 				end
 
 				it "should encode different types of Ruby objects" do
@@ -985,7 +985,7 @@ describe "PG::Type derivations" do
 					tm
 				end
 				let!(:encoder) do
-					PG::TextEncoder::Row.new type_map: tm
+					PG::TextEncoder::Record.new type_map: tm
 				end
 
 				it "should have reasonable default values" do
@@ -1016,10 +1016,10 @@ describe "PG::Type derivations" do
 			end
 		end
 
-		describe PG::TextDecoder::Row do
+		describe PG::TextDecoder::Record do
 			context "with default typemap" do
 				let!(:decoder) do
-					PG::TextDecoder::Row.new
+					PG::TextDecoder::Record.new
 				end
 
 				describe '#decode' do
@@ -1047,7 +1047,7 @@ describe "PG::Type derivations" do
 					PG::TypeMapByColumn.new [textdec_int, textdec_string, intdec_incrementer, nil]
 				end
 				let!(:decoder) do
-					PG::TextDecoder::Row.new type_map: tm
+					PG::TextDecoder::Record.new type_map: tm
 				end
 
 				describe '#decode' do
