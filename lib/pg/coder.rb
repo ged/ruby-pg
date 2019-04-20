@@ -28,6 +28,7 @@ module PG
 			{
 				oid: oid,
 				format: format,
+				flags: flags,
 				name: name,
 			}
 		end

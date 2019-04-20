@@ -392,7 +392,7 @@ describe "PG::Type derivations" do
 
 		it "should respond to to_h" do
 			expect( textenc_int.to_h ).to eq( {
-				name: 'Integer', oid: 23, format: 0
+				name: 'Integer', oid: 23, format: 0, flags: 0
 			} )
 		end
 
@@ -712,15 +712,15 @@ describe "PG::Type derivations" do
 				expect( lt.to_h ).to eq( textenc_int_array.to_h )
 			end
 
-			it "should be possible to marshal encoders" do
-				mt = Marshal.dump(textdec_int_array)
+			it "should be possible to marshal decoders" do
+				mt = Marshal.dump(textdec_string_array_raise)
 				lt = Marshal.load(mt)
-				expect( lt.to_h ).to eq( textdec_int_array.to_h )
+				expect( lt.to_h ).to eq( textdec_string_array_raise.to_h )
 			end
 
 			it "should respond to to_h" do
 				expect( textenc_int_array.to_h ).to eq( {
-					name: nil, oid: 0, format: 0,
+					name: nil, oid: 0, format: 0, flags: 0,
 					elements_type: textenc_int, needs_quotation: false, delimiter: ','
 				} )
 			end
