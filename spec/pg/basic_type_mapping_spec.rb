@@ -21,6 +21,14 @@ ensure
 	end
 end
 
+def expect_to_typecase_result_value_warning
+	warning = 'Warning: no type cast defined for type "name" with oid 19. '\
+		"Please cast this type explicitly to TEXT to be safe for future changes.\n"\
+		'Warning: no type cast defined for type "regproc" with oid 24. '\
+		"Please cast this type explicitly to TEXT to be safe for future changes.\n"
+	expect { yield }.to output(warning).to_stderr
+end
+
 describe 'Basic type mapping' do
 
 	describe PG::BasicTypeMapForQueries do
@@ -187,7 +195,9 @@ describe 'Basic type mapping' do
 				it "should convert format #{format} timestamps per TimestampUtc" do
 					restore_type("timestamp") do
 						PG::BasicTypeRegistry.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampUtc
-						@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						expect_to_typecase_result_value_warning do
+							@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						end
 						res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
 																			CAST('1913-12-31 23:58:59.1231-03' AS TIMESTAMP WITHOUT TIME ZONE),
 																			CAST('4714-11-24 23:58:59.1231-03 BC' AS TIMESTAMP WITHOUT TIME ZONE),
@@ -209,7 +219,9 @@ describe 'Basic type mapping' do
 					restore_type("timestamp") do
 						PG::BasicTypeRegistry.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampUtcToLocal
 						PG::BasicTypeRegistry.register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtcToLocal
-						@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						expect_to_typecase_result_value_warning do
+							@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						end
 						res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),
 																			CAST('1913-12-31 23:58:59.1231-03' AS TIMESTAMP WITHOUT TIME ZONE),
 																			CAST('4714-11-24 23:58:59.1231-03 BC' AS TIMESTAMP WITHOUT TIME ZONE),
@@ -231,7 +243,9 @@ describe 'Basic type mapping' do
 					restore_type("timestamp") do
 						PG::BasicTypeRegistry.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampLocal
 						PG::BasicTypeRegistry.register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampLocal
-						@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						expect_to_typecase_result_value_warning do
+							@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn)
+						end
 						res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59' AS TIMESTAMP WITHOUT TIME ZONE),
 																			CAST('1913-12-31 23:58:59.1231' AS TIMESTAMP WITHOUT TIME ZONE),
 																			CAST('4714-11-24 23:58:59.1231-03 BC' AS TIMESTAMP WITHOUT TIME ZONE),
