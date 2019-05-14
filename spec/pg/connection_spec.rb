@@ -288,7 +288,8 @@ describe PG::Connection do
 		expect( @conn.host ).to eq( "localhost" )
 	end
 
-	EXPECTED_TRACE_OUTPUT = %{
+	let(:expected_trace_output) do
+		%{
 		To backend> Msg Q
 		To backend> "SELECT 1 AS one"
 		To backend> Msg complete, length 21
@@ -316,6 +317,7 @@ describe PG::Connection do
 		From backend (#4)> 5
 		From backend> T
 		}.gsub( /^\t{2}/, '' ).lstrip
+	end
 
 	it "trace and untrace client-server communication", :unix do
 			# be careful to explicitly close files so that the
@@ -341,7 +343,7 @@ describe PG::Connection do
 			#  From backend> T
 			trace_data.sub!( /(From backend> Z\nFrom backend \(#4\)> 5\n){3}/m, '\\1\\1' )
 
-			expect( trace_data ).to eq( EXPECTED_TRACE_OUTPUT )
+			expect( trace_data ).to eq( expected_trace_output )
 		end
 
 	it "allows a query to be cancelled" do
