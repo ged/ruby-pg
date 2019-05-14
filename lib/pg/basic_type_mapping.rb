@@ -301,7 +301,7 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 			format = result.fformat(field)
 			oid = result.ftype(field)
 			unless @already_warned[format][oid]
-				STDERR.puts "Warning: no type cast defined for type #{@typenames_by_oid[format][oid].inspect} with oid #{oid}. Please cast this type explicitly to TEXT to be safe for future changes."
+				$stderr.puts "Warning: no type cast defined for type #{@typenames_by_oid[format][oid].inspect} with oid #{oid}. Please cast this type explicitly to TEXT to be safe for future changes."
 				 @already_warned[format][oid] = true
 			end
 			super
