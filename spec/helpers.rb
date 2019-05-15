@@ -198,7 +198,7 @@ module PG::TestingHelpers
 		@test_pgdata = TEST_DIRECTORY + 'data'
 		@test_pgdata.mkpath
 
-		ENV['PGPORT'] ||= "54321"
+		ENV['PGPORT'] ||= (54321 + rand(1000)).to_s
 		@port = ENV['PGPORT'].to_i
 		ENV['PGHOST'] = 'localhost'
 		@conninfo = "host=localhost port=#{@port} dbname=test"
