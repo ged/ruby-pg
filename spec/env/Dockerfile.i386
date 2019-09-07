@@ -1,9 +1,11 @@
-FROM multiarch/ubuntu-debootstrap:i386-bionic
+FROM i386/ubuntu:bionic
 
 ARG PGPATH
 
 ENV PATH "${PGPATH}:${PATH}"
 ENV TEST_USER ruby-pg
+# To prevent installed tzdata deb package to show interactive dialog.
+ENV DEBIAN_FRONTEND noninteractive
 
 WORKDIR /build
 COPY . .
