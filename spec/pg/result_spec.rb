@@ -4,6 +4,7 @@
 require_relative '../helpers'
 
 require 'pg'
+require 'objspace'
 
 
 describe PG::Result do
@@ -442,6 +443,13 @@ describe PG::Result do
 		expect( r.inspect ).to match(/status=PGRES_TUPLES_OK/)
 		r.clear
 		expect( r.inspect ).to match(/cleared/)
+	end
+
+	it "should give account about memory usage" do
+		r = @conn.exec "select 1"
+		expect( ObjectSpace.memsize_of(r) ).to be > 1000
+		r.clear
+		expect( ObjectSpace.memsize_of(r) ).to be < 100
 	end
 
 	context 'result value conversions with TypeMapByColumn' do

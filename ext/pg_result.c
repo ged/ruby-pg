@@ -114,6 +114,7 @@ pgresult_clear( t_pg_result *this )
 		rb_gc_adjust_memory_usage(-this->result_size);
 #endif
 	}
+	this->result_size = 0;
 	this->pgresult = NULL;
 }
 
