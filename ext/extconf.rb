@@ -76,6 +76,7 @@ have_func 'PQsetSingleRowMode' or
 have_func 'PQconninfo'
 have_func 'PQsslAttribute'
 have_func 'PQencryptPasswordConn'
+have_func 'PQresultMemorySize' # since PostgreSQL-12
 have_func 'timegm'
 have_func 'rb_gc_adjust_memory_usage'
 

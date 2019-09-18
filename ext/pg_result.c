@@ -15,6 +15,15 @@ static VALUE pgresult_s_allocate( VALUE );
 static t_pg_result *pgresult_get_this( VALUE );
 static t_pg_result *pgresult_get_this_safe( VALUE );
 
+#if defined(HAVE_PQRESULTMEMORYSIZE)
+
+static ssize_t
+pgresult_approx_size(const PGresult *result)
+{
+	return PQresultMemorySize(result);
+}
+
+#else
 
 #define PGRESULT_DATA_BLOCKSIZE 2048
 typedef struct pgresAttValue
@@ -44,7 +53,7 @@ count_leading_zero_bits(unsigned int x)
 }
 
 static ssize_t
-pgresult_approx_size(PGresult *result)
+pgresult_approx_size(const PGresult *result)
 {
 	int num_fields = PQnfields(result);
 	ssize_t size = 0;
@@ -94,6 +103,7 @@ pgresult_approx_size(PGresult *result)
 
 	return size;
 }
+#endif
 
 static void
 pgresult_clear( t_pg_result *this )
