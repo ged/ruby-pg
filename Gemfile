@@ -6,7 +6,7 @@ source "https://rubygems.org/"
 
 
 gem "rake-compiler", "~>1.0", :group => [:development, :test]
-gem "rake-compiler-dock", "~>0.7.0", :group => [:development, :test]
+gem "rake-compiler-dock", "0.7.1", :group => [:development, :test]
 gem "hoe-deveiate", "~>0.9", :group => [:development, :test]
 gem "hoe-bundler", "~>1.0", :group => [:development, :test]
 gem "rspec", "~>3.5", :group => [:development, :test]
