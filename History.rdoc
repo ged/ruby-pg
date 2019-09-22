@@ -1,3 +1,12 @@
+== v1.2.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+- Various small changes for better compatibility with TruffleRuby.
+- Respect Coder#flags in Coder#to_h.
+- Make use of PQresultMemorySize() of PostgreSQL-12 instead of our estimator.
+- Fix PG::Result memsize reporting after #clear.
+- Update Windows fat binary gem to OpenSSL-1.1.1d and PostgreSQL-11.5.
+
+
 == v1.1.4 [2019-01-08] Michael Granger <ged@FaerieMUD.org>
 
 - Fix PG::BinaryDecoder::Timestamp on 32 bit systems. # 284
