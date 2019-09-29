@@ -66,7 +66,7 @@ pg_tmbk_lookup_klass(t_tmbk *this, VALUE klass, VALUE param_value)
 			Data_Get_Struct(obj, t_pg_coder, p_coder);
 		}else{
 			if( RB_TYPE_P(obj, T_SYMBOL) ){
-				/* A Proc object (or something that responds to #call). */
+				/* A Symbol: Call the method with this name. */
 				obj = rb_funcall(this->self, SYM2ID(obj), 1, param_value);
 			}else{
 				/* A Proc object (or something that responds to #call). */
