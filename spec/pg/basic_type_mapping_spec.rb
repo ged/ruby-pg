@@ -41,7 +41,7 @@ describe 'Basic type mapping' do
 		#
 
 		it "should do basic param encoding", :ruby_19 do
-			res = @conn.exec_params( "SELECT $1::int8,$2::float,$3,$4::TEXT",
+			res = @conn.exec_params( "SELECT $1::int8, $2::float, $3, $4::TEXT",
 				[1, 2.1, true, "b"], nil, basic_type_mapping )
 
 			expect( res.values ).to eq( [
@@ -51,7 +51,8 @@ describe 'Basic type mapping' do
 			expect( result_typenames(res) ).to eq( ['bigint', 'double precision', 'boolean', 'text'] )
 		end
 
-		it "should do array param encoding" do
+		it "should do default array-as-array param encoding" do
+			expect( basic_type_mapping.encode_array_as).to eq(:array)
 			res = @conn.exec_params( "SELECT $1,$2,$3,$4", [
 					[1, 2, 3], [[1, 2], [3, nil]],
 					[1.11, 2.21],
@@ -65,6 +66,68 @@ describe 'Basic type mapping' do
 			]] )
 
 			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]'] )
+		end
+
+		it "should do array-as-json encoding" do
+			basic_type_mapping.encode_array_as = :json
+			expect( basic_type_mapping.encode_array_as).to eq(:json)
+
+			res = @conn.exec_params( "SELECT $1::JSON, $2::JSON", [
+					[1, {a: 5}, true, ["a", 2], [3.4, nil]],
+					['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
+				], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [[
+					'[1,{"a":5},true,["a",2],[3.4,null]]',
+					'["//,/"",null,"abcäöü"]'.gsub("/", "\\"),
+			]] )
+
+			expect( result_typenames(res) ).to eq( ['json', 'json'] )
+		end
+
+		it "should do hash-as-json encoding" do
+			res = @conn.exec_params( "SELECT $1::JSON, $2::JSON", [
+					{a: 5, b: ["a", 2], c: nil},
+					{qu: '/,"'.gsub("/", "\\"), ni: nil, uml: 'abcäöü'},
+				], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [[
+					'{"a":5,"b":["a",2],"c":null}',
+					'{"qu":"//,/"","ni":null,"uml":"abcäöü"}'.gsub("/", "\\"),
+			]] )
+
+			expect( result_typenames(res) ).to eq( ['json', 'json'] )
+		end
+
+		describe "Record encoding" do
+			before :all do
+				@conn.exec("CREATE TYPE test_record1 AS (i int, d float, t text)")
+				@conn.exec("CREATE TYPE test_record2 AS (i int, r test_record1)")
+			end
+
+			after :all do
+				@conn.exec("DROP TYPE IF EXISTS test_record2 CASCADE")
+				@conn.exec("DROP TYPE IF EXISTS test_record1 CASCADE")
+			end
+
+			it "should do array-as-record encoding" do
+				basic_type_mapping.encode_array_as = :record
+				expect( basic_type_mapping.encode_array_as).to eq(:record)
+
+				res = @conn.exec_params( "SELECT $1::test_record1, $2::test_record2, $3::text", [
+						[5, 3.4, "txt"],
+				    [1, [2, 4.5, "bcd"]],
+				    [4, 5, 6],
+					], nil, basic_type_mapping )
+
+				expect( res.values ).to eq( [[
+						'(5,3.4,txt)',
+				    '(1,"(2,4.5,bcd)")',
+						'("4","5","6")',
+				]] )
+
+				expect( result_typenames(res) ).to eq( ['test_record1', 'test_record2', 'text'] )
+			end
 		end
 
 		it "should do bigdecimal param encoding" do

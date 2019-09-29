@@ -45,10 +45,11 @@ pg_recordcoder_decoder_allocate( VALUE klass )
  * call-seq:
  *    coder.type_map = map
  *
+ * Defines how single columns are encoded or decoded.
  * +map+ must be a kind of PG::TypeMap .
  *
  * Defaults to a PG::TypeMapAllStrings , so that PG::TextEncoder::String respectively
- * PG::TextDecoder::String is used for encoding/decoding of all columns.
+ * PG::TextDecoder::String is used for encoding/decoding of each column.
  *
  */
 static VALUE
@@ -69,6 +70,7 @@ pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
  * call-seq:
  *    coder.type_map -> PG::TypeMap
  *
+ * The PG::TypeMap that will be used for encoding and decoding of columns.
  */
 static VALUE
 pg_recordcoder_type_map_get(VALUE self)
@@ -82,15 +84,18 @@ pg_recordcoder_type_map_get(VALUE self)
 /*
  * Document-class: PG::TextEncoder::Record < PG::RecordEncoder
  *
- * This class encodes one record of arbitrary columns for transmission as COPY data in text format.
- * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
- * for description of the format.
+ * This class encodes one record of columns for transmission as query parameter in text format.
+ * See PostgreSQL {Composite Types}[https://www.postgresql.org/docs/current/rowtypes.html] for a description of the format and how it can be used.
  *
- * It is intended to be used in conjunction with PG::Connection#put_copy_data .
+ * PostgreSQL allows composite types to be used in many of the same ways that simple types can be used.
+ * For example, a column of a table can be declared to be of a composite type.
  *
- * The columns are expected as Array of values. The single values are encoded as defined
- * in the assigned #type_map. If no type_map was assigned, all values are converted to
- * strings by PG::TextEncoder::String.
+ * The columns are expected as Array of values.
+ * The single values are encoded as defined in the assigned #type_map.
+ * If no type_map was assigned, all values are converted to strings by PG::TextEncoder::String.
+ *
+ * It is possible to manually assign a type encoder for each column per PG::TypeMapByColumn,
+ * or to make use of PG::BasicTypeMapBasedOnResult to assign them based on the table OIDs.
  *
  * Example with default type map ( TypeMapAllStrings ):
  *   conn.exec "create table my_table (a text,b int,c bool)"
@@ -101,11 +106,7 @@ pg_recordcoder_type_map_get(VALUE self)
  *   end
  * This creates +my_table+ and inserts two records.
  *
- * It is possible to manually assign a type encoder for each column per PG::TypeMapByColumn,
- * or to make use of PG::BasicTypeMapBasedOnResult to assign them based on the table OIDs.
- *
- * See also PG::TextDecoder::Record for the decoding direction with
- * PG::Connection#get_copy_data .
+ * See also PG::TextDecoder::Record for the decoding direction.
  */
 static int
 pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
@@ -237,49 +238,56 @@ record_isspace(char ch)
 /*
  * Document-class: PG::TextDecoder::Record < PG::RecordDecoder
  *
- * This class decodes one record of arbitrary columns received as COPY data in text format.
- * See the {COPY command}[http://www.postgresql.org/docs/current/static/sql-copy.html]
- * for description of the format.
+ * This class decodes one record of values received from a composite type column in text format.
+ * See PostgreSQL {Composite Types}[https://www.postgresql.org/docs/current/rowtypes.html] for a description of the format and how it can be used.
  *
- * It is intended to be used in conjunction with PG::Connection#get_copy_data .
+ * PostgreSQL allows composite types to be used in many of the same ways that simple types can be used.
+ * For example, a column of a table can be declared to be of a composite type.
  *
- * The columns are retrieved as Array of values. The single values are decoded as defined
- * in the assigned #type_map. If no type_map was assigned, all values are converted to
- * strings by PG::TextDecoder::String.
+ * The columns are retrieved as Array of values.
+ * The single values are decoded as defined in the assigned #type_map.
+ * If no type_map was assigned, all values are converted to strings by PG::TextDecoder::String.
  *
- * Example with default type map ( TypeMapAllStrings ):
- *   conn.exec("CREATE TABLE my_table AS VALUES('astring', 7, FALSE), ('string2', 42, TRUE) ")
+ * Decode a record from +String+ to +Array<String>+ (uses default type map TypeMapAllStrings):
+ *   PG::TextDecoder::Record.new.decode("(1,2)")  # => ["1", "2"]
  *
- *   deco = PG::TextDecoder::Record.new
- *   conn.copy_data "COPY my_table TO STDOUT", deco do
- *     while record=conn.get_copy_data
- *       p record
- *     end
- *   end
- * This prints all records of +my_table+ :
- *   ["astring", "7", "f"]
- *   ["string2", "42", "t"]
+ * Decode a record from +String+ to +Array<Float>+ :
+ *   # Build a type map for two Floats
+ *   tm = PG::TypeMapByColumn.new([PG::TextDecoder::Float.new]*2)
+ *   # Use this type map to decode the record:
+ *   PG::TextDecoder::Record.new(type_map: tm).decode("(1,2)")
+ *   # => [1.0, 2.0]
  *
- * Example with column based type map:
- *   tm = PG::TypeMapByColumn.new( [
- *     PG::TextDecoder::String.new,
- *     PG::TextDecoder::Integer.new,
- *     PG::TextDecoder::Boolean.new] )
- *   deco = PG::TextDecoder::Record.new( type_map: tm )
- *   conn.copy_data "COPY my_table TO STDOUT", deco do
- *     while record=conn.get_copy_data
- *       p record
- *     end
- *   end
- * This prints the records with type casted columns:
- *   ["astring", 7, false]
- *   ["string2", 42, true]
+ * Records can also be encoded and decoded directly to and from the database.
+ * This avoids intermediate String allocations and is very fast.
+ * Take the following type and table definitions:
+ *   conn.exec("CREATE TYPE complex AS (r float, i float) ")
+ *   conn.exec("CREATE TABLE my_table (v1 complex, v2 complex) ")
+ *   conn.exec("INSERT INTO my_table VALUES((2,3), (4,5)), ((6,7), (8,9)) ")
  *
- * Instead of manually assigning a type decoder for each column, PG::BasicTypeMapForResults
- * can be used to assign them based on the table OIDs.
+ * The record can be decoded by applying a type map to the PG::Result object:
+ *   # Build a type map for two floats "r" and "i"
+ *   tm = PG::TypeMapByColumn.new([PG::TextDecoder::Float.new]*2)
+ *   # Build a record decoder to decode this two-value type:
+ *   deco = PG::TextDecoder::Record.new(type_map: tm)
+ *   # Fetch table data and use the decoder to cast the two complex values "v1" and "v2":
+ *   conn.exec("SELECT * FROM my_table").map_types!(PG::TypeMapByColumn.new([deco]*2)).to_a
+ *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
  *
- * See also PG::TextEncoder::Record for the encoding direction with
- * PG::Connection#put_copy_data .
+ * It's more very convenient to use the PG::BasicTypeRegistry, which is based on database OIDs.
+ *   # Fetch a NULL record of our type to retrieve the OIDs of the two record fields "r" and "i"
+ *   oids = conn.exec( "SELECT (NULL::complex).*" )
+ *   # Build a type map (PG::TypeMapByColumn) for decoding the "complex" type
+ *   dtm = PG::BasicTypeMapForResults.new(conn).build_column_map( oids )
+ *   # Register a record decoder for decoding our type "complex"
+ *   PG::BasicTypeRegistry.register_coder(PG::TextDecoder::Record.new(type_map: dtm, name: "complex"))
+ *   # Apply the basic type registry to all results retrieved from the server
+ *   conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn)
+ *   # Now queries decode the "complex" type (and many basic types) automatically
+ *   conn.exec("SELECT * FROM my_table").to_a
+ *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
+ *
+ * See also PG::TextEncoder::Record for the encoding direction.
  */
 /*
  * Parse the current line into separate attributes (fields),
