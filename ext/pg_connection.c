@@ -254,7 +254,7 @@ pgconn_s_allocate( VALUE klass )
  *   # As an Array
  *   PG::Connection.new( nil, 5432, nil, nil, 'test', nil, nil )
  *
- * If the Ruby default internal encoding is set (i.e., Encoding.default_internal != nil), the
+ * If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
  * connection will have its +client_encoding+ set accordingly.
  *
  * Raises a PG::Error if the connection fails.
@@ -293,14 +293,16 @@ pgconn_init(int argc, VALUE *argv, VALUE self)
  *    PG::Connection.connect_start(connection_string)     -> conn
  *    PG::Connection.connect_start(host, port, options, tty, dbname, login, password) ->  conn
  *
- * This is an asynchronous version of PG::Connection.connect().
+ * This is an asynchronous version of PG::Connection.new.
  *
  * Use #connect_poll to poll the status of the connection.
  *
  * NOTE: this does *not* set the connection's +client_encoding+ for you if
- * Encoding.default_internal is set. To set it after the connection is established,
+ * +Encoding.default_internal+ is set. To set it after the connection is established,
  * call #internal_encoding=. You can also set it automatically by setting
- * ENV['PGCLIENTENCODING'], or include the 'options' connection parameter.
+ * <code>ENV['PGCLIENTENCODING']</code>, or include the 'options' connection parameter.
+ *
+ * See also the 'sample' directory of this gem and the corresponding {libpq functions}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PQCONNECTSTARTPARAMS].
  *
  */
 static VALUE
@@ -426,7 +428,8 @@ pgconn_s_conndefaults(VALUE self)
  * Return value is the encrypted password.
  * The caller can assume the string doesn't contain any special characters that would require escaping.
  *
- * Available since PostgreSQL-10
+ * Available since PostgreSQL-10.
+ * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN).
  */
 static VALUE
 pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
@@ -1807,7 +1810,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
  *
- * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * +type_map+ can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
  * This will type cast the params from various Ruby types before transmission
  * based on the encoders defined by the type map. When a type encoder is used
  * the format and oid of a given bind parameter are retrieved from the encoder
@@ -1933,7 +1936,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  * The optional +result_format+ should be 0 for text results, 1
  * for binary.
  *
- * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * +type_map+ can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
  * This will type cast the params from various Ruby types before transmission
  * based on the encoders defined by the type map. When a type encoder is used
  * the format and oid of a given bind parameter are retrieved from the encoder
@@ -3362,7 +3365,7 @@ pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
  * call-seq:
  *    conn.ssl_in_use? -> Boolean
  *
- * Returns +true+ if the connection uses SSL, +false+ if not.
+ * Returns +true+ if the connection uses SSL/TLS, +false+ if not.
  *
  * Available since PostgreSQL-9.5
  */
@@ -3396,7 +3399,7 @@ pgconn_ssl_in_use(VALUE self)
  *   If SSL compression is in use, returns the name of the compression algorithm, or "on" if compression is used but the algorithm is not known. If compression is not in use, returns "off".
  *
  *
- * See also #ssl_attribute_names and http://www.postgresql.org/docs/current/interactive/libpq-status.html#LIBPQ-PQSSLATTRIBUTE
+ * See also #ssl_attribute_names and the {corresponding libpq function}[https://www.postgresql.org/docs/current/libpq-status.html#LIBPQ-PQSSLATTRIBUTE].
  *
  * Available since PostgreSQL-9.5
  */
