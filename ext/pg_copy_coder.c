@@ -112,10 +112,11 @@ pg_copycoder_null_string_get(VALUE self)
  * call-seq:
  *    coder.type_map = map
  *
+ * Defines how single columns are encoded or decoded.
  * +map+ must be a kind of PG::TypeMap .
  *
  * Defaults to a PG::TypeMapAllStrings , so that PG::TextEncoder::String respectively
- * PG::TextDecoder::String is used for encoding/decoding of all columns.
+ * PG::TextDecoder::String is used for encoding/decoding of each column.
  *
  */
 static VALUE
@@ -136,6 +137,7 @@ pg_copycoder_type_map_set(VALUE self, VALUE type_map)
  * call-seq:
  *    coder.type_map -> PG::TypeMap
  *
+ * The PG::TypeMap that will be used for encoding and decoding of columns.
  */
 static VALUE
 pg_copycoder_type_map_get(VALUE self)
