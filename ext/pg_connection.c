@@ -865,6 +865,8 @@ static VALUE
 pgconn_socket(VALUE self)
 {
 	int sd;
+	pg_deprecated(4, ("conn.socket is deprecated and should be replaced by conn.socket_io"));
+
 	if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
 		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
 	return INT2NUM(sd);
