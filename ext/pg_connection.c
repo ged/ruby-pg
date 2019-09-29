@@ -218,32 +218,27 @@ pgconn_s_allocate( VALUE klass )
  *
  * Create a connection to the specified server.
  *
+ * +connection_hash+ must be a ruby Hash with connection parameters.
+ * See the {list of valid parameters}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS] in the PostgreSQL documentation.
+ *
+ * There are two accepted formats for +connection_string+: plain <code>keyword = value</code> strings and URIs.
+ * See the documentation of {connection strings}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING].
+ *
+ * The positional parameter form has the same functionality except that the missing parameters will always take on default values. The parameters are:
  * [+host+]
  *   server hostname
- * [+hostaddr+]
- *   server address (avoids hostname lookup, overrides +host+)
  * [+port+]
  *   server port number
+ * [+options+]
+ *   backend options
+ * [+tty+]
+ *   (ignored in newer versions of PostgreSQL)
  * [+dbname+]
  *   connecting database name
  * [+user+]
  *   login user name
  * [+password+]
  *   login password
- * [+connect_timeout+]
- *   maximum time to wait for connection to succeed
- * [+options+]
- *   backend options
- * [+tty+]
- *   (ignored in newer versions of PostgreSQL)
- * [+sslmode+]
- *   (disable|allow|prefer|require)
- * [+krbsrvname+]
- *   kerberos service name
- * [+gsslib+]
- *   GSS library to use for GSSAPI authentication
- * [+service+]
- *   service name to use for additional parameters
  *
  * Examples:
  *
@@ -347,6 +342,8 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
  *    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Integer
  *
  * Check server status.
+ *
+ * See PG::Connection.new for a description of the parameters.
  *
  * Returns one of:
  * [+PQPING_OK+]
