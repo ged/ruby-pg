@@ -960,27 +960,18 @@ static VALUE pgconn_exec_params( int, VALUE *, VALUE );
 
 /*
  * call-seq:
- *    conn.exec(sql) -> PG::Result
- *    conn.exec(sql) {|pg_result| block }
+ *    conn.sync_exec(sql) -> PG::Result
+ *    conn.sync_exec(sql) {|pg_result| block }
  *
- * Sends SQL query request specified by _sql_ to PostgreSQL.
- * On success, it returns a PG::Result instance with all result rows and columns.
- * On failure, it raises a PG::Error.
+ * This function has the same behavior as #async_exec, but is implemented using the synchronous command processing API of libpq.
+ * It's not recommended to use explicit sync or async variants but #exec instead, unless you have a good reason to do so.
  *
- * For backward compatibility, if you pass more than one parameter to this method,
- * it will call #exec_params for you. New code should explicitly use #exec_params if
- * argument placeholders are used.
+ * Both #sync_exec and #async_exec release the GVL while waiting for server response, so that concurrent threads will get executed.
+ * However #async_exec has two advantages:
  *
- * If the optional code block is given, it will be passed <i>result</i> as an argument,
- * and the PG::Result object will  automatically be cleared when the block terminates.
- * In this instance, <code>conn.exec</code> returns the value of the block.
- *
- * #sync_exec is implemented on the synchronous command processing API of libpq, whereas
- * #async_exec is implemented on the asynchronous API.
- * #sync_exec is somewhat faster that #async_exec, but blocks any signals to be processed until
- * the query is finished. This is most notably visible by a delayed reaction to Control+C.
- * Both methods ensure that other threads can process while waiting for the server to
- * complete the request.
+ * 1. #async_exec can be aborted by signals (like Ctrl-C), while #exec blocks signal processing until the query is answered.
+ * 2. Ruby VM gets notified about IO blocked operations.
+ *    It can therefore schedule things like garbage collection, while queries are running like in this proposal: https://bugs.ruby-lang.org/issues/14723
  */
 static VALUE
 pgconn_exec(int argc, VALUE *argv, VALUE self)
@@ -1255,46 +1246,12 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
 
 /*
  * call-seq:
- *    conn.exec_params(sql, params[, result_format[, type_map]] ) -> PG::Result
- *    conn.exec_params(sql, params[, result_format[, type_map]] ) {|pg_result| block }
+ *    conn.sync_exec_params(sql, params[, result_format[, type_map]] ) -> PG::Result
+ *    conn.sync_exec_params(sql, params[, result_format[, type_map]] ) {|pg_result| block }
  *
- * Sends SQL query request specified by +sql+ to PostgreSQL using placeholders
- * for parameters.
- *
- * Returns a PG::Result instance on success. On failure, it raises a PG::Error.
- *
- * +params+ is an array of the bind parameters for the SQL query.
- * Each element of the +params+ array may be either:
- *   a hash of the form:
- *     {:value  => String (value of bind parameter)
- *      :type   => Integer (oid of type of bind parameter)
- *      :format => Integer (0 for text, 1 for binary)
- *     }
- *   or, it may be a String. If it is a string, that is equivalent to the hash:
- *     { :value => <string value>, :type => 0, :format => 0 }
- *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
- * inside the SQL query. The 0th element of the +params+ array is bound
- * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
- *
- * If the types are not specified, they will be inferred by PostgreSQL.
- * Instead of specifying type oids, it's recommended to simply add
- * explicit casts in the query to ensure that the right type is used.
- *
- * For example: "SELECT $1::int"
- *
- * The optional +result_format+ should be 0 for text results, 1
- * for binary.
- *
- * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
- * This will type cast the params from various Ruby types before transmission
- * based on the encoders defined by the type map. When a type encoder is used
- * the format and oid of a given bind parameter are retrieved from the encoder
- * instead out of the hash form described above.
- *
- * If the optional code block is given, it will be passed <i>result</i> as an argument,
- * and the PG::Result object will  automatically be cleared when the block terminates.
- * In this instance, <code>conn.exec</code> returns the value of the block.
+ * This function has the same behavior as #async_exec_params, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #exec_params instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_exec_params( int argc, VALUE *argv, VALUE self )
@@ -1341,23 +1298,11 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 
 /*
  * call-seq:
- *    conn.prepare(stmt_name, sql [, param_types ] ) -> PG::Result
+ *    conn.sync_prepare(stmt_name, sql [, param_types ] ) -> PG::Result
  *
- * Prepares statement _sql_ with name _name_ to be executed later.
- * Returns a PG::Result instance on success.
- * On failure, it raises a PG::Error.
- *
- * +param_types+ is an optional parameter to specify the Oids of the
- * types of the parameters.
- *
- * If the types are not specified, they will be inferred by PostgreSQL.
- * Instead of specifying type oids, it's recommended to simply add
- * explicit casts in the query to ensure that the right type is used.
- *
- * For example: "SELECT $1::int"
- *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
- * inside the SQL query.
+ * This function has the same behavior as #async_prepare, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #prepare instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_prepare(int argc, VALUE *argv, VALUE self)
@@ -1401,38 +1346,12 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
- *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
+ *    conn.sync_exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
+ *    conn.sync_exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
  *
- * Execute prepared named statement specified by _statement_name_.
- * Returns a PG::Result instance on success.
- * On failure, it raises a PG::Error.
- *
- * +params+ is an array of the optional bind parameters for the
- * SQL query. Each element of the +params+ array may be either:
- *   a hash of the form:
- *     {:value  => String (value of bind parameter)
- *      :format => Integer (0 for text, 1 for binary)
- *     }
- *   or, it may be a String. If it is a string, that is equivalent to the hash:
- *     { :value => <string value>, :format => 0 }
- *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
- * inside the SQL query. The 0th element of the +params+ array is bound
- * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
- *
- * The optional +result_format+ should be 0 for text results, 1
- * for binary.
- *
- * type_map can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
- * This will type cast the params from various Ruby types before transmission
- * based on the encoders defined by the type map. When a type encoder is used
- * the format and oid of a given bind parameter are retrieved from the encoder
- * instead out of the hash form described above.
- *
- * If the optional code block is given, it will be passed <i>result</i> as an argument,
- * and the PG::Result object will  automatically be cleared when the block terminates.
- * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
+ * This function has the same behavior as #async_exec_prepared, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #exec_prepared instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
@@ -1473,10 +1392,11 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.describe_prepared( statement_name ) -> PG::Result
+ *    conn.sync_describe_prepared( statement_name ) -> PG::Result
  *
- * Retrieve information about the prepared statement
- * _statement_name_.
+ * This function has the same behavior as #async_describe_prepared, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #describe_prepared instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_describe_prepared(VALUE self, VALUE stmt_name)
@@ -1500,9 +1420,11 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 
 /*
  * call-seq:
- *    conn.describe_portal( portal_name ) -> PG::Result
+ *    conn.sync_describe_portal( portal_name ) -> PG::Result
  *
- * Retrieve information about the portal _portal_name_.
+ * This function has the same behavior as #async_describe_portal, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #describe_portal instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_describe_portal(self, stmt_name)
@@ -3177,19 +3099,30 @@ pgconn_discard_results(VALUE self)
 
 /*
  * call-seq:
- *    conn.async_exec(sql) -> PG::Result
- *    conn.async_exec(sql) {|pg_result| block }
+ *    conn.exec(sql) -> PG::Result
+ *    conn.exec(sql) {|pg_result| block }
  *
- * This function has the same behavior as #sync_exec,
- * but is implemented using the asynchronous command
- * processing API of libpq.
+ * Sends SQL query request specified by _sql_ to PostgreSQL.
+ * On success, it returns a PG::Result instance with all result rows and columns.
+ * On failure, it raises a PG::Error.
  *
- * Both #sync_exec and #async_exec release the GVL while waiting for server response, so that concurrent threads will get executed.
- * However #async_exec has two advantages:
+ * For backward compatibility, if you pass more than one parameter to this method,
+ * it will call #exec_params for you. New code should explicitly use #exec_params if
+ * argument placeholders are used.
  *
- * 1. #async_exec can be aborted by signals (like Ctrl-C), while #exec blocks signal processing until the query is answered.
- * 2. Ruby VM gets notified about IO blocked operations.
- *    It can therefore schedule thing like garbage collection, while queries are running like in this proposal: https://bugs.ruby-lang.org/issues/14723
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
+ * In this instance, <code>conn.exec</code> returns the value of the block.
+ *
+ * #exec is an alias for #async_exec which is almost identical to #sync_exec .
+ * #sync_exec is implemented on the simpler synchronous command processing API of libpq, whereas
+ * #async_exec is implemented on the asynchronous API and on ruby's IO mechanisms.
+ * Both methods ensure that other threads can process while waiting for the server to
+ * complete the request, but #sync_exec blocks all signals to be processed until the query is finished.
+ * This is most notably visible by a delayed reaction to Control+C.
+ * It's not recommended to use explicit sync or async variants but #exec instead, unless you have a good reason to do so.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQEXEC].
  */
 static VALUE
 pgconn_async_exec(int argc, VALUE *argv, VALUE self)
@@ -3210,11 +3143,53 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.async_exec_params(sql, params [, result_format [, type_map ]] ) -> nil
- *    conn.async_exec_params(sql, params [, result_format [, type_map ]] ) {|pg_result| block }
+ *    conn.exec_params(sql, params [, result_format [, type_map ]] ) -> nil
+ *    conn.exec_params(sql, params [, result_format [, type_map ]] ) {|pg_result| block }
  *
- * This function has the same behavior as #sync_exec_params, but is implemented using the asynchronous command processing API of libpq.
- * See #async_exec for the differences between the two API variants.
+ * Sends SQL query request specified by +sql+ to PostgreSQL using placeholders
+ * for parameters.
+ *
+ * Returns a PG::Result instance on success. On failure, it raises a PG::Error.
+ *
+ * +params+ is an array of the bind parameters for the SQL query.
+ * Each element of the +params+ array may be either:
+ *   a hash of the form:
+ *     {:value  => String (value of bind parameter)
+ *      :type   => Integer (oid of type of bind parameter)
+ *      :format => Integer (0 for text, 1 for binary)
+ *     }
+ *   or, it may be a String. If it is a string, that is equivalent to the hash:
+ *     { :value => <string value>, :type => 0, :format => 0 }
+ *
+ * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * inside the SQL query. The 0th element of the +params+ array is bound
+ * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
+ *
+ * If the types are not specified, they will be inferred by PostgreSQL.
+ * Instead of specifying type oids, it's recommended to simply add
+ * explicit casts in the query to ensure that the right type is used.
+ *
+ * For example: "SELECT $1::int"
+ *
+ * The optional +result_format+ should be 0 for text results, 1
+ * for binary.
+ *
+ * +type_map+ can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params from various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
+ * In this instance, <code>conn.exec</code> returns the value of the block.
+ *
+ * The primary advantage of #exec_params over #exec is that parameter values can be separated from the command string, thus avoiding the need for tedious and error-prone quoting and escaping.
+ * Unlike #exec, #exec_params allows at most one SQL command in the given string.
+ * (There can be semicolons in it, but not more than one nonempty command.)
+ * This is a limitation of the underlying protocol, but has some usefulness as an extra defense against SQL-injection attacks.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQEXECPARAMS].
  */
 static VALUE
 pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
@@ -3241,10 +3216,25 @@ pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.async_prepare(stmt_name, sql [, param_types ] ) -> PG::Result
+ *    conn.prepare(stmt_name, sql [, param_types ] ) -> PG::Result
  *
- * This function has the same behavior as #sync_prepare, but is implemented using the asynchronous command processing API of libpq.
- * See #async_exec for the differences between the two API variants.
+ * Prepares statement _sql_ with name _name_ to be executed later.
+ * Returns a PG::Result instance on success.
+ * On failure, it raises a PG::Error.
+ *
+ * +param_types+ is an optional parameter to specify the Oids of the
+ * types of the parameters.
+ *
+ * If the types are not specified, they will be inferred by PostgreSQL.
+ * Instead of specifying type oids, it's recommended to simply add
+ * explicit casts in the query to ensure that the right type is used.
+ *
+ * For example: "SELECT $1::int"
+ *
+ * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * inside the SQL query.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQPREPARE].
  */
 static VALUE
 pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
@@ -3265,11 +3255,40 @@ pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.async_exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
- *    conn.async_exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
+ *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) -> PG::Result
+ *    conn.exec_prepared(statement_name [, params, result_format[, type_map]] ) {|pg_result| block }
  *
- * This function has the same behavior as #sync_exec_prepared, but is implemented using the asynchronous command processing API of libpq.
- * See #async_exec for the differences between the two API variants.
+ * Execute prepared named statement specified by _statement_name_.
+ * Returns a PG::Result instance on success.
+ * On failure, it raises a PG::Error.
+ *
+ * +params+ is an array of the optional bind parameters for the
+ * SQL query. Each element of the +params+ array may be either:
+ *   a hash of the form:
+ *     {:value  => String (value of bind parameter)
+ *      :format => Integer (0 for text, 1 for binary)
+ *     }
+ *   or, it may be a String. If it is a string, that is equivalent to the hash:
+ *     { :value => <string value>, :format => 0 }
+ *
+ * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * inside the SQL query. The 0th element of the +params+ array is bound
+ * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
+ *
+ * The optional +result_format+ should be 0 for text results, 1
+ * for binary.
+ *
+ * +type_map+ can be a PG::TypeMap derivation (such as PG::BasicTypeMapForQueries).
+ * This will type cast the params from various Ruby types before transmission
+ * based on the encoders defined by the type map. When a type encoder is used
+ * the format and oid of a given bind parameter are retrieved from the encoder
+ * instead out of the hash form described above.
+ *
+ * If the optional code block is given, it will be passed <i>result</i> as an argument,
+ * and the PG::Result object will  automatically be cleared when the block terminates.
+ * In this instance, <code>conn.exec_prepared</code> returns the value of the block.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQEXECPREPARED].
  */
 static VALUE
 pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
@@ -3290,10 +3309,11 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.async_describe_portal( portal_name ) -> PG::Result
+ *    conn.describe_portal( portal_name ) -> PG::Result
  *
- * This function has the same behavior as #sync_describe_portal, but is implemented using the asynchronous command processing API of libpq.
- * See #async_exec for the differences between the two API variants.
+ * Retrieve information about the portal _portal_name_.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQDESCRIBEPORTAL].
  */
 static VALUE
 pgconn_async_describe_portal(VALUE self, VALUE portal)
@@ -3314,10 +3334,11 @@ pgconn_async_describe_portal(VALUE self, VALUE portal)
 
 /*
  * call-seq:
- *    conn.async_describe_prepared( statement_name ) -> PG::Result
+ *    conn.describe_prepared( statement_name ) -> PG::Result
  *
- * This function has the same behavior as #sync_describe_prepared, but is implemented using the asynchronous command processing API of libpq.
- * See #async_exec for the differences between the two API variants.
+ * Retrieve information about the prepared statement _statement_name_.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQDESCRIBEPREPARED].
  */
 static VALUE
 pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
@@ -4133,6 +4154,22 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "sync_exec_prepared", pgconn_exec_prepared, -1);
 	rb_define_method(rb_cPGconn, "sync_describe_prepared", pgconn_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "sync_describe_portal", pgconn_describe_portal, 1);
+
+	rb_define_method(rb_cPGconn, "exec", pgconn_async_exec, -1);
+	rb_define_method(rb_cPGconn, "exec_params", pgconn_async_exec_params, -1);
+	rb_define_method(rb_cPGconn, "prepare", pgconn_async_prepare, -1);
+	rb_define_method(rb_cPGconn, "exec_prepared", pgconn_async_exec_prepared, -1);
+	rb_define_method(rb_cPGconn, "describe_prepared", pgconn_async_describe_prepared, 1);
+	rb_define_method(rb_cPGconn, "describe_portal", pgconn_async_describe_portal, 1);
+
+	rb_define_alias(rb_cPGconn, "async_exec", "exec");
+	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
+	rb_define_alias(rb_cPGconn, "async_exec_params", "exec_params");
+	rb_define_alias(rb_cPGconn, "async_prepare", "prepare");
+	rb_define_alias(rb_cPGconn, "async_exec_prepared", "exec_prepared");
+	rb_define_alias(rb_cPGconn, "async_describe_prepared", "describe_prepared");
+	rb_define_alias(rb_cPGconn, "async_describe_portal", "describe_portal");
+
 	rb_define_method(rb_cPGconn, "make_empty_pgresult", pgconn_make_empty_pgresult, 1);
 	rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	rb_define_alias(rb_cPGconn, "escape", "escape_string");
@@ -4145,17 +4182,10 @@ init_pg_connection()
 	/******     PG::Connection INSTANCE METHODS: Asynchronous Command Processing     ******/
 	rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);
 	rb_define_method(rb_cPGconn, "send_query_params", pgconn_send_query_params, -1);
-	rb_define_method(rb_cPGconn, "async_exec", pgconn_async_exec, -1);
-	rb_define_method(rb_cPGconn, "async_exec_params", pgconn_async_exec_params, -1);
-	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
 	rb_define_method(rb_cPGconn, "send_prepare", pgconn_send_prepare, -1);
-	rb_define_method(rb_cPGconn, "async_prepare", pgconn_async_prepare, -1);
 	rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, -1);
-	rb_define_method(rb_cPGconn, "async_exec_prepared", pgconn_async_exec_prepared, -1);
 	rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 1);
-	rb_define_method(rb_cPGconn, "async_describe_prepared", pgconn_async_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "send_describe_portal", pgconn_send_describe_portal, 1);
-	rb_define_method(rb_cPGconn, "async_describe_portal", pgconn_async_describe_portal, 1);
 	rb_define_method(rb_cPGconn, "get_result", pgconn_get_result, 0);
 	rb_define_method(rb_cPGconn, "consume_input", pgconn_consume_input, 0);
 	rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
@@ -4248,4 +4278,3 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data=", pgconn_decoder_for_get_copy_data_set, 1);
 	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data", pgconn_decoder_for_get_copy_data_get, 0);
 }
-
