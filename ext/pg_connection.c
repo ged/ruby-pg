@@ -3848,9 +3848,10 @@ pgconn_set_client_encoding_async1( VALUE args )
 
 
 static VALUE
-pgconn_set_client_encoding_async2( VALUE arg )
+pgconn_set_client_encoding_async2( VALUE arg, VALUE ex )
 {
 	UNUSED(arg);
+	UNUSED(ex);
 	return 1;
 }
 
