@@ -90,21 +90,37 @@ pg_recordcoder_type_map_get(VALUE self)
  * PostgreSQL allows composite types to be used in many of the same ways that simple types can be used.
  * For example, a column of a table can be declared to be of a composite type.
  *
- * The columns are expected as Array of values.
+ * The encoder expects the record columns as array of values.
  * The single values are encoded as defined in the assigned #type_map.
  * If no type_map was assigned, all values are converted to strings by PG::TextEncoder::String.
  *
  * It is possible to manually assign a type encoder for each column per PG::TypeMapByColumn,
  * or to make use of PG::BasicTypeMapBasedOnResult to assign them based on the table OIDs.
  *
- * Example with default type map ( TypeMapAllStrings ):
- *   conn.exec "create table my_table (a text,b int,c bool)"
- *   enco = PG::TextEncoder::Record.new
- *   conn.copy_data "COPY my_table FROM STDIN", enco do
- *     conn.put_copy_data ["astring", 7, false]
- *     conn.put_copy_data ["string2", 42, true]
- *   end
- * This creates +my_table+ and inserts two records.
+ * Encode a record from an <code>Array<String></code> to a +String+ in PostgreSQL Composite Type format (uses default type map TypeMapAllStrings):
+ *   PG::TextEncoder::Record.new.decode("(1,2)")  # => ["1", "2"]
+ *
+ * Encode a record from <code>Array<Float></code> to +String+ :
+ *   # Build a type map for two Floats
+ *   tm = PG::TypeMapByColumn.new([PG::TextEncoder::Float.new]*2)
+ *   # Use this type map to encode the record:
+ *   PG::TextEncoder::Record.new(type_map: tm).encode([1,2])
+ *   # => "(\"1.0000000000000000E+00\",\"2.0000000000000000E+00\")"
+ *
+ * Records can also be encoded and decoded directly to and from the database.
+ * This avoids intermediate String allocations and is very fast.
+ * Take the following type and table definitions:
+ *   conn.exec("CREATE TYPE complex AS (r float, i float) ")
+ *   conn.exec("CREATE TABLE my_table (v1 complex, v2 complex) ")
+ *
+ * The record can be encoded by applying a type map to the PG::Result object:
+ *   # Build a type map for two floats "r" and "i"
+ *   tm = PG::TypeMapByColumn.new([PG::TextEncoder::Float.new]*2)
+ *   # Build a record encoder to encode this two-value type:
+ *   deco = PG::TextEncoder::Record.new(type_map: tm)
+ *   # Insert table data and use the encoder to cast the complex value "v1" from array:
+ *   conn.exec_params("INSERT INTO my_table VALUES ($1) RETURNING v1", [[1,2]], 0, PG::TypeMapByColumn.new([deco])).to_a
+ *   # => [{"v1"=>"(1,2)"}]
  *
  * See also PG::TextDecoder::Record for the decoding direction.
  */
@@ -244,14 +260,14 @@ record_isspace(char ch)
  * PostgreSQL allows composite types to be used in many of the same ways that simple types can be used.
  * For example, a column of a table can be declared to be of a composite type.
  *
- * The columns are retrieved as Array of values.
+ * The columns are returned from the decoder as array of values.
  * The single values are decoded as defined in the assigned #type_map.
  * If no type_map was assigned, all values are converted to strings by PG::TextDecoder::String.
  *
- * Decode a record from +String+ to +Array<String>+ (uses default type map TypeMapAllStrings):
+ * Decode a record in Composite Type format from +String+ to <code>Array<String></code> (uses default type map TypeMapAllStrings):
  *   PG::TextDecoder::Record.new.decode("(1,2)")  # => ["1", "2"]
  *
- * Decode a record from +String+ to +Array<Float>+ :
+ * Decode a record from +String+ to <code>Array<Float></code> :
  *   # Build a type map for two Floats
  *   tm = PG::TypeMapByColumn.new([PG::TextDecoder::Float.new]*2)
  *   # Use this type map to decode the record:
@@ -287,7 +303,9 @@ record_isspace(char ch)
  *   conn.exec("SELECT * FROM my_table").to_a
  *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
  *
- * See also PG::TextEncoder::Record for the encoding direction.
+ * Records can also be nested or further wrapped into other encoders like PG::TextEncoder::CopyRow.
+ *
+ * See also PG::TextEncoder::Record for the encoding direction (data sent to the server).
  */
 /*
  * Parse the current line into separate attributes (fields),
