@@ -114,9 +114,6 @@ pgresult_clear( t_pg_result *this )
 		rb_gc_adjust_memory_usage(-this->result_size);
 #endif
 	}
-	/* It is not fully exact to set the result_size to zero here, since the memory 'this' is pointing to isn't freed yet.
-	 * However we don't want to store two memory sizes in t_pg_result and we don't want to call rb_gc_adjust_memory_usage() twice (in pg_result_clear() and in pgresult_gc_free() ).
-	 */
 	this->result_size = 0;
 	this->nfields = -1;
 	this->pgresult = NULL;
@@ -125,6 +122,9 @@ pgresult_clear( t_pg_result *this )
 static size_t
 pgresult_memsize( t_pg_result *this )
 {
+	/* Ideally the memory 'this' is pointing to should be taken into account as well.
+	 * However we don't want to store two memory sizes in t_pg_result just for reporting by ObjectSpace.memsize_of.
+	 */
 	return this->result_size;
 }
 
@@ -141,9 +141,8 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	int nfields = result ? PQnfields(result) : 0;
 	VALUE self = pgresult_s_allocate( rb_cPGresult );
 	t_pg_result *this;
-	ssize_t this_size = sizeof(*this) +  sizeof(*this->fnames) * nfields;
 
-	this = (t_pg_result *)xmalloc(this_size);
+	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
 	this->pgresult = result;
 	this->connection = rb_pgconn;
 	this->typemap = pg_typemap_all_strings;
@@ -151,7 +150,6 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
-	this->result_size = this_size;
 	RTYPEDDATA_DATA(self) = this;
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
@@ -178,11 +176,13 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 
 	this->autoclear = 0;
 
-	/* Add size of underlying pgresult memory storage and account to ruby GC */
+	/* Estimate size of underlying pgresult memory storage and account to ruby GC.
+	 * There's no need to adjust the GC for xmalloc'ed memory, but libpq is using libc malloc() ruby doesn't know about.
+	 */
 	/* TODO: If someday most systems provide PQresultMemorySize(), it's questionable to store result_size in t_pg_result in addition to the value already stored in PGresult.
 	 * For now the memory savings don't justify the ifdefs necessary to support both cases.
 	 */
-	this->result_size += pgresult_approx_size(result);
+	this->result_size = pgresult_approx_size(result);
 
 #ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
 	rb_gc_adjust_memory_usage(this->result_size);
@@ -200,6 +200,7 @@ pg_new_result_autoclear(PGresult *result, VALUE rb_pgconn)
 	/* Autocleared results are freed implicit instead of by PQclear().
 	 * So it's not very useful to be accounted by ruby GC.
 	 */
+	this->result_size = 0;
 	this->autoclear = 1;
 	return self;
 }
