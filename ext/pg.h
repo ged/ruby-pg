@@ -101,9 +101,6 @@ typedef struct {
 	/* Kind of PG::Coder object for casting COPY rows to ruby values */
 	VALUE decoder_for_get_copy_data;
 
-	/* enable/disable guessing size of PGresult's allocated memory */
-	int guess_result_memsize;
-
 #if defined(_WIN32)
 	/* File descriptor to be used for rb_w32_unwrap_io_handle() */
 	int ruby_sd;

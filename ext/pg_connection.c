@@ -201,7 +201,6 @@ pgconn_s_allocate( VALUE klass )
 	this->decoder_for_get_copy_data = Qnil;
 	this->trace_stream = Qnil;
 	this->external_encoding = Qnil;
-	this->guess_result_memsize = 1;
 
 	return self;
 }
@@ -4071,20 +4070,6 @@ pgconn_decoder_for_get_copy_data_get(VALUE self)
 	return this->decoder_for_get_copy_data;
 }
 
-/*
- * call-seq:
- *    res.guess_result_memsize = enabled
- *
- * This method is for testing only and will probably be removed in the future.
- */
-static VALUE
-pgconn_guess_result_memsize_set(VALUE self, VALUE enable)
-{
-	t_pg_connection *this = pg_get_connection( self );
-	this->guess_result_memsize = RTEST(enable);
-	return enable;
-}
-
 
 /*
  * Document-class: PG::Connection
@@ -4214,7 +4199,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 1);
 	rb_define_method(rb_cPGconn, "trace", pgconn_trace, 1);
 	rb_define_method(rb_cPGconn, "untrace", pgconn_untrace, 0);
-	rb_define_method(rb_cPGconn, "guess_result_memsize=", pgconn_guess_result_memsize_set, 1);
 
 	/******     PG::Connection INSTANCE METHODS: Notice Processing     ******/
 	rb_define_method(rb_cPGconn, "set_notice_receiver", pgconn_set_notice_receiver, 0);

@@ -175,21 +175,18 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 {
 	VALUE self = pg_new_result2(result, rb_pgconn);
 	t_pg_result *this = pgresult_get_this(self);
-	t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 
 	this->autoclear = 0;
 
-	if( p_conn->guess_result_memsize ){
-		/* Add size of underlying pgresult memory storage and account to ruby GC */
-		/* TODO: If someday most systems provide PQresultMemorySize(), it's questionable to store result_size in t_pg_result in addition to the value already stored in PGresult.
-		 * For now the memory savings don't justify the ifdefs necessary to support both cases.
-		 */
-		this->result_size += pgresult_approx_size(result);
+	/* Add size of underlying pgresult memory storage and account to ruby GC */
+	/* TODO: If someday most systems provide PQresultMemorySize(), it's questionable to store result_size in t_pg_result in addition to the value already stored in PGresult.
+	 * For now the memory savings don't justify the ifdefs necessary to support both cases.
+	 */
+	this->result_size += pgresult_approx_size(result);
 
 #ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
-		rb_gc_adjust_memory_usage(this->result_size);
+	rb_gc_adjust_memory_usage(this->result_size);
 #endif
-	}
 
 	return self;
 }
