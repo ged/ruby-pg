@@ -115,6 +115,7 @@ pgresult_clear( t_pg_result *this )
 #endif
 	}
 	this->result_size = 0;
+	this->nfields = -1;
 	this->pgresult = NULL;
 }
 
