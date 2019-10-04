@@ -30,7 +30,7 @@ class CrossLibrary < OpenStruct
 
 		# Cross-compilation constants
 		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.1.1d'
-		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '11.5'
+		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '12.0'
 
 		# Check if symlinks work in the current working directory.
 		# This fails, if rake-compiler-dock is running on a Windows box.
@@ -215,6 +215,9 @@ class CrossLibrary < OpenStruct
 		task postgresql_lib => [ postgresql_global_makefile ] do |t|
 			# Work around missing dependency to libcommon in PostgreSQL-9.4.0
 			chdir( static_postgresql_srcdir + "common" ) do
+				sh 'make', "-j#{NUM_CPUS}"
+			end
+			chdir( static_postgresql_srcdir + "port" ) do
 				sh 'make', "-j#{NUM_CPUS}"
 			end
 
