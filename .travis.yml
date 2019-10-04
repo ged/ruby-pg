@@ -8,6 +8,7 @@ matrix:
   include:
     # i386: Intel 32-bit
     - name: i386
+
       language: generic
       env:
         - PGPATH="/usr/lib/postgresql/10/bin"
@@ -22,10 +23,14 @@ matrix:
         - "PGVERSION=9.3"
     - rvm: "2.6"
       env:
-        - "PGVERSION=10"
+        - "PGVERSION=12"
     - rvm: ruby-head
       env:
-        - "PGVERSION=11"
+        - "PGVERSION=12"
+
+    - rvm: truffleruby
+      env:
+        - "PGVERSION=12"
 
     - name: gem-windows
       rvm: "2.6"
@@ -39,6 +44,7 @@ matrix:
         - rake gem:windows
   allow_failures:
     - rvm: ruby-head
+    - rvm: truffleruby
   fast_finish: true
 
 before_install:

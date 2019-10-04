@@ -677,7 +677,7 @@ describe PG::Connection do
 				@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 					@conn.put_copy_data "xyz\n"
 				end
-			}.to raise_error(PG::Error, /invalid input syntax for integer/)
+			}.to raise_error(PG::Error, /invalid input syntax for .*integer/)
 		end
 		expect( @conn ).to still_be_usable
 	end
