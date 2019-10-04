@@ -303,6 +303,66 @@
   register_error_class( "2200T", klass );
 }
 {
+  VALUE klass = define_error_class( "DuplicateJsonObjectKeyValue", "22" );
+  register_error_class( "22030", klass );
+}
+{
+  VALUE klass = define_error_class( "InvalidJsonText", "22" );
+  register_error_class( "22032", klass );
+}
+{
+  VALUE klass = define_error_class( "InvalidSqlJsonSubscript", "22" );
+  register_error_class( "22033", klass );
+}
+{
+  VALUE klass = define_error_class( "MoreThanOneSqlJsonItem", "22" );
+  register_error_class( "22034", klass );
+}
+{
+  VALUE klass = define_error_class( "NoSqlJsonItem", "22" );
+  register_error_class( "22035", klass );
+}
+{
+  VALUE klass = define_error_class( "NonNumericSqlJsonItem", "22" );
+  register_error_class( "22036", klass );
+}
+{
+  VALUE klass = define_error_class( "NonUniqueKeysInAJsonObject", "22" );
+  register_error_class( "22037", klass );
+}
+{
+  VALUE klass = define_error_class( "SingletonSqlJsonItemRequired", "22" );
+  register_error_class( "22038", klass );
+}
+{
+  VALUE klass = define_error_class( "SqlJsonArrayNotFound", "22" );
+  register_error_class( "22039", klass );
+}
+{
+  VALUE klass = define_error_class( "SqlJsonMemberNotFound", "22" );
+  register_error_class( "2203A", klass );
+}
+{
+  VALUE klass = define_error_class( "SqlJsonNumberNotFound", "22" );
+  register_error_class( "2203B", klass );
+}
+{
+  VALUE klass = define_error_class( "SqlJsonObjectNotFound", "22" );
+  register_error_class( "2203C", klass );
+}
+{
+  VALUE klass = define_error_class( "TooManyJsonArrayElements", "22" );
+  register_error_class( "2203D", klass );
+}
+{
+  VALUE klass = define_error_class( "TooManyJsonObjectMembers", "22" );
+  register_error_class( "2203E", klass );
+}
+{
+  VALUE klass = define_error_class( "SqlJsonScalarRequired", "22" );
+  register_error_class( "2203F", klass );
+}
+{
   VALUE klass = define_error_class( "IntegrityConstraintViolation", NULL );
   register_error_class( "23000", klass );
   register_error_class( "23", klass );
@@ -766,6 +826,10 @@
 {
   VALUE klass = define_error_class( "LockNotAvailable", "55" );
   register_error_class( "55P03", klass );
+}
+{
+  VALUE klass = define_error_class( "UnsafeNewEnumValueUsage", "55" );
+  register_error_class( "55P04", klass );
 }
 {
   VALUE klass = define_error_class( "OperatorIntervention", NULL );
