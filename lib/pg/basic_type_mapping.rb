@@ -404,6 +404,17 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		@anyarray_encoder = coder_by_name(0, :encoder, '_any')
 	end
 
+	# Change the mechanism that is used to encode ruby array values
+	#
+	# Possible values:
+	# * +:array+ : Encode the ruby array as a PostgreSQL array.
+	#   The array element type is inferred from the class of the first array element. This is the default.
+	# * +:json+ : Encode the ruby array as a JSON document.
+	# * +:record+ : Encode the ruby array as a composite type row.
+	# * <code>"_type"</code> : Encode the ruby array as a particular PostgreSQL type.
+	#   All PostgreSQL array types are supported.
+	#   If there's an encoder registered for the elements +type+, it will be used.
+	#   Otherwise a string conversion (by +value.to_s+) is done.
 	def encode_array_as=(pg_type)
 		case pg_type
 			when :array
@@ -419,9 +430,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		init_encoders
 	end
 
-	def encode_array_as
-		@encode_array_as
-	end
+	attr_reader :encode_array_as
 
 	private
 

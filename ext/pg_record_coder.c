@@ -98,7 +98,7 @@ pg_recordcoder_type_map_get(VALUE self)
  * or to make use of PG::BasicTypeMapBasedOnResult to assign them based on the table OIDs.
  *
  * Encode a record from an <code>Array<String></code> to a +String+ in PostgreSQL Composite Type format (uses default type map TypeMapAllStrings):
- *   PG::TextEncoder::Record.new.decode("(1,2)")  # => ["1", "2"]
+ *   PG::TextEncoder::Record.new.encode([1, 2])  # => "(\"1\",\"2\")"
  *
  * Encode a record from <code>Array<Float></code> to +String+ :
  *   # Build a type map for two Floats
@@ -108,19 +108,39 @@ pg_recordcoder_type_map_get(VALUE self)
  *   # => "(\"1.0000000000000000E+00\",\"2.0000000000000000E+00\")"
  *
  * Records can also be encoded and decoded directly to and from the database.
- * This avoids intermediate String allocations and is very fast.
+ * This avoids intermediate string allocations and is very fast.
  * Take the following type and table definitions:
  *   conn.exec("CREATE TYPE complex AS (r float, i float) ")
  *   conn.exec("CREATE TABLE my_table (v1 complex, v2 complex) ")
  *
- * The record can be encoded by applying a type map to the PG::Result object:
- *   # Build a type map for two floats "r" and "i"
+ * A record can be encoded by adding a type map to Connection#exec_params and siblings:
+ *   # Build a type map for the two floats "r" and "i" as in our "complex" type
  *   tm = PG::TypeMapByColumn.new([PG::TextEncoder::Float.new]*2)
- *   # Build a record encoder to encode this two-value type:
- *   deco = PG::TextEncoder::Record.new(type_map: tm)
- *   # Insert table data and use the encoder to cast the complex value "v1" from array:
- *   conn.exec_params("INSERT INTO my_table VALUES ($1) RETURNING v1", [[1,2]], 0, PG::TypeMapByColumn.new([deco])).to_a
+ *   # Build a record encoder to encode this type as a record:
+ *   enco = PG::TextEncoder::Record.new(type_map: tm)
+ *   # Insert table data and use the encoder to cast the complex value "v1" from ruby array:
+ *   conn.exec_params("INSERT INTO my_table VALUES ($1) RETURNING v1", [[1,2]], 0, PG::TypeMapByColumn.new([enco])).to_a
  *   # => [{"v1"=>"(1,2)"}]
+ *
+ * Alternatively the typemap can be build based on database OIDs rather than manually assigning encoders.
+ *   # Fetch a NULL record of our type to retrieve the OIDs of the two fields "r" and "i"
+ *   oids = conn.exec( "SELECT (NULL::complex).*" )
+ *   # Build a type map (PG::TypeMapByColumn) for encoding the "complex" type
+ *   etm = PG::BasicTypeMapBasedOnResult.new(conn).build_column_map( oids )
+ *
+ * It's also possible to use the BasicTypeMapForQueries to send records to the database server.
+ * In contrast to ORM libraries, PG doesn't have information regarding the type of data the server is expecting.
+ * So BasicTypeMapForQueries works based on the class of the values to be sent and it has to be instructed that a ruby array shall be casted to a record.
+ *   # Retrieve OIDs of all basic types from the database
+ *   etm = PG::BasicTypeMapForQueries.new(conn)
+ *   etm.encode_array_as = :record
+ *   # Apply the basic type registry to all values sent to the server
+ *   conn.type_map_for_queries = etm
+ *   # Send a complex number as an array of two integers
+ *   conn.exec_params("INSERT INTO my_table VALUES ($1) RETURNING v1", [[1,2]]).to_a
+ *   # => [{"v1"=>"(1,2)"}]
+ *
+ * Records can also be nested or further wrapped into other encoders like PG::TextEncoder::CopyRow.
  *
  * See also PG::TextDecoder::Record for the decoding direction.
  */
@@ -291,7 +311,7 @@ record_isspace(char ch)
  *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
  *
  * It's more very convenient to use the PG::BasicTypeRegistry, which is based on database OIDs.
- *   # Fetch a NULL record of our type to retrieve the OIDs of the two record fields "r" and "i"
+ *   # Fetch a NULL record of our type to retrieve the OIDs of the two fields "r" and "i"
  *   oids = conn.exec( "SELECT (NULL::complex).*" )
  *   # Build a type map (PG::TypeMapByColumn) for decoding the "complex" type
  *   dtm = PG::BasicTypeMapForResults.new(conn).build_column_map( oids )
@@ -303,7 +323,7 @@ record_isspace(char ch)
  *   conn.exec("SELECT * FROM my_table").to_a
  *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
  *
- * Records can also be nested or further wrapped into other encoders like PG::TextEncoder::CopyRow.
+ * Records can also be nested or further wrapped into other decoders like PG::TextDecoder::CopyRow.
  *
  * See also PG::TextEncoder::Record for the encoding direction (data sent to the server).
  */
