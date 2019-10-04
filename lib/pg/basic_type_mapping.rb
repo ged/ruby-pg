@@ -398,12 +398,6 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		init_encoders
 	end
 
-	def init_encoders
-		coders.each { |kl, c| self[kl] = nil } # Clear type map
-		populate_encoder_list
-		@anyarray_encoder = coder_by_name(0, :encoder, '_any')
-	end
-
 	# Change the mechanism that is used to encode ruby array values
 	#
 	# Possible values:
@@ -433,6 +427,12 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	attr_reader :encode_array_as
 
 	private
+
+	def init_encoders
+		coders.each { |kl, c| self[kl] = nil } # Clear type map
+		populate_encoder_list
+		@anyarray_encoder = coder_by_name(0, :encoder, '_any')
+	end
 
 	def coder_by_name(format, direction, name)
 		check_format_and_direction(format, direction)
