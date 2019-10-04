@@ -9,9 +9,7 @@
 
 VALUE rb_cPGresult;
 
-static void pgresult_gc_free( t_pg_result * );
 static VALUE pgresult_type_map_set( VALUE, VALUE );
-static VALUE pgresult_s_allocate( VALUE );
 static t_pg_result *pgresult_get_this( VALUE );
 static t_pg_result *pgresult_get_this_safe( VALUE );
 
@@ -105,6 +103,27 @@ pgresult_approx_size(const PGresult *result)
 }
 #endif
 
+/*
+ * GC Mark function
+ */
+static void
+pgresult_gc_mark( t_pg_result *this )
+{
+	int i;
+
+	rb_gc_mark( this->connection );
+	rb_gc_mark( this->typemap );
+	rb_gc_mark( this->tuple_hash );
+	rb_gc_mark( this->field_map );
+
+	for( i=0; i < this->nfields; i++ ){
+		rb_gc_mark( this->fnames[i] );
+	}
+}
+
+/*
+ * GC Free function
+ */
 static void
 pgresult_clear( t_pg_result *this )
 {
@@ -119,6 +138,13 @@ pgresult_clear( t_pg_result *this )
 	this->pgresult = NULL;
 }
 
+static void
+pgresult_gc_free( t_pg_result *this )
+{
+	pgresult_clear( this );
+	xfree(this);
+}
+
 static size_t
 pgresult_memsize( t_pg_result *this )
 {
@@ -127,6 +153,20 @@ pgresult_memsize( t_pg_result *this )
 	 */
 	return this->result_size;
 }
+
+static const rb_data_type_t pgresult_type = {
+	"pg",
+	{
+		(void (*)(void*))pgresult_gc_mark,
+		(void (*)(void*))pgresult_gc_free,
+		(size_t (*)(const void *))pgresult_memsize,
+	},
+	0, 0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 
 /*
  * Global functions
@@ -139,7 +179,7 @@ static VALUE
 pg_new_result2(PGresult *result, VALUE rb_pgconn)
 {
 	int nfields = result ? PQnfields(result) : 0;
-	VALUE self = pgresult_s_allocate( rb_cPGresult );
+	VALUE self;
 	t_pg_result *this;
 
 	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
@@ -150,7 +190,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
-	RTYPEDDATA_DATA(self) = this;
+	self = TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, this);
 
 	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
 
@@ -322,37 +362,6 @@ pgresult_autoclear_p( VALUE self )
  */
 
 /*
- * GC Mark function
- */
-static void
-pgresult_gc_mark( t_pg_result *this )
-{
-	int i;
-
-	if( !this ) return;
-	rb_gc_mark( this->connection );
-	rb_gc_mark( this->typemap );
-	rb_gc_mark( this->tuple_hash );
-	rb_gc_mark( this->field_map );
-
-	for( i=0; i < this->nfields; i++ ){
-		rb_gc_mark( this->fnames[i] );
-	}
-}
-
-/*
- * GC Free function
- */
-static void
-pgresult_gc_free( t_pg_result *this )
-{
-	if( !this ) return;
-	pgresult_clear( this );
-
-	xfree(this);
-}
-
-/*
  * Fetch the PG::Result object data pointer and check it's
  * PGresult data pointer for sanity.
  */
@@ -381,33 +390,6 @@ pgresult_get(VALUE self)
 	return this->pgresult;
 }
 
-
-static const rb_data_type_t pgresult_type = {
-	"pg",
-	{
-		(void (*)(void*))pgresult_gc_mark,
-		(void (*)(void*))pgresult_gc_free,
-		(size_t (*)(const void *))pgresult_memsize,
-	},
-	0, 0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
-	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
-};
-
-/*
- * Document-method: allocate
- *
- * call-seq:
- *   PG::Result.allocate -> result
- */
-static VALUE
-pgresult_s_allocate( VALUE klass )
-{
-	VALUE self = TypedData_Wrap_Struct( klass, &pgresult_type, NULL );
-
-	return self;
-}
 
 static void pgresult_init_fnames(VALUE self)
 {
@@ -1455,8 +1437,7 @@ pgresult_stream_each_tuple(VALUE self)
 void
 init_pg_result()
 {
-	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cObject );
-	rb_define_alloc_func( rb_cPGresult, pgresult_s_allocate );
+	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cData );
 	rb_include_module(rb_cPGresult, rb_mEnumerable);
 	rb_include_module(rb_cPGresult, rb_mPGconstants);
 
@@ -1513,5 +1494,3 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "stream_each_row", pgresult_stream_each_row, 0);
 	rb_define_method(rb_cPGresult, "stream_each_tuple", pgresult_stream_each_tuple, 0);
 }
-
-

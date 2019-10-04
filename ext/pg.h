@@ -330,12 +330,7 @@ VALUE pg_tuple_new                                     _(( VALUE, int ));
 static inline t_pg_result *
 pgresult_get_this( VALUE self )
 {
-	t_pg_result *this = RTYPEDDATA_DATA(self);
-
-	if( this == NULL )
-		rb_raise(rb_ePGerror, "result has been cleared");
-
-	return this;
+	return RTYPEDDATA_DATA(self);
 }
 
 
