@@ -1,6 +1,6 @@
 = ruby-pg
 
-* https://bitbucket.org/ged/ruby-pg
+* https://github.com/ged/ruby-pg
 
 == Description
 

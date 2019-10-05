@@ -1,7 +1,6 @@
 = pg
 
-home :: https://bitbucket.org/ged/ruby-pg
-mirror :: https://github.com/ged/ruby-pg
+home :: https://github.com/ged/ruby-pg
 docs :: http://deveiate.org/code/pg
 
 {<img src="https://badges.gitter.im/Join%20Chat.svg" alt="Join the chat at https://gitter.im/ged/ruby-pg">}[https://gitter.im/ged/ruby-pg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge]
@@ -78,7 +77,7 @@ There's also {a Google+ group}[http://goo.gl/TFy1U] and a
 want to chat about something.
 
 If you want to install as a signed gem, the public certs of the gem signers
-can be found in {the `certs` directory}[https://bitbucket.org/ged/ruby-pg/src/tip/certs/]
+can be found in {the `certs` directory}[https://github.com/ged/ruby-pg/tree/master/certs]
 of the repository.
 
 

@@ -35,8 +35,8 @@ Binary gems for windows can be built on Linux, OS-X and even on Windows
 with the help of docker. This is how regular windows gems are built for
 rubygems.org .
 
-To do this, install boot2docker [on Windows](https://github.com/boot2docker/windows-installer/releases)
-or [on OS X](https://github.com/boot2docker/osx-installer/releases) and make
+To do this, install boot2docker {on Windows}(https://github.com/boot2docker/windows-installer/releases)
+or {on OS X}(https://github.com/boot2docker/osx-installer/releases) and make
 sure it is started. A native Docker installation is best on Linux.
 
 Then run:
@@ -50,7 +50,7 @@ containing binaries for all supported ruby versions.
 
 == Reporting Problems
 
-If you have any problems you can submit them via
-[the project's issue-tracker][bitbucket]. And submit questions, problems, or
+If you have any problems you can submit them via {the project's
+issue-tracker}[https://github.com/ged/ruby-pg/issues]. And submit questions, problems, or
 solutions, so that it can be improved.
 
