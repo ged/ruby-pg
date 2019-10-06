@@ -573,7 +573,7 @@ describe PG::Connection do
 		expect( @conn.wait_for_notify( 1 ) ).to be_nil
 		expect( notices.first ).to_not be_nil
 		et = Time.now
-		expect( (et - notices.first[1]) ).to be >= 0.4
+		expect( (et - notices.first[1]) ).to be >= 0.3
 		expect( (et - st) ).to be >= 0.9
 		expect( (et - st) ).to be < 1.4
 	end
