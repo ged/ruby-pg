@@ -3779,7 +3779,6 @@ static VALUE pgconn_external_encoding(VALUE self);
 static VALUE
 pgconn_internal_encoding_set(VALUE self, VALUE enc)
 {
-	VALUE enc_inspect;
 	if (NIL_P(enc)) {
 		pgconn_set_client_encoding( self, rb_usascii_str_new_cstr("SQL_ASCII") );
 		return enc;
@@ -3800,11 +3799,6 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 		pgconn_set_internal_encoding_index( self );
 		return enc;
 	}
-
-	enc_inspect = rb_inspect(enc);
-	rb_raise( rb_ePGerror, "unknown encoding: %s", StringValueCStr(enc_inspect) );
-
-	return Qnil;
 }
 
 
