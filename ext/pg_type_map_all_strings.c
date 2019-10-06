@@ -33,9 +33,9 @@ pg_tmas_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 	len = PQgetlength( p_result->pgresult, tuple, field );
 
 	if ( 0 == PQfformat(p_result->pgresult, field) ) {
-		ret = pg_text_dec_string(NULL, val, len, tuple, field, ENCODING_GET(result));
+		ret = pg_text_dec_string(NULL, val, len, tuple, field, p_result->enc_idx);
 	} else {
-		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, ENCODING_GET(result));
+		ret = pg_bin_dec_bytea(NULL, val, len, tuple, field, p_result->enc_idx);
 	}
 
 	return ret;

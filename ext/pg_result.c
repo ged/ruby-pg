@@ -192,17 +192,17 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->field_map = Qnil;
 	self = TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, this);
 
-	PG_ENCODING_SET_NOCHECK(self, ENCODING_GET(rb_pgconn));
-
 	if( result ){
 		t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 		VALUE typemap = p_conn->type_map_for_results;
-
 		/* Type check is done when assigned to PG::Connection. */
 		t_typemap *p_typemap = DATA_PTR(typemap);
 
+		this->enc_idx = p_conn->enc_idx;
 		this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
 		this->p_typemap = DATA_PTR( this->typemap );
+	} else {
+		this->enc_idx = rb_locale_encindex();
 	}
 
 	return self;
@@ -285,7 +285,7 @@ pg_result_check( VALUE self )
 		}
 	}
 
-	PG_ENCODING_SET_NOCHECK( error, ENCODING_GET(self) );
+	PG_ENCODING_SET_NOCHECK( error, this->enc_idx );
 
 	sqlstate = PQresultErrorField( this->pgresult, PG_DIAG_SQLSTATE );
 	klass = lookup_error_class( sqlstate );
@@ -401,7 +401,7 @@ static void pgresult_init_fnames(VALUE self)
 
 		for( i=0; i<nfields; i++ ){
 			VALUE fname = rb_tainted_str_new2(PQfname(this->pgresult, i));
-			PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
+			PG_ENCODING_SET_NOCHECK(fname, this->enc_idx);
 			this->fnames[i] = rb_obj_freeze(fname);
 			this->nfields = i + 1;
 
@@ -468,8 +468,9 @@ pgresult_result_status(VALUE self)
 static VALUE
 pgresult_res_status(VALUE self, VALUE status)
 {
+	t_pg_result *this = pgresult_get_this_safe(self);
 	VALUE ret = rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
-	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET(self));
+	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
 
@@ -482,8 +483,9 @@ pgresult_res_status(VALUE self, VALUE status)
 static VALUE
 pgresult_error_message(VALUE self)
 {
-	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(pgresult_get(self)));
-	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET(self));
+	t_pg_result *this = pgresult_get_this_safe(self);
+	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(this->pgresult));
+	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
 
@@ -536,14 +538,14 @@ pgresult_error_message(VALUE self)
 static VALUE
 pgresult_error_field(VALUE self, VALUE field)
 {
-	PGresult *result = pgresult_get( self );
+	t_pg_result *this = pgresult_get_this_safe(self);
 	int fieldcode = NUM2INT( field );
-	char * fieldstr = PQresultErrorField( result, fieldcode );
+	char * fieldstr = PQresultErrorField( this->pgresult, fieldcode );
 	VALUE ret = Qnil;
 
 	if ( fieldstr ) {
 		ret = rb_tainted_str_new2( fieldstr );
-		PG_ENCODING_SET_NOCHECK( ret, ENCODING_GET(self ));
+		PG_ENCODING_SET_NOCHECK( ret, this->enc_idx );
 	}
 
 	return ret;
@@ -589,15 +591,15 @@ static VALUE
 pgresult_fname(VALUE self, VALUE index)
 {
 	VALUE fname;
-	PGresult *result = pgresult_get(self);
+	t_pg_result *this = pgresult_get_this_safe(self);
 	int i = NUM2INT(index);
 
-	if (i < 0 || i >= PQnfields(result)) {
+	if (i < 0 || i >= PQnfields(this->pgresult)) {
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
 
-	fname = rb_tainted_str_new2(PQfname(result, i));
-	PG_ENCODING_SET_NOCHECK(fname, ENCODING_GET(self));
+	fname = rb_tainted_str_new2(PQfname(this->pgresult, i));
+	PG_ENCODING_SET_NOCHECK(fname, this->enc_idx);
 	return rb_obj_freeze(fname);
 }
 
@@ -897,8 +899,9 @@ pgresult_paramtype(VALUE self, VALUE param_number)
 static VALUE
 pgresult_cmd_status(VALUE self)
 {
-	VALUE ret = rb_tainted_str_new2(PQcmdStatus(pgresult_get(self)));
-	PG_ENCODING_SET_NOCHECK(ret, ENCODING_GET(self));
+	t_pg_result *this = pgresult_get_this_safe(self);
+	VALUE ret = rb_tainted_str_new2(PQcmdStatus(this->pgresult));
+	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
 

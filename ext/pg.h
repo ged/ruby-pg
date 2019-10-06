@@ -78,6 +78,8 @@ typedef long suseconds_t;
 #define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
+#define PG_ENC_IDX_BITS 30
+
 /* The data behind each PG::Connection object */
 typedef struct {
 	PGconn *pgconn;
@@ -94,12 +96,12 @@ typedef struct {
 	VALUE type_map_for_results;
 	/* IO object internally used for the trace stream */
 	VALUE trace_stream;
-	/* Cached Encoding object */
-	VALUE external_encoding;
 	/* Kind of PG::Coder object for casting ruby values to COPY rows */
 	VALUE encoder_for_put_copy_data;
 	/* Kind of PG::Coder object for casting COPY rows to ruby values */
 	VALUE decoder_for_get_copy_data;
+	/* Ruby encoding index of the client/internal encoding */
+	int enc_idx : PG_ENC_IDX_BITS;
 
 #if defined(_WIN32)
 	/* File descriptor to be used for rb_w32_unwrap_io_handle() */
@@ -125,10 +127,13 @@ typedef struct {
 	 */
 	t_typemap *p_typemap;
 
+	/* Ruby encoding index of the client/internal encoding */
+	int enc_idx : PG_ENC_IDX_BITS;
+
 	/* 0 = PGresult is cleared by PG::Result#clear or by the GC
 	 * 1 = PGresult is cleared internally by libpq
 	 */
-	int autoclear;
+	unsigned int autoclear : 1;
 
 	/* Number of fields in fnames[] .
 	 * Set to -1 if fnames[] is not yet initialized.

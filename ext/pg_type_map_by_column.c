@@ -99,11 +99,11 @@ pg_tmbc_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 		int len = PQgetlength( p_result->pgresult, tuple, field );
 
 		if( p_coder->dec_func ){
-			return p_coder->dec_func(p_coder, val, len, tuple, field, ENCODING_GET(result));
+			return p_coder->dec_func(p_coder, val, len, tuple, field, p_result->enc_idx);
 		} else {
 			t_pg_coder_dec_func dec_func;
 			dec_func = pg_coder_dec_func( p_coder, PQfformat(p_result->pgresult, field) );
-			return dec_func(p_coder, val, len, tuple, field, ENCODING_GET(result));
+			return dec_func(p_coder, val, len, tuple, field, p_result->enc_idx);
 		}
 	}
 

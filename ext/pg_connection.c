@@ -19,7 +19,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
 
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
-void pgconn_set_internal_encoding_index( VALUE );
+static void pgconn_set_internal_encoding_index( VALUE );
 
 /*
  * Global functions
@@ -152,7 +152,6 @@ pgconn_gc_mark( t_pg_connection *this )
 	rb_gc_mark( this->type_map_for_queries );
 	rb_gc_mark( this->type_map_for_results );
 	rb_gc_mark( this->trace_stream );
-	rb_gc_mark( this->external_encoding );
 	rb_gc_mark( this->encoder_for_put_copy_data );
 	rb_gc_mark( this->decoder_for_get_copy_data );
 }
@@ -200,7 +199,6 @@ pgconn_s_allocate( VALUE klass )
 	this->encoder_for_put_copy_data = Qnil;
 	this->decoder_for_get_copy_data = Qnil;
 	this->trace_stream = Qnil;
-	this->external_encoding = Qnil;
 
 	return self;
 }
@@ -978,7 +976,7 @@ static VALUE pgconn_exec_params( int, VALUE *, VALUE );
 static VALUE
 pgconn_exec(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 
@@ -986,7 +984,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
 		VALUE query_str = argv[0];
 
-		result = gvl_PQexec(conn, pg_cstr_enc(query_str, ENCODING_GET(self)));
+		result = gvl_PQexec(this->pgconn, pg_cstr_enc(query_str, this->enc_idx));
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
@@ -1258,13 +1256,13 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
 static VALUE
 pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE command, in_res_fmt;
 	int nParams;
 	int resultFormat;
-	struct query_params_data paramsData = { ENCODING_GET(self) };
+	struct query_params_data paramsData = { this->enc_idx };
 
 	/* For compatibility we accept 1 to 4 parameters */
 	rb_scan_args(argc, argv, "13", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
@@ -1283,7 +1281,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQexecParams(conn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
+	result = gvl_PQexecParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
 	free_query_params( &paramsData );
@@ -1309,7 +1307,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 static VALUE
 pgconn_prepare(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE name, command, in_paramtypes;
@@ -1319,7 +1317,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 	Oid *paramTypes = NULL;
 	const char *name_cstr;
 	const char *command_cstr;
-	int enc_idx = ENCODING_GET(self);
+	int enc_idx = this->enc_idx;
 
 	rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
 	name_cstr = pg_cstr_enc(name, enc_idx);
@@ -1337,7 +1335,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2UINT(param);
 		}
 	}
-	result = gvl_PQprepare(conn, name_cstr, command_cstr, nParams, paramTypes);
+	result = gvl_PQprepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
 
 	xfree(paramTypes);
 
@@ -1358,13 +1356,13 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE name, in_res_fmt;
 	int nParams;
 	int resultFormat;
-	struct query_params_data paramsData = { ENCODING_GET(self) };
+	struct query_params_data paramsData = { this->enc_idx };
 
 	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 0;
@@ -1377,7 +1375,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQexecPrepared(conn, pg_cstr_enc(name, paramsData.enc_idx), nParams,
+	result = gvl_PQexecPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx), nParams,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
@@ -1405,15 +1403,15 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
 {
 	PGresult *result;
 	VALUE rb_pgresult;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	const char *stmt;
 	if(NIL_P(stmt_name)) {
 		stmt = NULL;
 	}
 	else {
-		stmt = pg_cstr_enc(stmt_name, ENCODING_GET(self));
+		stmt = pg_cstr_enc(stmt_name, this->enc_idx);
 	}
-	result = gvl_PQdescribePrepared(conn, stmt);
+	result = gvl_PQdescribePrepared(this->pgconn, stmt);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1434,15 +1432,15 @@ pgconn_describe_portal(self, stmt_name)
 {
 	PGresult *result;
 	VALUE rb_pgresult;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	const char *stmt;
 	if(NIL_P(stmt_name)) {
 		stmt = NULL;
 	}
 	else {
-		stmt = pg_cstr_enc(stmt_name, ENCODING_GET(self));
+		stmt = pg_cstr_enc(stmt_name, this->enc_idx);
 	}
-	result = gvl_PQdescribePortal(conn, stmt);
+	result = gvl_PQdescribePortal(this->pgconn, stmt);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1507,7 +1505,7 @@ pgconn_s_escape(VALUE self, VALUE string)
 	int singleton = !rb_obj_is_kind_of(self, rb_cPGconn);
 
 	StringValueCStr(string);
-	enc_idx = ENCODING_GET( singleton ? string : self );
+	enc_idx = singleton ? ENCODING_GET(string) : pg_get_connection(self)->enc_idx;
 	if( ENCODING_GET(string) != enc_idx ){
 		string = rb_str_export_to_enc(string, rb_enc_from_index(enc_idx));
 	}
@@ -1616,21 +1614,21 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 static VALUE
 pgconn_escape_literal(VALUE self, VALUE string)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	char *escaped = NULL;
 	VALUE error;
 	VALUE result = Qnil;
-	int enc_idx = ENCODING_GET(self);
+	int enc_idx = this->enc_idx;
 
 	StringValueCStr(string);
 	if( ENCODING_GET(string) != enc_idx ){
 		string = rb_str_export_to_enc(string, rb_enc_from_index(enc_idx));
 	}
 
-	escaped = PQescapeLiteral(conn, RSTRING_PTR(string), RSTRING_LEN(string));
+	escaped = PQescapeLiteral(this->pgconn, RSTRING_PTR(string), RSTRING_LEN(string));
 	if (escaped == NULL)
 	{
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 		return Qnil;
@@ -1658,21 +1656,21 @@ pgconn_escape_literal(VALUE self, VALUE string)
 static VALUE
 pgconn_escape_identifier(VALUE self, VALUE string)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	char *escaped = NULL;
 	VALUE error;
 	VALUE result = Qnil;
-	int enc_idx = ENCODING_GET(self);
+	int enc_idx = this->enc_idx;
 
 	StringValueCStr(string);
 	if( ENCODING_GET(string) != enc_idx ){
 		string = rb_str_export_to_enc(string, rb_enc_from_index(enc_idx));
 	}
 
-	escaped = PQescapeIdentifier(conn, RSTRING_PTR(string), RSTRING_LEN(string));
+	escaped = PQescapeIdentifier(this->pgconn, RSTRING_PTR(string), RSTRING_LEN(string));
 	if (escaped == NULL)
 	{
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 		return Qnil;
@@ -1757,13 +1755,13 @@ static VALUE pgconn_send_query_params(int argc, VALUE *argv, VALUE self);
 static VALUE
 pgconn_send_query(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	VALUE error;
 
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
-		if(gvl_PQsendQuery(conn, pg_cstr_enc(argv[0], ENCODING_GET(self))) == 0) {
-			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx)) == 0) {
+			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
 		}
@@ -1819,13 +1817,13 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE command, in_res_fmt;
 	VALUE error;
 	int nParams;
 	int resultFormat;
-	struct query_params_data paramsData = { ENCODING_GET(self) };
+	struct query_params_data paramsData = { this->enc_idx };
 
 	rb_scan_args(argc, argv, "22", &command, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 1;
@@ -1834,13 +1832,13 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQsendQueryParams(conn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
+	result = gvl_PQsendQueryParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
 	free_query_params( &paramsData );
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1870,7 +1868,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE name, command, in_paramtypes;
 	VALUE param;
@@ -1880,7 +1878,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	Oid *paramTypes = NULL;
 	const char *name_cstr;
 	const char *command_cstr;
-	int enc_idx = ENCODING_GET(self);
+	int enc_idx = this->enc_idx;
 
 	rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
 	name_cstr = pg_cstr_enc(name, enc_idx);
@@ -1898,12 +1896,12 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2UINT(param);
 		}
 	}
-	result = gvl_PQsendPrepare(conn, name_cstr, command_cstr, nParams, paramTypes);
+	result = gvl_PQsendPrepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
 
 	xfree(paramTypes);
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1945,13 +1943,13 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE name, in_res_fmt;
 	VALUE error;
 	int nParams;
 	int resultFormat;
-	struct query_params_data paramsData = { ENCODING_GET(self) };
+	struct query_params_data paramsData = { this->enc_idx };
 
 	rb_scan_args(argc, argv, "13", &name, &paramsData.params, &in_res_fmt, &paramsData.typemap);
 	paramsData.with_types = 0;
@@ -1965,14 +1963,14 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQsendQueryPrepared(conn, pg_cstr_enc(name, paramsData.enc_idx), nParams,
+	result = gvl_PQsendQueryPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx), nParams,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
 	free_query_params( &paramsData );
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -1990,10 +1988,10 @@ static VALUE
 pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 {
 	VALUE error;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePrepared(conn, pg_cstr_enc(stmt_name, ENCODING_GET(self))) == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+	if(gvl_PQsendDescribePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0) {
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2012,10 +2010,10 @@ static VALUE
 pgconn_send_describe_portal(VALUE self, VALUE portal)
 {
 	VALUE error;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePortal(conn, pg_cstr_enc(portal, ENCODING_GET(self))) == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(conn));
+	if(gvl_PQsendDescribePortal(this->pgconn, pg_cstr_enc(portal, this->enc_idx)) == 0) {
+		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2216,7 +2214,7 @@ pgconn_cancel(VALUE self)
 static VALUE
 pgconn_notifies(VALUE self)
 {
-	PGconn* conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGnotify *notification;
 	VALUE hash;
 	VALUE sym_relname, sym_be_pid, sym_extra;
@@ -2226,7 +2224,7 @@ pgconn_notifies(VALUE self)
 	sym_be_pid = ID2SYM(rb_intern("be_pid"));
 	sym_extra = ID2SYM(rb_intern("extra"));
 
-	notification = gvl_PQnotifies(conn);
+	notification = gvl_PQnotifies(this->pgconn);
 	if (notification == NULL) {
 		return Qnil;
 	}
@@ -2235,8 +2233,8 @@ pgconn_notifies(VALUE self)
 	relname = rb_tainted_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
 	extra = rb_tainted_str_new2(notification->extra);
-	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
-	PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
+	PG_ENCODING_SET_NOCHECK( relname, this->enc_idx );
+	PG_ENCODING_SET_NOCHECK( extra, this->enc_idx );
 
 	rb_hash_aset(hash, sym_relname, relname);
 	rb_hash_aset(hash, sym_be_pid, be_pid);
@@ -2409,7 +2407,7 @@ notify_readable(PGconn *conn)
 static VALUE
 pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 {
-	PGconn *conn = pg_get_pgconn( self );
+	t_pg_connection *this = pg_get_connection_safe( self );
 	PGnotify *pnotification;
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
@@ -2425,17 +2423,17 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 		ptimeout = &timeout;
 	}
 
-	pnotification = (PGnotify*) wait_socket_readable( conn, ptimeout, notify_readable);
+	pnotification = (PGnotify*) wait_socket_readable( this->pgconn, ptimeout, notify_readable);
 
 	/* Return nil if the select timed out */
 	if ( !pnotification ) return Qnil;
 
 	relname = rb_tainted_str_new2( pnotification->relname );
-	PG_ENCODING_SET_NOCHECK( relname, ENCODING_GET(self) );
+	PG_ENCODING_SET_NOCHECK( relname, this->enc_idx );
 	be_pid = INT2NUM( pnotification->be_pid );
 	if ( *pnotification->extra ) {
 		extra = rb_tainted_str_new2( pnotification->extra );
-		PG_ENCODING_SET_NOCHECK( extra, ENCODING_GET(self) );
+		PG_ENCODING_SET_NOCHECK( extra, this->enc_idx );
 	}
 	PQfreemem( pnotification );
 
@@ -2495,7 +2493,7 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 
 	if( p_coder ){
 		t_pg_coder_enc_func enc_func;
-		int enc_idx = ENCODING_GET(self);
+		int enc_idx = this->enc_idx;
 
 		enc_func = pg_coder_enc_func( p_coder );
 		len = enc_func( p_coder, value, NULL, &intermediate, enc_idx);
@@ -2545,16 +2543,16 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 	VALUE error;
 	int ret;
 	const char *error_message = NULL;
-	PGconn *conn = pg_get_pgconn(self);
+	t_pg_connection *this = pg_get_connection_safe( self );
 
 	if (rb_scan_args(argc, argv, "01", &str) == 0)
 		error_message = NULL;
 	else
-		error_message = pg_cstr_enc(str, ENCODING_GET(self));
+		error_message = pg_cstr_enc(str, this->enc_idx);
 
-	ret = gvl_PQputCopyEnd(conn, error_message);
+	ret = gvl_PQputCopyEnd(this->pgconn, error_message);
 	if(ret == -1) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
+		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
@@ -2620,7 +2618,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 
 	if( p_coder ){
 		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, p_coder->format );
-		result =  dec_func( p_coder, buffer, ret, 0, 0, ENCODING_GET(self) );
+		result =  dec_func( p_coder, buffer, ret, 0, 0, this->enc_idx );
 	} else {
 		result = rb_tainted_str_new(buffer, ret);
 	}
@@ -2799,7 +2797,7 @@ notice_processor_proxy(void *arg, const char *message)
 
 	if (this->notice_receiver != Qnil) {
 		VALUE message_str = rb_tainted_str_new2(message);
-		PG_ENCODING_SET_NOCHECK( message_str, ENCODING_GET(self) );
+		PG_ENCODING_SET_NOCHECK( message_str, this->enc_idx );
 		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
 	return;
@@ -2969,7 +2967,7 @@ pgconn_s_quote_ident(VALUE self, VALUE str_or_array)
 	int enc_idx;
 
 	if( rb_obj_is_kind_of(self, rb_cPGconn) ){
-		enc_idx = ENCODING_GET( self );
+		enc_idx = pg_get_connection(self)->enc_idx;
 	}else{
 		enc_idx = RB_TYPE_P(str_or_array, T_STRING) ? ENCODING_GET( str_or_array ) : rb_ascii8bit_encindex();
 	}
@@ -3730,12 +3728,15 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 }
 
 
-void
+static void
 pgconn_set_internal_encoding_index( VALUE self )
 {
-	PGconn *conn = pg_get_pgconn(self);
-	rb_encoding *enc = pg_conn_enc_get( conn );
-	PG_ENCODING_SET_NOCHECK( self, rb_enc_to_index(enc));
+	int enc_idx;
+	t_pg_connection *this = pg_get_connection_safe( self );
+	rb_encoding *enc = pg_conn_enc_get( this->pgconn );
+	enc_idx = rb_enc_to_index(enc);
+	if( enc_idx >= (1<<(PG_ENC_IDX_BITS-1)) ) rb_raise(rb_eArgError, "unsupported encoding index %d", enc_idx);
+	this->enc_idx = enc_idx;
 }
 
 /*
@@ -3822,14 +3823,9 @@ pgconn_external_encoding(VALUE self)
 	rb_encoding *enc = NULL;
 	const char *pg_encname = NULL;
 
-	/* Use cached value if found */
-	if ( RTEST(this->external_encoding) ) return this->external_encoding;
-
 	pg_encname = PQparameterStatus( this->pgconn, "server_encoding" );
 	enc = pg_get_pg_encname_as_rb_encoding( pg_encname );
-	this->external_encoding = rb_enc_from_encoding( enc );
-
-	return this->external_encoding;
+	return rb_enc_from_encoding( enc );
 }
 
 

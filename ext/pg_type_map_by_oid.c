@@ -110,7 +110,7 @@ pg_tmbo_result_value(t_typemap *p_typemap, VALUE result, int tuple, int field)
 		char * val = PQgetvalue( p_result->pgresult, tuple, field );
 		int len = PQgetlength( p_result->pgresult, tuple, field );
 		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, format );
-		return dec_func( p_coder, val, len, tuple, field, ENCODING_GET(result) );
+		return dec_func( p_coder, val, len, tuple, field, p_result->enc_idx );
 	}
 
 	default_tm = DATA_PTR( this->typemap.default_typemap );
