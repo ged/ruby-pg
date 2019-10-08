@@ -16,7 +16,7 @@
  * See Contributors.rdoc for the many additional fine people that have contributed
  * to this library over the years.
  *
- * Copyright (c) 1997-2016 by the authors.
+ * Copyright (c) 1997-2019 by the authors.
  *
  * You may redistribute this software under the same terms as Ruby itself; see
  * https://www.ruby-lang.org/en/about/license.txt or the BSDL file in the source
