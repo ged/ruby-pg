@@ -635,6 +635,7 @@ Init_pg_ext()
 	init_pg_binary_encoder();
 	init_pg_binary_decoder();
 	init_pg_copycoder();
+	init_pg_recordcoder();
 	init_pg_tuple();
 }
 

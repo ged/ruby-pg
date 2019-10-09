@@ -154,14 +154,20 @@ module PG::BasicTypeRegistry
 	# objects as values.
 	CODERS_BY_NAME = []
 
+	def self.register_coder(coder)
+		h = CODERS_BY_NAME[coder.format] ||= { encoder: {}, decoder: {} }
+		name = coder.name || raise(ArgumentError, "name of #{coder.inspect} must be defined")
+		h[:encoder][name] = coder if coder.respond_to?(:encode)
+		h[:decoder][name] = coder if coder.respond_to?(:decode)
+	end
+
 	# Register an OID type named +name+ with a typecasting encoder and decoder object in
 	# +type+.  +name+ should correspond to the `typname` column in
 	# the `pg_type` table.
 	# +format+ can be 0 for text format and 1 for binary.
 	def self.register_type(format, name, encoder_class, decoder_class)
-		CODERS_BY_NAME[format] ||= { encoder: {}, decoder: {} }
-		CODERS_BY_NAME[format][:encoder][name] = encoder_class.new(name: name, format: format) if encoder_class
-		CODERS_BY_NAME[format][:decoder][name] = decoder_class.new(name: name, format: format) if decoder_class
+		register_coder(encoder_class.new(name: name, format: format)) if encoder_class
+		register_coder(decoder_class.new(name: name, format: format)) if decoder_class
 	end
 
 	# Alias the +old+ type to the +new+ type.
@@ -380,20 +386,53 @@ end
 #   # Assign a default ruleset for type casts of input and output values.
 #   conn.type_map_for_queries = PG::BasicTypeMapForQueries.new(conn)
 #   # Execute a query. The Integer param value is typecasted internally by PG::BinaryEncoder::Int8.
-#   # The format of the parameter is set to 1 (binary) and the OID of this parameter is set to 20 (int8).
+#   # The format of the parameter is set to 0 (text) and the OID of this parameter is set to 20 (int8).
 #   res = conn.exec_params( "SELECT $1", [5] )
 class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	include PG::BasicTypeRegistry
 
 	def initialize(connection)
 		@coder_maps = build_coder_maps(connection)
-
-		populate_encoder_list
 		@array_encoders_by_klass = array_encoders_by_klass
-		@anyarray_encoder = coder_by_name(0, :encoder, '_any')
+		@encode_array_as = :array
+		init_encoders
 	end
 
+	# Change the mechanism that is used to encode ruby array values
+	#
+	# Possible values:
+	# * +:array+ : Encode the ruby array as a PostgreSQL array.
+	#   The array element type is inferred from the class of the first array element. This is the default.
+	# * +:json+ : Encode the ruby array as a JSON document.
+	# * +:record+ : Encode the ruby array as a composite type row.
+	# * <code>"_type"</code> : Encode the ruby array as a particular PostgreSQL type.
+	#   All PostgreSQL array types are supported.
+	#   If there's an encoder registered for the elements +type+, it will be used.
+	#   Otherwise a string conversion (by +value.to_s+) is done.
+	def encode_array_as=(pg_type)
+		case pg_type
+			when :array
+			when :json
+			when :record
+			when /\A_/
+			else
+				raise ArgumentError, "invalid pg_type #{pg_type.inspect}"
+		end
+
+		@encode_array_as = pg_type
+
+		init_encoders
+	end
+
+	attr_reader :encode_array_as
+
 	private
+
+	def init_encoders
+		coders.each { |kl, c| self[kl] = nil } # Clear type map
+		populate_encoder_list
+		@anyarray_encoder = coder_by_name(0, :encoder, '_any')
+	end
 
 	def coder_by_name(format, direction, name)
 		check_format_and_direction(format, direction)
@@ -412,7 +451,19 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 				end
 				self[klass] = coder
 			else
-				self[klass] = selector
+
+				case @encode_array_as
+					when :array
+						self[klass] = selector
+					when :json
+						self[klass] = PG::TextEncoder::JSON.new
+					when :record
+						self[klass] = PG::TextEncoder::Record.new type_map: self
+					when /\A_/
+						self[klass] = coder_by_name(0, :encoder, @encode_array_as) || raise(ArgumentError, "unknown array type #{@encode_array_as.inspect}")
+					else
+						raise ArgumentError, "invalid pg_type #{@encode_array_as.inspect}"
+				end
 			end
 		end
 	end
@@ -445,6 +496,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		# We use text format and no type OID for IPAddr, because setting the OID can lead
 		# to unnecessary inet/cidr conversions on the server side.
 		IPAddr => [0, 'inet'],
+		Hash => [0, 'json'],
 		Array => :get_array_type,
 	}
 
