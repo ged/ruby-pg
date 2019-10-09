@@ -2,9 +2,28 @@
 
 - Various small changes for better compatibility with TruffleRuby.
 - Respect Coder#flags in Coder#to_h.
+- Update the license in gemspec to "BSD-2-Clause".
+  It was incorrectly labeled "BSD-3-Clause". #40
 - Make use of PQresultMemorySize() of PostgreSQL-12 instead of our estimator.
 - Fix PG::Result memsize reporting after #clear.
-- Update Windows fat binary gem to OpenSSL-1.1.1d and PostgreSQL-11.5.
+- Update Windows fat binary gem to OpenSSL-1.1.1d and PostgreSQL-12.0.
+- Add a deprecation warning to Connection#socket .
+- Update description of connection params.
+- Link many method descriptions to corresponding libpq's documentation.
+- Update sync_* and async_* query method descriptions and document the aliases.
+  The primary documentation is now at the async_* methods which are the default since pg-1.1.
+- Release field names to GC on PG::Result#clear.
+- Remove PG::Connection#guess_result_memsize= which was temporary added in pg-1.1.
+- Allocate the data part and the ruby object of PG::Result in one step, so that we don't need to check for valid data.
+  This removes PG::Result.allocate and PG::Result.new, which were callable but without any practical use. #42
+- Update errorcodes and error classes to PostgreSQL-12.0.
+- Define encode and decode methods only in en/decoders that implement it, so that they can be queried by respond_to? .
+- Store client encoding in data part of PG::Connection and PG::Result objects, so that we no longer use ruby's internal encoding bits. #280
+- Move primary repository to Github: https://github.com/ged/ruby-pg . #43
+- Add PG::TextEncoder::Record and PG::TextDecoder::Record for en/decoding of Composite Types. #258, #36
+- Add PG::BasicTypeRegistry.register_coder to register instances instead of classes.
+  This is useful to register parametrized en/decoders like PG::TextDecoder::Record .
+- Add PG::BasicTypeMapForQueries#encode_array_as= to switch between various interpretations of ruby arrays.
 
 
 == v1.1.4 [2019-01-08] Michael Granger <ged@FaerieMUD.org>
