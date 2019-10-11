@@ -2663,7 +2663,7 @@ pgconn_trace(VALUE self, VALUE stream)
 	VALUE new_file;
 	t_pg_connection *this = pg_get_connection_safe( self );
 
-	if(rb_respond_to(stream,rb_intern("fileno")) == Qfalse)
+	if(!rb_respond_to(stream,rb_intern("fileno")))
 		rb_raise(rb_eArgError, "stream does not respond to method: fileno");
 
 	fileno = rb_funcall(stream, rb_intern("fileno"), 0);
