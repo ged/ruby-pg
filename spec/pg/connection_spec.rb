@@ -383,14 +383,6 @@ describe PG::Connection do
 		end
 		@conn.exec("select pg_sleep(0.3)")
 		expect( signal_received ).to be_truthy
-
-		signal_received = false
-		Thread.new do
-			sleep 0.1
-			Process.kill("USR2", Process.pid)
-		end
-		@conn.async_exec("select pg_sleep(0.3)")
-		expect( signal_received ).to be_truthy
 	end
 
 
