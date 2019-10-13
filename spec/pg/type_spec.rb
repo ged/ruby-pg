@@ -309,6 +309,21 @@ describe "PG::Type derivations" do
 				end
 			end
 
+			it "should encode floats" do
+				expect( textenc_float.encode(0) ).to eq( "0e0" )
+				expect( textenc_float.encode(7) ).to eq( "7e0" )
+				expect( textenc_float.encode(9) ).to eq( "0.9e1" )
+				expect( textenc_float.encode(0.1) ).to eq( "1e-1" )
+				expect( textenc_float.encode(0.9) ).to eq( "0.9e0" )
+				expect( textenc_float.encode(-0.11) ).to eq( "-1.1e-1" )
+				expect( textenc_float.encode(10.11) ).to eq( "1.011e1" )
+				expect( textenc_float.encode(-1.234567890123456789E-280) ).to eq( "-1.234567890123457e-280" )
+				expect( textenc_float.encode(-1.234567890123456789E280) ).to eq( "-1.234567890123457e280" )
+				expect( textenc_float.encode(9876543210987654321E280) ).to eq( "0.987654321098765e299" )
+				expect( textenc_float.encode(9876543210987654321E-400) ).to eq( "0e0" )
+				expect( textenc_float.encode(9876543210987654321E400) ).to eq( "Infinity" )
+			end
+
 			it "should encode special floats equally to Float#to_s" do
 				expect( textenc_float.encode(Float::INFINITY) ).to eq( Float::INFINITY.to_s )
 				expect( textenc_float.encode(-Float::INFINITY) ).to eq( (-Float::INFINITY).to_s )
@@ -634,7 +649,7 @@ describe "PG::Type derivations" do
 						expect( textenc_int_array.encode(['1',['2'],'3']) ).to eq( %[{1,{2},3}] )
 					end
 					it 'encodes an array of float8 with sub arrays' do
-						expect( textenc_float_array.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1.0001*E+*03,{-2.2*E-*03,{3.3*E+*00,-4.4*E+*02}},{NULL,6.6*E+*00},-7.7*E+*00}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
+						expect( textenc_float_array.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1.00011*e+?*3,{-2.21*e-*3,{3.3*e+?*0,-4.4*e+?*2}},{NULL,6.6*e+?*0},-7.7*e+?*0}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
 					end
 				end
 				context 'two dimensional arrays' do

@@ -226,6 +226,7 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 	}
 }
 
+#define MAX_DOUBLE_DIGITS 16
 
 /*
  * Document-class: PG::TextEncoder::Float < PG::SimpleEncoder
@@ -238,6 +239,12 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 {
 	if(out){
 		double dvalue = NUM2DBL(value);
+		int len = 0;
+		int neg = 0;
+		int exp2i, exp10i, i;
+		unsigned long long ll, remainder, oldval;
+		VALUE intermediate;
+
 		/* Cast to the same strings as value.to_s . */
 		if( isinf(dvalue) ){
 			if( dvalue < 0 ){
@@ -251,9 +258,58 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 			memcpy( out, "NaN", 3);
 			return 3;
 		}
-		return sprintf( out, "%.16E", dvalue);
+
+		/*
+		 * The following computaion is roughly a conversion kind of
+		 *   sprintf( out, "%.16E", dvalue);
+		 */
+
+		/* write the algebraic sign */
+		if( dvalue < 0 ) {
+			dvalue = -dvalue;
+			*out++ = '-';
+			neg++;
+		}
+
+		/* retrieve the power of 2 exponent */
+		frexp(dvalue, &exp2i);
+		/* compute the power of 10 exponent */
+		exp10i = (int)floor(exp2i * 0.30102999566398114); /* Math.log(2)/Math.log(10) */
+		/* move the decimal point, so that we get an integer of MAX_DOUBLE_DIGITS decimal digits */
+		ll = (unsigned long long)(dvalue * pow(10, MAX_DOUBLE_DIGITS - 1 - exp10i) + 0.5);
+
+		/* write fraction digits from right to left */
+		for( i = MAX_DOUBLE_DIGITS; i > 1; i--){
+			oldval = ll;
+			ll /= 10;
+			remainder = oldval - ll * 10;
+			/* omit trailing zeros */
+			if(remainder != 0 || len ) {
+				out[i] = '0' + remainder;
+				len++;
+			}
+		}
+
+		/* write decimal point */
+		if( len ){
+			out[1] = '.';
+			len++;
+		}
+
+		/* write remaining single digit left to the decimal point */
+		oldval = ll;
+		ll /= 10;
+		remainder = oldval - ll * 10;
+		out[0] = '0' + remainder;
+		len++;
+
+		/* write exponent */
+		out[len++] = 'e';
+		intermediate = INT2NUM(exp10i);
+
+		return neg + len + pg_text_enc_integer(conv, Qnil, out + len, &intermediate, enc_idx);
 	}else{
-		return 23;
+		return 1 /*sign*/ + MAX_DOUBLE_DIGITS + 1 /*dot*/ + 1 /*e*/ + 1 /*exp sign*/ + 3 /*exp digits*/;
 	}
 }
 

@@ -51,6 +51,27 @@ describe 'Basic type mapping' do
 			expect( result_typenames(res) ).to eq( ['bigint', 'double precision', 'boolean', 'text'] )
 		end
 
+		it "should do basic param encoding of various float values" do
+			res = @conn.exec_params( "SELECT $1::float, $2::float, $3::float, $4::float, $5::float, $6::float, $7::float, $8::float, $9::float, $10::float, $11::float, $12::float",
+				[0, 7, 9, 0.1, 0.9, -0.11, 10.11,
+			   9876543210987654321e-400,
+			   9876543210987654321e400,
+			   -1.234567890123456789e-280,
+			   -1.234567890123456789e280,
+			   9876543210987654321e280
+			  ], nil, basic_type_mapping )
+
+			expect( res.values[0][0, 9] ).to eq(
+					[ "0", "7", "9", "0.1", "0.9", "-0.11", "10.11", "0", "Infinity" ]
+			)
+
+			expect( res.values[0][9]  ).to match( /^-1\.2345678901234\d*e\-280$/ )
+			expect( res.values[0][10] ).to match( /^-1\.2345678901234\d*e\+280$/ )
+			expect( res.values[0][11] ).to match(  /^9\.8765432109876\d*e\+298$/ )
+
+			expect( result_typenames(res) ).to eq( ['double precision'] * 12 )
+		end
+
 		it "should do default array-as-array param encoding" do
 			expect( basic_type_mapping.encode_array_as).to eq(:array)
 			res = @conn.exec_params( "SELECT $1,$2,$3,$4", [
