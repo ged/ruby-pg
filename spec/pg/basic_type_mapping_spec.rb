@@ -40,7 +40,7 @@ describe 'Basic type mapping' do
 		# Encoding Examples
 		#
 
-		it "should do basic param encoding", :ruby_19 do
+		it "should do basic param encoding" do
 			res = @conn.exec_params( "SELECT $1::int8, $2::float, $3, $4::TEXT",
 				[1, 2.1, true, "b"], nil, basic_type_mapping )
 
@@ -187,7 +187,7 @@ describe 'Basic type mapping' do
 		# Decoding Examples
 		#
 
-		it "should do OID based type conversions", :ruby_19 do
+		it "should do OID based type conversions" do
 			res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE, generate_series(4,5)" )
 			expect( res.map_types!(basic_type_mapping).values ).to eq( [
 					[ 1, 'a', 2.0, true, Date.new(2013,6,30), 4 ],

@@ -1227,7 +1227,7 @@ describe PG::Connection do
 
 	end
 
-	context "multinationalization support", :ruby_19 do
+	context "multinationalization support" do
 
 		describe "rubyforge #22925: m17n support" do
 			it "should return results in the same encoding as the client (iso-8859-1)" do
@@ -1645,7 +1645,7 @@ describe PG::Connection do
 		end
 	end
 
-	context "OS thread support", :ruby_19 do
+	context "OS thread support" do
 		it "Connection#exec shouldn't block a second thread" do
 			t = Thread.new do
 				@conn.exec( "select pg_sleep(1)" )
