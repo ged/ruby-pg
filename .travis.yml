@@ -56,4 +56,4 @@ before_install:
   - sudo apt -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION*
   - export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
 script:
-  - rake compile test
+  - bundle exec rake compile test
