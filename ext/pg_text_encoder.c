@@ -278,36 +278,68 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		/* move the decimal point, so that we get an integer of MAX_DOUBLE_DIGITS decimal digits */
 		ll = (unsigned long long)(dvalue * pow(10, MAX_DOUBLE_DIGITS - 1 - exp10i) + 0.5);
 
-		/* write fraction digits from right to left */
-		for( i = MAX_DOUBLE_DIGITS; i > 1; i--){
+		/* avoid leading zeros due to inaccuracy of deriving exp10i from exp2i */
+		/* otherwise we would print "09.0" instead of "9.0" */
+		if( ll < 1000000000000000 ){ /* pow(10, MAX_DOUBLE_DIGITS-1) */
+			exp10i--;
+			ll *= 10;
+		}
+
+		if( exp10i <= -5 || exp10i >= 15 ) {
+			/* Write the float in exponent format (1.23e45) */
+
+			/* write fraction digits from right to left */
+			for( i = MAX_DOUBLE_DIGITS; i > 1; i--){
+				oldval = ll;
+				ll /= 10;
+				remainder = oldval - ll * 10;
+				/* omit trailing zeros */
+				if(remainder != 0 || len ) {
+					out[i] = '0' + remainder;
+					len++;
+				}
+			}
+
+			/* write decimal point */
+			if( len ){
+				out[1] = '.';
+				len++;
+			}
+
+			/* write remaining single digit left to the decimal point */
 			oldval = ll;
 			ll /= 10;
 			remainder = oldval - ll * 10;
-			/* omit trailing zeros */
-			if(remainder != 0 || len ) {
-				out[i] = '0' + remainder;
-				len++;
-			}
-		}
-
-		/* write decimal point */
-		if( len ){
-			out[1] = '.';
+			out[0] = '0' + remainder;
 			len++;
+
+			/* write exponent */
+			out[len++] = 'e';
+			intermediate = INT2NUM(exp10i);
+
+			return neg + len + pg_text_enc_integer(conv, Qnil, out + len, &intermediate, enc_idx);
+		} else {
+			/* write the float in non exponent format (0.001234 or 123450.0) */
+
+			/* write digits from right to left */
+			int lz = exp10i < 0 ? 0 : exp10i;
+			for( i = MAX_DOUBLE_DIGITS - (exp10i < 0 ? exp10i : 0); i >= 0; i-- ){
+				oldval = ll;
+				ll /= 10;
+				remainder = oldval - ll * 10;
+				/* write decimal point */
+				if( i - 1 == lz ){
+					out[i--] = '.';
+					len++;
+				}
+				/* if possible then omit trailing zeros */
+				if(remainder != 0 || len || i - 2 == lz) {
+					out[i] = '0' + remainder;
+					len++;
+				}
+			}
+			return neg + len;
 		}
-
-		/* write remaining single digit left to the decimal point */
-		oldval = ll;
-		ll /= 10;
-		remainder = oldval - ll * 10;
-		out[0] = '0' + remainder;
-		len++;
-
-		/* write exponent */
-		out[len++] = 'e';
-		intermediate = INT2NUM(exp10i);
-
-		return neg + len + pg_text_enc_integer(conv, Qnil, out + len, &intermediate, enc_idx);
 	}else{
 		return 1 /*sign*/ + MAX_DOUBLE_DIGITS + 1 /*dot*/ + 1 /*e*/ + 1 /*exp sign*/ + 3 /*exp digits*/;
 	}

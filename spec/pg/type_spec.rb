@@ -310,17 +310,49 @@ describe "PG::Type derivations" do
 			end
 
 			it "should encode floats" do
-				expect( textenc_float.encode(0) ).to eq( "0e0" )
-				expect( textenc_float.encode(7) ).to eq( "7e0" )
-				expect( textenc_float.encode(9) ).to eq( "0.9e1" )
-				expect( textenc_float.encode(0.1) ).to eq( "1e-1" )
-				expect( textenc_float.encode(0.9) ).to eq( "0.9e0" )
-				expect( textenc_float.encode(-0.11) ).to eq( "-1.1e-1" )
-				expect( textenc_float.encode(10.11) ).to eq( "1.011e1" )
+				expect( textenc_float.encode(0) ).to eq( "0.0" )
+				expect( textenc_float.encode(-1) ).to eq( "-1.0" )
+				expect( textenc_float.encode(-1.234567890123456789) ).to eq( "-1.234567890123457" )
+				expect( textenc_float.encode(9) ).to eq( "9.0" )
+				expect( textenc_float.encode(10) ).to eq( "10.0" )
+				expect( textenc_float.encode(-99) ).to eq( "-99.0" )
+				expect( textenc_float.encode(-100) ).to eq( "-100.0" )
+				expect( textenc_float.encode(999) ).to eq( "999.0" )
+				expect( textenc_float.encode(-1000) ).to eq( "-1000.0" )
+				expect( textenc_float.encode(1234.567890123456789) ).to eq( "1234.567890123457" )
+				expect( textenc_float.encode(-9999) ).to eq( "-9999.0" )
+				expect( textenc_float.encode(10000) ).to eq( "10000.0" )
+				expect( textenc_float.encode(99999) ).to eq( "99999.0" )
+				expect( textenc_float.encode(-100000) ).to eq( "-100000.0" )
+				expect( textenc_float.encode(-999999) ).to eq( "-999999.0" )
+				expect( textenc_float.encode(1000000) ).to eq( "1000000.0" )
+				expect( textenc_float.encode(9999999) ).to eq( "9999999.0" )
+				expect( textenc_float.encode(-100000000000000) ).to eq( "-100000000000000.0" )
+				expect( textenc_float.encode(123456789012345) ).to eq( "123456789012345.0" )
+				expect( textenc_float.encode(-999999999999999) ).to eq( "-999999999999999.0" )
+				expect( textenc_float.encode(1000000000000000) ).to eq( "1e15" )
+				expect( textenc_float.encode(-1234567890123456) ).to eq( "-1.234567890123456e15" )
+				expect( textenc_float.encode(9999999999999999) ).to eq( "1e16" )
+
+				expect( textenc_float.encode(-0.0) ).to eq( "0.0" )
+				expect( textenc_float.encode(0.1) ).to eq( "0.1" )
+				expect( textenc_float.encode(0.1234567890123456789) ).to eq( "0.1234567890123457" )
+				expect( textenc_float.encode(-0.9) ).to eq( "-0.9" )
+				expect( textenc_float.encode(-0.01234567890123456789) ).to eq( "-0.01234567890123457" )
+				expect( textenc_float.encode(0.09) ).to eq( "0.09" )
+				expect( textenc_float.encode(0.001234567890123456789) ).to eq( "0.001234567890123457" )
+				expect( textenc_float.encode(-0.009) ).to eq( "-0.009" )
+				expect( textenc_float.encode(-0.0001234567890123456789) ).to eq( "-0.0001234567890123457" )
+				expect( textenc_float.encode(0.0009) ).to eq( "0.0009" )
+				expect( textenc_float.encode(0.00001) ).to eq( "1e-5" )
+				expect( textenc_float.encode(0.00001234567890123456789) ).to eq( "1.234567890123457e-5" )
+				expect( textenc_float.encode(-0.00009) ).to eq( "-9e-5" )
+				expect( textenc_float.encode(-0.11) ).to eq( "-0.11" )
+				expect( textenc_float.encode(10.11) ).to eq( "10.11" )
 				expect( textenc_float.encode(-1.234567890123456789E-280) ).to eq( "-1.234567890123457e-280" )
 				expect( textenc_float.encode(-1.234567890123456789E280) ).to eq( "-1.234567890123457e280" )
-				expect( textenc_float.encode(9876543210987654321E280) ).to eq( "0.987654321098765e299" )
-				expect( textenc_float.encode(9876543210987654321E-400) ).to eq( "0e0" )
+				expect( textenc_float.encode(9876543210987654321E280) ).to eq( "9.87654321098765e298" )
+				expect( textenc_float.encode(9876543210987654321E-400) ).to eq( "0.0" )
 				expect( textenc_float.encode(9876543210987654321E400) ).to eq( "Infinity" )
 			end
 
@@ -649,7 +681,7 @@ describe "PG::Type derivations" do
 						expect( textenc_int_array.encode(['1',['2'],'3']) ).to eq( %[{1,{2},3}] )
 					end
 					it 'encodes an array of float8 with sub arrays' do
-						expect( textenc_float_array.encode([1000.11,[-0.00221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1.00011*e+?*3,{-2.21*e-*3,{3.3*e+?*0,-4.4*e+?*2}},{NULL,6.6*e+?*0},-7.7*e+?*0}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
+						expect( textenc_float_array.encode([1000.11,[-0.00000221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1000.1*,{-2.2*e-*6,{3.3*,-441.0}},{NULL,6.6*},-7.7*}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
 					end
 				end
 				context 'two dimensional arrays' do
