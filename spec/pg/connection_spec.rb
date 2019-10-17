@@ -1231,49 +1231,37 @@ describe PG::Connection do
 
 		describe "rubyforge #22925: m17n support" do
 			it "should return results in the same encoding as the client (iso-8859-1)" do
-				out_string = nil
-				@conn.transaction do |conn|
-					conn.internal_encoding = 'iso8859-1'
-					res = conn.exec_params("VALUES ('fantasia')", [], 0)
-					out_string = res[0]['column1']
-				end
+				@conn.internal_encoding = 'iso8859-1'
+				res = @conn.exec_params("VALUES ('fantasia')", [], 0)
+				out_string = res[0]['column1']
 				expect( out_string ).to eq( 'fantasia' )
 				expect( out_string.encoding ).to eq( Encoding::ISO8859_1 )
 			end
 
 			it "should return results in the same encoding as the client (utf-8)" do
-				out_string = nil
-				@conn.transaction do |conn|
-					conn.internal_encoding = 'utf-8'
-					res = conn.exec_params("VALUES ('世界線航跡蔵')", [], 0)
-					out_string = res[0]['column1']
-				end
+				@conn.internal_encoding = 'utf-8'
+				res = @conn.exec_params("VALUES ('世界線航跡蔵')", [], 0)
+				out_string = res[0]['column1']
 				expect( out_string ).to eq( '世界線航跡蔵' )
 				expect( out_string.encoding ).to eq( Encoding::UTF_8 )
 			end
 
 			it "should return results in the same encoding as the client (EUC-JP)" do
-				out_string = nil
-				@conn.transaction do |conn|
-					conn.internal_encoding = 'EUC-JP'
-					stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
-					res = conn.exec_params(stmt, [], 0)
-					out_string = res[0]['column1']
-				end
+				@conn.internal_encoding = 'EUC-JP'
+				stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
+				res = @conn.exec_params(stmt, [], 0)
+				out_string = res[0]['column1']
 				expect( out_string ).to eq( '世界線航跡蔵'.encode('EUC-JP') )
 				expect( out_string.encoding ).to eq( Encoding::EUC_JP )
 			end
 
 			it "returns the results in the correct encoding even if the client_encoding has " +
 			   "changed since the results were fetched" do
-				out_string = nil
-				@conn.transaction do |conn|
-					conn.internal_encoding = 'EUC-JP'
-					stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
-					res = conn.exec_params(stmt, [], 0)
-					conn.internal_encoding = 'utf-8'
-					out_string = res[0]['column1']
-				end
+				@conn.internal_encoding = 'EUC-JP'
+				stmt = "VALUES ('世界線航跡蔵')".encode('EUC-JP')
+				res = @conn.exec_params(stmt, [], 0)
+				@conn.internal_encoding = 'utf-8'
+				out_string = res[0]['column1']
 				expect( out_string ).to eq( '世界線航跡蔵'.encode('EUC-JP') )
 				expect( out_string.encoding ).to eq( Encoding::EUC_JP )
 			end
@@ -1510,7 +1498,7 @@ describe PG::Connection do
 
 		describe "Ruby 1.9.x default_internal encoding" do
 
-			it "honors the Encoding.default_internal if it's set and the synchronous interface is used" do
+			it "honors the Encoding.default_internal if it's set and the synchronous interface is used", :without_transaction do
 				@conn.transaction do |txn_conn|
 					txn_conn.internal_encoding = Encoding::ISO8859_1
 					txn_conn.exec( "CREATE TABLE defaultinternaltest ( foo text )" )
@@ -1612,9 +1600,8 @@ describe PG::Connection do
 			end
 		end
 
-		it "receives properly encoded text from wait_for_notify" do
+		it "receives properly encoded text from wait_for_notify", :without_transaction do
 			@conn.internal_encoding = 'utf-8'
-			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
 			@conn.exec( %Q{NOTIFY "Möhre", '世界線航跡蔵'} )
 			event, pid, msg = nil
@@ -1629,9 +1616,8 @@ describe PG::Connection do
 			expect( msg.encoding ).to eq( Encoding::UTF_8 )
 		end
 
-		it "returns properly encoded text from notifies" do
+		it "returns properly encoded text from notifies", :without_transaction do
 			@conn.internal_encoding = 'utf-8'
-			@conn.exec( 'ROLLBACK' )
 			@conn.exec( 'LISTEN "Möhre"' )
 			@conn.exec( %Q{NOTIFY "Möhre", '世界線航跡蔵'} )
 			@conn.exec( 'UNLISTEN "Möhre"' )
