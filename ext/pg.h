@@ -78,7 +78,7 @@ typedef long suseconds_t;
 #define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
-#define PG_ENC_IDX_BITS 30
+#define PG_ENC_IDX_BITS 28
 
 /* The data behind each PG::Connection object */
 typedef struct {
@@ -134,6 +134,9 @@ typedef struct {
 	 * 1 = PGresult is cleared internally by libpq
 	 */
 	unsigned int autoclear : 1;
+
+	/* flags controlling Symbol/String field names */
+	unsigned int flags : 2;
 
 	/* Number of fields in fnames[] .
 	 * Set to -1 if fnames[] is not yet initialized.

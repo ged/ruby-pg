@@ -9,10 +9,51 @@ require 'objspace'
 
 describe PG::Result do
 
+	describe :field_name_type do
+		let!(:res) { @conn.exec('SELECT 1 AS a, 2 AS "B"') }
+
+		it "uses string field names per default" do
+			expect(res.field_name_type).to eq(:string)
+		end
+
+		it "can set string field names" do
+			res.field_name_type = :string
+			expect(res.field_name_type).to eq(:string)
+		end
+
+		it "can set symbol field names" do
+			res.field_name_type = :symbol
+			expect(res.field_name_type).to eq(:symbol)
+		end
+
+		it "can set static_symbol field names" do
+			res.field_name_type = :static_symbol
+			expect(res.field_name_type).to eq(:static_symbol)
+		end
+
+		it "can't set symbol field names after #fields" do
+			res.fields
+			expect{ res.field_name_type = :symbol }.to raise_error(ArgumentError, /already materialized/)
+			expect(res.field_name_type).to eq(:string)
+		end
+
+		it "can't set invalid values" do
+			expect{ res.field_name_type = :sym }.to raise_error(ArgumentError, /invalid argument :sym/)
+			expect{ res.field_name_type = "symbol" }.to raise_error(ArgumentError, /invalid argument "symbol"/)
+		end
+	end
+
 	it "acts as an array of hashes" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		expect( res[0]['a'] ).to eq( '1' )
 		expect( res[0]['b'] ).to eq( '2' )
+	end
+
+	it "acts as an array of hashes with symbols" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		res.field_name_type = :symbol
+		expect( res[0][:a] ).to eq( '1' )
+		expect( res[0][:b] ).to eq( '2' )
 	end
 
 	it "yields a row as an array" do
@@ -38,6 +79,12 @@ describe PG::Result do
 		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
 	end
 
+	it "yields a row as an Enumerator of hashs with symbols" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		res.field_name_type = :symbol
+		expect( res.each.to_a ).to eq [{:a=>'1', :b=>'2'}]
+	end
+
 	context "result streaming in single row mode" do
 		it "can iterate over all rows as Hash" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
@@ -51,6 +98,17 @@ describe PG::Result do
 				@conn.get_result.enum_for(:stream_each).to_a
 			).to eq(
 				[{'b'=>"1", 'c'=>"5"}, {'b'=>"1", 'c'=>"6"}]
+			)
+			expect( @conn.get_result ).to be_nil
+		end
+
+		it "can iterate over all rows as Hash with symbols" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a" )
+			@conn.set_single_row_mode
+			expect(
+				@conn.get_result.field_names_as(:symbol).stream_each.to_a
+			).to eq(
+				[{:a=>"2"}, {:a=>"3"}, {:a=>"4"}]
 			)
 			expect( @conn.get_result ).to be_nil
 		end
@@ -128,6 +186,16 @@ describe PG::Result do
 			@conn.set_single_row_mode
 			tuple1, tuple2 = *@conn.get_result.stream_each_tuple.to_a
 			expect( tuple1.keys[0].object_id ).to eq(tuple2.keys[0].object_id)
+		end
+
+		it "can iterate over all rows as PG::Tuple with symbols" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a" )
+			@conn.set_single_row_mode
+			res = @conn.get_result.field_names_as(:symbol)
+			tuples = res.stream_each_tuple.to_a
+			expect( tuples[0][0] ).to eq( "2" )
+			expect( tuples[1][:a] ).to eq( "3" )
+			expect( @conn.get_result ).to be_nil
 		end
 
 		it "complains when not in single row mode" do
@@ -300,6 +368,32 @@ describe PG::Result do
 		expect( res.values ).to eq( [ ["bar"], ["bar2"] ] )
 	end
 
+	it "can retrieve field names" do
+		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
+		expect(res.fields).to eq(["a", "B"])
+	end
+
+	it "can retrieve field names as symbols" do
+		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
+		res.field_name_type = :symbol
+		expect(res.fields).to eq([:a, :B])
+	end
+
+	it "can retrieve single field names" do
+		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
+		expect(res.fname(0)).to eq("a")
+		expect(res.fname(1)).to eq("B")
+		expect{res.fname(2)}.to raise_error(ArgumentError)
+	end
+
+	it "can retrieve single field names as symbol" do
+		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
+		res.field_name_type = :symbol
+		expect(res.fname(0)).to eq(:a)
+		expect(res.fname(1)).to eq(:B)
+		expect{res.fname(2)}.to raise_error(ArgumentError)
+	end
+
 	# PQfmod
 	it "can return the type modifier for a result column" do
 		@conn.exec( 'CREATE TABLE fmodtest ( foo varchar(33) )' )
@@ -397,8 +491,9 @@ describe PG::Result do
 		res = @conn.exec( "SELECT 1 AS x, 'a' AS y UNION ALL SELECT 2, 'b'" )
 		expect( res.field_values('x') ).to eq( ['1', '2'] )
 		expect( res.field_values('y') ).to eq( ['a', 'b'] )
+		expect( res.field_values(:x) ).to eq( ['1', '2'] )
 		expect{ res.field_values('') }.to raise_error(IndexError)
-		expect{ res.field_values(:x) }.to raise_error(TypeError)
+		expect{ res.field_values(0) }.to raise_error(TypeError)
 	end
 
 	it "can return the values of a single tuple" do
@@ -519,6 +614,7 @@ describe PG::Result do
 			expect( res.enum_for(:each).to_a ).to eq( [{'f' => 123}] )
 			expect( res.column_values(0) ).to eq( [123] )
 			expect( res.field_values('f') ).to eq( [123] )
+			expect( res.field_values(:f) ).to eq( [123] )
 			expect( res.tuple_values(0) ).to eq( [123] )
 		end
 

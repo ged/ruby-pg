@@ -69,7 +69,7 @@ $hoespec = Hoe.spec 'pg' do
 
 	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
 
-	self.require_ruby_version( '>= 2.0.0' )
+	self.require_ruby_version( '>= 2.2' )
 
 	self.hg_sign_tags = true if self.respond_to?( :hg_sign_tags= )
 	self.check_history_on_release = true if self.respond_to?( :check_history_on_release= )

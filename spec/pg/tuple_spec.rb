@@ -8,10 +8,22 @@ require 'objspace'
 describe PG::Tuple do
 	let!(:typemap) { PG::BasicTypeMapForResults.new(@conn) }
 	let!(:result2x2) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ) }
-	let!(:result2x3cast) { @conn.exec( "SELECT * FROM (VALUES(1, TRUE, '3'), (2, FALSE, '4')) AS m (a, b, b)" ).map_types!(typemap) }
+	let!(:result2x2sym) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ).field_names_as(:symbol) }
+	let!(:result2x3cast) do
+		@conn.exec( "SELECT * FROM (VALUES(1, TRUE, '3'), (2, FALSE, '4')) AS m (a, b, b)" )
+			.map_types!(typemap)
+	end
+	let!(:result2x3symcast) do
+		@conn.exec( "SELECT * FROM (VALUES(1, TRUE, '3'), (2, FALSE, '4')) AS m (a, b, b)" )
+			.map_types!(typemap)
+			.field_names_as(:symbol)
+	end
 	let!(:tuple0) { result2x2.tuple(0) }
+	let!(:tuple0sym) { result2x2sym.tuple(0) }
 	let!(:tuple1) { result2x2.tuple(1) }
+	let!(:tuple1sym) { result2x2sym.tuple(1) }
 	let!(:tuple2) { result2x3cast.tuple(0) }
+	let!(:tuple2sym) { result2x3symcast.tuple(0) }
 	let!(:tuple3) { str = Marshal.dump(result2x3cast.tuple(1)); Marshal.load(str) }
 	let!(:tuple_empty) { PG::Tuple.new }
 
@@ -51,7 +63,17 @@ describe PG::Tuple do
 			expect( tuple0["column2"] ).to eq( "a" )
 			expect( tuple2["a"] ).to eq( 1 )
 			expect( tuple2["b"] ).to eq( "3" )
+			expect( tuple0[:b] ).to be_nil
 			expect( tuple0["x"] ).to be_nil
+		end
+
+		it "supports hash like access with symbols" do
+			expect( tuple0sym[:column1] ).to eq( "1" )
+			expect( tuple0sym[:column2] ).to eq( "a" )
+			expect( tuple2sym[:a] ).to eq( 1 )
+			expect( tuple2sym[:b] ).to eq( "3" )
+			expect( tuple2sym["b"] ).to be_nil
+			expect( tuple0sym[:x] ).to be_nil
 		end
 
 		it "casts lazy and caches result" do
@@ -138,6 +160,12 @@ describe PG::Tuple do
 			expect{ tuple_empty.each }.to raise_error(TypeError)
 		end
 
+		it "can be used as an enumerator with symbols" do
+			expect( tuple0sym.each ).to be_kind_of(Enumerator)
+			expect( tuple0sym.each.to_a ).to eq( [[:column1, "1"], [:column2, "a"]] )
+			expect( tuple2sym.each.to_a ).to eq( [[:a, 1], [:b, true], [:b, "3"]] )
+		end
+
 		it "can be used with block" do
 			a = []
 			tuple0.each do |*v|
@@ -174,14 +202,28 @@ describe PG::Tuple do
 
 	it "responds to key?" do
 		expect( tuple1.key?("column1") ).to eq( true )
+		expect( tuple1.key?(:column1) ).to eq( false )
 		expect( tuple1.key?("other") ).to eq( false )
 		expect( tuple1.has_key?("column1") ).to eq( true )
 		expect( tuple1.has_key?("other") ).to eq( false )
 	end
 
+	it "responds to key? as symbol" do
+		expect( tuple1sym.key?(:column1) ).to eq( true )
+		expect( tuple1sym.key?("column1") ).to eq( false )
+		expect( tuple1sym.key?(:other) ).to eq( false )
+		expect( tuple1sym.has_key?(:column1) ).to eq( true )
+		expect( tuple1sym.has_key?(:other) ).to eq( false )
+	end
+
 	it "responds to keys" do
 		expect( tuple0.keys ).to eq( ["column1", "column2"] )
 		expect( tuple2.keys ).to eq( ["a", "b", "b"] )
+	end
+
+	it "responds to keys as symbol" do
+		expect( tuple0sym.keys ).to eq( [:column1, :column2] )
+		expect( tuple2sym.keys ).to eq( [:a, :b, :b] )
 	end
 
 	describe "each_key" do
@@ -208,10 +250,20 @@ describe PG::Tuple do
 
 	it "responds to index" do
 		expect( tuple0.index("column1") ).to eq( 0 )
+		expect( tuple0.index(:column1) ).to eq( nil )
 		expect( tuple0.index("column2") ).to eq( 1 )
 		expect( tuple0.index("x") ).to eq( nil )
 		expect( tuple2.index("a") ).to eq( 0 )
 		expect( tuple2.index("b") ).to eq( 2 )
+	end
+
+	it "responds to index with symbol" do
+		expect( tuple0sym.index(:column1) ).to eq( 0 )
+		expect( tuple0sym.index("column1") ).to eq( nil )
+		expect( tuple0sym.index(:column2) ).to eq( 1 )
+		expect( tuple0sym.index(:x) ).to eq( nil )
+		expect( tuple2sym.index(:a) ).to eq( 0 )
+		expect( tuple2sym.index(:b) ).to eq( 2 )
 	end
 
 	it "can be used as Enumerable" do
@@ -222,7 +274,7 @@ describe PG::Tuple do
 	end
 
 	it "can be marshaled" do
-		[tuple0, tuple1, tuple2, tuple3].each do |t1|
+		[tuple0, tuple1, tuple2, tuple3, tuple0sym, tuple2sym].each do |t1|
 			str = Marshal.dump(t1)
 			t2 = Marshal.load(str)
 
@@ -253,6 +305,7 @@ describe PG::Tuple do
 	it "should override #inspect" do
 		expect( tuple1.inspect ).to eq('#<PG::Tuple column1: "2", column2: "b">')
 		expect( tuple2.inspect ).to eq('#<PG::Tuple a: 1, b: true, b: "3">')
+		expect( tuple2sym.inspect ).to eq('#<PG::Tuple a: 1, b: true, b: "3">')
 		expect{ tuple_empty.inspect }.to raise_error(TypeError)
 	end
 
