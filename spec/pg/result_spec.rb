@@ -86,6 +86,8 @@ describe PG::Result do
 	end
 
 	context "result streaming in single row mode" do
+		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
+
 		it "can iterate over all rows as Hash" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
 			@conn.set_single_row_mode
@@ -102,13 +104,15 @@ describe PG::Result do
 			expect( @conn.get_result ).to be_nil
 		end
 
-		it "can iterate over all rows as Hash with symbols" do
+		it "can iterate over all rows as Hash with symbols and typemap" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a" )
 			@conn.set_single_row_mode
+			res = @conn.get_result.field_names_as(:symbol)
+			res.type_map = PG::TypeMapByColumn.new [textdec_int]
 			expect(
-				@conn.get_result.field_names_as(:symbol).stream_each.to_a
+				res.stream_each.to_a
 			).to eq(
-				[{:a=>"2"}, {:a=>"3"}, {:a=>"4"}]
+				[{:a=>2}, {:a=>3}, {:a=>4}]
 			)
 			expect( @conn.get_result ).to be_nil
 		end
@@ -188,13 +192,14 @@ describe PG::Result do
 			expect( tuple1.keys[0].object_id ).to eq(tuple2.keys[0].object_id)
 		end
 
-		it "can iterate over all rows as PG::Tuple with symbols" do
+		it "can iterate over all rows as PG::Tuple with symbols and typemap" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a" )
 			@conn.set_single_row_mode
 			res = @conn.get_result.field_names_as(:symbol)
+			res.type_map = PG::TypeMapByColumn.new [textdec_int]
 			tuples = res.stream_each_tuple.to_a
-			expect( tuples[0][0] ).to eq( "2" )
-			expect( tuples[1][:a] ).to eq( "3" )
+			expect( tuples[0][0] ).to eq( 2 )
+			expect( tuples[1][:a] ).to eq( 3 )
 			expect( @conn.get_result ).to be_nil
 		end
 

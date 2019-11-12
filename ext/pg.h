@@ -152,7 +152,7 @@ typedef struct {
 	/* Hash with fnames[] to field number mapping. */
 	VALUE field_map;
 
-	/* List of field names as frozen String objects.
+	/* List of field names as frozen String or Symbol objects.
 	 * Only valid if nfields != -1
 	 */
 	VALUE fnames[0];
