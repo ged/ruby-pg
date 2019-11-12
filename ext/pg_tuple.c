@@ -212,7 +212,7 @@ pg_tuple_materialize(t_pg_tuple *this)
  * An integer +key+ is interpreted as column index.
  * Negative values of index count from the end of the array.
  *
- * A string +key+ is interpreted as column name.
+ * Depending on Result#field_name_type= a string or symbol +key+ is interpreted as column name.
  *
  * If the key can't be found, there are several options:
  * With no other arguments, it will raise a IndexError exception;
@@ -265,9 +265,16 @@ pg_tuple_fetch(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    res[ name ] -> value
+ *    tup[ key ] -> value
  *
- * Returns field _name_.
+ * Returns a field value by either column index or column name.
+ *
+ * An integer +key+ is interpreted as column index.
+ * Negative values of index count from the end of the array.
+ *
+ * Depending on Result#field_name_type= a string or symbol +key+ is interpreted as column name.
+ *
+ * If the key can't be found, it returns +nil+ .
  */
 static VALUE
 pg_tuple_aref(VALUE self, VALUE key)

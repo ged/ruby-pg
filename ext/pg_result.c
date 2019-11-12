@@ -623,6 +623,8 @@ pgresult_nfields(VALUE self)
  *    res.fname( index ) -> String or Symbol
  *
  * Returns the name of the column corresponding to _index_.
+ * Depending on #field_name_type= it's a String or Symbol.
+ *
  */
 static VALUE
 pgresult_fname(VALUE self, VALUE index)
@@ -1256,7 +1258,7 @@ pgresult_each(VALUE self)
  * call-seq:
  *    res.fields() -> Array
  *
- * Returns an array of strings or symbols representing the names of the fields in the result.
+ * Depending on #field_name_type= returns an array of strings or symbols representing the names of the fields in the result.
  */
 static VALUE
 pgresult_fields(VALUE self)
