@@ -55,6 +55,18 @@ describe PG::Result do
 			expect( @conn.get_result ).to be_nil
 		end
 
+		it "keeps last result on error while iterating stream_each" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a" )
+			@conn.set_single_row_mode
+			res = @conn.get_result
+			expect do
+				res.stream_each_row do
+					raise ZeroDivisionError
+				end
+			end.to raise_error(ZeroDivisionError)
+			expect( res.values ).to eq([["2"]])
+		end
+
 		it "can iterate over all rows as Array" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
 			@conn.set_single_row_mode
@@ -71,6 +83,18 @@ describe PG::Result do
 			expect( @conn.get_result ).to be_nil
 		end
 
+		it "keeps last result on error while iterating stream_each_row" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a" )
+			@conn.set_single_row_mode
+			res = @conn.get_result
+			expect do
+				res.stream_each_row do
+					raise ZeroDivisionError
+				end
+			end.to raise_error(ZeroDivisionError)
+			expect( res.values ).to eq([["2"]])
+		end
+
 		it "can iterate over all rows as PG::Tuple" do
 			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
 			@conn.set_single_row_mode
@@ -85,6 +109,25 @@ describe PG::Result do
 			expect( tuples.size ).to eq( 2 )
 
 			expect( @conn.get_result ).to be_nil
+		end
+
+		it "clears result on error while iterating stream_each_tuple" do
+			@conn.send_query( "SELECT generate_series(2,4) AS a" )
+			@conn.set_single_row_mode
+			res = @conn.get_result
+			expect do
+				res.stream_each_tuple do
+					raise ZeroDivisionError
+				end
+			end.to raise_error(ZeroDivisionError)
+			expect( res.cleared? ).to eq(true)
+		end
+
+		it "should reuse field names in stream_each_tuple" do
+			@conn.send_query( "SELECT generate_series(2,3) AS a" )
+			@conn.set_single_row_mode
+			tuple1, tuple2 = *@conn.get_result.stream_each_tuple.to_a
+			expect( tuple1.keys[0].object_id ).to eq(tuple2.keys[0].object_id)
 		end
 
 		it "complains when not in single row mode" do

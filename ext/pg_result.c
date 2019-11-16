@@ -129,13 +129,13 @@ pgresult_clear( t_pg_result *this )
 {
 	if( this->pgresult && !this->autoclear ){
 		PQclear(this->pgresult);
+		this->pgresult = NULL;
 #ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
 		rb_gc_adjust_memory_usage(-this->result_size);
 #endif
+		this->result_size = 0;
 	}
-	this->result_size = 0;
 	this->nfields = -1;
-	this->pgresult = NULL;
 }
 
 static void
@@ -229,6 +229,20 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 #endif
 
 	return self;
+}
+
+static VALUE
+pg_copy_result(t_pg_result *this)
+{
+	int nfields = this->nfields == -1 ? (this->pgresult ? PQnfields(this->pgresult) : 0) : this->nfields;
+	size_t len = sizeof(*this) +  sizeof(*this->fnames) * nfields;
+	t_pg_result *copy;
+
+	copy = (t_pg_result *)xmalloc(len);
+	memcpy(copy, this, len);
+	this->result_size = 0;
+
+	return TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, copy);
 }
 
 VALUE
@@ -1145,6 +1159,25 @@ pgresult_tuple_values(VALUE self, VALUE index)
 	}
 }
 
+static void ensure_init_for_tuple(VALUE self)
+{
+	t_pg_result *this = pgresult_get_this_safe(self);
+
+	if( this->field_map == Qnil ){
+		int i;
+		VALUE field_map = rb_hash_new();
+
+		if( this->nfields == -1 )
+			pgresult_init_fnames( self );
+
+		for( i = 0; i < this->nfields; i++ ){
+			rb_hash_aset(field_map, this->fnames[i], INT2FIX(i));
+		}
+		rb_obj_freeze(field_map);
+		this->field_map = field_map;
+	}
+}
+
 /*
  *  call-seq:
  *     res.tuple( n )   -> PG::Tuple
@@ -1165,19 +1198,7 @@ pgresult_tuple(VALUE self, VALUE index)
 	if ( tuple_num < 0 || tuple_num >= num_tuples )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
 
-	if( this->field_map == Qnil ){
-		int i;
-		VALUE field_map = rb_hash_new();
-
-		if( this->nfields == -1 )
-			pgresult_init_fnames( self );
-
-		for( i = 0; i < this->nfields; i++ ){
-			rb_hash_aset(field_map, this->fnames[i], INT2FIX(i));
-		}
-		rb_obj_freeze(field_map);
-		this->field_map = field_map;
-	}
+	ensure_init_for_tuple(self);
 
   return pg_tuple_new(self, tuple_num);
 }
@@ -1308,11 +1329,17 @@ yield_tuple(VALUE self, int ntuples, int nfields)
 {
 	int tuple_num;
 	t_pg_result *this = pgresult_get_this(self);
-	VALUE result = pg_new_result(this->pgresult, this->connection);
+	VALUE copy;
 	UNUSED(nfields);
 
+	/* make a copy of the base result, that is bound to the PG::Tuple */
+	copy = pg_copy_result(this);
+	/* The copy is now owner of the PGresult and is responsible to PQclear it.
+	 * We clear the pgresult here, so that it's not double freed on error within yield. */
+	this->pgresult = NULL;
+
 	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
-		VALUE tuple = pgresult_tuple(result, INT2FIX(tuple_num));
+		VALUE tuple = pgresult_tuple(copy, INT2FIX(tuple_num));
 		rb_yield( tuple );
 	}
 }
@@ -1433,6 +1460,9 @@ pgresult_stream_each_row(VALUE self)
 static VALUE
 pgresult_stream_each_tuple(VALUE self)
 {
+	/* allocate VALUEs that are shared between all streamed tuples */
+	ensure_init_for_tuple(self);
+
 	return pgresult_stream_any(self, yield_tuple);
 }
 
