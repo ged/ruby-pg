@@ -129,13 +129,13 @@ pgresult_clear( t_pg_result *this )
 {
 	if( this->pgresult && !this->autoclear ){
 		PQclear(this->pgresult);
-		this->pgresult = NULL;
 #ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
 		rb_gc_adjust_memory_usage(-this->result_size);
 #endif
-		this->result_size = 0;
 	}
+	this->result_size = 0;
 	this->nfields = -1;
+	this->pgresult = NULL;
 }
 
 static void
