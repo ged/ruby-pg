@@ -413,6 +413,7 @@ static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
 {
 	VALUE fname;
 	if( flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
+#ifndef TRUFFLERUBY
 		rb_encoding *enc = rb_enc_from_index(enc_idx);
 		fname = rb_check_symbol_cstr(cstr, strlen(cstr), enc);
 		if( fname == Qnil ){
@@ -421,6 +422,7 @@ static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
 			fname = rb_str_intern(fname);
 		}
 	} else if( flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
+#endif
 		rb_encoding *enc = rb_enc_from_index(enc_idx);
 		fname = ID2SYM(rb_intern3(cstr, strlen(cstr), enc));
 	} else {
