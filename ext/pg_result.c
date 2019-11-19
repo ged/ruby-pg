@@ -6,10 +6,6 @@
 
 #include "pg.h"
 
-#define PG_RESULT_FIELD_NAMES_MASK 0x03
-#define PG_RESULT_FIELD_NAMES_SYMBOL 0x01
-#define PG_RESULT_FIELD_NAMES_STATIC_SYMBOL 0x02
-
 VALUE rb_cPGresult;
 static VALUE sym_symbol, sym_string, sym_static_symbol;
 
@@ -206,6 +202,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 		this->enc_idx = p_conn->enc_idx;
 		this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
 		this->p_typemap = DATA_PTR( this->typemap );
+		this->flags = p_conn->flags;
 	} else {
 		this->enc_idx = rb_locale_encindex();
 	}
@@ -1506,7 +1503,7 @@ pgresult_stream_each_tuple(VALUE self)
  * * +:symbol+ to use Symbol based field names
  * * +:static_symbol+ to use pinned Symbol (can not be garbage collected) - Don't use this, it will probably removed in future.
  *
- * The default is +:string+ .
+ * The default is retrieved from PG::Connection#field_name_type , which defaults to +:string+ .
  *
  * This setting affects several result methods:
  * * keys of Hash returned by #[] , #each and #stream_each

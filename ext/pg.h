@@ -102,6 +102,8 @@ typedef struct {
 	VALUE decoder_for_get_copy_data;
 	/* Ruby encoding index of the client/internal encoding */
 	int enc_idx : PG_ENC_IDX_BITS;
+	/* flags controlling Symbol/String field names */
+	unsigned int flags : 2;
 
 #if defined(_WIN32)
 	/* File descriptor to be used for rb_w32_unwrap_io_handle() */
@@ -167,6 +169,10 @@ typedef int (* t_pg_fit_to_copy_get)(VALUE);
 typedef VALUE (* t_pg_typecast_result)(t_typemap *, VALUE, int, int);
 typedef t_pg_coder *(* t_pg_typecast_query_param)(t_typemap *, VALUE, int);
 typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
+
+#define PG_RESULT_FIELD_NAMES_MASK 0x03
+#define PG_RESULT_FIELD_NAMES_SYMBOL 0x01
+#define PG_RESULT_FIELD_NAMES_STATIC_SYMBOL 0x02
 
 #define PG_CODER_TIMESTAMP_DB_UTC 0x0
 #define PG_CODER_TIMESTAMP_DB_LOCAL 0x1

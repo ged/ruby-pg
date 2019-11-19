@@ -13,6 +13,7 @@
 VALUE rb_cPGconn;
 static ID s_id_encode;
 static VALUE sym_type, sym_format, sym_value;
+static VALUE sym_symbol, sym_string, sym_static_symbol;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
@@ -4060,6 +4061,58 @@ pgconn_decoder_for_get_copy_data_get(VALUE self)
 	return this->decoder_for_get_copy_data;
 }
 
+/*
+ * call-seq:
+ *    conn.field_name_type = Symbol
+ *
+ * Set default type of field names of results retrieved by this connection.
+ * It can be set to one of:
+ * * +:string+ to use String based field names
+ * * +:symbol+ to use Symbol based field names
+ *
+ * The default is +:string+ .
+ *
+ * Settings the type of field names affects only future results.
+ *
+ * See further description at PG::Result#field_name_type=
+ *
+ */
+static VALUE
+pgconn_field_name_type_set(VALUE self, VALUE sym)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
+	if( sym == sym_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_SYMBOL;
+	else if ( sym == sym_static_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_STATIC_SYMBOL;
+	else if ( sym == sym_string );
+	else rb_raise(rb_eArgError, "invalid argument %+"PRIsVALUE, sym);
+
+	return sym;
+}
+
+/*
+ * call-seq:
+ *    conn.field_name_type -> Symbol
+ *
+ * Get type of field names.
+ *
+ * See description at #field_name_type=
+ */
+static VALUE
+pgconn_field_name_type_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( this->flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
+		return sym_symbol;
+	} else if( this->flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
+		return sym_static_symbol;
+	} else {
+		return sym_string;
+	}
+}
+
 
 /*
  * Document-class: PG::Connection
@@ -4071,6 +4124,9 @@ init_pg_connection()
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_format = ID2SYM(rb_intern("format"));
 	sym_value = ID2SYM(rb_intern("value"));
+	sym_string = ID2SYM(rb_intern("string"));
+	sym_symbol = ID2SYM(rb_intern("symbol"));
+	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
@@ -4255,4 +4311,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "encoder_for_put_copy_data", pgconn_encoder_for_put_copy_data_get, 0);
 	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data=", pgconn_decoder_for_get_copy_data_set, 1);
 	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data", pgconn_decoder_for_get_copy_data_get, 0);
+
+	rb_define_method(rb_cPGconn, "field_name_type=", pgconn_field_name_type_set, 1 );
+	rb_define_method(rb_cPGconn, "field_name_type", pgconn_field_name_type_get, 0 );
 }

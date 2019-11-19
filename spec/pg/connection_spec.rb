@@ -1824,6 +1824,40 @@ describe PG::Connection do
 		end
 	end
 
+	describe :field_name_type do
+		before :each do
+			@conn2 = PG.connect(@conninfo)
+		end
+		after :each do
+			@conn2.close
+		end
+
+		it "uses string field names per default" do
+			expect(@conn2.field_name_type).to eq(:string)
+		end
+
+		it "can set string field names" do
+			@conn2.field_name_type = :string
+			expect(@conn2.field_name_type).to eq(:string)
+			res = @conn2.exec("SELECT 1 as az")
+			expect(res.field_name_type).to eq(:string)
+			expect(res.fields).to eq(["az"])
+		end
+
+		it "can set symbol field names" do
+			@conn2.field_name_type = :symbol
+			expect(@conn2.field_name_type).to eq(:symbol)
+			res = @conn2.exec("SELECT 1 as az")
+			expect(res.field_name_type).to eq(:symbol)
+			expect(res.fields).to eq([:az])
+		end
+
+		it "can't set invalid values" do
+			expect{ @conn2.field_name_type = :sym }.to raise_error(ArgumentError, /invalid argument :sym/)
+			expect{ @conn2.field_name_type = "symbol" }.to raise_error(ArgumentError, /invalid argument "symbol"/)
+		end
+	end
+
 	describe "deprecated forms of methods" do
 		it "should forward exec to exec_params" do
 			res = @conn.exec("VALUES($1::INT)", [7]).values
