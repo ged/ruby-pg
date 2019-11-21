@@ -89,7 +89,7 @@ pg_text_dec_boolean(t_pg_coder *conv, const char *val, int len, int tuple, int f
 VALUE
 pg_text_dec_string(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	VALUE ret = rb_tainted_str_new( val, len );
+	VALUE ret = rb_str_new( val, len );
 	PG_ENCODING_SET_NOCHECK( ret, enc_idx );
 	return ret;
 }
@@ -204,7 +204,7 @@ struct pg_blob_initialization {
 
 static VALUE pg_create_blob(VALUE v) {
 	struct pg_blob_initialization *bi = (struct pg_blob_initialization *)v;
-	return rb_tainted_str_new(bi->blob_string, bi->length);
+	return rb_str_new(bi->blob_string, bi->length);
 }
 
 static VALUE pg_pq_freemem(VALUE mem) {
@@ -563,7 +563,7 @@ pg_text_dec_from_base64(t_pg_coder *conv, const char *val, int len, int tuple, i
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
 	int decoded_len;
 	/* create a buffer of the expected decoded length */
-	VALUE out_value = rb_tainted_str_new(NULL, BASE64_DECODED_SIZE(len));
+	VALUE out_value = rb_str_new(NULL, BASE64_DECODED_SIZE(len));
 
 	decoded_len = base64_decode( RSTRING_PTR(out_value), val, len );
 	rb_str_set_len(out_value, decoded_len);

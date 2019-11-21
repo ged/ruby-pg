@@ -383,7 +383,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 
 	/* Allocate a new string with embedded capacity and realloc later with
 	 * exponential growing size when needed. */
-	PG_RB_TAINTED_STR_NEW( field_str, output_ptr, end_capa_ptr );
+	PG_RB_STR_NEW( field_str, output_ptr, end_capa_ptr );
 
 	/* set pointer variables for loop */
 	cur_ptr = input_line;
@@ -545,7 +545,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 			if( field_value == field_str ){
 				/* Our output string will be send to the user, so we can not reuse
 				 * it for the next field. */
-				PG_RB_TAINTED_STR_NEW( field_str, output_ptr, end_capa_ptr );
+				PG_RB_STR_NEW( field_str, output_ptr, end_capa_ptr );
 			}
 		}
 		/* Reset the pointer to the start of the output/buffer string. */

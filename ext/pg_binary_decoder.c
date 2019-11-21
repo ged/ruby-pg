@@ -95,7 +95,7 @@ VALUE
 pg_bin_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	VALUE ret;
-	ret = rb_tainted_str_new( val, len );
+	ret = rb_str_new( val, len );
 	PG_ENCODING_SET_NOCHECK( ret, rb_ascii8bit_encindex() );
 	return ret;
 }
@@ -113,7 +113,7 @@ pg_bin_dec_to_base64(t_pg_coder *conv, const char *val, int len, int tuple, int 
 	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
 	int encoded_len = BASE64_ENCODED_SIZE(len);
 	/* create a buffer of the encoded length */
-	VALUE out_value = rb_tainted_str_new(NULL, encoded_len);
+	VALUE out_value = rb_str_new(NULL, encoded_len);
 
 	base64_encode( RSTRING_PTR(out_value), val, len );
 

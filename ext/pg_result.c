@@ -6,8 +6,8 @@
 
 #include "pg.h"
 
-
 VALUE rb_cPGresult;
+static VALUE sym_symbol, sym_string, sym_static_symbol;
 
 static VALUE pgresult_type_map_set( VALUE, VALUE );
 static t_pg_result *pgresult_get_this( VALUE );
@@ -190,6 +190,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
+	this->flags = 0;
 	self = TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, this);
 
 	if( result ){
@@ -201,6 +202,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 		this->enc_idx = p_conn->enc_idx;
 		this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
 		this->p_typemap = DATA_PTR( this->typemap );
+		this->flags = p_conn->flags;
 	} else {
 		this->enc_idx = rb_locale_encindex();
 	}
@@ -404,6 +406,31 @@ pgresult_get(VALUE self)
 	return this->pgresult;
 }
 
+static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
+{
+	VALUE fname;
+#ifdef TRUFFLERUBY
+	if( flags & (PG_RESULT_FIELD_NAMES_SYMBOL | PG_RESULT_FIELD_NAMES_STATIC_SYMBOL) ){
+#else
+	if( flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
+		rb_encoding *enc = rb_enc_from_index(enc_idx);
+		fname = rb_check_symbol_cstr(cstr, strlen(cstr), enc);
+		if( fname == Qnil ){
+			fname = rb_str_new2(cstr);
+			PG_ENCODING_SET_NOCHECK(fname, enc_idx);
+			fname = rb_str_intern(fname);
+		}
+	} else if( flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
+#endif
+		rb_encoding *enc = rb_enc_from_index(enc_idx);
+		fname = ID2SYM(rb_intern3(cstr, strlen(cstr), enc));
+	} else {
+		fname = rb_str_new2(cstr);
+		PG_ENCODING_SET_NOCHECK(fname, enc_idx);
+		fname = rb_obj_freeze(fname);
+	}
+	return fname;
+}
 
 static void pgresult_init_fnames(VALUE self)
 {
@@ -414,12 +441,9 @@ static void pgresult_init_fnames(VALUE self)
 		int nfields = PQnfields(this->pgresult);
 
 		for( i=0; i<nfields; i++ ){
-			VALUE fname = rb_tainted_str_new2(PQfname(this->pgresult, i));
-			PG_ENCODING_SET_NOCHECK(fname, this->enc_idx);
-			this->fnames[i] = rb_obj_freeze(fname);
+			char *cfname = PQfname(this->pgresult, i);
+			this->fnames[i] = pg_cstr_to_sym(cfname, this->flags, this->enc_idx);
 			this->nfields = i + 1;
-
-			RB_GC_GUARD(fname);
 		}
 		this->nfields = nfields;
 	}
@@ -483,7 +507,7 @@ static VALUE
 pgresult_res_status(VALUE self, VALUE status)
 {
 	t_pg_result *this = pgresult_get_this_safe(self);
-	VALUE ret = rb_tainted_str_new2(PQresStatus(NUM2INT(status)));
+	VALUE ret = rb_str_new2(PQresStatus(NUM2INT(status)));
 	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
@@ -498,7 +522,7 @@ static VALUE
 pgresult_error_message(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this_safe(self);
-	VALUE ret = rb_tainted_str_new2(PQresultErrorMessage(this->pgresult));
+	VALUE ret = rb_str_new2(PQresultErrorMessage(this->pgresult));
 	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
@@ -558,7 +582,7 @@ pgresult_error_field(VALUE self, VALUE field)
 	VALUE ret = Qnil;
 
 	if ( fieldstr ) {
-		ret = rb_tainted_str_new2( fieldstr );
+		ret = rb_str_new2( fieldstr );
 		PG_ENCODING_SET_NOCHECK( ret, this->enc_idx );
 	}
 
@@ -597,24 +621,25 @@ pgresult_nfields(VALUE self)
 
 /*
  * call-seq:
- *    res.fname( index ) -> String
+ *    res.fname( index ) -> String or Symbol
  *
  * Returns the name of the column corresponding to _index_.
+ * Depending on #field_name_type= it's a String or Symbol.
+ *
  */
 static VALUE
 pgresult_fname(VALUE self, VALUE index)
 {
-	VALUE fname;
 	t_pg_result *this = pgresult_get_this_safe(self);
 	int i = NUM2INT(index);
+	char *cfname;
 
 	if (i < 0 || i >= PQnfields(this->pgresult)) {
 		rb_raise(rb_eArgError,"invalid field number %d", i);
 	}
 
-	fname = rb_tainted_str_new2(PQfname(this->pgresult, i));
-	PG_ENCODING_SET_NOCHECK(fname, this->enc_idx);
-	return rb_obj_freeze(fname);
+	cfname = PQfname(this->pgresult, i);
+	return pg_cstr_to_sym(cfname, this->flags, this->enc_idx);
 }
 
 /*
@@ -914,7 +939,7 @@ static VALUE
 pgresult_cmd_status(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this_safe(self);
-	VALUE ret = rb_tainted_str_new2(PQcmdStatus(this->pgresult));
+	VALUE ret = rb_str_new2(PQcmdStatus(this->pgresult));
 	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
@@ -1115,8 +1140,12 @@ static VALUE
 pgresult_field_values( VALUE self, VALUE field )
 {
 	PGresult *result = pgresult_get( self );
-	const char *fieldname = StringValueCStr( field );
-	int fnum = PQfnumber( result, fieldname );
+	const char *fieldname;
+	int fnum;
+
+	if( RB_TYPE_P(field, T_SYMBOL) ) field = rb_sym_to_s( field );
+	fieldname = StringValueCStr( field );
+	fnum = PQfnumber( result, fieldname );
 
 	if ( fnum < 0 )
 		rb_raise( rb_eIndexError, "no such field '%s' in result", fieldname );
@@ -1230,7 +1259,7 @@ pgresult_each(VALUE self)
  * call-seq:
  *    res.fields() -> Array
  *
- * Returns an array of Strings representing the names of the fields in the result.
+ * Depending on #field_name_type= returns an array of strings or symbols representing the names of the fields in the result.
  */
 static VALUE
 pgresult_fields(VALUE self)
@@ -1466,10 +1495,70 @@ pgresult_stream_each_tuple(VALUE self)
 	return pgresult_stream_any(self, yield_tuple);
 }
 
+/*
+ * call-seq:
+ *    res.field_name_type = Symbol
+ *
+ * Set type of field names specific to this result.
+ * It can be set to one of:
+ * * +:string+ to use String based field names
+ * * +:symbol+ to use Symbol based field names
+ * * +:static_symbol+ to use pinned Symbol (can not be garbage collected) - Don't use this, it will probably removed in future.
+ *
+ * The default is retrieved from PG::Connection#field_name_type , which defaults to +:string+ .
+ *
+ * This setting affects several result methods:
+ * * keys of Hash returned by #[] , #each and #stream_each
+ * * #fields
+ * * #fname
+ * * field names used by #tuple and #stream_each_tuple
+ *
+ * The type of field names can only be changed before any of the affected methods have been called.
+ *
+ */
+static VALUE
+pgresult_field_name_type_set(VALUE self, VALUE sym)
+{
+	t_pg_result *this = pgresult_get_this(self);
+	if( this->nfields != -1 ) rb_raise(rb_eArgError, "field names are already materialized");
+
+	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
+	if( sym == sym_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_SYMBOL;
+	else if ( sym == sym_static_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_STATIC_SYMBOL;
+	else if ( sym == sym_string );
+	else rb_raise(rb_eArgError, "invalid argument %+"PRIsVALUE, sym);
+
+	return sym;
+}
+
+/*
+ * call-seq:
+ *    res.field_name_type -> Symbol
+ *
+ * Get type of field names.
+ *
+ * See description at #field_name_type=
+ */
+static VALUE
+pgresult_field_name_type_get(VALUE self)
+{
+	t_pg_result *this = pgresult_get_this(self);
+	if( this->flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
+		return sym_symbol;
+	} else if( this->flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
+		return sym_static_symbol;
+	} else {
+		return sym_string;
+	}
+}
 
 void
 init_pg_result()
 {
+	sym_string = ID2SYM(rb_intern("string"));
+	sym_symbol = ID2SYM(rb_intern("symbol"));
+	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
+
 	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cData );
 	rb_include_module(rb_cPGresult, rb_mEnumerable);
 	rb_include_module(rb_cPGresult, rb_mPGconstants);
@@ -1526,4 +1615,7 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "stream_each", pgresult_stream_each, 0);
 	rb_define_method(rb_cPGresult, "stream_each_row", pgresult_stream_each_row, 0);
 	rb_define_method(rb_cPGresult, "stream_each_tuple", pgresult_stream_each_tuple, 0);
+
+	rb_define_method(rb_cPGresult, "field_name_type=", pgresult_field_name_type_set, 1 );
+	rb_define_method(rb_cPGresult, "field_name_type", pgresult_field_name_type_get, 0 );
 }

@@ -13,6 +13,7 @@
 VALUE rb_cPGconn;
 static ID s_id_encode;
 static VALUE sym_type, sym_format, sym_value;
+static VALUE sym_symbol, sym_string, sym_static_symbol;
 
 static PQnoticeReceiver default_notice_receiver = NULL;
 static PQnoticeProcessor default_notice_processor = NULL;
@@ -445,10 +446,6 @@ pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
 	if ( encrypted ) {
 		rval = rb_str_new2( encrypted );
 		PQfreemem( encrypted );
-
-		OBJ_INFECT( rval, password );
-		OBJ_INFECT( rval, username );
-		OBJ_INFECT( rval, algorithm );
 	} else {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
@@ -480,9 +477,6 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 	encrypted = PQencryptPassword(StringValueCStr(password), StringValueCStr(username));
 	rval = rb_str_new2( encrypted );
 	PQfreemem( encrypted );
-
-	OBJ_INFECT( rval, password );
-	OBJ_INFECT( rval, username );
 
 	return rval;
 }
@@ -629,7 +623,7 @@ pgconn_db(VALUE self)
 {
 	char *db = PQdb(pg_get_pgconn(self));
 	if (!db) return Qnil;
-	return rb_tainted_str_new2(db);
+	return rb_str_new2(db);
 }
 
 /*
@@ -643,7 +637,7 @@ pgconn_user(VALUE self)
 {
 	char *user = PQuser(pg_get_pgconn(self));
 	if (!user) return Qnil;
-	return rb_tainted_str_new2(user);
+	return rb_str_new2(user);
 }
 
 /*
@@ -657,7 +651,7 @@ pgconn_pass(VALUE self)
 {
 	char *user = PQpass(pg_get_pgconn(self));
 	if (!user) return Qnil;
-	return rb_tainted_str_new2(user);
+	return rb_str_new2(user);
 }
 
 /*
@@ -671,7 +665,7 @@ pgconn_host(VALUE self)
 {
 	char *host = PQhost(pg_get_pgconn(self));
 	if (!host) return Qnil;
-	return rb_tainted_str_new2(host);
+	return rb_str_new2(host);
 }
 
 /*
@@ -698,7 +692,7 @@ pgconn_tty(VALUE self)
 {
 	char *tty = PQtty(pg_get_pgconn(self));
 	if (!tty) return Qnil;
-	return rb_tainted_str_new2(tty);
+	return rb_str_new2(tty);
 }
 
 /*
@@ -712,7 +706,7 @@ pgconn_options(VALUE self)
 {
 	char *options = PQoptions(pg_get_pgconn(self));
 	if (!options) return Qnil;
-	return rb_tainted_str_new2(options);
+	return rb_str_new2(options);
 }
 
 
@@ -793,7 +787,7 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
 	if(ret == NULL)
 		return Qnil;
 	else
-		return rb_tainted_str_new2(ret);
+		return rb_str_new2(ret);
 }
 
 /*
@@ -838,7 +832,7 @@ pgconn_error_message(VALUE self)
 {
 	char *error = PQerrorMessage(pg_get_pgconn(self));
 	if (!error) return Qnil;
-	return rb_tainted_str_new2(error);
+	return rb_str_new2(error);
 }
 
 /*
@@ -1522,7 +1516,6 @@ pgconn_s_escape(VALUE self, VALUE string)
 		size = PQescapeString(RSTRING_PTR(result), RSTRING_PTR(string), RSTRING_LEN(string));
 	}
 	rb_str_set_len(result, size);
-	OBJ_INFECT(result, string);
 
 	return result;
 }
@@ -1568,7 +1561,6 @@ pgconn_s_escape_bytea(VALUE self, VALUE str)
 	}
 
 	ret = rb_str_new((char*)to, to_len - 1);
-	OBJ_INFECT(ret, str);
 	PQfreemem(to);
 	return ret;
 }
@@ -1598,7 +1590,6 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 	to = PQunescapeBytea(from, &to_len);
 
 	ret = rb_str_new((char*)to, to_len);
-	OBJ_INFECT(ret, str);
 	PQfreemem(to);
 	return ret;
 }
@@ -1635,7 +1626,6 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	}
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
-	OBJ_INFECT(result, string);
 	PG_ENCODING_SET_NOCHECK(result, enc_idx);
 
 	return result;
@@ -1677,7 +1667,6 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	}
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
-	OBJ_INFECT(result, string);
 	PG_ENCODING_SET_NOCHECK(result, enc_idx);
 
 	return result;
@@ -2230,9 +2219,9 @@ pgconn_notifies(VALUE self)
 	}
 
 	hash = rb_hash_new();
-	relname = rb_tainted_str_new2(notification->relname);
+	relname = rb_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
-	extra = rb_tainted_str_new2(notification->extra);
+	extra = rb_str_new2(notification->extra);
 	PG_ENCODING_SET_NOCHECK( relname, this->enc_idx );
 	PG_ENCODING_SET_NOCHECK( extra, this->enc_idx );
 
@@ -2428,11 +2417,11 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	/* Return nil if the select timed out */
 	if ( !pnotification ) return Qnil;
 
-	relname = rb_tainted_str_new2( pnotification->relname );
+	relname = rb_str_new2( pnotification->relname );
 	PG_ENCODING_SET_NOCHECK( relname, this->enc_idx );
 	be_pid = INT2NUM( pnotification->be_pid );
 	if ( *pnotification->extra ) {
-		extra = rb_tainted_str_new2( pnotification->extra );
+		extra = rb_str_new2( pnotification->extra );
 		PG_ENCODING_SET_NOCHECK( extra, this->enc_idx );
 	}
 	PQfreemem( pnotification );
@@ -2620,7 +2609,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, p_coder->format );
 		result =  dec_func( p_coder, buffer, ret, 0, 0, this->enc_idx );
 	} else {
-		result = rb_tainted_str_new(buffer, ret);
+		result = rb_str_new(buffer, ret);
 	}
 
 	PQfreemem(buffer);
@@ -2796,7 +2785,7 @@ notice_processor_proxy(void *arg, const char *message)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if (this->notice_receiver != Qnil) {
-		VALUE message_str = rb_tainted_str_new2(message);
+		VALUE message_str = rb_str_new2(message);
 		PG_ENCODING_SET_NOCHECK( message_str, this->enc_idx );
 		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
@@ -2855,7 +2844,7 @@ static VALUE
 pgconn_get_client_encoding(VALUE self)
 {
 	char *encoding = (char *)pg_encoding_to_char(PQclientEncoding(pg_get_pgconn(self)));
-	return rb_tainted_str_new2(encoding);
+	return rb_str_new2(encoding);
 }
 
 
@@ -2972,8 +2961,6 @@ pgconn_s_quote_ident(VALUE self, VALUE str_or_array)
 		enc_idx = RB_TYPE_P(str_or_array, T_STRING) ? ENCODING_GET( str_or_array ) : rb_ascii8bit_encindex();
 	}
 	pg_text_enc_identifier(NULL, str_or_array, NULL, &ret, enc_idx);
-
-	OBJ_INFECT(ret, str_or_array);
 
 	return ret;
 }
@@ -3624,7 +3611,7 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 		return Qnil;
 	}
 
-	str = rb_tainted_str_new(buffer, ret);
+	str = rb_str_new(buffer, ret);
 	xfree(buffer);
 
 	return str;
@@ -4060,6 +4047,58 @@ pgconn_decoder_for_get_copy_data_get(VALUE self)
 	return this->decoder_for_get_copy_data;
 }
 
+/*
+ * call-seq:
+ *    conn.field_name_type = Symbol
+ *
+ * Set default type of field names of results retrieved by this connection.
+ * It can be set to one of:
+ * * +:string+ to use String based field names
+ * * +:symbol+ to use Symbol based field names
+ *
+ * The default is +:string+ .
+ *
+ * Settings the type of field names affects only future results.
+ *
+ * See further description at PG::Result#field_name_type=
+ *
+ */
+static VALUE
+pgconn_field_name_type_set(VALUE self, VALUE sym)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
+	if( sym == sym_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_SYMBOL;
+	else if ( sym == sym_static_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_STATIC_SYMBOL;
+	else if ( sym == sym_string );
+	else rb_raise(rb_eArgError, "invalid argument %+"PRIsVALUE, sym);
+
+	return sym;
+}
+
+/*
+ * call-seq:
+ *    conn.field_name_type -> Symbol
+ *
+ * Get type of field names.
+ *
+ * See description at #field_name_type=
+ */
+static VALUE
+pgconn_field_name_type_get(VALUE self)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if( this->flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
+		return sym_symbol;
+	} else if( this->flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
+		return sym_static_symbol;
+	} else {
+		return sym_string;
+	}
+}
+
 
 /*
  * Document-class: PG::Connection
@@ -4071,6 +4110,9 @@ init_pg_connection()
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_format = ID2SYM(rb_intern("format"));
 	sym_value = ID2SYM(rb_intern("value"));
+	sym_string = ID2SYM(rb_intern("string"));
+	sym_symbol = ID2SYM(rb_intern("symbol"));
+	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
@@ -4255,4 +4297,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "encoder_for_put_copy_data", pgconn_encoder_for_put_copy_data_get, 0);
 	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data=", pgconn_decoder_for_get_copy_data_set, 1);
 	rb_define_method(rb_cPGconn, "decoder_for_get_copy_data", pgconn_decoder_for_get_copy_data_get, 0);
+
+	rb_define_method(rb_cPGconn, "field_name_type=", pgconn_field_name_type_set, 1 );
+	rb_define_method(rb_cPGconn, "field_name_type", pgconn_field_name_type_get, 0 );
 }

@@ -145,7 +145,6 @@ pg_coder_encode(int argc, VALUE *argv, VALUE self)
 
 	if( len == -1 ){
 		/* The intermediate value is a String that can be used directly. */
-		OBJ_INFECT(intermediate, value);
 		return intermediate;
 	}
 
@@ -157,7 +156,6 @@ pg_coder_encode(int argc, VALUE *argv, VALUE self)
 			rb_obj_classname( self ), len, len2 );
 	}
 	rb_str_set_len( res, len2 );
-	OBJ_INFECT(res, value);
 
 	RB_GC_GUARD(intermediate);
 
@@ -204,7 +202,6 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	}
 
 	res = this->dec_func(this, val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
-	OBJ_INFECT(res, argv[0]);
 
 	return res;
 }
