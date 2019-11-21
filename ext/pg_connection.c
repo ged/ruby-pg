@@ -445,10 +445,6 @@ pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
 	if ( encrypted ) {
 		rval = rb_str_new2( encrypted );
 		PQfreemem( encrypted );
-
-		OBJ_INFECT( rval, password );
-		OBJ_INFECT( rval, username );
-		OBJ_INFECT( rval, algorithm );
 	} else {
 		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
 	}
@@ -480,9 +476,6 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
 	encrypted = PQencryptPassword(StringValueCStr(password), StringValueCStr(username));
 	rval = rb_str_new2( encrypted );
 	PQfreemem( encrypted );
-
-	OBJ_INFECT( rval, password );
-	OBJ_INFECT( rval, username );
 
 	return rval;
 }
@@ -1522,7 +1515,6 @@ pgconn_s_escape(VALUE self, VALUE string)
 		size = PQescapeString(RSTRING_PTR(result), RSTRING_PTR(string), RSTRING_LEN(string));
 	}
 	rb_str_set_len(result, size);
-	OBJ_INFECT(result, string);
 
 	return result;
 }
@@ -1568,7 +1560,6 @@ pgconn_s_escape_bytea(VALUE self, VALUE str)
 	}
 
 	ret = rb_str_new((char*)to, to_len - 1);
-	OBJ_INFECT(ret, str);
 	PQfreemem(to);
 	return ret;
 }
@@ -1598,7 +1589,6 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
 	to = PQunescapeBytea(from, &to_len);
 
 	ret = rb_str_new((char*)to, to_len);
-	OBJ_INFECT(ret, str);
 	PQfreemem(to);
 	return ret;
 }
@@ -1635,7 +1625,6 @@ pgconn_escape_literal(VALUE self, VALUE string)
 	}
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
-	OBJ_INFECT(result, string);
 	PG_ENCODING_SET_NOCHECK(result, enc_idx);
 
 	return result;
@@ -1677,7 +1666,6 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 	}
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
-	OBJ_INFECT(result, string);
 	PG_ENCODING_SET_NOCHECK(result, enc_idx);
 
 	return result;
@@ -2972,8 +2960,6 @@ pgconn_s_quote_ident(VALUE self, VALUE str_or_array)
 		enc_idx = RB_TYPE_P(str_or_array, T_STRING) ? ENCODING_GET( str_or_array ) : rb_ascii8bit_encindex();
 	}
 	pg_text_enc_identifier(NULL, str_or_array, NULL, &ret, enc_idx);
-
-	OBJ_INFECT(ret, str_or_array);
 
 	return ret;
 }
