@@ -4,6 +4,7 @@ Our primary repository has been moved to Github https://github.com/ged/ruby-pg .
 Most of the issues from https://bitbucket.org/ged/ruby-pg have been migrated. #43
 
 Enhancements:
+- Add PG::Result#field_name_type= and siblings to allow symbols to be used as field names. #306
 - Add PG::TextEncoder::Record and PG::TextDecoder::Record for en/decoding of Composite Types. #258, #36
 - Add PG::BasicTypeRegistry.register_coder to register instances instead of classes.
   This is useful to register parametrized en/decoders like PG::TextDecoder::Record .
@@ -15,6 +16,7 @@ Enhancements:
 - Exchange sprintf based float encoder by very fast own implementation with more natural format. #301
 - Allocate the data part and the ruby object of PG::Result in one step, so that we don't need to check for valid data.
   This removes PG::Result.allocate and PG::Result.new, which were callable but without any practical use. #42
+- Improve performance of PG::Result#stream_each_tuple .
 
 Compatibility:
 - Various small changes for better compatibility with TruffleRuby.
@@ -26,6 +28,8 @@ Bugfixes:
 - Respect Coder#flags in Coder#to_h.
 - Fix PG::Result memsize reporting after #clear.
 - Release field names to GC on PG::Result#clear.
+- Fix double free in PG::Result#stream_each_tuple when an exception is raised in the block.
+- Fix PG::Result#stream_each and stream_each_tuple to delivers typemapped values.
 
 Deprecated:
 - Add a deprecation warning to Connection#socket .
@@ -33,6 +37,8 @@ Deprecated:
 Removed:
 - Remove PG::Connection#guess_result_memsize= which was temporary added in pg-1.1.
 - PG::Result.allocate and PG::Result.new (see enhancements).
+- Support for tainted objects. #307
+- Support of ruby-2.0 and 2.1. Minimum is ruby-2.2 now.
 
 Documentation:
 - Update description of connection params.
