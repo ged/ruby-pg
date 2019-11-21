@@ -629,7 +629,7 @@ pgconn_db(VALUE self)
 {
 	char *db = PQdb(pg_get_pgconn(self));
 	if (!db) return Qnil;
-	return rb_tainted_str_new2(db);
+	return rb_str_new2(db);
 }
 
 /*
@@ -643,7 +643,7 @@ pgconn_user(VALUE self)
 {
 	char *user = PQuser(pg_get_pgconn(self));
 	if (!user) return Qnil;
-	return rb_tainted_str_new2(user);
+	return rb_str_new2(user);
 }
 
 /*
@@ -657,7 +657,7 @@ pgconn_pass(VALUE self)
 {
 	char *user = PQpass(pg_get_pgconn(self));
 	if (!user) return Qnil;
-	return rb_tainted_str_new2(user);
+	return rb_str_new2(user);
 }
 
 /*
@@ -671,7 +671,7 @@ pgconn_host(VALUE self)
 {
 	char *host = PQhost(pg_get_pgconn(self));
 	if (!host) return Qnil;
-	return rb_tainted_str_new2(host);
+	return rb_str_new2(host);
 }
 
 /*
@@ -698,7 +698,7 @@ pgconn_tty(VALUE self)
 {
 	char *tty = PQtty(pg_get_pgconn(self));
 	if (!tty) return Qnil;
-	return rb_tainted_str_new2(tty);
+	return rb_str_new2(tty);
 }
 
 /*
@@ -712,7 +712,7 @@ pgconn_options(VALUE self)
 {
 	char *options = PQoptions(pg_get_pgconn(self));
 	if (!options) return Qnil;
-	return rb_tainted_str_new2(options);
+	return rb_str_new2(options);
 }
 
 
@@ -793,7 +793,7 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
 	if(ret == NULL)
 		return Qnil;
 	else
-		return rb_tainted_str_new2(ret);
+		return rb_str_new2(ret);
 }
 
 /*
@@ -838,7 +838,7 @@ pgconn_error_message(VALUE self)
 {
 	char *error = PQerrorMessage(pg_get_pgconn(self));
 	if (!error) return Qnil;
-	return rb_tainted_str_new2(error);
+	return rb_str_new2(error);
 }
 
 /*
@@ -2230,9 +2230,9 @@ pgconn_notifies(VALUE self)
 	}
 
 	hash = rb_hash_new();
-	relname = rb_tainted_str_new2(notification->relname);
+	relname = rb_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
-	extra = rb_tainted_str_new2(notification->extra);
+	extra = rb_str_new2(notification->extra);
 	PG_ENCODING_SET_NOCHECK( relname, this->enc_idx );
 	PG_ENCODING_SET_NOCHECK( extra, this->enc_idx );
 
@@ -2428,11 +2428,11 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 	/* Return nil if the select timed out */
 	if ( !pnotification ) return Qnil;
 
-	relname = rb_tainted_str_new2( pnotification->relname );
+	relname = rb_str_new2( pnotification->relname );
 	PG_ENCODING_SET_NOCHECK( relname, this->enc_idx );
 	be_pid = INT2NUM( pnotification->be_pid );
 	if ( *pnotification->extra ) {
-		extra = rb_tainted_str_new2( pnotification->extra );
+		extra = rb_str_new2( pnotification->extra );
 		PG_ENCODING_SET_NOCHECK( extra, this->enc_idx );
 	}
 	PQfreemem( pnotification );
@@ -2620,7 +2620,7 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, p_coder->format );
 		result =  dec_func( p_coder, buffer, ret, 0, 0, this->enc_idx );
 	} else {
-		result = rb_tainted_str_new(buffer, ret);
+		result = rb_str_new(buffer, ret);
 	}
 
 	PQfreemem(buffer);
@@ -2796,7 +2796,7 @@ notice_processor_proxy(void *arg, const char *message)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if (this->notice_receiver != Qnil) {
-		VALUE message_str = rb_tainted_str_new2(message);
+		VALUE message_str = rb_str_new2(message);
 		PG_ENCODING_SET_NOCHECK( message_str, this->enc_idx );
 		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
 	}
@@ -2855,7 +2855,7 @@ static VALUE
 pgconn_get_client_encoding(VALUE self)
 {
 	char *encoding = (char *)pg_encoding_to_char(PQclientEncoding(pg_get_pgconn(self)));
-	return rb_tainted_str_new2(encoding);
+	return rb_str_new2(encoding);
 }
 
 
@@ -3624,7 +3624,7 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 		return Qnil;
 	}
 
-	str = rb_tainted_str_new(buffer, ret);
+	str = rb_str_new(buffer, ret);
 	xfree(buffer);
 
 	return str;

@@ -308,11 +308,6 @@ char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, 
 		(curr_ptr) = (end_ptr) = RSTRING_PTR(str) \
 	)
 
-#define PG_RB_TAINTED_STR_NEW( str, curr_ptr, end_ptr ) ( \
-		(str) = rb_tainted_str_new( NULL, 0 ), \
-		(curr_ptr) = (end_ptr) = RSTRING_PTR(str) \
-	)
-
 VALUE pg_typemap_fit_to_result                         _(( VALUE, VALUE ));
 VALUE pg_typemap_fit_to_query                          _(( VALUE, VALUE ));
 int pg_typemap_fit_to_copy_get                         _(( VALUE ));

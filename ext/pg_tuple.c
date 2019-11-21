@@ -458,7 +458,6 @@ pg_tuple_load(VALUE self, VALUE a)
 	int dup_names;
 
 	rb_check_frozen(self);
-	rb_check_trusted(self);
 
 	TypedData_Get_Struct(self, t_pg_tuple, &pg_tuple_type, this);
 	if (this)
