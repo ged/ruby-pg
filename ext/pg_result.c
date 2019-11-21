@@ -409,8 +409,10 @@ pgresult_get(VALUE self)
 static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
 {
 	VALUE fname;
+#ifdef TRUFFLERUBY
+	if( flags & (PG_RESULT_FIELD_NAMES_SYMBOL | PG_RESULT_FIELD_NAMES_STATIC_SYMBOL) ){
+#else
 	if( flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
-#ifndef TRUFFLERUBY
 		rb_encoding *enc = rb_enc_from_index(enc_idx);
 		fname = rb_check_symbol_cstr(cstr, strlen(cstr), enc);
 		if( fname == Qnil ){

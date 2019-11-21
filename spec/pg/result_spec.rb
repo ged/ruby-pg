@@ -56,6 +56,13 @@ describe PG::Result do
 		expect( res[0][:b] ).to eq( '2' )
 	end
 
+	it "acts as an array of hashes with static_symbols" do
+		res = @conn.exec("SELECT 1 AS a, 2 AS b")
+		res.field_name_type = :static_symbol
+		expect( res[0][:a] ).to eq( '1' )
+		expect( res[0][:b] ).to eq( '2' )
+	end
+
 	it "yields a row as an array" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		list = []
