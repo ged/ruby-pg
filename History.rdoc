@@ -9,17 +9,15 @@ Enhancements:
 - Add PG::BasicTypeRegistry.register_coder to register instances instead of classes.
   This is useful to register parametrized en/decoders like PG::TextDecoder::Record .
 - Add PG::BasicTypeMapForQueries#encode_array_as= to switch between various interpretations of ruby arrays.
-- Update Windows fat binary gem to OpenSSL-1.1.1d and PostgreSQL-12.0.
+- Add support for TruffleRuby. It is regulary tested as part of our CI.
+- Update Windows fat binary gem to OpenSSL-1.1.1d and PostgreSQL-12.1.
 - Update errorcodes and error classes to PostgreSQL-12.0.
-- Make use of PQresultMemorySize() of PostgreSQL-12 instead of our estimator.
+- Make use of PQresultMemorySize() of PostgreSQL-12 and fall back to our internal estimator.
 - Define encode and decode methods only in en/decoders that implement it, so that they can be queried by respond_to? .
 - Exchange sprintf based float encoder by very fast own implementation with more natural format. #301
 - Allocate the data part and the ruby object of PG::Result in one step, so that we don't need to check for valid data.
   This removes PG::Result.allocate and PG::Result.new, which were callable but without any practical use. #42
 - Improve performance of PG::Result#stream_each_tuple .
-
-Compatibility:
-- Various small changes for better compatibility with TruffleRuby.
 - Store client encoding in data part of PG::Connection and PG::Result objects, so that we no longer use ruby's internal encoding bits. #280
 
 Bugfixes:
@@ -29,16 +27,16 @@ Bugfixes:
 - Fix PG::Result memsize reporting after #clear.
 - Release field names to GC on PG::Result#clear.
 - Fix double free in PG::Result#stream_each_tuple when an exception is raised in the block.
-- Fix PG::Result#stream_each and stream_each_tuple to delivers typemapped values.
+- Fix PG::Result#stream_each_tuple to deliver typemapped values.
 
 Deprecated:
 - Add a deprecation warning to Connection#socket .
 
 Removed:
 - Remove PG::Connection#guess_result_memsize= which was temporary added in pg-1.1.
-- PG::Result.allocate and PG::Result.new (see enhancements).
-- Support for tainted objects. #307
-- Support of ruby-2.0 and 2.1. Minimum is ruby-2.2 now.
+- Remove PG::Result.allocate and PG::Result.new (see enhancements).
+- Remove support of tainted objects. #307
+- Remove support of ruby-2.0 and 2.1. Minimum is ruby-2.2 now.
 
 Documentation:
 - Update description of connection params.
