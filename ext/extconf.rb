@@ -80,8 +80,6 @@ have_func 'PQresultMemorySize' # since PostgreSQL-12
 have_func 'timegm'
 have_func 'rb_gc_adjust_memory_usage'
 
-have_const 'PG_DIAG_TABLE_NAME', 'libpq-fe.h'
-
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'
 have_header 'inttypes.h'

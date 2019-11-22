@@ -591,7 +591,7 @@ Init_pg_ext()
 	 * function reporting the error. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
-#ifdef HAVE_CONST_PG_DIAG_TABLE_NAME
+#ifdef PG_DIAG_TABLE_NAME
 	/* #result_error_field argument constant: If the error was associated with a
 	 * specific database object, the name of the schema containing that object, if any. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SCHEMA_NAME", INT2FIX(PG_DIAG_SCHEMA_NAME));
