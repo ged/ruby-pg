@@ -269,6 +269,17 @@ describe PG::Result do
 		).to match( /^parserOpenTable$|^RangeVarGetRelid$/ )
 	end
 
+	it "encapsulates PG_DIAG_SEVERITY_NONLOCALIZED error in a PG::Error object", :postgresql_96 do
+		result = nil
+		begin
+			@conn.exec( "SELECT * FROM nonexistant_table" )
+		rescue PG::Error => err
+			result = err.result
+		end
+
+		expect( result.error_field(PG::PG_DIAG_SEVERITY_NONLOCALIZED) ).to eq( 'ERROR' )
+	end
+
 	it "encapsulates database object names for integrity constraint violations", :postgresql_93 do
 		@conn.exec( "CREATE TABLE integrity (id SERIAL PRIMARY KEY)" )
 		exception = nil
