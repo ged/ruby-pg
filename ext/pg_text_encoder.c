@@ -125,6 +125,24 @@ pg_coder_enc_to_s(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate,
 	return -1;
 }
 
+static int
+count_leading_zero_bits(unsigned long long x)
+{
+#if defined(__GNUC__) || defined(__clang__)
+	return __builtin_clzll(x);
+#elif defined(_MSC_VER)
+	DWORD r = 0;
+	_BitScanForward64(&r, x);
+	return (int)r;
+#else
+	unsigned int a;
+	for(a=0; a < sizeof(unsigned long long) * 8; a++){
+		if( x & (1 << (sizeof(unsigned long long) * 8 - 1))) return a;
+		x <<= 1;
+	}
+	return a;
+#endif
+}
 
 /*
  * Document-class: PG::TextEncoder::Integer < PG::SimpleEncoder
@@ -187,39 +205,10 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 	}else{
 		*intermediate = pg_obj_to_i(value);
 		if(TYPE(*intermediate) == T_FIXNUM){
-			int len;
 			long long sll = NUM2LL(*intermediate);
 			unsigned long long ll = sll < 0 ? -sll : sll;
-			if( ll < 100000000 ){
-				if( ll < 10000 ){
-					if( ll < 100 ){
-						len = ll < 10 ? 1 : 2;
-					}else{
-						len = ll < 1000 ? 3 : 4;
-					}
-				}else{
-					if( ll < 1000000 ){
-						len = ll < 100000 ? 5 : 6;
-					}else{
-						len = ll < 10000000 ? 7 : 8;
-					}
-				}
-			}else{
-				if( ll < 1000000000000LL ){
-					if( ll < 10000000000LL ){
-						len = ll < 1000000000LL ? 9 : 10;
-					}else{
-						len = ll < 100000000000LL ? 11 : 12;
-					}
-				}else{
-					if( ll < 100000000000000LL ){
-						len = ll < 10000000000000LL ? 13 : 14;
-					}else{
-						return pg_coder_enc_to_s(this, *intermediate, NULL, intermediate, enc_idx);
-					}
-				}
-			}
-			return sll < 0 ? len+1 : len;
+			int len = (sizeof(unsigned long long) * 8 - count_leading_zero_bits(ll)) / 3;
+			return sll < 0 ? len+2 : len+1;
 		}else{
 			return pg_coder_enc_to_s(this, *intermediate, NULL, intermediate, enc_idx);
 		}
