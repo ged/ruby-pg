@@ -451,12 +451,31 @@ Init_pg_ext()
 
 	/******     PG::Connection CLASS CONSTANTS: Error Verbosity     ******/
 
-	/* Terse error verbosity level (#set_error_verbosity) */
+	/* Terse error verbosity level (#set_error_verbosity).
+	 * In TERSE mode, returned messages include severity, primary text, and position only; this will normally fit on a single line. */
 	rb_define_const(rb_mPGconstants, "PQERRORS_TERSE", INT2FIX(PQERRORS_TERSE));
-	/* Default error verbosity level (#set_error_verbosity) */
+	/* Default error verbosity level (#set_error_verbosity).
+	 * The DEFAULT mode produces messages that include the above plus any detail, hint, or context fields (these might span multiple lines). */
 	rb_define_const(rb_mPGconstants, "PQERRORS_DEFAULT", INT2FIX(PQERRORS_DEFAULT));
-	/* Verbose error verbosity level (#set_error_verbosity) */
+	/* Verbose error verbosity level (#set_error_verbosity).
+	 * The VERBOSE mode includes all available fields. */
 	rb_define_const(rb_mPGconstants, "PQERRORS_VERBOSE", INT2FIX(PQERRORS_VERBOSE));
+
+/* PQERRORS_SQLSTATE was introduced in PG-12 together with PQresultMemorySize() */
+#ifdef HAVE_PQRESULTMEMORYSIZE
+	/* Verbose error verbosity level (#set_error_verbosity).
+	 * The SQLSTATE mode includes only the error severity and the SQLSTATE error code, if one is available (if not, the output is like TERSE mode).
+	 *
+	 * Since PostgreSQL-12.
+	 */
+	rb_define_const(rb_mPGconstants, "PQERRORS_SQLSTATE", INT2FIX(PQERRORS_SQLSTATE));
+#endif
+
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+	rb_define_const(rb_mPGconstants, "PQSHOW_CONTEXT_NEVER", INT2FIX(PQSHOW_CONTEXT_NEVER));
+	rb_define_const(rb_mPGconstants, "PQSHOW_CONTEXT_ERRORS", INT2FIX(PQSHOW_CONTEXT_ERRORS));
+	rb_define_const(rb_mPGconstants, "PQSHOW_CONTEXT_ALWAYS", INT2FIX(PQSHOW_CONTEXT_ALWAYS));
+#endif
 
 	/******     PG::Connection CLASS CONSTANTS: Check Server Status ******/
 

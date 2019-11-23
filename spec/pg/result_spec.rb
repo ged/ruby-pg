@@ -307,6 +307,26 @@ describe PG::Result do
 		expect( sqlstate ).to eq( 22012 )
 	end
 
+	it "provides the error message" do
+		@conn.send_query("SELECT xyz")
+		res = @conn.get_result; @conn.get_result
+		expect( res.error_message ).to match(/"xyz"/)
+		expect( res.result_error_message ).to match(/"xyz"/)
+	end
+
+	it "provides a verbose error message", :postgresql_96 do
+		@conn.send_query("SELECT xyz")
+		res = @conn.get_result; @conn.get_result
+		expect( res.verbose_error_message(PG::PQERRORS_TERSE, PG::PQSHOW_CONTEXT_ALWAYS) ).to match(/\A.*\n\z/)
+		expect( res.result_verbose_error_message(PG::PQERRORS_VERBOSE, PG::PQSHOW_CONTEXT_NEVER) ).to match(/\n.*\n/)
+	end
+
+	it "provides a verbose error message with SQLSTATE", :postgresql_12 do
+		@conn.send_query("SELECT xyz")
+		res = @conn.get_result; @conn.get_result
+		expect( res.verbose_error_message(PG::PQERRORS_SQLSTATE, PG::PQSHOW_CONTEXT_NEVER) ).to match(/42703/)
+	end
+
 	it "returns the same bytes in binary format that are sent in binary format" do
 		binary_file = File.join(Dir.pwd, 'spec/data', 'random_binary_data')
 		bytes = File.open(binary_file, 'rb').read

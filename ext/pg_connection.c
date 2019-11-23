@@ -2625,6 +2625,10 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
  * * PQERRORS_TERSE
  * * PQERRORS_DEFAULT
  * * PQERRORS_VERBOSE
+ * * PQERRORS_SQLSTATE
+ *
+ * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORVERBOSITY).
+
  */
 static VALUE
 pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
@@ -2633,6 +2637,28 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 	PGVerbosity verbosity = NUM2INT(in_verbosity);
 	return INT2FIX(PQsetErrorVerbosity(conn, verbosity));
 }
+
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+/*
+ * call-seq:
+ *    conn.set_error_context_visibility( context_visibility ) -> Integer
+ *
+ * Sets connection's context display mode to _context_visibility_ and returns
+ * the previous setting. Available settings are:
+ * * PQSHOW_CONTEXT_NEVER
+ * * PQSHOW_CONTEXT_ERRORS
+ * * PQSHOW_CONTEXT_ALWAYS
+ *
+ * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORCONTEXTVISIBILITY).
+ */
+static VALUE
+pgconn_set_error_context_visibility(VALUE self, VALUE in_context_visibility)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	PGContextVisibility context_visibility = NUM2INT(in_context_visibility);
+	return INT2FIX(PQsetErrorContextVisibility(conn, context_visibility));
+}
+#endif
 
 /*
  * call-seq:
@@ -4229,6 +4255,9 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Control Functions     ******/
 	rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 1);
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+	rb_define_method(rb_cPGconn, "set_error_context_visibility", pgconn_set_error_context_visibility, 1 );
+#endif
 	rb_define_method(rb_cPGconn, "trace", pgconn_trace, 1);
 	rb_define_method(rb_cPGconn, "untrace", pgconn_untrace, 0);
 

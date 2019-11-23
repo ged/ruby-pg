@@ -288,6 +288,18 @@ describe PG::Connection do
 		expect( @conn.host ).to eq( "localhost" )
 	end
 
+	it "can set error verbosity" do
+		old = @conn.set_error_verbosity( PG::PQERRORS_TERSE )
+		new = @conn.set_error_verbosity( old )
+		expect( new ).to eq( PG::PQERRORS_TERSE )
+	end
+
+	it "can set error context visibility", :postgresql_96 do
+		old = @conn.set_error_context_visibility( PG::PQSHOW_CONTEXT_NEVER )
+		new = @conn.set_error_context_visibility( old )
+		expect( new ).to eq( PG::PQSHOW_CONTEXT_NEVER )
+	end
+
 	let(:expected_trace_output) do
 		%{
 		To backend> Msg Q
