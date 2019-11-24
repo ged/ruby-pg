@@ -331,8 +331,7 @@ pg_to_bool_int(VALUE value)
  * If your application initializes libssl and/or libcrypto libraries and libpq is
  * built with SSL support, you should call PG.init_openssl() to tell libpq that the
  * libssl and/or libcrypto libraries have been initialized by your application,
- * so that libpq will not also initialize those libraries. See
- * http://h71000.www7.hp.com/doc/83final/BA554_90007/ch04.html for details on the SSL API.
+ * so that libpq will not also initialize those libraries.
  *
  * When do_ssl is +true+, libpq will initialize the OpenSSL library before first
  * opening a database connection. When do_crypto is +true+, the libcrypto library
