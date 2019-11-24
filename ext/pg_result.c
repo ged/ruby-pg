@@ -533,6 +533,8 @@ pgresult_error_message(VALUE self)
  *    res.verbose_error_message( verbosity, show_context ) -> String
  *
  * Returns a reformatted version of the error message associated with a PGresult object.
+ *
+ * Available since PostgreSQL-9.6
  */
 static VALUE
 pgresult_verbose_error_message(VALUE self, VALUE verbosity, VALUE show_context)

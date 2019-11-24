@@ -317,7 +317,9 @@ describe PG::Result do
 	it "provides a verbose error message", :postgresql_96 do
 		@conn.send_query("SELECT xyz")
 		res = @conn.get_result; @conn.get_result
+		# PQERRORS_TERSE should give a single line result
 		expect( res.verbose_error_message(PG::PQERRORS_TERSE, PG::PQSHOW_CONTEXT_ALWAYS) ).to match(/\A.*\n\z/)
+		# PQERRORS_VERBOSE should give a multi line result
 		expect( res.result_verbose_error_message(PG::PQERRORS_VERBOSE, PG::PQSHOW_CONTEXT_NEVER) ).to match(/\n.*\n/)
 	end
 

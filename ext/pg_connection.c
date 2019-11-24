@@ -2622,13 +2622,16 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
  *
  * Sets connection's verbosity to _verbosity_ and returns
  * the previous setting. Available settings are:
+ *
  * * PQERRORS_TERSE
  * * PQERRORS_DEFAULT
  * * PQERRORS_VERBOSE
  * * PQERRORS_SQLSTATE
  *
- * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORVERBOSITY).
-
+ * Changing the verbosity does not affect the messages available from already-existing PG::Result objects, only subsequently-created ones.
+ * (But see PG::Result#verbose_error_message if you want to print a previous error with a different verbosity.)
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORVERBOSITY].
  */
 static VALUE
 pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
@@ -2649,7 +2652,16 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
  * * PQSHOW_CONTEXT_ERRORS
  * * PQSHOW_CONTEXT_ALWAYS
  *
- * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORCONTEXTVISIBILITY).
+ * This mode controls whether the CONTEXT field is included in messages (unless the verbosity setting is TERSE, in which case CONTEXT is never shown).
+ * The NEVER mode never includes CONTEXT, while ALWAYS always includes it if available.
+ * In ERRORS mode (the default), CONTEXT fields are included only for error messages, not for notices and warnings.
+ *
+ * Changing this mode does not affect the messages available from already-existing PG::Result objects, only subsequently-created ones.
+ * (But see PG::Result#verbose_error_message if you want to print a previous error with a different display mode.)
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORCONTEXTVISIBILITY].
+ *
+ * Available since PostgreSQL-9.6
  */
 static VALUE
 pgconn_set_error_context_visibility(VALUE self, VALUE in_context_visibility)
