@@ -422,7 +422,7 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "CONNECTION_SSL_STARTUP", INT2FIX(CONNECTION_SSL_STARTUP));
 	/* Negotiating environment-driven parameter settings. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_SETENV", INT2FIX(CONNECTION_SETENV));
-	/* Internal state: connect() needed. */
+	/* Internal state - PG.connect() needed. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_NEEDED", INT2FIX(CONNECTION_NEEDED));
 
 	/******     PG::Connection CLASS CONSTANTS: Nonblocking connection polling status     ******/
@@ -438,15 +438,15 @@ Init_pg_ext()
 
 	/******     PG::Connection CLASS CONSTANTS: Transaction Status     ******/
 
-	/* Transaction is currently idle (#transaction_status) */
+	/* Transaction is currently idle ( Connection#transaction_status ) */
 	rb_define_const(rb_mPGconstants, "PQTRANS_IDLE", INT2FIX(PQTRANS_IDLE));
-	/* Transaction is currently active; query has been sent to the server, but not yet completed. (#transaction_status) */
+	/* Transaction is currently active; query has been sent to the server, but not yet completed. ( Connection#transaction_status ) */
 	rb_define_const(rb_mPGconstants, "PQTRANS_ACTIVE", INT2FIX(PQTRANS_ACTIVE));
-	/* Transaction is currently idle, in a valid transaction block (#transaction_status) */
+	/* Transaction is currently idle, in a valid transaction block ( Connection#transaction_status ) */
 	rb_define_const(rb_mPGconstants, "PQTRANS_INTRANS", INT2FIX(PQTRANS_INTRANS));
-	/* Transaction is currently idle, in a failed transaction block (#transaction_status) */
+	/* Transaction is currently idle, in a failed transaction block ( Connection#transaction_status ) */
 	rb_define_const(rb_mPGconstants, "PQTRANS_INERROR", INT2FIX(PQTRANS_INERROR));
-	/* Transaction's connection is bad (#transaction_status) */
+	/* Transaction's connection is bad ( Connection#transaction_status ) */
 	rb_define_const(rb_mPGconstants, "PQTRANS_UNKNOWN", INT2FIX(PQTRANS_UNKNOWN));
 
 	/******     PG::Connection CLASS CONSTANTS: Error Verbosity     ******/
@@ -493,151 +493,156 @@ Init_pg_ext()
 
 	/******     PG::Connection CLASS CONSTANTS: Large Objects     ******/
 
-	/* Flag for #lo_creat, #lo_open -- open for writing */
+	/* Flag for Connection#lo_creat, Connection#lo_open -- open for writing */
 	rb_define_const(rb_mPGconstants, "INV_WRITE", INT2FIX(INV_WRITE));
-	/* Flag for #lo_creat, #lo_open -- open for reading */
+	/* Flag for Connection#lo_creat, Connection#lo_open -- open for reading */
 	rb_define_const(rb_mPGconstants, "INV_READ", INT2FIX(INV_READ));
-	/* Flag for #lo_lseek -- seek from object start */
+	/* Flag for Connection#lo_lseek -- seek from object start */
 	rb_define_const(rb_mPGconstants, "SEEK_SET", INT2FIX(SEEK_SET));
-	/* Flag for #lo_lseek -- seek from current position */
+	/* Flag for Connection#lo_lseek -- seek from current position */
 	rb_define_const(rb_mPGconstants, "SEEK_CUR", INT2FIX(SEEK_CUR));
-	/* Flag for #lo_lseek -- seek from object end */
+	/* Flag for Connection#lo_lseek -- seek from object end */
 	rb_define_const(rb_mPGconstants, "SEEK_END", INT2FIX(SEEK_END));
 
 	/******     PG::Result CONSTANTS: result status      ******/
 
-	/* #result_status constant: The string sent to the server was empty. */
+	/* Result#result_status constant - The string sent to the server was empty. */
 	rb_define_const(rb_mPGconstants, "PGRES_EMPTY_QUERY", INT2FIX(PGRES_EMPTY_QUERY));
-	/* #result_status constant: Successful completion of a command returning no data. */
+	/* Result#result_status constant - Successful completion of a command returning no data. */
 	rb_define_const(rb_mPGconstants, "PGRES_COMMAND_OK", INT2FIX(PGRES_COMMAND_OK));
-		/* #result_status constant: Successful completion of a command returning data
-	   (such as a SELECT or SHOW). */
+	/* Result#result_status constant - Successful completion of a command returning data (such as a SELECT or SHOW). */
 	rb_define_const(rb_mPGconstants, "PGRES_TUPLES_OK", INT2FIX(PGRES_TUPLES_OK));
-	/* #result_status constant: Copy Out (from server) data transfer started. */
+	/* Result#result_status constant - Copy Out (from server) data transfer started. */
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_OUT", INT2FIX(PGRES_COPY_OUT));
-	/* #result_status constant: Copy In (to server) data transfer started. */
+	/* Result#result_status constant - Copy In (to server) data transfer started. */
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_IN", INT2FIX(PGRES_COPY_IN));
-	/* #result_status constant: The server’s response was not understood. */
+	/* Result#result_status constant - The server’s response was not understood. */
 	rb_define_const(rb_mPGconstants, "PGRES_BAD_RESPONSE", INT2FIX(PGRES_BAD_RESPONSE));
-	/* #result_status constant: A nonfatal error (a notice or warning) occurred. */
+	/* Result#result_status constant - A nonfatal error (a notice or warning) occurred. */
 	rb_define_const(rb_mPGconstants, "PGRES_NONFATAL_ERROR",INT2FIX(PGRES_NONFATAL_ERROR));
-	/* #result_status constant: A fatal error occurred. */
+	/* Result#result_status constant - A fatal error occurred. */
 	rb_define_const(rb_mPGconstants, "PGRES_FATAL_ERROR", INT2FIX(PGRES_FATAL_ERROR));
-	/* #result_status constant: Copy In/Out data transfer in progress. */
+	/* Result#result_status constant - Copy In/Out data transfer in progress. */
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
-	/* #result_status constant: Single tuple from larger resultset. */
+	/* Result#result_status constant - Single tuple from larger resultset. */
 	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
 
 	/******     Result CONSTANTS: result error field codes      ******/
 
-	/* #result_error_field argument constant: The severity; the field contents
-	 * are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE,
-	 * DEBUG, INFO, or LOG (in a notice message), or a localized translation
-	 * of one of these. Always present.
+	/* Result#result_error_field argument constant
+	 *
+	 * The severity; the field contents are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE, DEBUG, INFO, or LOG (in a notice message), or a localized translation
+	 * of one of these.
+	 * Always present.
 	 */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SEVERITY", INT2FIX(PG_DIAG_SEVERITY));
 
 #ifdef PG_DIAG_SEVERITY_NONLOCALIZED
-	/* #result_error_field argument constant: The severity; the field contents
-	 * are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE,
-	 * DEBUG, INFO, or LOG (in a notice message). This is identical to the
-	 * PG_DIAG_SEVERITY field except that the contents are never localized.
-	 * This is present only in reports generated by PostgreSQL versions 9.6 and later.
+	/* Result#result_error_field argument constant
+	 *
+	 * The severity; the field contents are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE, DEBUG, INFO, or LOG (in a notice message).
+	 * This is identical to the PG_DIAG_SEVERITY field except that the contents are never localized.
+	 *
+	 * Available since PostgreSQL-9.6
 	 */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SEVERITY_NONLOCALIZED", INT2FIX(PG_DIAG_SEVERITY_NONLOCALIZED));
 #endif
-
-	/* #result_error_field argument constant: The SQLSTATE code for the
-	 * error. The SQLSTATE code identies the type of error that has occurred;
-	 * it can be used by front-end applications to perform specic operations
-	 * (such as er- ror handling) in response to a particular database
-	 * error. For a list of the possible SQLSTATE codes, see Appendix A.
-	 * This eld is not localizable, and is always present.
+	/* Result#result_error_field argument constant
+	 *
+	 * The SQLSTATE code for the error.
+	 * The SQLSTATE code identies the type of error that has occurred; it can be used by front-end applications to perform specic operations (such as error handling) in response to a particular database error.
+	 * For a list of the possible SQLSTATE codes, see Appendix A.
+	 * This field is not localizable, and is always present.
 	 */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SQLSTATE", INT2FIX(PG_DIAG_SQLSTATE));
-
-	/* #result_error_field argument constant: The primary human-readable
-	 * error message (typically one line). Always present. */
+	/* Result#result_error_field argument constant
+	 *
+	 * The primary human-readable error message (typically one line).
+	 * Always present. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_MESSAGE_PRIMARY", INT2FIX(PG_DIAG_MESSAGE_PRIMARY));
-
-	/* #result_error_field argument constant: Detail: an optional secondary
-	 * error message carrying more detail about the problem. Might run to
-	 * multiple lines.
+	/* Result#result_error_field argument constant
+	 *
+	 * Detail: an optional secondary error message carrying more detail about the problem.
+	 * Might run to multiple lines.
 	 */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_MESSAGE_DETAIL", INT2FIX(PG_DIAG_MESSAGE_DETAIL));
-
-	/* #result_error_field argument constant: Hint: an optional suggestion
-	 * what to do about the problem. This is intended to differ from detail
-	 * in that it offers advice (potentially inappropriate) rather than
-	 * hard facts. Might run to multiple lines.
+	/* Result#result_error_field argument constant
+	 *
+	 * Hint: an optional suggestion what to do about the problem.
+	 * This is intended to differ from detail in that it offers advice (potentially inappropriate) rather than hard facts.
+	 * Might run to multiple lines.
 	 */
-
 	rb_define_const(rb_mPGconstants, "PG_DIAG_MESSAGE_HINT", INT2FIX(PG_DIAG_MESSAGE_HINT));
-	/* #result_error_field argument constant: A string containing a decimal
-	 * integer indicating an error cursor position as an index into the
-	 * original statement string. The rst character has index 1, and
-	 * positions are measured in characters not bytes.
+	/* Result#result_error_field argument constant
+	 *
+	 * A string containing a decimal integer indicating an error cursor position as an index into the original statement string.
+	 *
+	 * The first character has index 1, and positions are measured in characters not bytes.
 	 */
-
 	rb_define_const(rb_mPGconstants, "PG_DIAG_STATEMENT_POSITION", INT2FIX(PG_DIAG_STATEMENT_POSITION));
-	/* #result_error_field argument constant: This is dened the same as
-	 * the PG_DIAG_STATEMENT_POSITION eld, but it is used when the cursor
-	 * position refers to an internally generated command rather than the
-	 * one submitted by the client. The PG_DIAG_INTERNAL_QUERY eld will
-	 * always appear when this eld appears.
+	/* Result#result_error_field argument constant
+	 *
+	 * This is defined the same as the PG_DIAG_STATEMENT_POSITION field, but it is used when the cursor position refers to an internally generated command rather than the one submitted by the client.
+	 * The PG_DIAG_INTERNAL_QUERY field will always appear when this field appears.
 	 */
-
 	rb_define_const(rb_mPGconstants, "PG_DIAG_INTERNAL_POSITION", INT2FIX(PG_DIAG_INTERNAL_POSITION));
-	/* #result_error_field argument constant: The text of a failed
-	 * internally-generated command. This could be, for example, a SQL
-	 * query issued by a PL/pgSQL function.
+	/* Result#result_error_field argument constant
+	 *
+	 * The text of a failed internally-generated command.
+	 * This could be, for example, a SQL query issued by a PL/pgSQL function.
 	 */
-
 	rb_define_const(rb_mPGconstants, "PG_DIAG_INTERNAL_QUERY", INT2FIX(PG_DIAG_INTERNAL_QUERY));
-	/* #result_error_field argument constant: An indication of the context
-	 * in which the error occurred. Presently this includes a call stack
-	 * traceback of active procedural language functions and internally-generated
-	 * queries. The trace is one entry per line, most recent rst.
+	/* Result#result_error_field argument constant
+	 *
+	 * An indication of the context in which the error occurred.
+	 * Presently this includes a call stack traceback of active procedural language functions and internally-generated queries.
+	 * The trace is one entry per line, most recent first.
 	 */
-
 	rb_define_const(rb_mPGconstants, "PG_DIAG_CONTEXT", INT2FIX(PG_DIAG_CONTEXT));
-	/* #result_error_field argument constant: The le name of the source-code
-	 * location where the error was reported. */
+	/* Result#result_error_field argument constant
+	 *
+	 * The file name of the source-code location where the error was reported. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SOURCE_FILE", INT2FIX(PG_DIAG_SOURCE_FILE));
 
-	/* #result_error_field argument constant: The line number of the
-	 * source-code location where the error was reported. */
+	/* Result#result_error_field argument constant
+	 *
+	 * The line number of the source-code location where the error was reported. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SOURCE_LINE", INT2FIX(PG_DIAG_SOURCE_LINE));
 
-	/* #result_error_field argument constant: The name of the source-code
-	 * function reporting the error. */
+	/* Result#result_error_field argument constant
+	 *
+	 * The name of the source-code function reporting the error. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SOURCE_FUNCTION", INT2FIX(PG_DIAG_SOURCE_FUNCTION));
 
 #ifdef PG_DIAG_TABLE_NAME
-	/* #result_error_field argument constant: If the error was associated with a
-	 * specific database object, the name of the schema containing that object, if any. */
+	/* Result#result_error_field argument constant
+	 *
+	 * If the error was associated with a specific database object, the name of the schema containing that object, if any. */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SCHEMA_NAME", INT2FIX(PG_DIAG_SCHEMA_NAME));
 
-	/* #result_error_field argument constant: If the error was associated with a
-	 *specific table, the name of the table. (When this field is present, the schema name
-	 * field provides the name of the table's schema.) */
+	/* Result#result_error_field argument constant
+	 *
+	 * If the error was associated with a specific table, the name of the table.
+	 * (When this field is present, the schema name field provides the name of the table's schema.) */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_TABLE_NAME", INT2FIX(PG_DIAG_TABLE_NAME));
 
-	/* #result_error_field argument constant: If the error was associated with a
-	 * specific table column, the name of the column. (When this field is present, the
-	 * schema and table name fields identify the table.) */
+	/* Result#result_error_field argument constant
+	 *
+	 * If the error was associated with a specific table column, the name of the column.
+	 * (When this field is present, the schema and table name fields identify the table.) */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_COLUMN_NAME", INT2FIX(PG_DIAG_COLUMN_NAME));
 
-	/* #result_error_field argument constant: If the error was associated with a
-	 * specific datatype, the name of the datatype. (When this field is present, the
-	 * schema name field provides the name of the datatype's schema.) */
+	/* Result#result_error_field argument constant
+	 *
+	 * If the error was associated with a specific datatype, the name of the datatype.
+	 * (When this field is present, the schema name field provides the name of the datatype's schema.) */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_DATATYPE_NAME", INT2FIX(PG_DIAG_DATATYPE_NAME));
 
-	/* #result_error_field argument constant: If the error was associated with a
-	 * specific constraint, the name of the constraint. The table or domain that the
-	 * constraint belongs to is reported using the fields listed above. (For this
-	 * purpose, indexes are treated as constraints, even if they weren't created with
-	 * constraint syntax.) */
+	/* Result#result_error_field argument constant
+	 *
+	 * If the error was associated with a specific constraint, the name of the constraint.
+	 * The table or domain that the constraint belongs to is reported using the fields listed above.
+	 * (For this purpose, indexes are treated as constraints, even if they weren't created with constraint syntax.) */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_CONSTRAINT_NAME", INT2FIX(PG_DIAG_CONSTRAINT_NAME));
 #endif
 

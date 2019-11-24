@@ -427,7 +427,7 @@ pgconn_s_conndefaults(VALUE self)
  * The caller can assume the string doesn't contain any special characters that would require escaping.
  *
  * Available since PostgreSQL-10.
- * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN).
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN].
  */
 static VALUE
 pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
@@ -4153,6 +4153,10 @@ init_pg_connection()
 	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
+/* Help rdoc to known the Constants module */
+#if 0
+	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );
+#endif
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
 
 	/******     PG::Connection CLASS METHODS     ******/
