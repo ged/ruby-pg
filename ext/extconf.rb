@@ -73,12 +73,13 @@ end
 have_func 'PQsetSingleRowMode' or
 	abort "Your PostgreSQL is too old. Either install an older version " +
 	      "of this gem or upgrade your database to at least PostgreSQL-9.2."
-have_func 'PQconninfo'
-have_func 'PQsslAttribute'
-have_func 'PQencryptPasswordConn'
+have_func 'PQconninfo' # since PostgreSQL-9.3
+have_func 'PQsslAttribute' # since PostgreSQL-9.5
+have_func 'PQresultVerboseErrorMessage' # since PostgreSQL-9.6
+have_func 'PQencryptPasswordConn' # since PostgreSQL-10
 have_func 'PQresultMemorySize' # since PostgreSQL-12
 have_func 'timegm'
-have_func 'rb_gc_adjust_memory_usage'
+have_func 'rb_gc_adjust_memory_usage' # since ruby-2.4
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'

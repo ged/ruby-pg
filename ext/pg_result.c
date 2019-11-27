@@ -527,6 +527,34 @@ pgresult_error_message(VALUE self)
 	return ret;
 }
 
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+/*
+ * call-seq:
+ *    res.verbose_error_message( verbosity, show_context ) -> String
+ *
+ * Returns a reformatted version of the error message associated with a PGresult object.
+ *
+ * Available since PostgreSQL-9.6
+ */
+static VALUE
+pgresult_verbose_error_message(VALUE self, VALUE verbosity, VALUE show_context)
+{
+	t_pg_result *this = pgresult_get_this_safe(self);
+	VALUE ret;
+	char *c_str;
+
+	c_str = PQresultVerboseErrorMessage(this->pgresult, NUM2INT(verbosity), NUM2INT(show_context));
+	if(!c_str)
+		rb_raise(rb_eNoMemError, "insufficient memory to format error message");
+
+	ret = rb_str_new2(c_str);
+	PQfreemem(c_str);
+	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
+
+	return ret;
+}
+#endif
+
 /*
  * call-seq:
  *    res.error_field(fieldcode) -> String
@@ -1568,6 +1596,10 @@ init_pg_result()
 	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
 	rb_define_method(rb_cPGresult, "error_message", pgresult_error_message, 0);
 	rb_define_alias( rb_cPGresult, "result_error_message", "error_message");
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+	rb_define_method(rb_cPGresult, "verbose_error_message", pgresult_verbose_error_message, 2);
+	rb_define_alias( rb_cPGresult, "result_verbose_error_message", "verbose_error_message");
+#endif
 	rb_define_method(rb_cPGresult, "error_field", pgresult_error_field, 1);
 	rb_define_alias( rb_cPGresult, "result_error_field", "error_field" );
 	rb_define_method(rb_cPGresult, "clear", pg_result_clear, 0);

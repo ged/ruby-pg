@@ -427,7 +427,7 @@ pgconn_s_conndefaults(VALUE self)
  * The caller can assume the string doesn't contain any special characters that would require escaping.
  *
  * Available since PostgreSQL-10.
- * See also corresponding {libpq function}(https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN).
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN].
  */
 static VALUE
 pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
@@ -2622,9 +2622,16 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
  *
  * Sets connection's verbosity to _verbosity_ and returns
  * the previous setting. Available settings are:
+ *
  * * PQERRORS_TERSE
  * * PQERRORS_DEFAULT
  * * PQERRORS_VERBOSE
+ * * PQERRORS_SQLSTATE
+ *
+ * Changing the verbosity does not affect the messages available from already-existing PG::Result objects, only subsequently-created ones.
+ * (But see PG::Result#verbose_error_message if you want to print a previous error with a different verbosity.)
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORVERBOSITY].
  */
 static VALUE
 pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
@@ -2633,6 +2640,37 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 	PGVerbosity verbosity = NUM2INT(in_verbosity);
 	return INT2FIX(PQsetErrorVerbosity(conn, verbosity));
 }
+
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+/*
+ * call-seq:
+ *    conn.set_error_context_visibility( context_visibility ) -> Integer
+ *
+ * Sets connection's context display mode to _context_visibility_ and returns
+ * the previous setting. Available settings are:
+ * * PQSHOW_CONTEXT_NEVER
+ * * PQSHOW_CONTEXT_ERRORS
+ * * PQSHOW_CONTEXT_ALWAYS
+ *
+ * This mode controls whether the CONTEXT field is included in messages (unless the verbosity setting is TERSE, in which case CONTEXT is never shown).
+ * The NEVER mode never includes CONTEXT, while ALWAYS always includes it if available.
+ * In ERRORS mode (the default), CONTEXT fields are included only for error messages, not for notices and warnings.
+ *
+ * Changing this mode does not affect the messages available from already-existing PG::Result objects, only subsequently-created ones.
+ * (But see PG::Result#verbose_error_message if you want to print a previous error with a different display mode.)
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORCONTEXTVISIBILITY].
+ *
+ * Available since PostgreSQL-9.6
+ */
+static VALUE
+pgconn_set_error_context_visibility(VALUE self, VALUE in_context_visibility)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	PGContextVisibility context_visibility = NUM2INT(in_context_visibility);
+	return INT2FIX(PQsetErrorContextVisibility(conn, context_visibility));
+}
+#endif
 
 /*
  * call-seq:
@@ -4115,6 +4153,10 @@ init_pg_connection()
 	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
+/* Help rdoc to known the Constants module */
+#if 0
+	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );
+#endif
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
 
 	/******     PG::Connection CLASS METHODS     ******/
@@ -4229,6 +4271,9 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Control Functions     ******/
 	rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 1);
+#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
+	rb_define_method(rb_cPGconn, "set_error_context_visibility", pgconn_set_error_context_visibility, 1 );
+#endif
 	rb_define_method(rb_cPGconn, "trace", pgconn_trace, 1);
 	rb_define_method(rb_cPGconn, "untrace", pgconn_untrace, 0);
 
