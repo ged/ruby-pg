@@ -63,7 +63,7 @@ module PG
 			str += "E" if respond_to?(:encode)
 			str += "D" if respond_to?(:decode)
 
-			"#{name}:#{str}"
+			"#{name || self.class.name}:#{str}"
 		end
 	end
 

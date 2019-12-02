@@ -41,8 +41,8 @@ describe PG::TypeMapByColumn do
 	end
 
 	it "should respond to inspect" do
-		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, nil] )
-		expect( cm.inspect ).to eq( "#<PG::TypeMapByColumn INT4:TD TEXT:TE FLOAT4:TD pass_through:BD nil>" )
+		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, PG::TextEncoder::Float.new, nil] )
+		expect( cm.inspect ).to eq( "#<PG::TypeMapByColumn INT4:TD TEXT:TE FLOAT4:TD pass_through:BD PG::TextEncoder::Float:TE nil>" )
 	end
 
 	it "should retrieve it's oids" do
