@@ -289,4 +289,3 @@ class PG::Connection
 	# pg-1.1.0+ defaults to libpq's async API for query related blocking methods
 	self.async_api = true
 end # class PG::Connection
-

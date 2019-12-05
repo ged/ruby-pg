@@ -71,5 +71,3 @@ module PG
 	require 'pg/tuple'
 
 end # module PG
-
-
