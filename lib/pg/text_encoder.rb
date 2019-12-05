@@ -1,4 +1,5 @@
 # -*- ruby -*-
+# frozen_string_literal: true
 
 require 'json'
 require 'ipaddr'
@@ -6,30 +7,26 @@ require 'ipaddr'
 module PG
 	module TextEncoder
 		class Date < SimpleEncoder
-			STRFTIME_ISO_DATE = "%Y-%m-%d".freeze
 			def encode(value)
-				value.respond_to?(:strftime) ? value.strftime(STRFTIME_ISO_DATE) : value
+				value.respond_to?(:strftime) ? value.strftime("%Y-%m-%d") : value
 			end
 		end
 
 		class TimestampWithoutTimeZone < SimpleEncoder
-			STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N".freeze
 			def encode(value)
-				value.respond_to?(:strftime) ? value.strftime(STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE) : value
+				value.respond_to?(:strftime) ? value.strftime("%Y-%m-%d %H:%M:%S.%N") : value
 			end
 		end
 
 		class TimestampUtc < SimpleEncoder
-			STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE_UTC = "%Y-%m-%d %H:%M:%S.%N".freeze
 			def encode(value)
-				value.respond_to?(:utc) ? value.utc.strftime(STRFTIME_ISO_DATETIME_WITHOUT_TIMEZONE_UTC) : value
+				value.respond_to?(:utc) ? value.utc.strftime("%Y-%m-%d %H:%M:%S.%N") : value
 			end
 		end
 
 		class TimestampWithTimeZone < SimpleEncoder
-			STRFTIME_ISO_DATETIME_WITH_TIMEZONE = "%Y-%m-%d %H:%M:%S.%N %:z".freeze
 			def encode(value)
-				value.respond_to?(:strftime) ? value.strftime(STRFTIME_ISO_DATETIME_WITH_TIMEZONE) : value
+				value.respond_to?(:strftime) ? value.strftime("%Y-%m-%d %H:%M:%S.%N %:z") : value
 			end
 		end
 

@@ -1,4 +1,5 @@
 # -*- ruby -*-
+# frozen_string_literal: true
 
 begin
 	require 'pg_ext'
