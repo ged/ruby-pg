@@ -50,6 +50,9 @@
 VALUE rb_mPG_TextEncoder;
 static ID s_id_encode;
 static ID s_id_to_i;
+static ID s_id_to_s;
+static ID s_cBigDecimal;
+static VALUE s_str_F;
 
 static int pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, int enc_idx);
 
@@ -333,6 +336,50 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		return 1 /*sign*/ + MAX_DOUBLE_DIGITS + 1 /*dot*/ + 1 /*e*/ + 1 /*exp sign*/ + 3 /*exp digits*/;
 	}
 }
+
+
+/*
+ * Document-class: PG::TextEncoder::Numeric < PG::SimpleEncoder
+ *
+ * This is the encoder class for the PostgreSQL numeric types.
+ *
+ * It converts Integer, Float and BigDecimal objects.
+ * All other objects are expected to respond to +to_s+.
+ */
+static int
+pg_text_enc_numeric(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+{
+	if(out){ /* second pass */
+		switch(TYPE(value)){
+			case T_FIXNUM:
+			case T_BIGNUM:
+				return pg_text_enc_integer(this, value, out, intermediate, enc_idx);
+			case T_FLOAT:
+				return pg_text_enc_float(this, value, out, intermediate, enc_idx);
+			default:
+				rb_bug("unexpected value type: %d", TYPE(value));
+		}
+
+	} else { /* first pass */
+		switch(TYPE(value)){
+			case T_FIXNUM:
+			case T_BIGNUM:
+				return pg_text_enc_integer(this, value, NULL, intermediate, enc_idx);
+			case T_FLOAT:
+				return pg_text_enc_float(this, value, NULL, intermediate, enc_idx);
+			default:
+				if( rb_obj_is_kind_of(value, s_cBigDecimal) ){
+					/* value.to_s('F') */
+					*intermediate = rb_funcall(value, s_id_to_s, 1, s_str_F);
+					return -1; /* no second pass */
+				} else {
+					return pg_coder_enc_to_s(this, value, NULL, intermediate, enc_idx);
+					/* no second pass */
+				}
+		}
+	}
+}
+
 
 static const char hextab[] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
@@ -735,6 +782,12 @@ init_pg_text_encoder()
 {
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
+	s_id_to_s = rb_intern("to_s");
+	s_str_F = rb_str_freeze(rb_str_new_cstr("F"));
+	rb_global_variable(&s_str_F);
+	rb_require("bigdecimal");
+	s_cBigDecimal = rb_const_get(rb_cObject, rb_intern("BigDecimal"));
+
 
 	/* This module encapsulates all encoder classes with text output format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
@@ -746,6 +799,8 @@ init_pg_text_encoder()
 	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Float", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Numeric", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Numeric", pg_text_enc_numeric, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "String", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Bytea", rb_cPG_SimpleEncoder ); */
