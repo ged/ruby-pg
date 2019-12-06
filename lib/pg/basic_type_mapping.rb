@@ -271,7 +271,7 @@ end
 #   # is done by PG::TextDecoder::Integer internally for all value retrieval methods.
 #   res.values  # => [[5]]
 #
-# PG::TypeMapByOid#fit_to_result(result, false) can be used to generate
+# PG::TypeMapByOid#build_column_map(result) can be used to generate
 # a result independent PG::TypeMapByColumn type map, which can subsequently be used
 # to cast #get_copy_data fields:
 #
