@@ -30,12 +30,6 @@ module PG
 			end
 		end
 
-		class Numeric < SimpleEncoder
-			def encode(value)
-				value.is_a?(BigDecimal) ? value.to_s('F') : value
-			end
-		end
-
 		class JSON < SimpleEncoder
 			def encode(value)
 				::JSON.generate(value, quirks_mode: true)

@@ -12,6 +12,7 @@ describe "PG::Type derivations" do
 	let!(:textdec_boolean) { PG::TextDecoder::Boolean.new }
 	let!(:textenc_float) { PG::TextEncoder::Float.new }
 	let!(:textdec_float) { PG::TextDecoder::Float.new }
+	let!(:textenc_numeric) { PG::TextEncoder::Numeric.new }
 	let!(:textenc_string) { PG::TextEncoder::String.new }
 	let!(:textdec_string) { PG::TextDecoder::String.new }
 	let!(:textenc_timestamp) { PG::TextEncoder::TimestampWithoutTimeZone.new }
@@ -360,6 +361,20 @@ describe "PG::Type derivations" do
 				expect( textenc_float.encode(Float::INFINITY) ).to eq( Float::INFINITY.to_s )
 				expect( textenc_float.encode(-Float::INFINITY) ).to eq( (-Float::INFINITY).to_s )
 				expect( textenc_float.encode(-Float::NAN) ).to eq( Float::NAN.to_s )
+			end
+
+			it "should encode various inputs to numeric format" do
+				expect( textenc_numeric.encode(0) ).to eq( "0" )
+				expect( textenc_numeric.encode(1) ).to eq( "1" )
+				expect( textenc_numeric.encode(-12345678901234567890123) ).to eq( "-12345678901234567890123" )
+				expect( textenc_numeric.encode(0.0) ).to eq( "0.0" )
+				expect( textenc_numeric.encode(1.0) ).to eq( "1.0" )
+				expect( textenc_numeric.encode(-1.23456789012e45) ).to eq( "-1.23456789012e45" )
+				expect( textenc_numeric.encode(Float::NAN) ).to eq( Float::NAN.to_s )
+				expect( textenc_numeric.encode(BigDecimal(0)) ).to eq( "0.0" )
+				expect( textenc_numeric.encode(BigDecimal(1)) ).to eq( "1.0" )
+				expect( textenc_numeric.encode(BigDecimal("-12345678901234567890.1234567")) ).to eq( "-12345678901234567890.1234567" )
+				expect( textenc_numeric.encode(" 123 ") ).to eq( " 123 " )
 			end
 
 			it "encodes binary string to bytea" do
