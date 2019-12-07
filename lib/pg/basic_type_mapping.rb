@@ -432,7 +432,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	def init_encoders
 		coders.each { |kl, c| self[kl] = nil } # Clear type map
 		populate_encoder_list
-		@anyarray_encoder = coder_by_name(0, :encoder, '_any')
+		@textarray_encoder = coder_by_name(0, :encoder, '_text')
 	end
 
 	def coder_by_name(format, direction, name)
@@ -483,7 +483,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		end
 		@array_encoders_by_klass[elem.class] ||
 				elem.class.ancestors.lazy.map{|ancestor| @array_encoders_by_klass[ancestor] }.find{|a| a } ||
-				@anyarray_encoder
+				@textarray_encoder
 	end
 
 	DEFAULT_TYPE_MAP = {

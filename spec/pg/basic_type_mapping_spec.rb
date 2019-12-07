@@ -180,6 +180,23 @@ describe 'Basic type mapping' do
 			expect( result_typenames(res) ).to eq( ['inet', 'inet', 'cidr', 'cidr'] )
 		end
 
+		it "should do array of string encoding on unknown classes" do
+			iv = Class.new do
+				def to_s
+					"abc"
+				end
+			end.new
+			res = @conn.exec_params( "SELECT $1", [
+					[iv, iv], # Unknown -> text[]
+				], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [[
+					'{abc,abc}',
+			]] )
+
+			expect( result_typenames(res) ).to eq( ['text[]'] )
+		end
+
 	end
 
 
