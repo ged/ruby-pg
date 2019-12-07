@@ -507,6 +507,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Integer => [0, '_int8'],
 		String => [0, '_text'],
 		Float => [0, '_float8'],
+		BigDecimal => [0, '_numeric'],
+		IPAddr => [0, '_inet'],
 	}
 
 end

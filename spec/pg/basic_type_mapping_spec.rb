@@ -74,19 +74,25 @@ describe 'Basic type mapping' do
 
 		it "should do default array-as-array param encoding" do
 			expect( basic_type_mapping.encode_array_as).to eq(:array)
-			res = @conn.exec_params( "SELECT $1,$2,$3,$4", [
-					[1, 2, 3], [[1, 2], [3, nil]],
-					[1.11, 2.21],
-					['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
+			res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5,$6", [
+					[1, 2, 3], # Integer -> bigint[]
+					[[1, 2], [3, nil]], # Integer two dimensions -> bigint[]
+					[1.11, 2.21], # Float -> double precision[]
+					['/,"'.gsub("/", "\\"), nil, 'abcäöü'], # String -> text[]
+					[BigDecimal("123.45")], # BigDecimal -> numeric[]
+					[IPAddr.new('1234::5678')], # IPAddr -> inet[]
 				], nil, basic_type_mapping )
 
 			expect( res.values ).to eq( [[
-					'{1,2,3}', '{{1,2},{3,NULL}}',
+					'{1,2,3}',
+					'{{1,2},{3,NULL}}',
 					'{1.11,2.21}',
 					'{"//,/"",NULL,abcäöü}'.gsub("/", "\\"),
+					'{123.45}',
+					'{1234::5678}',
 			]] )
 
-			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]'] )
+			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]', 'numeric[]', 'inet[]'] )
 		end
 
 		it "should do array-as-json encoding" do
