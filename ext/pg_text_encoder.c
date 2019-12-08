@@ -349,25 +349,16 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 static int
 pg_text_enc_numeric(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
-	if(out){ /* second pass */
-		switch(TYPE(value)){
-			case T_FIXNUM:
-			case T_BIGNUM:
-				return pg_text_enc_integer(this, value, out, intermediate, enc_idx);
-			case T_FLOAT:
-				return pg_text_enc_float(this, value, out, intermediate, enc_idx);
-			default:
+	switch(TYPE(value)){
+		case T_FIXNUM:
+		case T_BIGNUM:
+			return pg_text_enc_integer(this, value, out, intermediate, enc_idx);
+		case T_FLOAT:
+			return pg_text_enc_float(this, value, out, intermediate, enc_idx);
+		default:
+			if(out){ /* second pass */
 				rb_bug("unexpected value type: %d", TYPE(value));
-		}
-
-	} else { /* first pass */
-		switch(TYPE(value)){
-			case T_FIXNUM:
-			case T_BIGNUM:
-				return pg_text_enc_integer(this, value, NULL, intermediate, enc_idx);
-			case T_FLOAT:
-				return pg_text_enc_float(this, value, NULL, intermediate, enc_idx);
-			default:
+			} else { /* first pass */
 				if( rb_obj_is_kind_of(value, s_cBigDecimal) ){
 					/* value.to_s('F') */
 					*intermediate = rb_funcall(value, s_id_to_s, 1, s_str_F);
@@ -376,7 +367,7 @@ pg_text_enc_numeric(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 					return pg_coder_enc_to_s(this, value, NULL, intermediate, enc_idx);
 					/* no second pass */
 				}
-		}
+			}
 	}
 }
 
