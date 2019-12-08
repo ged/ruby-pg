@@ -51,6 +51,13 @@ describe 'Basic type mapping' do
 			expect( result_typenames(res) ).to eq( ['bigint', 'double precision', 'boolean', 'text'] )
 		end
 
+		it "should do basic Time encoding" do
+			res = @conn.exec_params( "SELECT $1 AT TIME ZONE '-02'",
+				[Time.new(2019, 12, 8, 20, 38, 12.123, "-01:00")], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [[ "2019-12-08 23:38:12.123" ]] )
+		end
+
 		it "should do basic param encoding of various float values" do
 			res = @conn.exec_params( "SELECT $1::float, $2::float, $3::float, $4::float, $5::float, $6::float, $7::float, $8::float, $9::float, $10::float, $11::float, $12::float",
 				[0, 7, 9, 0.1, 0.9, -0.11, 10.11,
@@ -93,6 +100,15 @@ describe 'Basic type mapping' do
 			]] )
 
 			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]', 'numeric[]', 'inet[]'] )
+		end
+
+		it "should do default array-as-array param encoding with Time objects" do
+			res = @conn.exec_params( "SELECT $1", [
+					[Time.new(2019, 12, 8, 20, 38, 12.123, "-01:00")], # Time -> timestamptz[]
+				], nil, basic_type_mapping )
+
+			expect( res.values[0][0] ).to match( /\{\"2019-12-08 \d\d:38:12.123[+-]\d\d\"\}/ )
+			expect( result_typenames(res) ).to eq( ['timestamp with time zone[]'] )
 		end
 
 		it "should do array-as-json encoding" do

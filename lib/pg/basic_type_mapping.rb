@@ -500,6 +500,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Integer => [0, 'int8'],
 		Float => [0, 'float8'],
 		BigDecimal => [0, 'numeric'],
+		Time => [0, 'timestamptz'],
 		# We use text format and no type OID for IPAddr, because setting the OID can lead
 		# to unnecessary inet/cidr conversions on the server side.
 		IPAddr => [0, 'inet'],
@@ -514,6 +515,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		String => [0, '_text'],
 		Float => [0, '_float8'],
 		BigDecimal => [0, '_numeric'],
+		Time => [0, '_timestamptz'],
 		IPAddr => [0, '_inet'],
 	}
 

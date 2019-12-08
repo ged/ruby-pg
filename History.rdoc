@@ -18,7 +18,7 @@ Type cast enhancements:
 - Add PG::BasicTypeRegistry.register_coder to register instances instead of classes.
   This is useful to register parametrized en/decoders like PG::TextDecoder::Record .
 - Add PG::BasicTypeMapForQueries#encode_array_as= to switch between various interpretations of ruby arrays.
-- Add Array<BigDecimal> and Array<IPAddr> encoders to PG::BasicTypeMapForQueries
+- Add Time, Array<Time>, Array<BigDecimal> and Array<IPAddr> encoders to PG::BasicTypeMapForQueries
 - Exchange sprintf based float encoder by very fast own implementation with more natural format. #301
 - Define encode and decode methods only in en/decoders that implement it, so that they can be queried by respond_to? .
 - Improve PG::TypeMapByColumn#inspect
