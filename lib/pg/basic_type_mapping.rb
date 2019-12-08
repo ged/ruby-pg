@@ -155,6 +155,12 @@ module PG::BasicTypeRegistry
 	# objects as values.
 	CODERS_BY_NAME = []
 
+	public
+
+	# Register an encoder or decoder instance for casting a PostgreSQL type.
+	#
+	# Coder#name must correspond to the +typname+ column in the +pg_type+ table.
+	# Coder#format can be 0 for text format and 1 for binary.
 	def self.register_coder(coder)
 		h = CODERS_BY_NAME[coder.format] ||= { encoder: {}, decoder: {} }
 		name = coder.name || raise(ArgumentError, "name of #{coder.inspect} must be defined")
@@ -162,9 +168,9 @@ module PG::BasicTypeRegistry
 		h[:decoder][name] = coder if coder.respond_to?(:decode)
 	end
 
-	# Register an OID type named +name+ with a typecasting encoder and decoder object in
-	# +type+.  +name+ should correspond to the `typname` column in
-	# the `pg_type` table.
+	# Register the given +encoder_class+ and/or +decoder_class+ for casting a PostgreSQL type.
+	#
+	# +name+ must correspond to the +typname+ column in the +pg_type+ table.
 	# +format+ can be 0 for text format and 1 for binary.
 	def self.register_type(format, name, encoder_class, decoder_class)
 		register_coder(encoder_class.new(name: name, format: format)) if encoder_class
