@@ -130,9 +130,8 @@ See PG::Connection#copy_data .
 
 == Contributing
 
-To report bugs, suggest features, or check out the source with Mercurial,
-{check out the project page}[http://bitbucket.org/ged/ruby-pg]. If you prefer
-Git, there's also a {Github mirror}[https://github.com/ged/ruby-pg].
+To report bugs, suggest features, or check out the source with Git,
+{check out the project page}[https://github.com/ged/ruby-pg].
 
 After checking out the source, run:
 
