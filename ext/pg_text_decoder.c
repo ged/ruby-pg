@@ -615,7 +615,7 @@ static int parse_year(const char **str) {
  * This is a decoder class for conversion of PostgreSQL text timestamps
  * to Ruby Time objects.
  *
- * The following flags can be used to specify timezone interpretation:
+ * The following flags can be used to specify time interpretation when no timezone is given:
  * * +PG::Coder::TIMESTAMP_DB_UTC+ : Interpret timestamp as UTC time (default)
  * * +PG::Coder::TIMESTAMP_DB_LOCAL+ : Interpret timestamp as local time
  * * +PG::Coder::TIMESTAMP_APP_UTC+ : Return timestamp as UTC time (default)
@@ -624,6 +624,7 @@ static int parse_year(const char **str) {
  * Example:
  *   deco = PG::TextDecoder::Timestamp.new(flags: PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_LOCAL)
  *   deco.decode("2000-01-01 00:00:00")  # => 2000-01-01 01:00:00 +0100
+ *   deco.decode("2000-01-01 00:00:00.123-06")  # => 2000-01-01 00:00:00 -0600
  */
 static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
