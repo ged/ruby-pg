@@ -4157,10 +4157,8 @@ init_pg_connection()
 	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
-/* Help rdoc to known the Constants module */
-#if 0
-	rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" );
-#endif
+	/* Help rdoc to known the Constants module */
+	/* rb_mPGconstants = rb_define_module_under( rb_mPG, "Constants" ); */
 	rb_include_module(rb_cPGconn, rb_mPGconstants);
 
 	/******     PG::Connection CLASS METHODS     ******/
