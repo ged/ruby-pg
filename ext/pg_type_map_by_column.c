@@ -292,13 +292,13 @@ init_pg_type_map_by_column()
 	 *
 	 * This type map casts values by a coder assigned per field/column.
 	 *
-	 * Each PG:TypeMapByColumn has a fixed list of either encoders or decoders,
-	 * that is defined at #new . A type map with encoders is usable for type casting
+	 * Each PG::TypeMapByColumn has a fixed list of either encoders or decoders,
+	 * that is defined at TypeMapByColumn.new . A type map with encoders is usable for type casting
 	 * query bind parameters and COPY data for PG::Connection#put_copy_data .
 	 * A type map with decoders is usable for type casting of result values and
 	 * COPY data from PG::Connection#get_copy_data .
 	 *
-	 * PG::TypeMapByColumns are in particular useful in conjunction with prepared statements,
+	 * PG::TypeMapByColumn objects are in particular useful in conjunction with prepared statements,
 	 * since they can be cached alongside with the statement handle.
 	 *
 	 * This type map strategy is also used internally by PG::TypeMapByOid, when the
@@ -308,5 +308,6 @@ init_pg_type_map_by_column()
 	rb_define_alloc_func( rb_cTypeMapByColumn, pg_tmbc_s_allocate );
 	rb_define_method( rb_cTypeMapByColumn, "initialize", pg_tmbc_init, 1 );
 	rb_define_method( rb_cTypeMapByColumn, "coders", pg_tmbc_coders, 0 );
+	/* rb_mDefaultTypeMappable = rb_define_module_under( rb_cTypeMap, "DefaultTypeMappable"); */
 	rb_include_module( rb_cTypeMapByColumn, rb_mDefaultTypeMappable );
 }

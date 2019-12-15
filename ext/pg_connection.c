@@ -1481,13 +1481,15 @@ pgconn_make_empty_pgresult(VALUE self, VALUE status)
  * Consider using exec_params, which avoids the need for passing values
  * inside of SQL commands.
  *
- * Encoding of escaped string will be equal to client encoding of connection.
+ * Character encoding of escaped string will be equal to client encoding of connection.
  *
  * NOTE: This class version of this method can only be used safely in client
  * programs that use a single PostgreSQL connection at a time (in this case it can
  * find out what it needs to know "behind the scenes"). It might give the wrong
  * results if used in programs that use multiple database connections; use the
  * same method on the connection object in such cases.
+ *
+ * See also convenience functions #escape_literal and #escape_identifier which also add proper quotes around the string.
  */
 static VALUE
 pgconn_s_escape(VALUE self, VALUE string)
@@ -1599,6 +1601,8 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
  *    conn.escape_literal( str ) -> String
  *
  * Escape an arbitrary String +str+ as a literal.
+ *
+ * See also PG::TextEncoder::QuotedLiteral for a type cast integrated version of this function.
  *
  * Available since PostgreSQL-9.0
  */

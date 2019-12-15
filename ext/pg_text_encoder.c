@@ -638,7 +638,8 @@ pg_text_enc_array_identifier(VALUE value, VALUE string, char *out, int enc_idx)
  *
  * This is the encoder class for PostgreSQL identifiers.
  *
- * An Array value can be used for "schema.table.column" type identifiers:
+ * An Array value can be used for identifiers of the kind "schema.table.column".
+ * This ensures that each element is properly quoted:
  *   PG::TextEncoder::Identifier.new.encode(['schema', 'table', 'column'])
  *      => '"schema"."table"."column"'
  *
@@ -706,7 +707,13 @@ quote_literal_buffer( void *_this, char *p_in, int strlen, char *p_out ){
  *
  * This is the encoder class for PostgreSQL literals.
  *
- * A literal is quoted and escaped by the +'+ character.
+ * A literal is quoted and escaped by the <tt>'</tt> character, so that it can be inserted into SQL queries.
+ * It works equal to PG::Connection#escape_literal, but integrates into the type cast system of ruby-pg.
+ *
+ * Both expressions have the same result:
+ *   conn.escape_literal(PG::TextEncoder::Array.new.encode(["v1","v2"])) # => "'{v1,v2}'"
+ *   PG::TextEncoder::QuotedLiteral.new(elements_type: PG::TextEncoder::Array.new).encode(["v1","v2"]) # => "'{v1,v2}'"
+ * While escape_literal requires a intermediate ruby string allocation, QuotedLiteral encodes the values directly to the result string.
  *
  */
 static int

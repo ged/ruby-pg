@@ -260,7 +260,7 @@ end
 # Simple set of rules for type casting common PostgreSQL types to Ruby.
 #
 # OIDs of supported type casts are not hard-coded in the sources, but are retrieved from the
-# PostgreSQL's pg_type table in PG::BasicTypeMapForResults.new .
+# PostgreSQL's +pg_type+ table in PG::BasicTypeMapForResults.new .
 #
 # Result values are type casted based on the type OID of the given result column.
 #
@@ -338,7 +338,7 @@ end
 # to PostgreSQL.
 #
 # OIDs of supported type casts are not hard-coded in the sources, but are retrieved from the
-# PostgreSQL's pg_type table in PG::BasicTypeMapBasedOnResult.new .
+# PostgreSQL's +pg_type+ table in PG::BasicTypeMapBasedOnResult.new .
 #
 # This class works equal to PG::BasicTypeMapForResults, but does not define decoders for
 # the given result OIDs, but encoders. So it can be used to type cast field values based on

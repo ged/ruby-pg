@@ -351,5 +351,6 @@ init_pg_type_map_by_oid()
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup=", pg_tmbo_max_rows_for_online_lookup_set, 1 );
 	rb_define_method( rb_cTypeMapByOid, "max_rows_for_online_lookup", pg_tmbo_max_rows_for_online_lookup_get, 0 );
 	rb_define_method( rb_cTypeMapByOid, "build_column_map", pg_tmbo_build_column_map, 1 );
+	/* rb_mDefaultTypeMappable = rb_define_module_under( rb_cTypeMap, "DefaultTypeMappable"); */
 	rb_include_module( rb_cTypeMapByOid, rb_mDefaultTypeMappable );
 }

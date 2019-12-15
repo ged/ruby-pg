@@ -235,5 +235,6 @@ init_pg_type_map_by_class()
 	rb_define_method( rb_cTypeMapByClass, "[]=", pg_tmbk_aset, 2 );
 	rb_define_method( rb_cTypeMapByClass, "[]", pg_tmbk_aref, 1 );
 	rb_define_method( rb_cTypeMapByClass, "coders", pg_tmbk_coders, 0 );
+	/* rb_mDefaultTypeMappable = rb_define_module_under( rb_cTypeMap, "DefaultTypeMappable"); */
 	rb_include_module( rb_cTypeMapByClass, rb_mDefaultTypeMappable );
 }
