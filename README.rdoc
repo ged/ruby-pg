@@ -118,7 +118,8 @@ PG::Coder objects can be used to set up a PG::TypeMap or alternatively
 to convert single values to/from their string representation.
 
 The following PostgreSQL column types are supported by ruby-pg (TE = Text Encoder, TD = Text Decoder, BE = Binary Encoder, BD = Binary Decoder):
-* Integer: {TE}[rdoc-ref:PG::TextEncoder::Integer], {TD}[rdoc-ref:PG::TextDecoder::Integer], {BE2}[rdoc-ref:PG::BinaryEncoder::Int2] {BE4}[rdoc-ref:PG::BinaryEncoder::Int4] {BE8}[rdoc-ref:PG::BinaryEncoder::Int8], {BD}[rdoc-ref:PG::BinaryDecoder::Integer]
+* Integer: {TE}[rdoc-ref:PG::TextEncoder::Integer], {TD}[rdoc-ref:PG::TextDecoder::Integer], {BD}[rdoc-ref:PG::BinaryDecoder::Integer]
+  * BE: {Int2}[rdoc-ref:PG::BinaryEncoder::Int2], {Int4}[rdoc-ref:PG::BinaryEncoder::Int4], {Int8}[rdoc-ref:PG::BinaryEncoder::Int8]
 * Float: {TE}[rdoc-ref:PG::TextEncoder::Float], {TD}[rdoc-ref:PG::TextDecoder::Float], {BD}[rdoc-ref:PG::BinaryDecoder::Float]
 * Numeric: {TE}[rdoc-ref:PG::TextEncoder::Numeric], {TD}[rdoc-ref:PG::TextDecoder::Numeric]
 * Boolean: {TE}[rdoc-ref:PG::TextEncoder::Boolean], {TD}[rdoc-ref:PG::TextDecoder::Boolean], {BE}[rdoc-ref:PG::BinaryEncoder::Boolean], {BD}[rdoc-ref:PG::BinaryDecoder::Boolean]

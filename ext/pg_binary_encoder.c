@@ -39,7 +39,7 @@ pg_bin_enc_boolean(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 /*
  * Document-class: PG::BinaryEncoder::Int2 < PG::SimpleEncoder
  *
- * This is the encoder class for the PostgreSQL int2 type.
+ * This is the encoder class for the PostgreSQL +int2+ (alias +smallint+) type.
  *
  * Non-Number values are expected to have method +to_i+ defined.
  *
@@ -56,9 +56,9 @@ pg_bin_enc_int2(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, i
 }
 
 /*
- * Document-class: PG::BinaryEncoder::Int2 < PG::SimpleEncoder
+ * Document-class: PG::BinaryEncoder::Int4 < PG::SimpleEncoder
  *
- * This is the encoder class for the PostgreSQL int4 type.
+ * This is the encoder class for the PostgreSQL +int4+ (alias +integer+) type.
  *
  * Non-Number values are expected to have method +to_i+ defined.
  *
@@ -75,9 +75,9 @@ pg_bin_enc_int4(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, i
 }
 
 /*
- * Document-class: PG::BinaryEncoder::Int2 < PG::SimpleEncoder
+ * Document-class: PG::BinaryEncoder::Int8 < PG::SimpleEncoder
  *
- * This is the encoder class for the PostgreSQL int8 type.
+ * This is the encoder class for the PostgreSQL +int8+ (alias +bigint+) type.
  *
  * Non-Number values are expected to have method +to_i+ defined.
  *

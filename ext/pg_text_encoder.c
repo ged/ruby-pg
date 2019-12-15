@@ -150,7 +150,7 @@ count_leading_zero_bits(unsigned long long x)
 /*
  * Document-class: PG::TextEncoder::Integer < PG::SimpleEncoder
  *
- * This is the encoder class for the PostgreSQL int types.
+ * This is the encoder class for the PostgreSQL integer types.
  *
  * Non-Integer values are expected to have method +to_i+ defined.
  *
@@ -379,8 +379,7 @@ static const char hextab[] = {
 /*
  * Document-class: PG::TextEncoder::Bytea < PG::SimpleEncoder
  *
- * This is an encoder class for the PostgreSQL bytea type for server version 9.0
- * or newer.
+ * This is an encoder class for the PostgreSQL +bytea+ type.
  *
  * The binary String is converted to hexadecimal representation for transmission
  * in text format. For query bind parameters it is recommended to use
