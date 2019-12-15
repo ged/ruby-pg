@@ -1477,8 +1477,6 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
  *     # do something with each received row of the second query
  *   end
  *   conn.get_result  # => nil   (no more results)
- *
- * Available since PostgreSQL-9.2
  */
 static VALUE
 pgresult_stream_each(VALUE self)
@@ -1495,8 +1493,6 @@ pgresult_stream_each(VALUE self)
  *
  * This method works equally to #stream_each , but yields an Array of
  * values.
- *
- * Available since PostgreSQL-9.2
  */
 static VALUE
 pgresult_stream_each_row(VALUE self)
@@ -1511,8 +1507,6 @@ pgresult_stream_each_row(VALUE self)
  * Yields each row of the result set in single row mode.
  *
  * This method works equally to #stream_each , but yields a PG::Tuple object.
- *
- * Available since PostgreSQL-9.2
  */
 static VALUE
 pgresult_stream_each_tuple(VALUE self)

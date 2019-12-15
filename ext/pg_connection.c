@@ -354,8 +354,6 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
  *   could not establish connection
  * [+PQPING_NO_ATTEMPT+]
  *   connection not attempted (bad params)
- *
- * Available since PostgreSQL-9.1
  */
 static VALUE
 pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
@@ -1603,8 +1601,6 @@ pgconn_s_unescape_bytea(VALUE self, VALUE str)
  * Escape an arbitrary String +str+ as a literal.
  *
  * See also PG::TextEncoder::QuotedLiteral for a type cast integrated version of this function.
- *
- * Available since PostgreSQL-9.0
  */
 static VALUE
 pgconn_escape_literal(VALUE self, VALUE string)
@@ -1644,8 +1640,6 @@ pgconn_escape_literal(VALUE self, VALUE string)
  * This method does the same as #quote_ident with a String argument,
  * but it doesn't support an Array argument and it makes use of libpq
  * to process the string.
- *
- * Available since PostgreSQL-9.0
  */
 static VALUE
 pgconn_escape_identifier(VALUE self, VALUE string)
@@ -1711,8 +1705,6 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  *       # do something with the received row
  *     end
  *   end
- *
- * Available since PostgreSQL-9.2
  */
 static VALUE
 pgconn_set_single_row_mode(VALUE self)
