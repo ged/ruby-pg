@@ -17,8 +17,8 @@ VALUE rb_mPG_BinaryDecoder;
 /*
  * Document-class: PG::BinaryDecoder::Boolean < PG::SimpleDecoder
  *
- * This is a decoder class for conversion of PostgreSQL binary bool type
- * to Ruby true or false objects.
+ * This is a decoder class for conversion of PostgreSQL binary +bool+ type
+ * to Ruby +true+ or +false+ objects.
  *
  */
 static VALUE
@@ -33,7 +33,7 @@ pg_bin_dec_boolean(t_pg_coder *conv, const char *val, int len, int tuple, int fi
 /*
  * Document-class: PG::BinaryDecoder::Integer < PG::SimpleDecoder
  *
- * This is a decoder class for conversion of PostgreSQL binary int2, int4 and int8 types
+ * This is a decoder class for conversion of PostgreSQL binary +int2+, +int4+ and +int8+ types
  * to Ruby Integer objects.
  *
  */
@@ -55,7 +55,7 @@ pg_bin_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int fi
 /*
  * Document-class: PG::BinaryDecoder::Float < PG::SimpleDecoder
  *
- * This is a decoder class for conversion of PostgreSQL binary float4 and float8 types
+ * This is a decoder class for conversion of PostgreSQL binary +float4+ and +float8+ types
  * to Ruby Float objects.
  *
  */
@@ -87,7 +87,7 @@ pg_bin_dec_float(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
  * Document-class: PG::BinaryDecoder::Bytea < PG::SimpleDecoder
  *
  * This decoder class delivers the data received from the server as binary String object.
- * It is therefore suitable for conversion of PostgreSQL bytea data as well as any other
+ * It is therefore suitable for conversion of PostgreSQL +bytea+ data as well as any other
  * data in binary format.
  *
  */
@@ -103,7 +103,7 @@ pg_bin_dec_bytea(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 /*
  * Document-class: PG::BinaryDecoder::ToBase64 < PG::CompositeDecoder
  *
- * This is a decoder class for conversion of binary (bytea) to base64 data.
+ * This is a decoder class for conversion of binary +bytea+ to base64 data.
  *
  */
 static VALUE
