@@ -55,7 +55,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
 	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
 	self.extra_rdoc_files.include( 'ext/*.c' )
-	self.license 'BSD-3-Clause'
+	self.license 'BSD-2-Clause'
 
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
