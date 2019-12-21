@@ -1,4 +1,4 @@
-== v1.2.0 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v1.2.0 [2019-12-20] Michael Granger <ged@FaerieMUD.org>
 
 Repository:
 - Our primary repository has been moved to Github https://github.com/ged/ruby-pg .
