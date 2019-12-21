@@ -1,0 +1,6 @@
+ChangeLog
+commit-msg.txt
+lib/*.bundle
+lib/*.so
+tmp/
+tmp_test_specs/
