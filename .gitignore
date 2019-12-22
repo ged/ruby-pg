@@ -1,6 +1,12 @@
+*.lock
+.test_symlink
+build/
 ChangeLog
 commit-msg.txt
 lib/*.bundle
 lib/*.so
+lib/2.*/
+pkg/
 tmp/
 tmp_test_specs/
+vendor/
