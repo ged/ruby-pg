@@ -22,7 +22,8 @@ rescue LoadError
 		end
 
 		# Temporary add this directory for DLL search, so that libpq.dll can be found.
-		add_dll_path.call(__dir__) do
+		# mingw32-platform strings differ (RUBY_PLATFORM=i386-mingw32 vs. x86-mingw32 for rubygems)
+		add_dll_path.call(File.join(__dir__, RUBY_PLATFORM.gsub(/^i386-/, "x86-"))) do
 			require "#{major_minor}/pg_ext"
 		end
 	else

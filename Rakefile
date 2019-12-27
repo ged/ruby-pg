@@ -61,7 +61,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
 
 	self.dependency 'rake-compiler', '~> 1.0', :developer
-	self.dependency 'rake-compiler-dock', ['~> 0.7.0'], :developer
+	self.dependency 'rake-compiler-dock', ['~> 1.0'], :developer
 	self.dependency 'hoe-deveiate', '~> 0.9', :developer
 	self.dependency 'hoe-bundler', '~> 1.0', :developer
 	self.dependency 'rspec', '~> 3.5', :developer
@@ -129,7 +129,7 @@ Rake::ExtensionTask.new do |ext|
 
 	# Add libpq.dll to windows binary gemspec
 	ext.cross_compiling do |spec|
-		spec.files << "lib/libpq.dll"
+		spec.files << "lib/#{spec.platform}/libpq.dll"
 	end
 end
 

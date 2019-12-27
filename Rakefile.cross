@@ -141,9 +141,9 @@ class CrossLibrary < OpenStruct
 		end
 
 		desc "compile static openssl libraries"
-		task :openssl_libs => [ libssl, libcrypto ]
+		task "openssl_libs:#{for_platform}" => [ libssl, libcrypto ]
 
-		task :compile_static_openssl => openssl_makefile do |t|
+		task "compile_static_openssl:#{for_platform}" => openssl_makefile do |t|
 			chdir( static_openssl_builddir ) do
 				cmd = cmd_prelude.dup
 				cmd << 'make' << "-j#{NUM_CPUS}" << 'build_libs'
@@ -153,12 +153,12 @@ class CrossLibrary < OpenStruct
 		end
 
 		desc "compile static #{libssl}"
-		file libssl => :compile_static_openssl do |t|
+		file libssl => "compile_static_openssl:#{for_platform}" do |t|
 			rm t.name.gsub(/\.a$/, ".dll.a")
 		end
 
 		desc "compile static #{libcrypto}"
-		file libcrypto => :compile_static_openssl do |t|
+		file libcrypto => "compile_static_openssl:#{for_platform}" do |t|
 			rm t.name.gsub(/\.a$/, ".dll.a")
 		end
 
@@ -189,7 +189,7 @@ class CrossLibrary < OpenStruct
 		end
 
 		# generate the makefile in a clean build location
-		file postgresql_global_makefile => [ static_postgresql_builddir, :openssl_libs ] do |t|
+		file postgresql_global_makefile => [ static_postgresql_builddir, "openssl_libs:#{for_platform}" ] do |t|
 			options = [
 				"--target=#{host_platform}",
 				"--host=#{host_platform}",
@@ -231,10 +231,10 @@ class CrossLibrary < OpenStruct
 
 
 		#desc 'compile libpg.a'
-		task :libpq => postgresql_lib
+		task "native:#{for_platform}" => postgresql_lib
 
 		# copy libpq.dll to lib dir
-		dest_libpq = "lib/#{postgresql_lib.basename}"
+		dest_libpq = "lib/#{for_platform}/#{postgresql_lib.basename}"
 		directory File.dirname(dest_libpq)
 		file dest_libpq => [postgresql_lib, File.dirname(dest_libpq)] do
 			cp postgresql_lib, dest_libpq
@@ -250,7 +250,7 @@ end
 
 if File.exist?(File.expand_path("~/.rake-compiler/config.yml"))
 	CrossLibraries = [
-		['i386-mingw32', 'mingw', 'i686-w64-mingw32'],
+		['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 		['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
 	].map do |platform, openssl_config, toolchain|
 		CrossLibrary.new platform, openssl_config, toolchain
@@ -261,7 +261,7 @@ else
 end
 
 desc 'cross compile pg for win32'
-task :cross => [ :mingw32, :libpq ]
+task :cross => [ :mingw32 ]
 
 task :mingw32 do
 	# Use Rake::ExtensionCompiler helpers to find the proper host
@@ -272,30 +272,25 @@ task :mingw32 do
 	end
 end
 
-# To reduce the gem file size strip mingw32 dlls before packaging
-ENV['RUBY_CC_VERSION'].to_s.split(':').each do |ruby_version|
-  task "tmp/i386-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so" do |t|
-    sh "i686-w64-mingw32-strip -S tmp/i386-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so"
-  end
+task 'gem:windows:prepare' do
+	require 'io/console'
+	require 'rake_compiler_dock'
 
-  task "tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so" do |t|
-    sh "x86_64-w64-mingw32-strip -S tmp/x64-mingw32/stage/lib/#{ruby_version[/^\d+\.\d+/]}/pg_ext.so"
-  end
+	# Copy gem signing key and certs to be accessable from the docker container
+	mkdir_p 'build/gem'
+	sh "cp ~/.gem/gem-*.pem build/gem/ || true"
+	sh "bundle package"
+	ENV["GEM_PRIVATE_KEY_PASSPHRASE"] = STDIN.getpass("Enter passphrase of gem signature key: ")
 end
 
-desc "Build the windows binary gems"
-task 'gem:windows' => ['ChangeLog'] do
-  require 'rake_compiler_dock'
-
-  # Copy gem signing key and certs to be accessable from the docker container
-  mkdir_p 'build/gem'
-  sh "cp ~/.gem/gem-*.pem build/gem/ || true"
-  sh "bundle package"
-
-  RakeCompilerDock.sh <<-EOT
-    mkdir ~/.gem &&
-    (cp build/gem/gem-*.pem ~/.gem/ || true) &&
-    bundle install --local &&
-    rake cross native gem MAKE="make -j`nproc`"
-  EOT
+%w[ x86-mingw32 x64-mingw32 ].each do |platform|
+	task "gem:windows:#{platform}" => ['ChangeLog', 'gem:windows:prepare'] do
+		RakeCompilerDock.sh <<-EOT, platform: platform
+			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
+			bundle install --local &&
+			rake native:#{platform} gem MAKE="make -j`nproc`"
+		EOT
+	end
+	desc "Build the windows binary gems"
+	multitask 'gem:windows' => "gem:windows:#{platform}"
 end
