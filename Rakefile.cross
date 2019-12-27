@@ -45,6 +45,8 @@ class CrossLibrary < OpenStruct
 		end
 		self.static_sourcesdir          = compile_home + 'sources'
 		self.static_builddir            = compile_home + 'builds' + for_platform
+		CLOBBER.include( static_sourcesdir )
+		CLEAN.include( static_builddir )
 
 		# Static OpenSSL build vars
 		self.static_openssl_builddir    = static_builddir + "openssl-#{openssl_version}"

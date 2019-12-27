@@ -35,6 +35,8 @@ TEST_DIRECTORY = BASEDIR + "tmp_test_specs"
 
 CLOBBER.include( TEST_DIRECTORY.to_s )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
+CLEAN.include "lib/*/libpq.dll"
+CLEAN.include "lib/pg_ext.*"
 
 # Set up Hoe plugins
 Hoe.plugin :mercurial
