@@ -167,6 +167,11 @@ static const rb_data_type_t pgresult_type = {
 #endif
 };
 
+/* Needed by sequel_pg gem, do not delete */
+int pg_get_result_enc_idx(VALUE self)
+{
+	return pgresult_get_this(self)->enc_idx;
+}
 
 /*
  * Global functions
