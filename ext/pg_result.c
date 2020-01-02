@@ -333,8 +333,7 @@ pg_result_check( VALUE self )
  * Special care must be taken when PG::Tuple objects are used.
  * In this case #clear must not be called unless all PG::Tuple objects of this result are fully materialized.
  *
- * If PG::Result#autoclear? is true then the result is marked as cleared
- * and the underlying C struct will be cleared automatically by libpq.
+ * If PG::Result#autoclear? is +true+ then the result is only marked as cleared but clearing the underlying C struct will happen when the callback returns.
  *
  */
 VALUE
@@ -362,8 +361,10 @@ pgresult_cleared_p( VALUE self )
  * call-seq:
  *    res.autoclear?      -> boolean
  *
- * Returns +true+ if the underlying C struct will be cleared automatically by libpq.
- * Elsewise the result is cleared by PG::Result#clear or by the GC when it's no longer in use.
+ * Returns +true+ if the underlying C struct will be cleared at the end of a callback.
+ * This applies only to Result objects received by the block to PG::Cinnection#set_notice_receiver .
+ *
+ * All other Result objects are automatically cleared by the GC when the object is no longer in use or manually by PG::Result#clear .
  *
  */
 VALUE
