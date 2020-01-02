@@ -118,7 +118,7 @@ PG::Coder objects can be used to set up a PG::TypeMap or alternatively
 to convert single values to/from their string representation.
 
 The following PostgreSQL column types are supported by ruby-pg (TE = Text Encoder, TD = Text Decoder, BE = Binary Encoder, BD = Binary Decoder):
-* Integer: {TE}[rdoc-ref:PG::TextEncoder::Integer], {TD}[rdoc-ref:PG::TextDecoder::Integer], {BD}[rdoc-ref:PG::BinaryDecoder::Integer]
+* Integer: {TE}[rdoc-ref:PG::TextEncoder::Integer], {TD}[rdoc-ref:PG::TextDecoder::Integer], {BD}[rdoc-ref:PG::BinaryDecoder::Integer] 💡 No links? Switch to {here}[https://deveiate.org/code/pg/README_rdoc.html#label-Type+Casts] 💡
   * BE: {Int2}[rdoc-ref:PG::BinaryEncoder::Int2], {Int4}[rdoc-ref:PG::BinaryEncoder::Int4], {Int8}[rdoc-ref:PG::BinaryEncoder::Int8]
 * Float: {TE}[rdoc-ref:PG::TextEncoder::Float], {TD}[rdoc-ref:PG::TextDecoder::Float], {BD}[rdoc-ref:PG::BinaryDecoder::Float]
 * Numeric: {TE}[rdoc-ref:PG::TextEncoder::Numeric], {TD}[rdoc-ref:PG::TextDecoder::Numeric]
