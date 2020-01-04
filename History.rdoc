@@ -1,3 +1,10 @@
+== v1.2.1 [2020-01-02] Michael Granger <ged@FaerieMUD.org>
+
+Enhancements:
+
+- Added internal API for sequel_pg compatibility.
+
+
 == v1.2.0 [2019-12-20] Michael Granger <ged@FaerieMUD.org>
 
 Repository:
