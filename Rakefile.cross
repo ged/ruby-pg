@@ -282,7 +282,12 @@ task 'gem:windows:prepare' do
 	mkdir_p 'build/gem'
 	sh "cp ~/.gem/gem-*.pem build/gem/ || true"
 	sh "bundle package"
-	ENV["GEM_PRIVATE_KEY_PASSPHRASE"] = STDIN.getpass("Enter passphrase of gem signature key: ")
+	begin
+		OpenSSL::PKey.read(File.read(File.expand_path("~/.gem/gem-private_key.pem")), ENV["GEM_PRIVATE_KEY_PASSPHRASE"] || "")
+	rescue OpenSSL::PKey::PKeyError
+		ENV["GEM_PRIVATE_KEY_PASSPHRASE"] = STDIN.getpass("Enter passphrase of gem signature key: ")
+		retry
+	end
 end
 
 %w[ x86-mingw32 x64-mingw32 ].each do |platform|
