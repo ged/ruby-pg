@@ -250,16 +250,11 @@ class CrossLibrary < OpenStruct
 	end
 end
 
-if File.exist?(File.expand_path("~/.rake-compiler/config.yml"))
-	CrossLibraries = [
-		['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
-		['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
-	].map do |platform, openssl_config, toolchain|
-		CrossLibrary.new platform, openssl_config, toolchain
-	end
-else
-	$stderr.puts "Cross-compilation disabled -- rake-compiler not properly installed"
-	CrossLibraries = []
+CrossLibraries = [
+	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
+	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
+].map do |platform, openssl_config, toolchain|
+	CrossLibrary.new platform, openssl_config, toolchain
 end
 
 desc 'cross compile pg for win32'
@@ -290,9 +285,10 @@ task 'gem:windows:prepare' do
 	end
 end
 
-%w[ x86-mingw32 x64-mingw32 ].each do |platform|
+CrossLibraries.each do |xlib|
+	platform = xlib.for_platform
 	desc "Build fat binary gem for platform #{platform}"
-	task "gem:windows:#{platform}" => ['ChangeLog', 'gem:windows:prepare'] do
+	task "gem:windows:#{platform}" => ['ChangeLog', 'gem:windows:prepare', xlib.openssl_tarball, xlib.postgresql_tarball] do
 		RakeCompilerDock.sh <<-EOT, platform: platform
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
