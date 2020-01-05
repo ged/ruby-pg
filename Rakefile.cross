@@ -286,6 +286,7 @@ task 'gem:windows:prepare' do
 end
 
 %w[ x86-mingw32 x64-mingw32 ].each do |platform|
+	desc "Build fat binary gem for platform #{platform}"
 	task "gem:windows:#{platform}" => ['ChangeLog', 'gem:windows:prepare'] do
 		RakeCompilerDock.sh <<-EOT, platform: platform
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
