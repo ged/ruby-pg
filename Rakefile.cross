@@ -291,7 +291,7 @@ end
 		RakeCompilerDock.sh <<-EOT, platform: platform
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} gem MAKE="make -j`nproc`"
+			rake native:#{platform} pkg/#{$hoespec.spec.full_name}-#{platform}.gem MAKE="make -j`nproc`"
 		EOT
 	end
 	desc "Build the windows binary gems"
