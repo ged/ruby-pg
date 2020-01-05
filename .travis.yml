@@ -4,7 +4,6 @@ services:
   - docker
 language: ruby
 matrix:
-  # Test cross compilation only with 2.6
   include:
     # i386: Intel 32-bit
     - name: i386
@@ -21,7 +20,7 @@ matrix:
     - rvm: "2.2"
       env:
         - "PGVERSION=9.3"
-    - rvm: "2.6"
+    - rvm: "2.7"
       env:
         - "PGVERSION=12"
     - rvm: ruby-head
@@ -33,7 +32,7 @@ matrix:
         - "PGVERSION=12"
 
     - name: gem-windows
-      rvm: "2.6"
+      rvm: "2.7"
       before_install:
         - bundle install
         # Create a dummy cert to satisfy the build
