@@ -370,8 +370,6 @@ RSpec.configure do |config|
 	else
 		config.filter_run_excluding :windows
 	end
-	config.filter_run_excluding :socket_io unless
-		PG::Connection.instance_methods.map( &:to_sym ).include?( :socket_io )
 
 	config.filter_run_excluding( :postgresql_93 ) if PG.library_version <  90300
 	config.filter_run_excluding( :postgresql_94 ) if PG.library_version <  90400

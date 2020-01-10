@@ -173,7 +173,7 @@ describe PG::Connection do
 		end
 	end
 
-	it "can connect asynchronously", :socket_io do
+	it "can connect asynchronously" do
 		tmpconn = described_class.connect_start( @conninfo )
 		expect( tmpconn ).to be_a( described_class )
 
@@ -182,7 +182,7 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "can connect asynchronously for the duration of a block", :socket_io do
+	it "can connect asynchronously for the duration of a block" do
 		conn = nil
 
 		described_class.connect_start(@conninfo) do |tmpconn|
@@ -196,7 +196,7 @@ describe PG::Connection do
 		expect( conn ).to be_finished()
 	end
 
-	context "with async established connection", :socket_io do
+	context "with async established connection" do
 		before :each do
 			@conn2 = described_class.connect_start( @conninfo )
 			wait_for_polling_ok(@conn2)
@@ -902,7 +902,7 @@ describe PG::Connection do
 	end
 
 
-	it "handles server close while asynchronous connect", :socket_io do
+	it "handles server close while asynchronous connect" do
 		serv = TCPServer.new( '127.0.0.1', 54320 )
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 		expect( [PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK] ).to include conn.connect_poll
@@ -963,7 +963,7 @@ describe PG::Connection do
 		conn.close
 	end
 
-	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction, :socket_io do
+	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction do
 		conn = PG.connect( @conninfo )
 		io = conn.socket_io
 		conn.finish
@@ -971,7 +971,7 @@ describe PG::Connection do
 		expect { conn.socket_io }.to raise_error( PG::ConnectionBad, /connection is closed/i )
 	end
 
-	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction, :socket_io do
+	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction do
 		conn = PG.connect( @conninfo )
 		io = conn.socket_io
 		conn.reset
