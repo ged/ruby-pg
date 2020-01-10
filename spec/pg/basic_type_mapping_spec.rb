@@ -503,7 +503,6 @@ describe 'Basic type mapping' do
 					sql_vals = vals.map{|v| "CAST('#{v}' AS inet)"}
 					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )
 					vals.each_with_index do |v, i|
-						val = res.getvalue(0,i)
 						expect( res.getvalue(0,i) ).to eq( IPAddr.new(v) )
 					end
 				end
