@@ -54,8 +54,8 @@ describe PG::TypeMapByOid do
 	end
 
 	it "should check format when deleting coders" do
-		expect{ tm.rm_coder 2, 123 }.to raise_error(ArgumentError)
-		expect{ tm.rm_coder -1, 123 }.to raise_error(ArgumentError)
+		expect{ tm.rm_coder(2, 123) }.to raise_error(ArgumentError)
+		expect{ tm.rm_coder(-1, 123) }.to raise_error(ArgumentError)
 	end
 
 	it "should check format when adding coders" do
