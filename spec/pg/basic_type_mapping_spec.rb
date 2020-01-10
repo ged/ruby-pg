@@ -526,22 +526,22 @@ describe 'Basic type mapping' do
 					sql_vals = vals.map { |v| "CAST('#{v}' AS cidr)" }
 					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )
 					vals.each_with_index do |v, i|
-					  val = res.getvalue(0,i)
+						val = res.getvalue(0,i)
 						ip, prefix = v.split('/', 2)
-					  expect( val.to_s ).to eq( ip )
+						expect( val.to_s ).to eq( ip )
 						if val.respond_to?(:prefix)
 							val_prefix = val.prefix
 						else
-					    default_prefix = (val.family == Socket::AF_INET ? 32 : 128)
+							default_prefix = (val.family == Socket::AF_INET ? 32 : 128)
 							range = val.to_range
 							val_prefix	= default_prefix - Math.log(((range.end.to_i - range.begin.to_i) + 1), 2).to_i
 						end
 						if v.include?('/')
-						  expect( val_prefix ).to eq( prefix.to_i )
+							expect( val_prefix ).to eq( prefix.to_i )
 						elsif v.include?('.')
-						  expect( val_prefix ).to eq( 32 )
-					  else
-						  expect( val_prefix ).to eq( 128 )
+							expect( val_prefix ).to eq( 32 )
+						else
+							expect( val_prefix ).to eq( 128 )
 						end
 					end
 				end
