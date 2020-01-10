@@ -37,7 +37,7 @@ class CrossLibrary < OpenStruct
 		begin
 			FileUtils.rm_f '.test_symlink'
 			FileUtils.ln_s '/', '.test_symlink'
-		rescue SystemCallError
+		rescue NotImplementedError, SystemCallError
 			# Symlinks don't work -> use home directory instead
 			self.compile_home               = Pathname( "~/.ruby-pg-build" ).expand_path
 		else
