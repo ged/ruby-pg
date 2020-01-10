@@ -1902,6 +1902,10 @@ describe PG::Connection do
 				@conn.send_query("VALUES($1)", [5])
 				expect(@conn.get_last_result.values).to eq( [["5"]] )
 			end
+
+			it "should respond_to socket" do
+				expect( @conn.socket ).to eq( @conn.socket_io.fileno )
+			end
 		else
 			# Method forwarding removed by PG::VERSION >= "2"
 			it "shouldn't forward exec to exec_params" do
@@ -1925,6 +1929,12 @@ describe PG::Connection do
 			it "shouldn't forward async_exec_params to async_exec" do
 				expect do
 					@conn.async_exec_params("VALUES(1)")
+				end.to raise_error(ArgumentError)
+			end
+
+			it "shouldn't respond_to socket" do
+				expect do
+					@conn.socket
 				end.to raise_error(ArgumentError)
 			end
 		end
