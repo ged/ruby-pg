@@ -132,7 +132,7 @@ describe PG::TypeMapByClass do
 	it "should raise error on invalid coder object" do
 		tm[TrueClass] = "dummy"
 		expect{
-			res = @conn.exec_params( "SELECT $1", [true], 0, tm )
+			@conn.exec_params( "SELECT $1", [true], 0, tm )
 		}.to raise_error(NoMethodError, /undefined method.*call/)
 	end
 end

@@ -340,10 +340,10 @@ describe PG::Connection do
 			@conn.trace( trace_io )
 			trace_io.close
 
-			res = @conn.exec("SELECT 1 AS one")
+			@conn.exec("SELECT 1 AS one")
 			@conn.untrace
 
-			res = @conn.exec("SELECT 2 AS two")
+			@conn.exec("SELECT 2 AS two")
 
 			trace_data = trace_file.read
 
@@ -1622,6 +1622,7 @@ describe PG::Connection do
 
 			expect( event ).to eq( "Möhre" )
 			expect( event.encoding ).to eq( Encoding::UTF_8 )
+			expect( pid ).to be_a_kind_of(Integer)
 			expect( msg ).to eq( '世界線航跡蔵' )
 			expect( msg.encoding ).to eq( Encoding::UTF_8 )
 		end
@@ -1702,12 +1703,12 @@ describe PG::Connection do
 			row_encoder = PG::TextEncoder::CopyRow.new type_map: tm
 
 			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
-			res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+			@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 				@conn.put_copy_data [1], row_encoder
 				@conn.put_copy_data ["2"], row_encoder
 			end
 
-			res2 = @conn.copy_data( "COPY copytable FROM STDOUT", row_encoder ) do |res|
+			@conn.copy_data( "COPY copytable FROM STDOUT", row_encoder ) do |res|
 				@conn.put_copy_data [3]
 				@conn.put_copy_data ["4"]
 			end
@@ -1757,7 +1758,7 @@ describe PG::Connection do
 
 			it "can process #copy_data input queries with row encoder and respects character encoding" do
 				@conn2.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
-				res2 = @conn2.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+				@conn2.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 					@conn2.put_copy_data [1]
 					@conn2.put_copy_data ["Möhre".encode("utf-16le")]
 				end
@@ -1808,7 +1809,7 @@ describe PG::Connection do
 			it "can process #copy_data output with row decoder and respects character encoding" do
 				@conn2.internal_encoding = Encoding::ISO8859_1
 				rows = []
-				res2 = @conn2.copy_data( "COPY (VALUES('1'), ('Möhre')) TO STDOUT".encode("utf-16le") ) do |res|
+				@conn2.copy_data( "COPY (VALUES('1'), ('Möhre')) TO STDOUT".encode("utf-16le") ) do |res|
 					while row=@conn2.get_copy_data
 						rows << row
 					end

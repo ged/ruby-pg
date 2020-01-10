@@ -300,7 +300,7 @@ describe PG::Result do
 	it "detects division by zero as SQLSTATE 22012" do
 		sqlstate = nil
 		begin
-			res = @conn.exec("SELECT 1/0")
+			@conn.exec("SELECT 1/0")
 		rescue PG::Error => e
 			sqlstate = e.result.result_error_field( PG::PG_DIAG_SQLSTATE ).to_i
 		end
