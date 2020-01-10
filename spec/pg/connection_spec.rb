@@ -1903,7 +1903,7 @@ describe PG::Connection do
 				expect(@conn.get_last_result.values).to eq( [["5"]] )
 			end
 
-			it "should respond_to socket" do
+			it "should respond_to socket", :unix do
 				expect( @conn.socket ).to eq( @conn.socket_io.fileno )
 			end
 		else
