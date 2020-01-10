@@ -225,7 +225,7 @@ module PG::TestingHelpers
 		rescue => err
 			$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
 			$stderr.puts "See #{@logfile} for details."
-			$stderr.puts *err.backtrace if $DEBUG
+			$stderr.puts err.backtrace if $DEBUG
 			fail
 		end
 
