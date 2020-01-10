@@ -1872,34 +1872,61 @@ describe PG::Connection do
 	end
 
 	describe "deprecated forms of methods" do
-		it "should forward exec to exec_params" do
-			res = @conn.exec("VALUES($1::INT)", [7]).values
-			expect(res).to eq( [["7"]] )
-			res = @conn.exec("VALUES($1::INT)", [7], 1).values
-			expect(res).to eq( [[[7].pack("N")]] )
-			res = @conn.exec("VALUES(8)", [], 1).values
-			expect(res).to eq( [[[8].pack("N")]] )
-		end
+		if PG::VERSION < "2"
+			it "should forward exec to exec_params" do
+				res = @conn.exec("VALUES($1::INT)", [7]).values
+				expect(res).to eq( [["7"]] )
+				res = @conn.exec("VALUES($1::INT)", [7], 1).values
+				expect(res).to eq( [[[7].pack("N")]] )
+				res = @conn.exec("VALUES(8)", [], 1).values
+				expect(res).to eq( [[[8].pack("N")]] )
+			end
 
-		it "should forward exec_params to exec" do
-			res = @conn.exec_params("VALUES(3); VALUES(4)").values
-			expect(res).to eq( [["4"]] )
-			res = @conn.exec_params("VALUES(3); VALUES(4)", nil).values
-			expect(res).to eq( [["4"]] )
-			res = @conn.exec_params("VALUES(3); VALUES(4)", nil, nil).values
-			expect(res).to eq( [["4"]] )
-			res = @conn.exec_params("VALUES(3); VALUES(4)", nil, 1).values
-			expect(res).to eq( [["4"]] )
-			res = @conn.exec_params("VALUES(3); VALUES(4)", nil, nil, nil).values
-			expect(res).to eq( [["4"]] )
-			expect{
-				@conn.exec_params("VALUES(3); VALUES(4)", nil, nil, nil, nil).values
-			}.to raise_error(ArgumentError)
-		end
+			it "should forward exec_params to exec" do
+				res = @conn.exec_params("VALUES(3); VALUES(4)").values
+				expect(res).to eq( [["4"]] )
+				res = @conn.exec_params("VALUES(3); VALUES(4)", nil).values
+				expect(res).to eq( [["4"]] )
+				res = @conn.exec_params("VALUES(3); VALUES(4)", nil, nil).values
+				expect(res).to eq( [["4"]] )
+				res = @conn.exec_params("VALUES(3); VALUES(4)", nil, 1).values
+				expect(res).to eq( [["4"]] )
+				res = @conn.exec_params("VALUES(3); VALUES(4)", nil, nil, nil).values
+				expect(res).to eq( [["4"]] )
+				expect{
+					@conn.exec_params("VALUES(3); VALUES(4)", nil, nil, nil, nil).values
+				}.to raise_error(ArgumentError)
+			end
 
-		it "should forward send_query to send_query_params" do
-			@conn.send_query("VALUES($1)", [5])
-			expect(@conn.get_last_result.values).to eq( [["5"]] )
+			it "should forward send_query to send_query_params" do
+				@conn.send_query("VALUES($1)", [5])
+				expect(@conn.get_last_result.values).to eq( [["5"]] )
+			end
+		else
+			# Method forwarding removed by PG::VERSION >= "2"
+			it "shouldn't forward exec to exec_params" do
+				expect do
+					@conn.exec("VALUES($1::INT)", [7])
+				end.to raise_error(ArgumentError)
+			end
+
+			it "shouldn't forward exec_params to exec" do
+				expect do
+					@conn.exec_params("VALUES(3); VALUES(4)")
+				end.to raise_error(ArgumentError)
+			end
+
+			it "shouldn't forward send_query to send_query_params" do
+				expect do
+					@conn.send_query("VALUES($1)", [5])
+				end.to raise_error(ArgumentError)
+			end
+
+			it "shouldn't forward async_exec_params to async_exec" do
+				expect do
+					@conn.async_exec_params("VALUES(1)")
+				end.to raise_error(ArgumentError)
+			end
 		end
 
 		it "shouldn't forward send_query_params to send_query" do
