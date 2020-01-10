@@ -83,17 +83,6 @@ class CrossLibrary < OpenStruct
 		# clean intermediate files and folders
 		CLEAN.include( static_builddir.to_s )
 
-
-		def download(url, save_to)
-			part = save_to+".part"
-			sh "wget #{url.to_s.inspect} -O #{part.inspect} || curl #{url.to_s.inspect} -o #{part.inspect}"
-			FileUtils.mv part, save_to
-		end
-
-		def run(*args)
-			sh *args
-		end
-
 		#####################################################################
 		### C R O S S - C O M P I L A T I O N - T A S K S
 		#####################################################################
@@ -247,6 +236,16 @@ class CrossLibrary < OpenStruct
 		file stage_libpq => [postgresql_lib, File.dirname(stage_libpq)] do |t|
 			cp postgresql_lib, stage_libpq
 		end
+	end
+
+	def download(url, save_to)
+		part = save_to+".part"
+		sh "wget #{url.to_s.inspect} -O #{part.inspect} || curl #{url.to_s.inspect} -o #{part.inspect}"
+		FileUtils.mv part, save_to
+	end
+
+	def run(*args)
+		sh(*args)
 	end
 end
 
