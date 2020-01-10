@@ -115,7 +115,7 @@ Rake::ExtensionTask.new do |ext|
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
 	ext.cross_compile  = true
-	ext.cross_platform = CrossLibraries.map &:for_platform
+	ext.cross_platform = CrossLibraries.map(&:for_platform)
 
 	ext.cross_config_options += CrossLibraries.map do |lib|
 		{
