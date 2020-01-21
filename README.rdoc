@@ -39,7 +39,7 @@ A small example usage:
 * Ruby 2.2 or newer
 * PostgreSQL 9.2.x or later (with headers, -dev packages, etc).
 
-It usually work with earlier versions of Ruby/PostgreSQL as well, but those are
+It usually works with earlier versions of Ruby/PostgreSQL as well, but those are
 not regularly tested.
 
 
