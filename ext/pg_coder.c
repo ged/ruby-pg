@@ -61,11 +61,23 @@ pg_coder_init_decoder( VALUE self )
 	rb_iv_set( self, "@name", Qnil );
 }
 
+void
+pg_coder_mark(t_pg_coder *this)
+{
+	rb_gc_mark(this->coder_obj);
+}
+
+static void
+pg_composite_coder_mark(t_pg_composite_coder *this)
+{
+	pg_coder_mark(&this->comp);
+}
+
 static VALUE
 pg_simple_encoder_allocate( VALUE klass )
 {
 	t_pg_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_coder, NULL, -1, this );
+	VALUE self = Data_Make_Struct( klass, t_pg_coder, pg_coder_mark, -1, this );
 	pg_coder_init_encoder( self );
 	return self;
 }
@@ -74,7 +86,7 @@ static VALUE
 pg_composite_encoder_allocate( VALUE klass )
 {
 	t_pg_composite_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, NULL, -1, this );
+	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, pg_composite_coder_mark, -1, this );
 	pg_coder_init_encoder( self );
 	this->elem = NULL;
 	this->needs_quotation = 1;
@@ -87,7 +99,7 @@ static VALUE
 pg_simple_decoder_allocate( VALUE klass )
 {
 	t_pg_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_coder, NULL, -1, this );
+	VALUE self = Data_Make_Struct( klass, t_pg_coder, pg_coder_mark, -1, this );
 	pg_coder_init_decoder( self );
 	return self;
 }
@@ -96,7 +108,7 @@ static VALUE
 pg_composite_decoder_allocate( VALUE klass )
 {
 	t_pg_composite_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, NULL, -1, this );
+	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, pg_composite_coder_mark, -1, this );
 	pg_coder_init_decoder( self );
 	this->elem = NULL;
 	this->needs_quotation = 1;

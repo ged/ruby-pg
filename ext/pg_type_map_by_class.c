@@ -126,7 +126,11 @@ pg_tmbk_mark( t_tmbk *this )
 {
 	rb_gc_mark(this->typemap.default_typemap);
 	rb_gc_mark(this->klass_to_coder);
-	/* All coders are in the Hash, so no need to mark the cache. */
+	rb_gc_mark(this->self);
+	/* Clear the cache, to be safe from changes of klass VALUE by GC.compact.
+	 * TODO: Move cache clearing to compactation callback provided by Ruby-2.7+.
+	 */
+	memset(&this->cache_row, 0, sizeof(this->cache_row));
 }
 
 static VALUE
