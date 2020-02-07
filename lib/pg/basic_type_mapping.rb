@@ -118,13 +118,13 @@ module PG::BasicTypeRegistry
 	def build_coder_maps(connection)
 		if supports_ranges?(connection)
 			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname, t.typelem, t.typdelim, t.typinput, r.rngsubtype
+				SELECT t.oid, t.typname::text, t.typelem, t.typdelim, t.typinput::text, r.rngsubtype
 				FROM pg_type as t
 				LEFT JOIN pg_range as r ON oid = rngtypid
 			SQL
 		else
 			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname, t.typelem, t.typdelim, t.typinput
+				SELECT t.oid, t.typname::text, t.typelem, t.typdelim, t.typinput::text
 				FROM pg_type as t
 			SQL
 		end
