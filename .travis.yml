@@ -40,7 +40,7 @@ matrix:
         - gem cert --build travis-ci@dummy.org --private-key ~/.gem/gem-private_key.pem
         - cp gem-public_cert.pem ~/.gem/gem-public_cert.pem
       script:
-        - rake gem:windows
+        - rake gem:windows:x86-mingw32
   allow_failures:
     - rvm: ruby-head
     - rvm: truffleruby
