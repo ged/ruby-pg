@@ -566,6 +566,8 @@ describe PG::Connection do
 	end
 
 	it "can receive notices while waiting for NOTIFY without exceeding the timeout" do
+		skip if RUBY_ENGINE == 'truffleruby'
+
 		notices = []
 		@conn.set_notice_processor do |msg|
 			notices << [msg, Time.now]
