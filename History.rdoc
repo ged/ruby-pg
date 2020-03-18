@@ -1,7 +1,9 @@
-== v1.2.3 [2020-02-02] Michael Granger <ged@FaerieMUD.org>
+== v1.2.3 [2020-03-18] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
-- Fix possible segfault at `PG::Coder#encode`, `decode` or their implicit calls through a typemap after GC.compact. #327
+
+- Fix possible segfault at `PG::Coder#encode`, `decode` or their implicit calls through
+  a typemap after GC.compact. #327
 - Fix possible segfault in `PG::TypeMapByClass` after GC.compact. #328
 
 
