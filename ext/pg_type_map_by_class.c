@@ -10,7 +10,6 @@
 #include "pg.h"
 
 static VALUE rb_cTypeMapByClass;
-static ID s_id_ancestors;
 
 typedef struct {
 	t_typemap typemap;
@@ -48,7 +47,7 @@ pg_tmbk_lookup_klass(t_tmbk *this, VALUE klass, VALUE param_value)
 
 		if( NIL_P(obj) ){
 			int i;
-			VALUE ancestors = rb_funcall( klass, s_id_ancestors, 0 );
+			VALUE ancestors = rb_mod_ancestors( klass );
 
 			Check_Type( ancestors, T_ARRAY );
 			/* Don't look at the first element, it's expected to equal klass. */
@@ -222,8 +221,6 @@ pg_tmbk_coders( VALUE self )
 void
 init_pg_type_map_by_class()
 {
-	s_id_ancestors = rb_intern("ancestors");
-
 	/*
 	 * Document-class: PG::TypeMapByClass < PG::TypeMap
 	 *
