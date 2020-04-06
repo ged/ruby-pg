@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.version = "1.3.0.pre20200106132615"
 
   s.required_rubygems_version = Gem::Requirement.new("> 1.3.1".freeze) if s.respond_to? :required_rubygems_version=
-  s.metadata = { "homepage_uri" => "https://github.com/ged/ruby-pg" } if s.respond_to? :metadata=
+  s.metadata = { "homepage_uri" => "https://github.com/ged/ruby-pg", "changelog_uri" => "https://github.com/ged/ruby-pg/blob/master/History.rdoc" } if s.respond_to? :metadata=
   s.require_paths = ["lib".freeze]
   s.authors = ["Michael Granger".freeze, "Lars Kanis".freeze]
   s.cert_chain = ["certs/ged.pem".freeze]
