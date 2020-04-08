@@ -566,18 +566,42 @@ describe PG::Connection do
 	end
 
 	it "can receive notices while waiting for NOTIFY without exceeding the timeout" do
-		notices = []
-		@conn.set_notice_processor do |msg|
-			notices << [msg, Time.now]
+		retries = 20
+		loop do
+			@conn.get_last_result  # clear pending results
+			expect( retries-=1 ).to be > 0
+
+			notices = []
+			lt = nil
+			@conn.set_notice_processor do |msg|
+				notices << [msg, Time.now - lt] if lt
+				lt = Time.now
+			end
+
+			st = Time.now
+			# Send two notifications while a query is running
+			@conn.send_query <<-EOT
+				DO $$ BEGIN
+					RAISE NOTICE 'notice1';
+					PERFORM pg_sleep(0.3);
+					RAISE NOTICE 'notice2';
+				END; $$ LANGUAGE plpgsql
+			EOT
+
+			# wait_for_notify recalculates the internal select() timeout after each all to set_notice_processor
+			expect( @conn.wait_for_notify( 0.5 ) ).to be_nil
+			et = Time.now
+
+			# The notifications should have been delivered while (not after) the query is running.
+			# Check this and retry otherwise.
+			next unless notices.size == 1         # should have received one notice
+			expect( notices.first[0] ).to match(/notice2/)
+			next unless notices.first[1] >= 0.29  # should take at least the pg_sleep() duration
+			next unless notices.first[1] < 0.49   # but should be shorter than the wait_for_notify() duration
+			next unless et - st < 0.75            # total time should not exceed wait_for_notify() + pg_sleep() duration
+			expect( et - st ).to be >= 0.49       # total time must be at least the wait_for_notify() duration
+			break
 		end
-		st = Time.now
-		@conn.send_query "SELECT pg_sleep(0.5); do $$ BEGIN RAISE NOTICE 'woohoo'; END; $$ LANGUAGE plpgsql;"
-		expect( @conn.wait_for_notify( 1 ) ).to be_nil
-		expect( notices.first ).to_not be_nil
-		et = Time.now
-		expect( (et - notices.first[1]) ).to be >= 0.3
-		expect( (et - st) ).to be >= 0.9
-		expect( (et - st) ).to be < 1.4
 	end
 
 	it "yields the result if block is given to exec" do
