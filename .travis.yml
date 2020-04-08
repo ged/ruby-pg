@@ -43,7 +43,6 @@ matrix:
         - rake gem:windows:x86-mingw32
   allow_failures:
     - rvm: ruby-head
-    - rvm: truffleruby
   fast_finish: true
 
 before_install:
