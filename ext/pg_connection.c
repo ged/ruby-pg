@@ -3076,7 +3076,7 @@ pgconn_get_last_result(VALUE self)
 		prev = cur;
 
 		status = PQresultStatus(cur);
-		if (status == PGRES_COPY_OUT || status == PGRES_COPY_IN)
+		if (status == PGRES_COPY_OUT || status == PGRES_COPY_IN || status == PGRES_COPY_BOTH)
 			break;
 	}
 

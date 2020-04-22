@@ -70,5 +70,6 @@ module PG
 	require 'pg/connection'
 	require 'pg/result'
 	require 'pg/tuple'
+	require 'pg/replication'
 
 end # module PG
