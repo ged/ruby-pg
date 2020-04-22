@@ -48,7 +48,7 @@ describe PG::LogicalReplication do
       expect(results[i + 1]).to eq("table public.teas: INSERT: kind[text]:'#{tea}'")
     end
     # COMMIT 4446 (at 2020-04-22 10:51:39.603592-04)
-    expect(results[4]).to match(/^COMMIT\s\d+\s\(at \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}[-+]\d{2}\)$/)
+    expect(results[4]).to match(/^COMMIT\s\d+\s\(at \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?[-+]\d{2}\)$/)
   end
 
 end
