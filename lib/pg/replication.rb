@@ -183,7 +183,7 @@ class PG::LogicalReplication
       end
     end
   ensure
-    connection&.finish
+    connection.finish if connection
   end
 
   private
