@@ -211,10 +211,6 @@ module PG::TestingHelpers
 				FileUtils.rm_rf( @test_pgdata, :verbose => $DEBUG )
 				trace "Running initdb"
 				log_and_run @logfile, 'initdb', '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
-
-				File.open(File.join(@test_pgdata, "postgresql.conf"), 'a') do |f|
-					f << "\nwal_level = logical"
-				end
 			end
 
 			trace "Starting postgres"
