@@ -3996,20 +3996,20 @@ pgconn_type_map_for_results_get(VALUE self)
  *
  */
 static VALUE
-pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE typemap)
+pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
-	if( typemap != Qnil ){
-		if ( !rb_obj_is_kind_of(typemap, rb_cPG_Coder) ) {
+	if( encoder != Qnil ){
+		if ( !rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
 			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
-					rb_obj_classname( typemap ) );
+					rb_obj_classname( encoder ) );
 		}
-		Check_Type(typemap, T_DATA);
+		Check_Type(encoder, T_DATA);
 	}
-	this->encoder_for_put_copy_data = typemap;
+	this->encoder_for_put_copy_data = encoder;
 
-	return typemap;
+	return encoder;
 }
 
 /*
@@ -4045,20 +4045,20 @@ pgconn_encoder_for_put_copy_data_get(VALUE self)
  *
  */
 static VALUE
-pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE typemap)
+pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
-	if( typemap != Qnil ){
-		if ( !rb_obj_is_kind_of(typemap, rb_cPG_Coder) ) {
+	if( decoder != Qnil ){
+		if ( !rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
 			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
-					rb_obj_classname( typemap ) );
+					rb_obj_classname( decoder ) );
 		}
-		Check_Type(typemap, T_DATA);
+		Check_Type(decoder, T_DATA);
 	}
-	this->decoder_for_get_copy_data = typemap;
+	this->decoder_for_get_copy_data = decoder;
 
-	return typemap;
+	return decoder;
 }
 
 /*
