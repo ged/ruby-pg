@@ -191,7 +191,7 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->pgresult = result;
 	this->connection = rb_pgconn;
 	this->typemap = pg_typemap_all_strings;
-	this->p_typemap = DATA_PTR( this->typemap );
+	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
@@ -202,11 +202,11 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 		t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
 		VALUE typemap = p_conn->type_map_for_results;
 		/* Type check is done when assigned to PG::Connection. */
-		t_typemap *p_typemap = DATA_PTR(typemap);
+		t_typemap *p_typemap = RTYPEDDATA_DATA(typemap);
 
 		this->enc_idx = p_conn->enc_idx;
 		this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
-		this->p_typemap = DATA_PTR( this->typemap );
+		this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 		this->flags = p_conn->flags;
 	} else {
 		this->enc_idx = rb_locale_encindex();
@@ -1325,14 +1325,11 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 	t_pg_result *this = pgresult_get_this(self);
 	t_typemap *p_typemap;
 
-	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-				rb_obj_classname( typemap ) );
-	}
-	Data_Get_Struct(typemap, t_typemap, p_typemap);
+	/* Check type of method param */
+	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, p_typemap);
 
 	this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
-	this->p_typemap = DATA_PTR( this->typemap );
+	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 
 	return typemap;
 }

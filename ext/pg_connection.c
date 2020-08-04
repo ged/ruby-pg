@@ -1095,7 +1095,7 @@ alloc_query_params(struct query_params_data *paramsData)
 
 	Check_Type(paramsData->params, T_ARRAY);
 
-	p_typemap = DATA_PTR( paramsData->typemap );
+	p_typemap = RTYPEDDATA_DATA( paramsData->typemap );
 	p_typemap->funcs.fit_to_query( paramsData->typemap, paramsData->params );
 
 	paramsData->heap_pool = Qnil;
@@ -1227,12 +1227,11 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
 		/* Use default typemap for queries. It's type is checked when assigned. */
 		paramsData->typemap = pg_get_connection(self)->type_map_for_queries;
 	}else{
+		t_typemap *tm;
+		UNUSED(tm);
+
 		/* Check type of method param */
-		if ( !rb_obj_is_kind_of(paramsData->typemap, rb_cTypeMap) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( paramsData->typemap ) );
-		}
-		Check_Type( paramsData->typemap, T_DATA );
+		TypedData_Get_Struct(paramsData->typemap, t_typemap, &pg_typemap_type, tm);
 	}
 }
 
@@ -3916,12 +3915,12 @@ static VALUE
 pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 {
 	t_pg_connection *this = pg_get_connection( self );
+	t_typemap *tm;
+	UNUSED(tm);
 
-	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-				rb_obj_classname( typemap ) );
-	}
-	Check_Type(typemap, T_DATA);
+	/* Check type of method param */
+	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
+
 	this->type_map_for_queries = typemap;
 
 	return typemap;
@@ -3956,12 +3955,10 @@ static VALUE
 pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 {
 	t_pg_connection *this = pg_get_connection( self );
+	t_typemap *tm;
+	UNUSED(tm);
 
-	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-				rb_obj_classname( typemap ) );
-	}
-	Check_Type(typemap, T_DATA);
+	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
 	this->type_map_for_results = typemap;
 
 	return typemap;

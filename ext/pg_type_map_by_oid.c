@@ -70,7 +70,7 @@ pg_tmbo_build_type_map_for_result2( t_tmbo *this, PGresult *pgresult )
 	p_colmap->typemap.default_typemap = pg_typemap_all_strings;
 
 	colmap = pg_tmbc_allocate();
-	DATA_PTR(colmap) = p_colmap;
+	RTYPEDDATA_DATA(colmap) = p_colmap;
 
 	for(i=0; i<nfields; i++)
 	{
@@ -113,18 +113,18 @@ pg_tmbo_result_value(t_typemap *p_typemap, VALUE result, int tuple, int field)
 		return dec_func( p_coder, val, len, tuple, field, p_result->enc_idx );
 	}
 
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	return default_tm->funcs.typecast_result_value( default_tm, result, tuple, field );
 }
 
 static VALUE
 pg_tmbo_fit_to_result( VALUE self, VALUE result )
 {
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 	PGresult *pgresult = pgresult_get( result );
 
 	/* Ensure that the default type map fits equaly. */
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	VALUE sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
 
 	if( PQntuples( pgresult ) <= this->max_rows_for_online_lookup ){
@@ -137,7 +137,7 @@ pg_tmbo_fit_to_result( VALUE self, VALUE result )
 			/* The default type map built a new object, so we need to propagate it
 			 * and build a copy of this type map. */
 			VALUE new_typemap = pg_tmbo_s_allocate( rb_cTypeMapByOid );
-			t_tmbo *p_new_typemap = DATA_PTR(new_typemap);
+			t_tmbo *p_new_typemap = RTYPEDDATA_DATA(new_typemap);
 			*p_new_typemap = *this;
 			p_new_typemap->typemap.default_typemap = sub_typemap;
 			return new_typemap;
@@ -147,7 +147,7 @@ pg_tmbo_fit_to_result( VALUE self, VALUE result )
 		 * uses a fast array lookup.
 		 */
 		VALUE new_typemap = pg_tmbo_build_type_map_for_result2( this, pgresult );
-		t_tmbo *p_new_typemap = DATA_PTR(new_typemap);
+		t_tmbo *p_new_typemap = RTYPEDDATA_DATA(new_typemap);
 		p_new_typemap->typemap.default_typemap = sub_typemap;
 		return new_typemap;
 	}
@@ -164,6 +164,20 @@ pg_tmbo_mark( t_tmbo *this )
 	}
 }
 
+static const rb_data_type_t pg_tmbo_type = {
+	"PG::TypeMapByOid",
+	{
+		(void (*)(void*))pg_tmbo_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	&pg_typemap_type,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 static VALUE
 pg_tmbo_s_allocate( VALUE klass )
 {
@@ -171,7 +185,7 @@ pg_tmbo_s_allocate( VALUE klass )
 	VALUE self;
 	int i;
 
-	self = Data_Make_Struct( klass, t_tmbo, pg_tmbo_mark, -1, this );
+	self = TypedData_Make_Struct( klass, t_tmbo, &pg_tmbo_type, this );
 
 	this->typemap.funcs.fit_to_result = pg_tmbo_fit_to_result;
 	this->typemap.funcs.fit_to_query = pg_typemap_fit_to_query;
@@ -205,7 +219,7 @@ static VALUE
 pg_tmbo_add_coder( VALUE self, VALUE coder )
 {
 	VALUE hash;
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 	t_pg_coder *p_coder;
 	struct pg_tmbo_oid_cache_entry *p_ce;
 
@@ -243,7 +257,7 @@ pg_tmbo_rm_coder( VALUE self, VALUE format, VALUE oid )
 {
 	VALUE hash;
 	VALUE coder;
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 	int i_format = NUM2INT(format);
 	struct pg_tmbo_oid_cache_entry *p_ce;
 
@@ -269,7 +283,7 @@ pg_tmbo_rm_coder( VALUE self, VALUE format, VALUE oid )
 static VALUE
 pg_tmbo_coders( VALUE self )
 {
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 
 	return rb_ary_concat(
 			rb_funcall(this->format[0].oid_to_coder, rb_intern("values"), 0),
@@ -288,7 +302,7 @@ pg_tmbo_coders( VALUE self )
 static VALUE
 pg_tmbo_max_rows_for_online_lookup_set( VALUE self, VALUE value )
 {
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 	this->max_rows_for_online_lookup = NUM2INT(value);
 	return value;
 }
@@ -300,7 +314,7 @@ pg_tmbo_max_rows_for_online_lookup_set( VALUE self, VALUE value )
 static VALUE
 pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
 {
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 	return INT2NUM(this->max_rows_for_online_lookup);
 }
 
@@ -315,7 +329,7 @@ pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
 static VALUE
 pg_tmbo_build_column_map( VALUE self, VALUE result )
 {
-	t_tmbo *this = DATA_PTR( self );
+	t_tmbo *this = RTYPEDDATA_DATA( self );
 
 	if ( !rb_obj_is_kind_of(result, rb_cPGresult) ) {
 		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Result)",

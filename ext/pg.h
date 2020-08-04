@@ -220,6 +220,7 @@ typedef struct {
 	} convs[0];
 } t_tmbc;
 
+extern const rb_data_type_t pg_typemap_type;
 
 #include "gvl_wrappers.h"
 

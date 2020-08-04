@@ -103,7 +103,7 @@ pg_tmbk_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field
   p_coder = pg_tmbk_lookup_klass( this, rb_obj_class(param_value), param_value );
 
 	if( !p_coder ){
-		t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+		t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 		return default_tm->funcs.typecast_query_param( default_tm, param_value, field );
 	}
 
@@ -113,9 +113,9 @@ pg_tmbk_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field
 static VALUE
 pg_tmbk_fit_to_query( VALUE self, VALUE params )
 {
-	t_tmbk *this = (t_tmbk *)DATA_PTR(self);
+	t_tmbk *this = (t_tmbk *)RTYPEDDATA_DATA(self);
 	/* Nothing to check at this typemap, but ensure that the default type map fits. */
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 	return self;
 }
@@ -132,13 +132,27 @@ pg_tmbk_mark( t_tmbk *this )
 	memset(&this->cache_row, 0, sizeof(this->cache_row));
 }
 
+static const rb_data_type_t pg_tmbk_type = {
+	"PG::TypeMapByClass",
+	{
+		(void (*)(void*))pg_tmbk_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	&pg_typemap_type,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 static VALUE
 pg_tmbk_s_allocate( VALUE klass )
 {
 	t_tmbk *this;
 	VALUE self;
 
-	self = Data_Make_Struct( klass, t_tmbk, pg_tmbk_mark, -1, this );
+	self = TypedData_Make_Struct( klass, t_tmbk, &pg_tmbk_type, this );
 	this->typemap.funcs.fit_to_result = pg_typemap_fit_to_result;
 	this->typemap.funcs.fit_to_query = pg_tmbk_fit_to_query;
 	this->typemap.funcs.fit_to_copy_get = pg_typemap_fit_to_copy_get;
@@ -152,7 +166,7 @@ pg_tmbk_s_allocate( VALUE klass )
 	this->self = self;
 	this->klass_to_coder = rb_hash_new();
 
-	/* The cache is properly initialized by Data_Make_Struct(). */
+	/* The cache is properly initialized by TypedData_Make_Struct(). */
 
 	return self;
 }
@@ -175,7 +189,7 @@ pg_tmbk_s_allocate( VALUE klass )
 static VALUE
 pg_tmbk_aset( VALUE self, VALUE klass, VALUE coder )
 {
-	t_tmbk *this = DATA_PTR( self );
+	t_tmbk *this = RTYPEDDATA_DATA( self );
 
 	if(NIL_P(coder)){
 		rb_hash_delete( this->klass_to_coder, klass );
@@ -199,7 +213,7 @@ pg_tmbk_aset( VALUE self, VALUE klass, VALUE coder )
 static VALUE
 pg_tmbk_aref( VALUE self, VALUE klass )
 {
-	t_tmbk *this = DATA_PTR( self );
+	t_tmbk *this = RTYPEDDATA_DATA( self );
 
 	return rb_hash_lookup(this->klass_to_coder, klass);
 }
@@ -213,7 +227,7 @@ pg_tmbk_aref( VALUE self, VALUE klass )
 static VALUE
 pg_tmbk_coders( VALUE self )
 {
-	t_tmbk *this = DATA_PTR( self );
+	t_tmbk *this = RTYPEDDATA_DATA( self );
 
 	return rb_obj_freeze(rb_hash_dup(this->klass_to_coder));
 }

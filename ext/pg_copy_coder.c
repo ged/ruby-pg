@@ -188,7 +188,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	char *current_out;
 	char *end_capa_ptr;
 
-	p_typemap = DATA_PTR( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	p_typemap->funcs.fit_to_query( this->typemap, value );
 
 	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
@@ -376,7 +376,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 	char *end_capa_ptr;
 	t_typemap *p_typemap;
 
-	p_typemap = DATA_PTR( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	expected_fields = p_typemap->funcs.fit_to_copy_get( this->typemap );
 
 	/* The received input string will probably have this->nfields fields. */

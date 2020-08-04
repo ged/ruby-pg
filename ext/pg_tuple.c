@@ -172,7 +172,7 @@ pg_tuple_materialize_field(t_pg_tuple *this, int col)
 	VALUE value = this->values[col];
 
 	if( value == Qundef ){
-		t_typemap *p_typemap = DATA_PTR( this->typemap );
+		t_typemap *p_typemap = RTYPEDDATA_DATA( this->typemap );
 
 		pgresult_get(this->result); /* make sure we have a valid PGresult object */
 		value = p_typemap->funcs.typecast_result_value(p_typemap, this->result, this->row_num, col);
