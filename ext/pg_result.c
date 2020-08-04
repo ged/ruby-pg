@@ -155,7 +155,7 @@ pgresult_memsize( t_pg_result *this )
 }
 
 static const rb_data_type_t pgresult_type = {
-	"pg",
+	"PG::Result",
 	{
 		(void (*)(void*))pgresult_gc_mark,
 		(void (*)(void*))pgresult_gc_free,

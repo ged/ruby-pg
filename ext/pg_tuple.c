@@ -93,7 +93,7 @@ pg_tuple_memsize( t_pg_tuple *this )
 }
 
 static const rb_data_type_t pg_tuple_type = {
-	"pg",
+	"PG::Tuple",
 	{
 		(void (*)(void*))pg_tuple_gc_mark,
 		(void (*)(void*))pg_tuple_gc_free,
