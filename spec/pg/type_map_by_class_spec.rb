@@ -126,7 +126,7 @@ describe PG::TypeMapByClass do
 	it "should raise TypeError with derived type map" do
 		expect{
 			@conn.exec_params( "SELECT $1", [raise_class.new], 0, derived_tm )
-		}.to raise_error(TypeError, /invalid type Regexp/)
+		}.to raise_error(TypeError, /wrong argument type Regexp/)
 	end
 
 	it "should raise error on invalid coder object" do

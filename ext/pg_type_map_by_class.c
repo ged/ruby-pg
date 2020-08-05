@@ -62,7 +62,7 @@ pg_tmbk_lookup_klass(t_tmbk *this, VALUE klass, VALUE param_value)
 		if(NIL_P(obj)){
 			p_coder = NULL;
 		}else if(rb_obj_is_kind_of(obj, rb_cPG_Coder)){
-			Data_Get_Struct(obj, t_pg_coder, p_coder);
+			TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, p_coder);
 		}else{
 			if( RB_TYPE_P(obj, T_SYMBOL) ){
 				/* A Symbol: Call the method with this name. */
@@ -74,11 +74,9 @@ pg_tmbk_lookup_klass(t_tmbk *this, VALUE klass, VALUE param_value)
 
 			if( NIL_P(obj) ){
 				p_coder = NULL;
-			}else if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-				Data_Get_Struct(obj, t_pg_coder, p_coder);
 			}else{
-				rb_raise(rb_eTypeError, "argument has invalid type %s (should be nil or some kind of PG::Coder)",
-							rb_obj_classname( obj ));
+				/* Check retrieved coder type */
+				TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, p_coder);
 			}
 
 			/* We can not cache coders retrieved by ruby code, because we can not anticipate

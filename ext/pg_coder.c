@@ -26,11 +26,11 @@ pg_coder_allocate( VALUE klass )
 void
 pg_coder_init_encoder( VALUE self )
 {
-	t_pg_coder *this = DATA_PTR( self );
+	t_pg_coder *this = RTYPEDDATA_DATA( self );
 	VALUE klass = rb_class_of(self);
 	if( rb_const_defined( klass, s_id_CFUNC ) ){
 		VALUE cfunc = rb_const_get( klass, s_id_CFUNC );
-		this->enc_func = DATA_PTR(cfunc);
+		this->enc_func = RTYPEDDATA_DATA(cfunc);
 	} else {
 		this->enc_func = NULL;
 	}
@@ -45,12 +45,12 @@ pg_coder_init_encoder( VALUE self )
 void
 pg_coder_init_decoder( VALUE self )
 {
-	t_pg_coder *this = DATA_PTR( self );
+	t_pg_coder *this = RTYPEDDATA_DATA( self );
 	VALUE klass = rb_class_of(self);
 	this->enc_func = NULL;
 	if( rb_const_defined( klass, s_id_CFUNC ) ){
 		VALUE cfunc = rb_const_get( klass, s_id_CFUNC );
-		this->dec_func = DATA_PTR(cfunc);
+		this->dec_func = RTYPEDDATA_DATA(cfunc);
 	} else {
 		this->dec_func = NULL;
 	}
@@ -73,20 +73,48 @@ pg_composite_coder_mark(t_pg_composite_coder *this)
 	pg_coder_mark(&this->comp);
 }
 
+const rb_data_type_t pg_coder_type = {
+	"PG::Coder",
+	{
+		(void (*)(void*))pg_coder_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 static VALUE
 pg_simple_encoder_allocate( VALUE klass )
 {
 	t_pg_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_coder, pg_coder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_coder, &pg_coder_type, this );
 	pg_coder_init_encoder( self );
 	return self;
 }
+
+static const rb_data_type_t pg_composite_coder_type = {
+	"PG::CompositeCoder",
+	{
+		(void (*)(void*))pg_composite_coder_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	&pg_coder_type,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
 
 static VALUE
 pg_composite_encoder_allocate( VALUE klass )
 {
 	t_pg_composite_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, pg_composite_coder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_composite_coder, &pg_composite_coder_type, this );
 	pg_coder_init_encoder( self );
 	this->elem = NULL;
 	this->needs_quotation = 1;
@@ -99,7 +127,7 @@ static VALUE
 pg_simple_decoder_allocate( VALUE klass )
 {
 	t_pg_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_coder, pg_coder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_coder, &pg_coder_type, this );
 	pg_coder_init_decoder( self );
 	return self;
 }
@@ -108,7 +136,7 @@ static VALUE
 pg_composite_decoder_allocate( VALUE klass )
 {
 	t_pg_composite_coder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_composite_coder, pg_composite_coder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_composite_coder, &pg_composite_coder_type, this );
 	pg_coder_init_decoder( self );
 	this->elem = NULL;
 	this->needs_quotation = 1;
@@ -135,7 +163,7 @@ pg_coder_encode(int argc, VALUE *argv, VALUE self)
 	VALUE value;
 	int len, len2;
 	int enc_idx;
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 
 	if(argc < 1 || argc > 2){
 		rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..2)", argc);
@@ -192,7 +220,7 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 	int tuple = -1;
 	int field = -1;
 	VALUE res;
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 
 	if(argc < 1 || argc > 3){
 		rb_raise(rb_eArgError, "wrong number of arguments (%i for 1..3)", argc);
@@ -230,7 +258,7 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 static VALUE
 pg_coder_oid_set(VALUE self, VALUE oid)
 {
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 	this->oid = NUM2UINT(oid);
 	return oid;
 }
@@ -245,7 +273,7 @@ pg_coder_oid_set(VALUE self, VALUE oid)
 static VALUE
 pg_coder_oid_get(VALUE self)
 {
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 	return UINT2NUM(this->oid);
 }
 
@@ -261,7 +289,7 @@ pg_coder_oid_get(VALUE self)
 static VALUE
 pg_coder_format_set(VALUE self, VALUE format)
 {
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 	this->format = NUM2INT(format);
 	return format;
 }
@@ -276,7 +304,7 @@ pg_coder_format_set(VALUE self, VALUE format)
 static VALUE
 pg_coder_format_get(VALUE self)
 {
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 	return INT2NUM(this->format);
 }
 
@@ -292,7 +320,7 @@ pg_coder_format_get(VALUE self)
 static VALUE
 pg_coder_flags_set(VALUE self, VALUE flags)
 {
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 	this->flags = NUM2INT(flags);
 	return flags;
 }
@@ -306,7 +334,7 @@ pg_coder_flags_set(VALUE self, VALUE flags)
 static VALUE
 pg_coder_flags_get(VALUE self)
 {
-	t_pg_coder *this = DATA_PTR(self);
+	t_pg_coder *this = RTYPEDDATA_DATA(self);
 	return INT2NUM(this->flags);
 }
 
@@ -323,7 +351,7 @@ pg_coder_flags_get(VALUE self)
 static VALUE
 pg_coder_needs_quotation_set(VALUE self, VALUE needs_quotation)
 {
-	t_pg_composite_coder *this = DATA_PTR(self);
+	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
 	this->needs_quotation = RTEST(needs_quotation);
 	return needs_quotation;
 }
@@ -338,7 +366,7 @@ pg_coder_needs_quotation_set(VALUE self, VALUE needs_quotation)
 static VALUE
 pg_coder_needs_quotation_get(VALUE self)
 {
-	t_pg_composite_coder *this = DATA_PTR(self);
+	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
 	return this->needs_quotation ? Qtrue : Qfalse;
 }
 
@@ -353,7 +381,7 @@ pg_coder_needs_quotation_get(VALUE self)
 static VALUE
 pg_coder_delimiter_set(VALUE self, VALUE delimiter)
 {
-	t_pg_composite_coder *this = DATA_PTR(self);
+	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
 	StringValue(delimiter);
 	if(RSTRING_LEN(delimiter) != 1)
 		rb_raise( rb_eArgError, "delimiter size must be one byte");
@@ -370,7 +398,7 @@ pg_coder_delimiter_set(VALUE self, VALUE delimiter)
 static VALUE
 pg_coder_delimiter_get(VALUE self)
 {
-	t_pg_composite_coder *this = DATA_PTR(self);
+	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
 	return rb_str_new(&this->delimiter, 1);
 }
 
@@ -386,12 +414,12 @@ pg_coder_delimiter_get(VALUE self)
 static VALUE
 pg_coder_elements_type_set(VALUE self, VALUE elem_type)
 {
-	t_pg_composite_coder *this = DATA_PTR( self );
+	t_pg_composite_coder *this = RTYPEDDATA_DATA( self );
 
 	if ( NIL_P(elem_type) ){
 		this->elem = NULL;
 	} else if ( rb_obj_is_kind_of(elem_type, rb_cPG_Coder) ){
-		this->elem = DATA_PTR( elem_type );
+		this->elem = RTYPEDDATA_DATA( elem_type );
 	} else {
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::Coder)",
 				rb_obj_classname( elem_type ) );
@@ -401,10 +429,24 @@ pg_coder_elements_type_set(VALUE self, VALUE elem_type)
 	return elem_type;
 }
 
+static const rb_data_type_t pg_coder_cfunc_type = {
+	"PG::Coder::CFUNC",
+	{
+		(void (*)(void*))NULL,
+		(void (*)(void*))NULL,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 void
 pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 {
-	VALUE cfunc_obj = Data_Wrap_Struct( rb_cObject, NULL, NULL, func );
+	VALUE cfunc_obj = TypedData_Wrap_Struct( rb_cObject, &pg_coder_cfunc_type, func );
 	VALUE coder_klass = rb_define_class_under( nsp, name, base_klass );
 	if( nsp==rb_mPG_BinaryEncoder || nsp==rb_mPG_BinaryDecoder )
 		rb_include_module( coder_klass, rb_mPG_BinaryFormatting );

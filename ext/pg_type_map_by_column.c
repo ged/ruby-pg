@@ -255,11 +255,9 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 		if( obj == Qnil ){
 			/* no type cast */
 			this->convs[i].cconv = NULL;
-		} else if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-			Data_Get_Struct(obj, t_pg_coder, this->convs[i].cconv);
 		} else {
-			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
-							 i+1, rb_obj_classname( obj ));
+			/* Check argument type and store the coder pointer */
+			TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, this->convs[i].cconv);
 		}
 	}
 

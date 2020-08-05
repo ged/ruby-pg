@@ -2466,13 +2466,11 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 		if( NIL_P(this->encoder_for_put_copy_data) ){
 			buffer = value;
 		} else {
-			p_coder = DATA_PTR( this->encoder_for_put_copy_data );
+			p_coder = RTYPEDDATA_DATA( this->encoder_for_put_copy_data );
 		}
-	} else if( rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
-		Data_Get_Struct( encoder, t_pg_coder, p_coder );
 	} else {
-		rb_raise( rb_eTypeError, "wrong encoder type %s (expected some kind of PG::Coder)",
-				rb_obj_classname( encoder ) );
+		/* Check argument type and use argument encoder */
+		TypedData_Get_Struct(encoder, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
 	if( p_coder ){
@@ -2578,13 +2576,11 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 
 	if( NIL_P(decoder) ){
 		if( !NIL_P(this->decoder_for_get_copy_data) ){
-			p_coder = DATA_PTR( this->decoder_for_get_copy_data );
+			p_coder = RTYPEDDATA_DATA( this->decoder_for_get_copy_data );
 		}
-	} else if( rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
-		Data_Get_Struct( decoder, t_pg_coder, p_coder );
 	} else {
-		rb_raise( rb_eTypeError, "wrong decoder type %s (expected some kind of PG::Coder)",
-				rb_obj_classname( decoder ) );
+		/* Check argument type and use argument decoder */
+		TypedData_Get_Struct(decoder, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
 	ret = gvl_PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
@@ -3998,11 +3994,10 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if( encoder != Qnil ){
-		if ( !rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
-					rb_obj_classname( encoder ) );
-		}
-		Check_Type(encoder, T_DATA);
+		t_pg_coder *co;
+		UNUSED(co);
+		/* Check argument type */
+		TypedData_Get_Struct(encoder, t_pg_coder, &pg_coder_type, co);
 	}
 	this->encoder_for_put_copy_data = encoder;
 
@@ -4047,11 +4042,10 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if( decoder != Qnil ){
-		if ( !rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
-					rb_obj_classname( decoder ) );
-		}
-		Check_Type(decoder, T_DATA);
+		t_pg_coder *co;
+		UNUSED(co);
+		/* Check argument type */
+		TypedData_Get_Struct(decoder, t_pg_coder, &pg_coder_type, co);
 	}
 	this->decoder_for_get_copy_data = decoder;
 

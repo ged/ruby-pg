@@ -71,12 +71,8 @@ pg_tmbmt_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int fiel
 
 		obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
 
-		if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-			Data_Get_Struct(obj, t_pg_coder, p_coder);
-		}else{
-			rb_raise(rb_eTypeError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
-						field+1, rb_obj_classname( obj ));
-		}
+		/* Check argument type and store the coder pointer */
+		TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
 	if( !p_coder ){
@@ -154,7 +150,7 @@ pg_tmbmt_s_allocate( VALUE klass )
 			this->coders.coder_##type = NULL; \
 			this->coders.ask_##type = Qnil; \
 		}else if(rb_obj_is_kind_of(coder, rb_cPG_Coder)){ \
-			Data_Get_Struct(coder, t_pg_coder, this->coders.coder_##type); \
+			TypedData_Get_Struct(coder, t_pg_coder, &pg_coder_type, this->coders.coder_##type); \
 			this->coders.ask_##type = Qnil; \
 		}else if(RB_TYPE_P(coder, T_SYMBOL)){ \
 			this->coders.coder_##type = NULL; \

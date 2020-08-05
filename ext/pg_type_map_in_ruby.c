@@ -155,7 +155,7 @@ pg_tmir_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 	if ( NIL_P(coder) ){
 		return NULL;
 	} else if( rb_obj_is_kind_of(coder, rb_cPG_Coder) ) {
-		return DATA_PTR(coder);
+		return RTYPEDDATA_DATA(coder);
 	} else {
 		rb_raise( rb_eTypeError, "wrong return type from typecast_query_param: %s expected nil or kind of PG::Coder",
 				rb_obj_classname( coder ) );

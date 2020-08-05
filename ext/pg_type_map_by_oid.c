@@ -46,7 +46,7 @@ pg_tmbo_lookup_oid(t_tmbo *this, int format, Oid oid)
 	} else {
 		VALUE obj = rb_hash_lookup( this->format[format].oid_to_coder, UINT2NUM( oid ));
 		/* obj must be nil or some kind of PG::Coder, this is checked at insertion */
-		conv = NIL_P(obj) ? NULL : DATA_PTR(obj);
+		conv = NIL_P(obj) ? NULL : RTYPEDDATA_DATA(obj);
 		/* Write the retrieved coder to the cache */
 		p_ce->oid = oid;
 		p_ce->p_coder = conv;
@@ -223,11 +223,7 @@ pg_tmbo_add_coder( VALUE self, VALUE coder )
 	t_pg_coder *p_coder;
 	struct pg_tmbo_oid_cache_entry *p_ce;
 
-	if( !rb_obj_is_kind_of(coder, rb_cPG_Coder) )
-		rb_raise(rb_eArgError, "invalid type %s (should be some kind of PG::Coder)",
-							rb_obj_classname( coder ));
-
-	Data_Get_Struct(coder, t_pg_coder, p_coder);
+	TypedData_Get_Struct(coder, t_pg_coder, &pg_coder_type, p_coder);
 
 	if( p_coder->format < 0 || p_coder->format > 1 )
 		rb_raise(rb_eArgError, "invalid format code %d", p_coder->format);

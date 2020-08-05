@@ -159,7 +159,7 @@ describe PG::TypeMapByColumn do
 
 	it "should raise an error for invalid params" do
 		expect{ PG::TypeMapByColumn.new( :WrongType ) }.to raise_error(TypeError, /wrong argument type/)
-		expect{ PG::TypeMapByColumn.new( [123] ) }.to raise_error(ArgumentError, /invalid/)
+		expect{ PG::TypeMapByColumn.new( [123] ) }.to raise_error(TypeError, /wrong argument type (Integer|Fixnum)/)
 	end
 
 	it "shouldn't allow result mappings with different number of fields" do

@@ -22,11 +22,25 @@ pg_recordcoder_mark( t_pg_recordcoder *this )
 	rb_gc_mark(this->typemap);
 }
 
+static const rb_data_type_t pg_recordcoder_type = {
+	"PG::RecordCoder",
+	{
+		(void (*)(void*))pg_recordcoder_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	&pg_coder_type,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 static VALUE
 pg_recordcoder_encoder_allocate( VALUE klass )
 {
 	t_pg_recordcoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_recordcoder, pg_recordcoder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_recordcoder, &pg_recordcoder_type, this );
 	pg_coder_init_encoder( self );
 	this->typemap = pg_typemap_all_strings;
 	return self;
@@ -36,7 +50,7 @@ static VALUE
 pg_recordcoder_decoder_allocate( VALUE klass )
 {
 	t_pg_recordcoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_recordcoder, pg_recordcoder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_recordcoder, &pg_recordcoder_type, this );
 	pg_coder_init_decoder( self );
 	this->typemap = pg_typemap_all_strings;
 	return self;
@@ -56,7 +70,7 @@ pg_recordcoder_decoder_allocate( VALUE klass )
 static VALUE
 pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
 {
-	t_pg_recordcoder *this = DATA_PTR( self );
+	t_pg_recordcoder *this = RTYPEDDATA_DATA( self );
 
 	if ( !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
@@ -76,7 +90,7 @@ pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
 static VALUE
 pg_recordcoder_type_map_get(VALUE self)
 {
-	t_pg_recordcoder *this = DATA_PTR( self );
+	t_pg_recordcoder *this = RTYPEDDATA_DATA( self );
 
 	return this->typemap;
 }

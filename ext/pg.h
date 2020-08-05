@@ -221,6 +221,7 @@ typedef struct {
 } t_tmbc;
 
 extern const rb_data_type_t pg_typemap_type;
+extern const rb_data_type_t pg_coder_type;
 
 #include "gvl_wrappers.h"
 

@@ -66,7 +66,7 @@ describe PG::TypeMapByOid do
 	end
 
 	it "should check coder type when adding coders" do
-		expect{ tm.add_coder :dummy }.to raise_error(ArgumentError)
+		expect{ tm.add_coder :dummy }.to raise_error(TypeError)
 	end
 
 	it "should allow reading and writing max_rows_for_online_lookup" do
