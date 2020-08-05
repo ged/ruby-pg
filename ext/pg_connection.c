@@ -21,6 +21,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
+static const rb_data_type_t pg_connection_type;
 
 /*
  * Global functions
@@ -33,7 +34,7 @@ t_pg_connection *
 pg_get_connection( VALUE self )
 {
 	t_pg_connection *this;
-	Data_Get_Struct( self, t_pg_connection, this);
+	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	return this;
 }
@@ -46,7 +47,7 @@ static t_pg_connection *
 pg_get_connection_safe( VALUE self )
 {
 	t_pg_connection *this;
-	Data_Get_Struct( self, t_pg_connection, this);
+	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
@@ -65,7 +66,7 @@ PGconn *
 pg_get_pgconn( VALUE self )
 {
 	t_pg_connection *this;
-	Data_Get_Struct( self, t_pg_connection, this);
+	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
@@ -174,6 +175,20 @@ pgconn_gc_free( t_pg_connection *this )
 	xfree(this);
 }
 
+static const rb_data_type_t pg_connection_type = {
+	"PG::Connection",
+	{
+		(void (*)(void*))pgconn_gc_mark,
+		(void (*)(void*))pgconn_gc_free,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 
 /**************************************************************************
  * Class Methods
@@ -189,7 +204,7 @@ static VALUE
 pgconn_s_allocate( VALUE klass )
 {
 	t_pg_connection *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_connection, pgconn_gc_mark, pgconn_gc_free, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_connection, &pg_connection_type, this );
 
 	this->pgconn = NULL;
 	this->socket_io = Qnil;
@@ -1060,6 +1075,20 @@ free_typecast_heap_chain(struct linked_typecast_data *chain_entry)
 	}
 }
 
+static const rb_data_type_t pg_typecast_buffer_type = {
+	"PG::Connection typecast buffer chain",
+	{
+		(void (*)(void*))NULL,
+		(void (*)(void*))free_typecast_heap_chain,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
+
 static char *
 alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
 {
@@ -1070,17 +1099,30 @@ alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
 	/* Did we already wrap a memory chain per T_DATA object? */
 	if( NIL_P( *typecast_heap_chain ) ){
 		/* Leave free'ing of the buffer chain to the GC, when paramsData has left the stack */
-		*typecast_heap_chain = Data_Wrap_Struct( rb_cObject, NULL, free_typecast_heap_chain, allocated );
+		*typecast_heap_chain = TypedData_Wrap_Struct( rb_cObject, &pg_typecast_buffer_type, allocated );
 		allocated->next = NULL;
 	} else {
 		/* Append to the chain */
-		allocated->next = DATA_PTR( *typecast_heap_chain );
-		DATA_PTR( *typecast_heap_chain ) = allocated;
+		allocated->next = RTYPEDDATA_DATA( *typecast_heap_chain );
+		RTYPEDDATA_DATA( *typecast_heap_chain ) = allocated;
 	}
 
 	return &allocated->data[0];
 }
 
+static const rb_data_type_t pg_query_heap_pool_type = {
+	"PG::Connection query heap pool",
+	{
+		(void (*)(void*))NULL,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
 
 static int
 alloc_query_params(struct query_params_data *paramsData)
@@ -1114,7 +1156,7 @@ alloc_query_params(struct query_params_data *paramsData)
 		/* Allocate one combined memory pool for all possible function parameters */
 		memory_pool = (char*)xmalloc( required_pool_size );
 		/* Leave free'ing of the buffer to the GC, when paramsData has left the stack */
-		paramsData->heap_pool = Data_Wrap_Struct( rb_cObject, NULL, -1, memory_pool );
+		paramsData->heap_pool = TypedData_Wrap_Struct( rb_cObject, &pg_query_heap_pool_type, memory_pool );
 		required_pool_size = 0;
 	}else{
 		/* Use stack memory for function parameters */
