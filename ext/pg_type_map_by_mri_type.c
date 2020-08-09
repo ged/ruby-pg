@@ -94,14 +94,25 @@ pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 }
 
 #define GC_MARK_AS_USED(type) \
-	rb_gc_mark( this->coders.ask_##type ); \
-	rb_gc_mark( this->coders.coder_obj_##type );
+	rb_gc_mark_movable( this->coders.ask_##type ); \
+	rb_gc_mark_movable( this->coders.coder_obj_##type );
 
 static void
 pg_tmbmt_mark( t_tmbmt *this )
 {
-	rb_gc_mark(this->typemap.default_typemap);
+	pg_typemap_mark(&this->typemap);
 	FOR_EACH_MRI_TYPE( GC_MARK_AS_USED );
+}
+
+#define GC_COMPACT(type) \
+	pg_gc_location( this->coders.ask_##type ); \
+	pg_gc_location( this->coders.coder_obj_##type );
+
+static void
+pg_tmbmt_compact( t_tmbmt *this )
+{
+	pg_typemap_compact(&this->typemap);
+	FOR_EACH_MRI_TYPE( GC_COMPACT );
 }
 
 static const rb_data_type_t pg_tmbmt_type = {
@@ -110,6 +121,7 @@ static const rb_data_type_t pg_tmbmt_type = {
 		(void (*)(void*))pg_tmbmt_mark,
 		(void (*)(void*))-1,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmbmt_compact),
 	},
 	&pg_typemap_type,
 	0,

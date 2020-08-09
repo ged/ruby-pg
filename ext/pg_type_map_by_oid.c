@@ -158,9 +158,20 @@ pg_tmbo_mark( t_tmbo *this )
 {
 	int i;
 
-	rb_gc_mark(this->typemap.default_typemap);
+	pg_typemap_mark(&this->typemap);
 	for( i=0; i<2; i++){
-		rb_gc_mark(this->format[i].oid_to_coder);
+		rb_gc_mark_movable(this->format[i].oid_to_coder);
+	}
+}
+
+static void
+pg_tmbo_compact( t_tmbo *this )
+{
+	int i;
+
+	pg_typemap_compact(&this->typemap);
+	for( i=0; i<2; i++){
+		pg_gc_location(this->format[i].oid_to_coder);
 	}
 }
 
@@ -170,6 +181,7 @@ static const rb_data_type_t pg_tmbo_type = {
 		(void (*)(void*))pg_tmbo_mark,
 		(void (*)(void*))-1,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmbo_compact),
 	},
 	&pg_typemap_type,
 	0,

@@ -178,11 +178,27 @@ pg_tmbc_mark( t_tmbc *this )
 	/* allocated but not initialized ? */
 	if( this == (t_tmbc *)&pg_typemap_funcs ) return;
 
-	rb_gc_mark(this->typemap.default_typemap);
+	pg_typemap_mark(&this->typemap);
 	for( i=0; i<this->nfields; i++){
 		t_pg_coder *p_coder = this->convs[i].cconv;
 		if( p_coder )
-			rb_gc_mark(p_coder->coder_obj);
+			rb_gc_mark_movable(p_coder->coder_obj);
+	}
+}
+
+static void
+pg_tmbc_compact( t_tmbc *this )
+{
+	int i;
+
+	/* allocated but not initialized ? */
+	if( this == (t_tmbc *)&pg_typemap_funcs ) return;
+
+	pg_typemap_compact(&this->typemap);
+	for( i=0; i<this->nfields; i++){
+		t_pg_coder *p_coder = this->convs[i].cconv;
+		if( p_coder )
+			pg_gc_location(p_coder->coder_obj);
 	}
 }
 
@@ -200,6 +216,7 @@ static const rb_data_type_t pg_tmbc_type = {
 		(void (*)(void*))pg_tmbc_mark,
 		(void (*)(void*))pg_tmbc_free,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmbc_compact),
 	},
 	&pg_typemap_type,
 	0,

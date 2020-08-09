@@ -121,12 +121,20 @@ pg_tmbk_fit_to_query( VALUE self, VALUE params )
 static void
 pg_tmbk_mark( t_tmbk *this )
 {
-	rb_gc_mark(this->typemap.default_typemap);
-	rb_gc_mark(this->klass_to_coder);
-	rb_gc_mark(this->self);
-	/* Clear the cache, to be safe from changes of klass VALUE by GC.compact.
-	 * TODO: Move cache clearing to compactation callback provided by Ruby-2.7+.
-	 */
+	pg_typemap_mark(&this->typemap);
+	rb_gc_mark_movable(this->klass_to_coder);
+}
+
+static void
+pg_tmbk_compact(void *ptr)
+{
+	t_tmbk *this = (t_tmbk *)ptr;
+
+	pg_typemap_compact(&this->typemap);
+	pg_gc_location(this->klass_to_coder);
+	pg_gc_location(this->self);
+
+	/* Clear the cache, to be safe from changes of klass VALUE by GC.compact. */
 	memset(&this->cache_row, 0, sizeof(this->cache_row));
 }
 
@@ -136,6 +144,7 @@ static const rb_data_type_t pg_tmbk_type = {
 		(void (*)(void*))pg_tmbk_mark,
 		(void (*)(void*))-1,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmbk_compact),
 	},
 	&pg_typemap_type,
 	0,

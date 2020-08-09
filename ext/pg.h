@@ -335,6 +335,8 @@ int pg_typemap_fit_to_copy_get                         _(( VALUE ));
 VALUE pg_typemap_result_value                          _(( t_typemap *, VALUE, int, int ));
 t_pg_coder *pg_typemap_typecast_query_param            _(( t_typemap *, VALUE, int ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
+void pg_typemap_mark                                   _(( t_typemap * ));
+void pg_typemap_compact                                _(( t_typemap * ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));

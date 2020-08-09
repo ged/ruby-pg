@@ -6,20 +6,6 @@
 
 #include "pg.h"
 
-static const rb_data_type_t pg_tmir_type = {
-	"PG::TypeMapInRuby",
-	{
-		(void (*)(void*))NULL,
-		(void (*)(void*))-1,
-		(size_t (*)(const void *))NULL,
-	},
-	&pg_typemap_type,
-	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
-	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
-};
-
 VALUE rb_cTypeMapInRuby;
 static VALUE s_id_fit_to_result;
 static VALUE s_id_fit_to_query;
@@ -33,6 +19,28 @@ typedef struct {
 	VALUE self;
 } t_tmir;
 
+
+static void
+pg_tmir_compact( t_tmir *this )
+{
+	pg_typemap_compact(&this->typemap);
+	pg_gc_location(this->self);
+}
+
+static const rb_data_type_t pg_tmir_type = {
+	"PG::TypeMapInRuby",
+	{
+		(void (*)(void*))pg_typemap_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmir_compact),
+	},
+	&pg_typemap_type,
+	0,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+	RUBY_TYPED_FREE_IMMEDIATELY,
+#endif
+};
 
 /*
  * call-seq:
