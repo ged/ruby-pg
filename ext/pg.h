@@ -78,6 +78,15 @@ typedef long suseconds_t;
 #define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
+#ifdef HAVE_RB_GC_MARK_MOVABLE
+#define pg_compact_callback(x) ((void (*)(void*))(x))
+#define pg_gc_location(x) x = rb_gc_location(x)
+#else
+#define rb_gc_mark_movable(x) rb_gc_mark(x)
+#define pg_compact_callback(x) {(x)}
+#define pg_gc_location(x) UNUSED(x)
+#endif
+
 #define PG_ENC_IDX_BITS 28
 
 /* The data behind each PG::Connection object */
@@ -306,7 +315,7 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
-void pg_coder_mark                                     _(( t_pg_coder * ));
+void pg_coder_compact                                  _(( t_pg_coder * ));
 char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
 
 #define PG_RB_STR_ENSURE_CAPA( str, expand_len, curr_ptr, end_ptr ) \

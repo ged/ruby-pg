@@ -80,6 +80,7 @@ have_func 'PQencryptPasswordConn' # since PostgreSQL-10
 have_func 'PQresultMemorySize' # since PostgreSQL-12
 have_func 'timegm'
 have_func 'rb_gc_adjust_memory_usage' # since ruby-2.4
+have_func 'rb_gc_mark_movable' # since ruby-2.7
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'

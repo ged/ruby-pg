@@ -23,9 +23,16 @@ typedef struct {
 static void
 pg_copycoder_mark( t_pg_copycoder *this )
 {
-	pg_coder_mark(&this->comp);
-	rb_gc_mark(this->typemap);
-	rb_gc_mark(this->null_string);
+	rb_gc_mark_movable(this->typemap);
+	rb_gc_mark_movable(this->null_string);
+}
+
+static void
+pg_copycoder_compact( t_pg_copycoder *this )
+{
+	pg_coder_compact(&this->comp);
+	pg_gc_location(this->typemap);
+	pg_gc_location(this->null_string);
 }
 
 static const rb_data_type_t pg_copycoder_type = {
@@ -34,6 +41,7 @@ static const rb_data_type_t pg_copycoder_type = {
 		(void (*)(void*))pg_copycoder_mark,
 		(void (*)(void*))-1,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_copycoder_compact),
 	},
 	&pg_coder_type,
 	0,

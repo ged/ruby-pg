@@ -18,8 +18,14 @@ typedef struct {
 static void
 pg_recordcoder_mark( t_pg_recordcoder *this )
 {
-	pg_coder_mark(&this->comp);
-	rb_gc_mark(this->typemap);
+	rb_gc_mark_movable(this->typemap);
+}
+
+static void
+pg_recordcoder_compact( t_pg_recordcoder *this )
+{
+	pg_coder_compact(&this->comp);
+	pg_gc_location(this->typemap);
 }
 
 static const rb_data_type_t pg_recordcoder_type = {
@@ -28,6 +34,7 @@ static const rb_data_type_t pg_recordcoder_type = {
 		(void (*)(void*))pg_recordcoder_mark,
 		(void (*)(void*))-1,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_recordcoder_compact),
 	},
 	&pg_coder_type,
 	0,
