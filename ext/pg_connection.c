@@ -148,14 +148,27 @@ static const char *pg_cstr_enc(VALUE str, int enc_idx){
 static void
 pgconn_gc_mark( t_pg_connection *this )
 {
-	rb_gc_mark( this->socket_io );
-	rb_gc_mark( this->notice_receiver );
-	rb_gc_mark( this->notice_processor );
-	rb_gc_mark( this->type_map_for_queries );
-	rb_gc_mark( this->type_map_for_results );
-	rb_gc_mark( this->trace_stream );
-	rb_gc_mark( this->encoder_for_put_copy_data );
-	rb_gc_mark( this->decoder_for_get_copy_data );
+	rb_gc_mark_movable( this->socket_io );
+	rb_gc_mark_movable( this->notice_receiver );
+	rb_gc_mark_movable( this->notice_processor );
+	rb_gc_mark_movable( this->type_map_for_queries );
+	rb_gc_mark_movable( this->type_map_for_results );
+	rb_gc_mark_movable( this->trace_stream );
+	rb_gc_mark_movable( this->encoder_for_put_copy_data );
+	rb_gc_mark_movable( this->decoder_for_get_copy_data );
+}
+
+static void
+pgconn_gc_compact( t_pg_connection *this )
+{
+	pg_gc_location( this->socket_io );
+	pg_gc_location( this->notice_receiver );
+	pg_gc_location( this->notice_processor );
+	pg_gc_location( this->type_map_for_queries );
+	pg_gc_location( this->type_map_for_results );
+	pg_gc_location( this->trace_stream );
+	pg_gc_location( this->encoder_for_put_copy_data );
+	pg_gc_location( this->decoder_for_get_copy_data );
 }
 
 
@@ -181,6 +194,7 @@ static const rb_data_type_t pg_connection_type = {
 		(void (*)(void*))pgconn_gc_mark,
 		(void (*)(void*))pgconn_gc_free,
 		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pgconn_gc_compact),
 	},
 	0,
 	0,

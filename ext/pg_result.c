@@ -111,13 +111,28 @@ pgresult_gc_mark( t_pg_result *this )
 {
 	int i;
 
-	rb_gc_mark( this->connection );
-	rb_gc_mark( this->typemap );
-	rb_gc_mark( this->tuple_hash );
-	rb_gc_mark( this->field_map );
+	rb_gc_mark_movable( this->connection );
+	rb_gc_mark_movable( this->typemap );
+	rb_gc_mark_movable( this->tuple_hash );
+	rb_gc_mark_movable( this->field_map );
 
 	for( i=0; i < this->nfields; i++ ){
-		rb_gc_mark( this->fnames[i] );
+		rb_gc_mark_movable( this->fnames[i] );
+	}
+}
+
+static void
+pgresult_gc_compact( t_pg_result *this )
+{
+	int i;
+
+	pg_gc_location( this->connection );
+	pg_gc_location( this->typemap );
+	pg_gc_location( this->tuple_hash );
+	pg_gc_location( this->field_map );
+
+	for( i=0; i < this->nfields; i++ ){
+		pg_gc_location( this->fnames[i] );
 	}
 }
 
@@ -160,6 +175,7 @@ static const rb_data_type_t pgresult_type = {
 		(void (*)(void*))pgresult_gc_mark,
 		(void (*)(void*))pgresult_gc_free,
 		(size_t (*)(const void *))pgresult_memsize,
+		pg_compact_callback(pgresult_gc_compact),
 	},
 	0, 0,
 #ifdef RUBY_TYPED_FREE_IMMEDIATELY
