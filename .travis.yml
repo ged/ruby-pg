@@ -31,6 +31,10 @@ matrix:
       env:
         - "PGVERSION=12"
 
+    - rvm: truffleruby-head
+      env:
+        - "PGVERSION=12"
+
     - name: gem-windows
       rvm: "2.7"
       before_install:
@@ -43,6 +47,7 @@ matrix:
         - rake gem:windows:x86-mingw32
   allow_failures:
     - rvm: ruby-head
+    - rvm: truffleruby-head
   fast_finish: true
 
 before_install:
