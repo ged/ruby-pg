@@ -25,15 +25,15 @@ LIBDIR  = BASEDIR + 'lib'
 EXTDIR  = BASEDIR + 'ext'
 PKGDIR  = BASEDIR + 'pkg'
 TMPDIR  = BASEDIR + 'tmp'
+TESTDIR = BASEDIR + "tmp_test_specs"
 
 DLEXT   = RbConfig::CONFIG['DLEXT']
 EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
 GEMSPEC = 'pg.gemspec'
 
-TEST_DIRECTORY = BASEDIR + "tmp_test_specs"
 
-CLOBBER.include( TEST_DIRECTORY.to_s )
+CLOBBER.include( TESTDIR.to_s )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 CLEAN.include "lib/*/libpq.dll"
 CLEAN.include "lib/pg_ext.*"
@@ -179,9 +179,9 @@ task :prerelease => 'ChangeLog'
 
 desc "Stop any Postmaster instances that remain after testing."
 task :cleanup_testing_dbs do
-    require 'spec/lib/helpers'
-    PgTestingHelpers.stop_existing_postmasters()
-    Rake::Task[:clean].invoke
+    require_relative 'spec/helpers'
+    PG::TestingHelpers.stop_existing_postmasters()
+    Rake::Task[:clobber].invoke
 end
 
 desc "Update list of server error codes"
