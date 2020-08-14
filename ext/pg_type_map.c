@@ -28,9 +28,7 @@ const rb_data_type_t pg_typemap_type = {
 	},
 	0,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 VALUE rb_cTypeMap;

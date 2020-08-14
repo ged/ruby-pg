@@ -18,9 +18,7 @@ static const rb_data_type_t pg_tmas_type = {
 	},
 	&pg_typemap_type,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 VALUE rb_cTypeMapAllStrings;

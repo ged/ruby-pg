@@ -178,9 +178,7 @@ static const rb_data_type_t pgresult_type = {
 		pg_compact_callback(pgresult_gc_compact),
 	},
 	0, 0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 /* Needed by sequel_pg gem, do not delete */

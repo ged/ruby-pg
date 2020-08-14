@@ -45,9 +45,7 @@ static const rb_data_type_t pg_copycoder_type = {
 	},
 	&pg_coder_type,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 static VALUE

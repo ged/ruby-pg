@@ -125,9 +125,7 @@ static const rb_data_type_t pg_tmbmt_type = {
 	},
 	&pg_typemap_type,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 #define INIT_VARIABLES(type) \

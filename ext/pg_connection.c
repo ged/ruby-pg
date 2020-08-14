@@ -198,9 +198,7 @@ static const rb_data_type_t pg_connection_type = {
 	},
 	0,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 
@@ -1098,9 +1096,7 @@ static const rb_data_type_t pg_typecast_buffer_type = {
 	},
 	0,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 static char *
@@ -1133,9 +1129,7 @@ static const rb_data_type_t pg_query_heap_pool_type = {
 	},
 	0,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 static int

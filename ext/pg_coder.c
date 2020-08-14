@@ -83,9 +83,7 @@ const rb_data_type_t pg_coder_type = {
 	},
 	0,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 static VALUE
@@ -107,9 +105,7 @@ static const rb_data_type_t pg_composite_coder_type = {
 	},
 	&pg_coder_type,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 static VALUE
@@ -440,9 +436,7 @@ static const rb_data_type_t pg_coder_cfunc_type = {
 	},
 	0,
 	0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 void
