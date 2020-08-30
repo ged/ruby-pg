@@ -58,5 +58,9 @@ before_install:
   - sudo apt -y update
   - sudo apt -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION*
   - export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
+
 script:
   - bundle exec rake compile test
+
+after_failure:
+  - "find tmp -name mkmf.log | xargs cat"
