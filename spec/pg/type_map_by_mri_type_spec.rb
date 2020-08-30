@@ -130,7 +130,7 @@ describe PG::TypeMapByMriType do
 	it "should raise TypeError with derived type map" do
 		expect{
 			@conn.exec_params( "SELECT $1", [//], 0, derived_tm )
-		}.to raise_error(TypeError, /argument 1/)
+		}.to raise_error(TypeError, /wrong argument type/)
 	end
 
 end

@@ -8,6 +8,19 @@
 
 #include "pg.h"
 
+static const rb_data_type_t pg_tmas_type = {
+	"PG::TypeMapAllStrings",
+	{
+		(void (*)(void*))pg_typemap_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_typemap_compact),
+	},
+	&pg_typemap_type,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 VALUE rb_cTypeMapAllStrings;
 VALUE pg_typemap_all_strings;
 
@@ -77,7 +90,7 @@ pg_tmas_s_allocate( VALUE klass )
 	t_typemap *this;
 	VALUE self;
 
-	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
+	self = TypedData_Make_Struct( klass, t_typemap, &pg_tmas_type, this );
 
 	this->funcs.fit_to_result = pg_tmas_fit_to_result;
 	this->funcs.fit_to_query = pg_tmas_fit_to_query;

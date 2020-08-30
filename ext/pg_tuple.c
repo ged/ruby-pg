@@ -52,14 +52,21 @@ typedef struct {
 	VALUE values[0];
 } t_pg_tuple;
 
+static inline VALUE *
+pg_tuple_get_field_names_ptr( t_pg_tuple *this )
+{
+	if( this->num_fields != (int)RHASH_SIZE(this->field_map) ){
+		return &this->values[this->num_fields];
+	} else {
+		static VALUE f = Qfalse;
+		return &f;
+	}
+}
+
 static inline VALUE
 pg_tuple_get_field_names( t_pg_tuple *this )
 {
-	if( this->num_fields != (int)RHASH_SIZE(this->field_map) ){
-		return this->values[this->num_fields];
-	} else {
-		return Qfalse;
-	}
+	return *pg_tuple_get_field_names_ptr(this);
 }
 
 static void
@@ -68,14 +75,30 @@ pg_tuple_gc_mark( t_pg_tuple *this )
 	int i;
 
 	if( !this ) return;
-	rb_gc_mark( this->result );
-	rb_gc_mark( this->typemap );
-	rb_gc_mark( this->field_map );
+	rb_gc_mark_movable( this->result );
+	rb_gc_mark_movable( this->typemap );
+	rb_gc_mark_movable( this->field_map );
 
 	for( i = 0; i < this->num_fields; i++ ){
-		rb_gc_mark( this->values[i] );
+		rb_gc_mark_movable( this->values[i] );
 	}
-	rb_gc_mark( pg_tuple_get_field_names(this) );
+	rb_gc_mark_movable( pg_tuple_get_field_names(this) );
+}
+
+static void
+pg_tuple_gc_compact( t_pg_tuple *this )
+{
+	int i;
+
+	if( !this ) return;
+	pg_gc_location( this->result );
+	pg_gc_location( this->typemap );
+	pg_gc_location( this->field_map );
+
+	for( i = 0; i < this->num_fields; i++ ){
+		pg_gc_location( this->values[i] );
+	}
+	pg_gc_location( *pg_tuple_get_field_names_ptr(this) );
 }
 
 static void
@@ -98,11 +121,10 @@ static const rb_data_type_t pg_tuple_type = {
 		(void (*)(void*))pg_tuple_gc_mark,
 		(void (*)(void*))pg_tuple_gc_free,
 		(size_t (*)(const void *))pg_tuple_memsize,
+		pg_compact_callback(pg_tuple_gc_compact),
 	},
 	0, 0,
-#ifdef RUBY_TYPED_FREE_IMMEDIATELY
 	RUBY_TYPED_FREE_IMMEDIATELY,
-#endif
 };
 
 /*
@@ -172,7 +194,7 @@ pg_tuple_materialize_field(t_pg_tuple *this, int col)
 	VALUE value = this->values[col];
 
 	if( value == Qundef ){
-		t_typemap *p_typemap = DATA_PTR( this->typemap );
+		t_typemap *p_typemap = RTYPEDDATA_DATA( this->typemap );
 
 		pgresult_get(this->result); /* make sure we have a valid PGresult object */
 		value = p_typemap->funcs.typecast_result_value(p_typemap, this->result, this->row_num, col);

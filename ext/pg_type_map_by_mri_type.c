@@ -71,16 +71,12 @@ pg_tmbmt_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int fiel
 
 		obj = rb_funcall(ask_for_coder, rb_intern("call"), 1, param_value);
 
-		if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-			Data_Get_Struct(obj, t_pg_coder, p_coder);
-		}else{
-			rb_raise(rb_eTypeError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
-						field+1, rb_obj_classname( obj ));
-		}
+		/* Check argument type and store the coder pointer */
+		TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
 	if( !p_coder ){
-		t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+		t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 		return default_tm->funcs.typecast_query_param( default_tm, param_value, field );
 	}
 
@@ -90,23 +86,47 @@ pg_tmbmt_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int fiel
 static VALUE
 pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 {
-	t_tmbmt *this = (t_tmbmt *)DATA_PTR(self);
+	t_tmbmt *this = (t_tmbmt *)RTYPEDDATA_DATA(self);
 	/* Nothing to check at this typemap, but ensure that the default type map fits. */
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 	return self;
 }
 
 #define GC_MARK_AS_USED(type) \
-	rb_gc_mark( this->coders.ask_##type ); \
-	rb_gc_mark( this->coders.coder_obj_##type );
+	rb_gc_mark_movable( this->coders.ask_##type ); \
+	rb_gc_mark_movable( this->coders.coder_obj_##type );
 
 static void
 pg_tmbmt_mark( t_tmbmt *this )
 {
-	rb_gc_mark(this->typemap.default_typemap);
+	pg_typemap_mark(&this->typemap);
 	FOR_EACH_MRI_TYPE( GC_MARK_AS_USED );
 }
+
+#define GC_COMPACT(type) \
+	pg_gc_location( this->coders.ask_##type ); \
+	pg_gc_location( this->coders.coder_obj_##type );
+
+static void
+pg_tmbmt_compact( t_tmbmt *this )
+{
+	pg_typemap_compact(&this->typemap);
+	FOR_EACH_MRI_TYPE( GC_COMPACT );
+}
+
+static const rb_data_type_t pg_tmbmt_type = {
+	"PG::TypeMapByMriType",
+	{
+		(void (*)(void*))pg_tmbmt_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmbmt_compact),
+	},
+	&pg_typemap_type,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
 
 #define INIT_VARIABLES(type) \
 	this->coders.coder_##type = NULL; \
@@ -119,7 +139,7 @@ pg_tmbmt_s_allocate( VALUE klass )
 	t_tmbmt *this;
 	VALUE self;
 
-	self = Data_Make_Struct( klass, t_tmbmt, pg_tmbmt_mark, -1, this );
+	self = TypedData_Make_Struct( klass, t_tmbmt, &pg_tmbmt_type, this );
 	this->typemap.funcs.fit_to_result = pg_typemap_fit_to_result;
 	this->typemap.funcs.fit_to_query = pg_tmbmt_fit_to_query;
 	this->typemap.funcs.fit_to_copy_get = pg_typemap_fit_to_copy_get;
@@ -140,7 +160,7 @@ pg_tmbmt_s_allocate( VALUE klass )
 			this->coders.coder_##type = NULL; \
 			this->coders.ask_##type = Qnil; \
 		}else if(rb_obj_is_kind_of(coder, rb_cPG_Coder)){ \
-			Data_Get_Struct(coder, t_pg_coder, this->coders.coder_##type); \
+			TypedData_Get_Struct(coder, t_pg_coder, &pg_coder_type, this->coders.coder_##type); \
 			this->coders.ask_##type = Qnil; \
 		}else if(RB_TYPE_P(coder, T_SYMBOL)){ \
 			this->coders.coder_##type = NULL; \
@@ -188,7 +208,7 @@ pg_tmbmt_s_allocate( VALUE klass )
 static VALUE
 pg_tmbmt_aset( VALUE self, VALUE mri_type, VALUE coder )
 {
-	t_tmbmt *this = DATA_PTR( self );
+	t_tmbmt *this = RTYPEDDATA_DATA( self );
 	char *p_mri_type;
 
 	p_mri_type = StringValueCStr(mri_type);
@@ -220,7 +240,7 @@ static VALUE
 pg_tmbmt_aref( VALUE self, VALUE mri_type )
 {
 	VALUE coder;
-	t_tmbmt *this = DATA_PTR( self );
+	t_tmbmt *this = RTYPEDDATA_DATA( self );
 	char *p_mri_type;
 
 	p_mri_type = StringValueCStr(mri_type);
@@ -248,7 +268,7 @@ pg_tmbmt_aref( VALUE self, VALUE mri_type )
 static VALUE
 pg_tmbmt_coders( VALUE self )
 {
-	t_tmbmt *this = DATA_PTR( self );
+	t_tmbmt *this = RTYPEDDATA_DATA( self );
 	VALUE hash_coders = rb_hash_new();
 
 	FOR_EACH_MRI_TYPE( ADD_TO_HASH );

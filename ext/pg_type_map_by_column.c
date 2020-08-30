@@ -16,7 +16,7 @@ static VALUE
 pg_tmbc_fit_to_result( VALUE self, VALUE result )
 {
 	int nfields;
-	t_tmbc *this = DATA_PTR( self );
+	t_tmbc *this = RTYPEDDATA_DATA( self );
 	t_typemap *default_tm;
 	VALUE sub_typemap;
 
@@ -27,7 +27,7 @@ pg_tmbc_fit_to_result( VALUE self, VALUE result )
 	}
 
 	/* Ensure that the default type map fits equaly. */
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
 
 	/* Did the default type return the same object ? */
@@ -42,7 +42,7 @@ pg_tmbc_fit_to_result( VALUE self, VALUE result )
 
 		memcpy( p_new_typemap, this, struct_size );
 		p_new_typemap->typemap.default_typemap = sub_typemap;
-		DATA_PTR(new_typemap) = p_new_typemap;
+		RTYPEDDATA_DATA(new_typemap) = p_new_typemap;
 		return new_typemap;
 	}
 }
@@ -51,7 +51,7 @@ static VALUE
 pg_tmbc_fit_to_query( VALUE self, VALUE params )
 {
 	int nfields;
-	t_tmbc *this = DATA_PTR( self );
+	t_tmbc *this = RTYPEDDATA_DATA( self );
 	t_typemap *default_tm;
 
 	nfields = (int)RARRAY_LEN( params );
@@ -61,7 +61,7 @@ pg_tmbc_fit_to_query( VALUE self, VALUE params )
 	}
 
 	/* Ensure that the default type map fits equaly. */
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 
 	return self;
@@ -70,10 +70,10 @@ pg_tmbc_fit_to_query( VALUE self, VALUE params )
 static int
 pg_tmbc_fit_to_copy_get( VALUE self )
 {
-	t_tmbc *this = DATA_PTR( self );
+	t_tmbc *this = RTYPEDDATA_DATA( self );
 
 	/* Ensure that the default type map fits equaly. */
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_copy_get( this->typemap.default_typemap );
 
 	return this->nfields;
@@ -107,7 +107,7 @@ pg_tmbc_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 		}
 	}
 
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	return default_tm->funcs.typecast_result_value( default_tm, result, tuple, field );
 }
 
@@ -120,7 +120,7 @@ pg_tmbc_typecast_query_param( t_typemap *p_typemap, VALUE param_value, int field
 	t_pg_coder *p_coder = this->convs[field].cconv;
 
 	if( !p_coder ){
-		t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+		t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 		return default_tm->funcs.typecast_query_param( default_tm, param_value, field );
 	}
 
@@ -142,7 +142,7 @@ pg_tmbc_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, i
 	p_coder = this->convs[fieldno].cconv;
 
 	if( !p_coder ){
-		t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+		t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 		return default_tm->funcs.typecast_copy_get( default_tm, field_str, fieldno, format, enc_idx );
 	}
 
@@ -178,11 +178,27 @@ pg_tmbc_mark( t_tmbc *this )
 	/* allocated but not initialized ? */
 	if( this == (t_tmbc *)&pg_typemap_funcs ) return;
 
-	rb_gc_mark(this->typemap.default_typemap);
+	pg_typemap_mark(&this->typemap);
 	for( i=0; i<this->nfields; i++){
 		t_pg_coder *p_coder = this->convs[i].cconv;
 		if( p_coder )
-			rb_gc_mark(p_coder->coder_obj);
+			rb_gc_mark_movable(p_coder->coder_obj);
+	}
+}
+
+static void
+pg_tmbc_compact( t_tmbc *this )
+{
+	int i;
+
+	/* allocated but not initialized ? */
+	if( this == (t_tmbc *)&pg_typemap_funcs ) return;
+
+	pg_typemap_compact(&this->typemap);
+	for( i=0; i<this->nfields; i++){
+		t_pg_coder *p_coder = this->convs[i].cconv;
+		if( p_coder )
+			pg_gc_location(p_coder->coder_obj);
 	}
 }
 
@@ -194,11 +210,24 @@ pg_tmbc_free( t_tmbc *this )
 	xfree( this );
 }
 
+static const rb_data_type_t pg_tmbc_type = {
+	"PG::TypeMapByColumn",
+	{
+		(void (*)(void*))pg_tmbc_mark,
+		(void (*)(void*))pg_tmbc_free,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmbc_compact),
+	},
+	&pg_typemap_type,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 static VALUE
 pg_tmbc_s_allocate( VALUE klass )
 {
 	/* Use pg_typemap_funcs as interim struct until #initialize is called. */
-	return Data_Wrap_Struct( klass, pg_tmbc_mark, pg_tmbc_free, (t_tmbc *)&pg_typemap_funcs );
+	return TypedData_Wrap_Struct( klass, &pg_tmbc_type, (t_tmbc *)&pg_typemap_funcs );
 }
 
 VALUE
@@ -225,7 +254,6 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	t_tmbc *this;
 	int conv_ary_len;
 
-	Check_Type(self, T_DATA);
 	Check_Type(conv_ary, T_ARRAY);
 	conv_ary_len = RARRAY_LEN(conv_ary);
 	this = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * conv_ary_len);
@@ -233,7 +261,7 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	this->nfields = 0;
 	this->typemap.funcs = pg_tmbc_funcs;
 	this->typemap.default_typemap = pg_typemap_all_strings;
-	DATA_PTR(self) = this;
+	RTYPEDDATA_DATA(self) = this;
 
 	for(i=0; i<conv_ary_len; i++)
 	{
@@ -242,11 +270,9 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 		if( obj == Qnil ){
 			/* no type cast */
 			this->convs[i].cconv = NULL;
-		} else if( rb_obj_is_kind_of(obj, rb_cPG_Coder) ){
-			Data_Get_Struct(obj, t_pg_coder, this->convs[i].cconv);
 		} else {
-			rb_raise(rb_eArgError, "argument %d has invalid type %s (should be nil or some kind of PG::Coder)",
-							 i+1, rb_obj_classname( obj ));
+			/* Check argument type and store the coder pointer */
+			TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, this->convs[i].cconv);
 		}
 	}
 
@@ -266,7 +292,7 @@ static VALUE
 pg_tmbc_coders(VALUE self)
 {
 	int i;
-	t_tmbc *this = DATA_PTR( self );
+	t_tmbc *this = RTYPEDDATA_DATA( self );
 	VALUE ary_coders = rb_ary_new();
 
 	for( i=0; i<this->nfields; i++){

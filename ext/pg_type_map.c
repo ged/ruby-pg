@@ -6,6 +6,31 @@
 
 #include "pg.h"
 
+void
+pg_typemap_mark( t_typemap *this )
+{
+	rb_gc_mark_movable(this->default_typemap);
+}
+
+void
+pg_typemap_compact( t_typemap *this )
+{
+	pg_gc_location(this->default_typemap);
+}
+
+const rb_data_type_t pg_typemap_type = {
+	"PG::TypeMap",
+	{
+		(void (*)(void*))pg_typemap_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_typemap_compact),
+	},
+	0,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 VALUE rb_cTypeMap;
 VALUE rb_mDefaultTypeMappable;
 static ID s_id_fit_to_query;
@@ -75,7 +100,7 @@ pg_typemap_s_allocate( VALUE klass )
 	VALUE self;
 	t_typemap *this;
 
-	self = Data_Make_Struct( klass, t_typemap, NULL, -1, this );
+	self = TypedData_Make_Struct( klass, t_typemap, &pg_typemap_type, this );
 	this->funcs = pg_typemap_funcs;
 
 	return self;
@@ -94,13 +119,12 @@ pg_typemap_s_allocate( VALUE klass )
 static VALUE
 pg_typemap_default_type_map_set(VALUE self, VALUE typemap)
 {
-	t_typemap *this = DATA_PTR( self );
+	t_typemap *this = RTYPEDDATA_DATA( self );
+	t_typemap *tm;
+	UNUSED(tm);
 
-	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-				rb_obj_classname( typemap ) );
-	}
-	Check_Type(typemap, T_DATA);
+	/* Check type of method param */
+	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
 	this->default_typemap = typemap;
 
 	return typemap;
@@ -119,7 +143,7 @@ pg_typemap_default_type_map_set(VALUE self, VALUE typemap)
 static VALUE
 pg_typemap_default_type_map_get(VALUE self)
 {
-	t_typemap *this = DATA_PTR( self );
+	t_typemap *this = RTYPEDDATA_DATA( self );
 
 	return this->default_typemap;
 }

@@ -20,6 +20,26 @@ typedef struct {
 } t_tmir;
 
 
+static void
+pg_tmir_compact( t_tmir *this )
+{
+	pg_typemap_compact(&this->typemap);
+	pg_gc_location(this->self);
+}
+
+static const rb_data_type_t pg_tmir_type = {
+	"PG::TypeMapInRuby",
+	{
+		(void (*)(void*))pg_typemap_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_tmir_compact),
+	},
+	&pg_typemap_type,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 /*
  * call-seq:
  *    typemap.fit_to_result( result )
@@ -34,33 +54,37 @@ typedef struct {
 static VALUE
 pg_tmir_fit_to_result( VALUE self, VALUE result )
 {
-	t_tmir *this = DATA_PTR( self );
+	t_tmir *this = RTYPEDDATA_DATA( self );
 	t_typemap *default_tm;
 	t_typemap *p_new_typemap;
 	VALUE sub_typemap;
 	VALUE new_typemap;
 
 	if( rb_respond_to(self, s_id_fit_to_result) ){
+		t_typemap *tm;
+		UNUSED(tm);
 		new_typemap = rb_funcall( self, s_id_fit_to_result, 1, result );
 
 		if ( !rb_obj_is_kind_of(new_typemap, rb_cTypeMap) ) {
+			/* TypedData_Get_Struct() raises "wrong argument type", which is misleading,
+			* so we better raise our own message */
 			rb_raise( rb_eTypeError, "wrong return type from fit_to_result: %s expected kind of PG::TypeMap",
 					rb_obj_classname( new_typemap ) );
 		}
-		Check_Type( new_typemap, T_DATA );
+		TypedData_Get_Struct(new_typemap, t_typemap, &pg_typemap_type, tm);
 	} else {
 		new_typemap = self;
 	}
 
 	/* Ensure that the default type map fits equaly. */
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
 
 	if( sub_typemap != this->typemap.default_typemap ){
 		new_typemap = rb_obj_dup( new_typemap );
 	}
 
-	p_new_typemap = DATA_PTR(new_typemap);
+	p_new_typemap = RTYPEDDATA_DATA(new_typemap);
 	p_new_typemap->default_typemap = sub_typemap;
 	return new_typemap;
 }
@@ -95,8 +119,8 @@ pg_tmir_result_value( t_typemap *p_typemap, VALUE result, int tuple, int field )
 static VALUE
 pg_tmir_typecast_result_value( VALUE self, VALUE result, VALUE tuple, VALUE field )
 {
-	t_tmir *this = DATA_PTR( self );
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_tmir *this = RTYPEDDATA_DATA( self );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	return default_tm->funcs.typecast_result_value( default_tm, result, NUM2INT(tuple), NUM2INT(field) );
 }
 
@@ -113,7 +137,7 @@ pg_tmir_typecast_result_value( VALUE self, VALUE result, VALUE tuple, VALUE fiel
 static VALUE
 pg_tmir_fit_to_query( VALUE self, VALUE params )
 {
-	t_tmir *this = DATA_PTR( self );
+	t_tmir *this = RTYPEDDATA_DATA( self );
 	t_typemap *default_tm;
 
 	if( rb_respond_to(self, s_id_fit_to_query) ){
@@ -121,7 +145,7 @@ pg_tmir_fit_to_query( VALUE self, VALUE params )
 	}
 
 	/* Ensure that the default type map fits equaly. */
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 
 	return self;
@@ -137,7 +161,7 @@ pg_tmir_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 	if ( NIL_P(coder) ){
 		return NULL;
 	} else if( rb_obj_is_kind_of(coder, rb_cPG_Coder) ) {
-		return DATA_PTR(coder);
+		return RTYPEDDATA_DATA(coder);
 	} else {
 		rb_raise( rb_eTypeError, "wrong return type from typecast_query_param: %s expected nil or kind of PG::Coder",
 				rb_obj_classname( coder ) );
@@ -161,8 +185,8 @@ pg_tmir_query_param( t_typemap *p_typemap, VALUE param_value, int field )
 static VALUE
 pg_tmir_typecast_query_param( VALUE self, VALUE param_value, VALUE field )
 {
-	t_tmir *this = DATA_PTR( self );
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_tmir *this = RTYPEDDATA_DATA( self );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	t_pg_coder *p_coder = default_tm->funcs.typecast_query_param( default_tm, param_value, NUM2INT(field) );
 
 	return p_coder ? p_coder->coder_obj : Qnil;
@@ -186,7 +210,7 @@ static VALUE pg_tmir_fit_to_copy_get_dummy( VALUE self ){}
 static int
 pg_tmir_fit_to_copy_get( VALUE self )
 {
-	t_tmir *this = DATA_PTR( self );
+	t_tmir *this = RTYPEDDATA_DATA( self );
 	t_typemap *default_tm;
 	VALUE num_columns = INT2NUM(0);
 
@@ -199,7 +223,7 @@ pg_tmir_fit_to_copy_get( VALUE self )
 				rb_obj_classname( num_columns ) );
 	}
 	/* Ensure that the default type map fits equaly. */
-	default_tm = DATA_PTR( this->typemap.default_typemap );
+	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_copy_get( this->typemap.default_typemap );
 
 	return NUM2INT(num_columns);;
@@ -239,8 +263,8 @@ pg_tmir_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format
 static VALUE
 pg_tmir_typecast_copy_get( VALUE self, VALUE field_str, VALUE fieldno, VALUE format, VALUE enc )
 {
-	t_tmir *this = DATA_PTR( self );
-	t_typemap *default_tm = DATA_PTR( this->typemap.default_typemap );
+	t_tmir *this = RTYPEDDATA_DATA( self );
+	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	int enc_idx = rb_to_encoding_index( enc );
 
 	return default_tm->funcs.typecast_copy_get( default_tm, field_str, NUM2INT(fieldno), NUM2INT(format), enc_idx );
@@ -252,7 +276,7 @@ pg_tmir_s_allocate( VALUE klass )
 	t_tmir *this;
 	VALUE self;
 
-	self = Data_Make_Struct( klass, t_tmir, NULL, -1, this );
+	self = TypedData_Make_Struct( klass, t_tmir, &pg_tmir_type, this );
 
 	this->typemap.funcs.fit_to_result = pg_tmir_fit_to_result;
 	this->typemap.funcs.fit_to_query = pg_tmir_fit_to_query;

@@ -18,15 +18,34 @@ typedef struct {
 static void
 pg_recordcoder_mark( t_pg_recordcoder *this )
 {
-	pg_coder_mark(&this->comp);
-	rb_gc_mark(this->typemap);
+	rb_gc_mark_movable(this->typemap);
 }
+
+static void
+pg_recordcoder_compact( t_pg_recordcoder *this )
+{
+	pg_coder_compact(&this->comp);
+	pg_gc_location(this->typemap);
+}
+
+static const rb_data_type_t pg_recordcoder_type = {
+	"PG::RecordCoder",
+	{
+		(void (*)(void*))pg_recordcoder_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_recordcoder_compact),
+	},
+	&pg_coder_type,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
 
 static VALUE
 pg_recordcoder_encoder_allocate( VALUE klass )
 {
 	t_pg_recordcoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_recordcoder, pg_recordcoder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_recordcoder, &pg_recordcoder_type, this );
 	pg_coder_init_encoder( self );
 	this->typemap = pg_typemap_all_strings;
 	return self;
@@ -36,7 +55,7 @@ static VALUE
 pg_recordcoder_decoder_allocate( VALUE klass )
 {
 	t_pg_recordcoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_recordcoder, pg_recordcoder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_recordcoder, &pg_recordcoder_type, this );
 	pg_coder_init_decoder( self );
 	this->typemap = pg_typemap_all_strings;
 	return self;
@@ -56,7 +75,7 @@ pg_recordcoder_decoder_allocate( VALUE klass )
 static VALUE
 pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
 {
-	t_pg_recordcoder *this = DATA_PTR( self );
+	t_pg_recordcoder *this = RTYPEDDATA_DATA( self );
 
 	if ( !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
@@ -76,7 +95,7 @@ pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
 static VALUE
 pg_recordcoder_type_map_get(VALUE self)
 {
-	t_pg_recordcoder *this = DATA_PTR( self );
+	t_pg_recordcoder *this = RTYPEDDATA_DATA( self );
 
 	return this->typemap;
 }
@@ -156,7 +175,7 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 	char *current_out;
 	char *end_capa_ptr;
 
-	p_typemap = DATA_PTR( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	p_typemap->funcs.fit_to_query( this->typemap, value );
 
 	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
@@ -358,7 +377,7 @@ pg_text_dec_record(t_pg_coder *conv, char *input_line, int len, int _tuple, int 
 	char *end_capa_ptr;
 	t_typemap *p_typemap;
 
-	p_typemap = DATA_PTR( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	expected_fields = p_typemap->funcs.fit_to_copy_get( this->typemap );
 
 	/* The received input string will probably have this->nfields fields. */

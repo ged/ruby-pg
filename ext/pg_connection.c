@@ -21,6 +21,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
+static const rb_data_type_t pg_connection_type;
 
 /*
  * Global functions
@@ -33,7 +34,7 @@ t_pg_connection *
 pg_get_connection( VALUE self )
 {
 	t_pg_connection *this;
-	Data_Get_Struct( self, t_pg_connection, this);
+	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	return this;
 }
@@ -46,7 +47,7 @@ static t_pg_connection *
 pg_get_connection_safe( VALUE self )
 {
 	t_pg_connection *this;
-	Data_Get_Struct( self, t_pg_connection, this);
+	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
@@ -65,7 +66,7 @@ PGconn *
 pg_get_pgconn( VALUE self )
 {
 	t_pg_connection *this;
-	Data_Get_Struct( self, t_pg_connection, this);
+	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	if ( !this->pgconn )
 		rb_raise( rb_eConnectionBad, "connection is closed" );
@@ -147,14 +148,27 @@ static const char *pg_cstr_enc(VALUE str, int enc_idx){
 static void
 pgconn_gc_mark( t_pg_connection *this )
 {
-	rb_gc_mark( this->socket_io );
-	rb_gc_mark( this->notice_receiver );
-	rb_gc_mark( this->notice_processor );
-	rb_gc_mark( this->type_map_for_queries );
-	rb_gc_mark( this->type_map_for_results );
-	rb_gc_mark( this->trace_stream );
-	rb_gc_mark( this->encoder_for_put_copy_data );
-	rb_gc_mark( this->decoder_for_get_copy_data );
+	rb_gc_mark_movable( this->socket_io );
+	rb_gc_mark_movable( this->notice_receiver );
+	rb_gc_mark_movable( this->notice_processor );
+	rb_gc_mark_movable( this->type_map_for_queries );
+	rb_gc_mark_movable( this->type_map_for_results );
+	rb_gc_mark_movable( this->trace_stream );
+	rb_gc_mark_movable( this->encoder_for_put_copy_data );
+	rb_gc_mark_movable( this->decoder_for_get_copy_data );
+}
+
+static void
+pgconn_gc_compact( t_pg_connection *this )
+{
+	pg_gc_location( this->socket_io );
+	pg_gc_location( this->notice_receiver );
+	pg_gc_location( this->notice_processor );
+	pg_gc_location( this->type_map_for_queries );
+	pg_gc_location( this->type_map_for_results );
+	pg_gc_location( this->trace_stream );
+	pg_gc_location( this->encoder_for_put_copy_data );
+	pg_gc_location( this->decoder_for_get_copy_data );
 }
 
 
@@ -174,6 +188,19 @@ pgconn_gc_free( t_pg_connection *this )
 	xfree(this);
 }
 
+static const rb_data_type_t pg_connection_type = {
+	"PG::Connection",
+	{
+		(void (*)(void*))pgconn_gc_mark,
+		(void (*)(void*))pgconn_gc_free,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pgconn_gc_compact),
+	},
+	0,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 
 /**************************************************************************
  * Class Methods
@@ -189,7 +216,7 @@ static VALUE
 pgconn_s_allocate( VALUE klass )
 {
 	t_pg_connection *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_connection, pgconn_gc_mark, pgconn_gc_free, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_connection, &pg_connection_type, this );
 
 	this->pgconn = NULL;
 	this->socket_io = Qnil;
@@ -1060,6 +1087,18 @@ free_typecast_heap_chain(struct linked_typecast_data *chain_entry)
 	}
 }
 
+static const rb_data_type_t pg_typecast_buffer_type = {
+	"PG::Connection typecast buffer chain",
+	{
+		(void (*)(void*))NULL,
+		(void (*)(void*))free_typecast_heap_chain,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 static char *
 alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
 {
@@ -1070,17 +1109,28 @@ alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
 	/* Did we already wrap a memory chain per T_DATA object? */
 	if( NIL_P( *typecast_heap_chain ) ){
 		/* Leave free'ing of the buffer chain to the GC, when paramsData has left the stack */
-		*typecast_heap_chain = Data_Wrap_Struct( rb_cObject, NULL, free_typecast_heap_chain, allocated );
+		*typecast_heap_chain = TypedData_Wrap_Struct( rb_cObject, &pg_typecast_buffer_type, allocated );
 		allocated->next = NULL;
 	} else {
 		/* Append to the chain */
-		allocated->next = DATA_PTR( *typecast_heap_chain );
-		DATA_PTR( *typecast_heap_chain ) = allocated;
+		allocated->next = RTYPEDDATA_DATA( *typecast_heap_chain );
+		RTYPEDDATA_DATA( *typecast_heap_chain ) = allocated;
 	}
 
 	return &allocated->data[0];
 }
 
+static const rb_data_type_t pg_query_heap_pool_type = {
+	"PG::Connection query heap pool",
+	{
+		(void (*)(void*))NULL,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+	},
+	0,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
 
 static int
 alloc_query_params(struct query_params_data *paramsData)
@@ -1095,7 +1145,7 @@ alloc_query_params(struct query_params_data *paramsData)
 
 	Check_Type(paramsData->params, T_ARRAY);
 
-	p_typemap = DATA_PTR( paramsData->typemap );
+	p_typemap = RTYPEDDATA_DATA( paramsData->typemap );
 	p_typemap->funcs.fit_to_query( paramsData->typemap, paramsData->params );
 
 	paramsData->heap_pool = Qnil;
@@ -1114,7 +1164,7 @@ alloc_query_params(struct query_params_data *paramsData)
 		/* Allocate one combined memory pool for all possible function parameters */
 		memory_pool = (char*)xmalloc( required_pool_size );
 		/* Leave free'ing of the buffer to the GC, when paramsData has left the stack */
-		paramsData->heap_pool = Data_Wrap_Struct( rb_cObject, NULL, -1, memory_pool );
+		paramsData->heap_pool = TypedData_Wrap_Struct( rb_cObject, &pg_query_heap_pool_type, memory_pool );
 		required_pool_size = 0;
 	}else{
 		/* Use stack memory for function parameters */
@@ -1227,12 +1277,11 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
 		/* Use default typemap for queries. It's type is checked when assigned. */
 		paramsData->typemap = pg_get_connection(self)->type_map_for_queries;
 	}else{
+		t_typemap *tm;
+		UNUSED(tm);
+
 		/* Check type of method param */
-		if ( !rb_obj_is_kind_of(paramsData->typemap, rb_cTypeMap) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-					rb_obj_classname( paramsData->typemap ) );
-		}
-		Check_Type( paramsData->typemap, T_DATA );
+		TypedData_Get_Struct(paramsData->typemap, t_typemap, &pg_typemap_type, tm);
 	}
 }
 
@@ -2467,13 +2516,11 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 		if( NIL_P(this->encoder_for_put_copy_data) ){
 			buffer = value;
 		} else {
-			p_coder = DATA_PTR( this->encoder_for_put_copy_data );
+			p_coder = RTYPEDDATA_DATA( this->encoder_for_put_copy_data );
 		}
-	} else if( rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
-		Data_Get_Struct( encoder, t_pg_coder, p_coder );
 	} else {
-		rb_raise( rb_eTypeError, "wrong encoder type %s (expected some kind of PG::Coder)",
-				rb_obj_classname( encoder ) );
+		/* Check argument type and use argument encoder */
+		TypedData_Get_Struct(encoder, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
 	if( p_coder ){
@@ -2579,13 +2626,11 @@ pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
 
 	if( NIL_P(decoder) ){
 		if( !NIL_P(this->decoder_for_get_copy_data) ){
-			p_coder = DATA_PTR( this->decoder_for_get_copy_data );
+			p_coder = RTYPEDDATA_DATA( this->decoder_for_get_copy_data );
 		}
-	} else if( rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
-		Data_Get_Struct( decoder, t_pg_coder, p_coder );
 	} else {
-		rb_raise( rb_eTypeError, "wrong decoder type %s (expected some kind of PG::Coder)",
-				rb_obj_classname( decoder ) );
+		/* Check argument type and use argument decoder */
+		TypedData_Get_Struct(decoder, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
 	ret = gvl_PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
@@ -3916,12 +3961,12 @@ static VALUE
 pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 {
 	t_pg_connection *this = pg_get_connection( self );
+	t_typemap *tm;
+	UNUSED(tm);
 
-	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-				rb_obj_classname( typemap ) );
-	}
-	Check_Type(typemap, T_DATA);
+	/* Check type of method param */
+	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
+
 	this->type_map_for_queries = typemap;
 
 	return typemap;
@@ -3956,12 +4001,10 @@ static VALUE
 pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 {
 	t_pg_connection *this = pg_get_connection( self );
+	t_typemap *tm;
+	UNUSED(tm);
 
-	if ( !rb_obj_is_kind_of(typemap, rb_cTypeMap) ) {
-		rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::TypeMap)",
-				rb_obj_classname( typemap ) );
-	}
-	Check_Type(typemap, T_DATA);
+	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
 	this->type_map_for_results = typemap;
 
 	return typemap;
@@ -4001,11 +4044,10 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if( encoder != Qnil ){
-		if ( !rb_obj_is_kind_of(encoder, rb_cPG_Coder) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
-					rb_obj_classname( encoder ) );
-		}
-		Check_Type(encoder, T_DATA);
+		t_pg_coder *co;
+		UNUSED(co);
+		/* Check argument type */
+		TypedData_Get_Struct(encoder, t_pg_coder, &pg_coder_type, co);
 	}
 	this->encoder_for_put_copy_data = encoder;
 
@@ -4050,11 +4092,10 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
 	t_pg_connection *this = pg_get_connection( self );
 
 	if( decoder != Qnil ){
-		if ( !rb_obj_is_kind_of(decoder, rb_cPG_Coder) ) {
-			rb_raise( rb_eTypeError, "wrong argument type %s (expected kind of PG::Coder)",
-					rb_obj_classname( decoder ) );
-		}
-		Check_Type(decoder, T_DATA);
+		t_pg_coder *co;
+		UNUSED(co);
+		/* Check argument type */
+		TypedData_Get_Struct(decoder, t_pg_coder, &pg_coder_type, co);
 	}
 	this->decoder_for_get_copy_data = decoder;
 

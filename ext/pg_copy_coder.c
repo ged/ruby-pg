@@ -23,16 +23,36 @@ typedef struct {
 static void
 pg_copycoder_mark( t_pg_copycoder *this )
 {
-	pg_coder_mark(&this->comp);
-	rb_gc_mark(this->typemap);
-	rb_gc_mark(this->null_string);
+	rb_gc_mark_movable(this->typemap);
+	rb_gc_mark_movable(this->null_string);
 }
+
+static void
+pg_copycoder_compact( t_pg_copycoder *this )
+{
+	pg_coder_compact(&this->comp);
+	pg_gc_location(this->typemap);
+	pg_gc_location(this->null_string);
+}
+
+static const rb_data_type_t pg_copycoder_type = {
+	"PG::CopyCoder",
+	{
+		(void (*)(void*))pg_copycoder_mark,
+		(void (*)(void*))-1,
+		(size_t (*)(const void *))NULL,
+		pg_compact_callback(pg_copycoder_compact),
+	},
+	&pg_coder_type,
+	0,
+	RUBY_TYPED_FREE_IMMEDIATELY,
+};
 
 static VALUE
 pg_copycoder_encoder_allocate( VALUE klass )
 {
 	t_pg_copycoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, pg_copycoder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_copycoder, &pg_copycoder_type, this );
 	pg_coder_init_encoder( self );
 	this->typemap = pg_typemap_all_strings;
 	this->delimiter = '\t';
@@ -44,7 +64,7 @@ static VALUE
 pg_copycoder_decoder_allocate( VALUE klass )
 {
 	t_pg_copycoder *this;
-	VALUE self = Data_Make_Struct( klass, t_pg_copycoder, pg_copycoder_mark, -1, this );
+	VALUE self = TypedData_Make_Struct( klass, t_pg_copycoder, &pg_copycoder_type, this );
 	pg_coder_init_decoder( self );
 	this->typemap = pg_typemap_all_strings;
 	this->delimiter = '\t';
@@ -63,7 +83,7 @@ pg_copycoder_decoder_allocate( VALUE klass )
 static VALUE
 pg_copycoder_delimiter_set(VALUE self, VALUE delimiter)
 {
-	t_pg_copycoder *this = DATA_PTR(self);
+	t_pg_copycoder *this = RTYPEDDATA_DATA(self);
 	StringValue(delimiter);
 	if(RSTRING_LEN(delimiter) != 1)
 		rb_raise( rb_eArgError, "delimiter size must be one byte");
@@ -80,7 +100,7 @@ pg_copycoder_delimiter_set(VALUE self, VALUE delimiter)
 static VALUE
 pg_copycoder_delimiter_get(VALUE self)
 {
-	t_pg_copycoder *this = DATA_PTR(self);
+	t_pg_copycoder *this = RTYPEDDATA_DATA(self);
 	return rb_str_new(&this->delimiter, 1);
 }
 
@@ -93,7 +113,7 @@ pg_copycoder_delimiter_get(VALUE self)
 static VALUE
 pg_copycoder_null_string_set(VALUE self, VALUE null_string)
 {
-	t_pg_copycoder *this = DATA_PTR(self);
+	t_pg_copycoder *this = RTYPEDDATA_DATA(self);
 	StringValue(null_string);
 	this->null_string = null_string;
 	return null_string;
@@ -105,7 +125,7 @@ pg_copycoder_null_string_set(VALUE self, VALUE null_string)
 static VALUE
 pg_copycoder_null_string_get(VALUE self)
 {
-	t_pg_copycoder *this = DATA_PTR(self);
+	t_pg_copycoder *this = RTYPEDDATA_DATA(self);
 	return this->null_string;
 }
 
@@ -123,7 +143,7 @@ pg_copycoder_null_string_get(VALUE self)
 static VALUE
 pg_copycoder_type_map_set(VALUE self, VALUE type_map)
 {
-	t_pg_copycoder *this = DATA_PTR( self );
+	t_pg_copycoder *this = RTYPEDDATA_DATA( self );
 
 	if ( !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
@@ -143,7 +163,7 @@ pg_copycoder_type_map_set(VALUE self, VALUE type_map)
 static VALUE
 pg_copycoder_type_map_get(VALUE self)
 {
-	t_pg_copycoder *this = DATA_PTR( self );
+	t_pg_copycoder *this = RTYPEDDATA_DATA( self );
 
 	return this->typemap;
 }
@@ -188,7 +208,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	char *current_out;
 	char *end_capa_ptr;
 
-	p_typemap = DATA_PTR( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	p_typemap->funcs.fit_to_query( this->typemap, value );
 
 	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
@@ -376,7 +396,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 	char *end_capa_ptr;
 	t_typemap *p_typemap;
 
-	p_typemap = DATA_PTR( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	expected_fields = p_typemap->funcs.fit_to_copy_get( this->typemap );
 
 	/* The received input string will probably have this->nfields fields. */

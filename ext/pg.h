@@ -78,6 +78,15 @@ typedef long suseconds_t;
 #define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
 #endif
 
+#ifdef HAVE_RB_GC_MARK_MOVABLE
+#define pg_compact_callback(x) ((void (*)(void*))(x))
+#define pg_gc_location(x) x = rb_gc_location(x)
+#else
+#define rb_gc_mark_movable(x) rb_gc_mark(x)
+#define pg_compact_callback(x) {(x)}
+#define pg_gc_location(x) UNUSED(x)
+#endif
+
 #define PG_ENC_IDX_BITS 28
 
 /* The data behind each PG::Connection object */
@@ -220,6 +229,8 @@ typedef struct {
 	} convs[0];
 } t_tmbc;
 
+extern const rb_data_type_t pg_typemap_type;
+extern const rb_data_type_t pg_coder_type;
 
 #include "gvl_wrappers.h"
 
@@ -304,7 +315,7 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
-void pg_coder_mark                                     _(( t_pg_coder * ));
+void pg_coder_compact                                  _(( t_pg_coder * ));
 char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
 
 #define PG_RB_STR_ENSURE_CAPA( str, expand_len, curr_ptr, end_ptr ) \
@@ -324,6 +335,8 @@ int pg_typemap_fit_to_copy_get                         _(( VALUE ));
 VALUE pg_typemap_result_value                          _(( t_typemap *, VALUE, int, int ));
 t_pg_coder *pg_typemap_typecast_query_param            _(( t_typemap *, VALUE, int ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
+void pg_typemap_mark                                   _(( t_typemap * ));
+void pg_typemap_compact                                _(( t_typemap * ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));
