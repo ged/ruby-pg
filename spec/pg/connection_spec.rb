@@ -774,13 +774,14 @@ describe PG::Connection do
 	end
 
 	it "described_class#block should allow a timeout" do
-		@conn.send_query( "select pg_sleep(1)" )
+		@conn.send_query( "select pg_sleep(100)" )
 
 		start = Time.now
 		@conn.block( 0.3 )
 		finish = Time.now
+		@conn.cancel
 
-		expect( (finish - start) ).to be_within( 0.2 ).of( 0.3 )
+		expect( (finish - start) ).to be_between( 0.2, 99 ).exclusive
 	end
 
 	it "can return the default connection options" do
