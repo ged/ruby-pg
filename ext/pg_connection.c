@@ -1828,7 +1828,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
  *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  *
@@ -1896,7 +1896,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
  *
  * For example: "SELECT $1::int"
  *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query.
  */
 static VALUE
@@ -1960,7 +1960,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
  *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  *
@@ -3227,7 +3227,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :type => 0, :format => 0 }
  *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  *
@@ -3297,7 +3297,7 @@ pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
  *
  * For example: "SELECT $1::int"
  *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query.
  *
  * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQPREPARE].
@@ -3337,7 +3337,7 @@ pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
  *     { :value => <string value>, :format => 0 }
  *
- * PostgreSQL bind parameters are represented as $1, $1, $2, etc.,
+ * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound
  * to $1, the 1st element is bound to $2, etc. +nil+ is treated as +NULL+.
  *
