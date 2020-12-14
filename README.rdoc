@@ -24,7 +24,7 @@ A small example usage:
     puts "     PID | User             | Query"
     result.each do |row|
       puts " %7d | %-16s | %s " %
-        row.values_at('procpid', 'usename', 'current_query')
+        row.values_at('pid', 'usename', 'query')
     end
   end
 
