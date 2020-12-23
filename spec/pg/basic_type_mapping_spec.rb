@@ -99,7 +99,7 @@ describe 'Basic type mapping' do
 					[Time.new(2019, 12, 8, 20, 38, 12.123, "-01:00")], # Time -> timestamptz[]
 				], nil, basic_type_mapping )
 
-			expect( res.values[0][0] ).to match( /\{\"2019-12-08 \d\d:38:12.123[+-]\d\d\"\}/ )
+			expect( res.values[0][0] ).to match( /\{\"2019-12-0\d \d\d:38:12.123[+-]\d\d\"\}/ )
 			expect( result_typenames(res) ).to eq( ['timestamp with time zone[]'] )
 		end
 
