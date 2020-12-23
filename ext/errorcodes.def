@@ -307,6 +307,10 @@
   register_error_class( "22030", klass );
 }
 {
+  VALUE klass = define_error_class( "InvalidArgumentForSqlJsonDatetimeFunction", "22" );
+  register_error_class( "22031", klass );
+}
+{
   VALUE klass = define_error_class( "InvalidJsonText", "22" );
   register_error_class( "22032", klass );
 }
