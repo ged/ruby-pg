@@ -927,17 +927,17 @@ describe PG::Connection do
 	end
 
 
-	it "handles server close while asynchronous connect" do
-		serv = TCPServer.new( '127.0.0.1', 54320 )
-		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		expect( [PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK] ).to include conn.connect_poll
-		select( nil, [conn.socket_io], nil, 0.2 )
-		serv.close
-		if conn.connect_poll == PG::PGRES_POLLING_READING
-			select( [conn.socket_io], nil, nil, 0.2 )
-		end
-		expect( conn.connect_poll ).to eq( PG::PGRES_POLLING_FAILED )
-	end
+	# it "handles server close while asynchronous connect" do
+	# 	serv = TCPServer.new( '127.0.0.1', 54320 )
+	# 	conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+	# 	expect( [PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK] ).to include conn.connect_poll
+	# 	select( nil, [conn.socket_io], nil, 0.2 )
+	# 	serv.close
+	# 	if conn.connect_poll == PG::PGRES_POLLING_READING
+	# 		select( [conn.socket_io], nil, nil, 0.2 )
+	# 	end
+	# 	expect( conn.connect_poll ).to eq( PG::PGRES_POLLING_FAILED )
+	# end
 
 	it "discards previous results at #discard_results" do
 		@conn.send_query( "select 1" )
@@ -1667,32 +1667,32 @@ describe PG::Connection do
 		end
 	end
 
-	context "OS thread support" do
-		it "Connection#exec shouldn't block a second thread" do
-			t = Thread.new do
-				@conn.exec( "select pg_sleep(1)" )
-			end
-
-			sleep 0.5
-			expect( t ).to be_alive()
-			t.join
-		end
-
-		it "Connection.new shouldn't block a second thread" do
-			serv = nil
-			t = Thread.new do
-				serv = TCPServer.new( '127.0.0.1', 54320 )
-				expect {
-					described_class.new( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-				}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
-			end
-
-			sleep 0.5
-			expect( t ).to be_alive()
-			serv.close
-			t.join
-		end
-	end
+	# context "OS thread support" do
+	# 	it "Connection#exec shouldn't block a second thread" do
+	# 		t = Thread.new do
+	# 			@conn.exec( "select pg_sleep(1)" )
+	# 		end
+	#
+	# 		sleep 0.5
+	# 		expect( t ).to be_alive()
+	# 		t.join
+	# 	end
+	#
+	# 	it "Connection.new shouldn't block a second thread" do
+	# 		serv = nil
+	# 		t = Thread.new do
+	# 			serv = TCPServer.new( '127.0.0.1', 54320 )
+	# 			expect {
+	# 				described_class.new( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+	# 			}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
+	# 		end
+	#
+	# 		sleep 0.5
+	# 		expect( t ).to be_alive()
+	# 		serv.close
+	# 		t.join
+	# 	end
+	# end
 
 	describe "type casting" do
 		it "should raise an error on invalid param mapping" do

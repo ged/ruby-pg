@@ -90,6 +90,22 @@ task :specs => :spec
 # Compile before testing
 task :spec => :compile
 
+desc "Run tests with Fiber Scheduler enabled (Require Ruby >= 3.0.0)"
+task :spec_with_fiber_scheduler do
+	ruby_major_version = RUBY_VERSION.split('.').first.to_i
+	next if ruby_major_version < 3
+
+	puts 'Running Tests with Fiber Scheduler enabled'
+	begin
+		ENV['TEST_FIBER_SCHEDULER'] = '1'
+		Rake::Task[ :spec ].execute
+	ensure
+		ENV.delete 'TEST_FIBER_SCHEDULER'
+	end
+end
+
+Rake::Task['spec'].enhance(['spec_with_fiber_scheduler'])
+
 # gem-testers support
 task :test do
 	# rake-compiler always wants to copy the compiled extension into lib/, but

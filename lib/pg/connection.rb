@@ -280,10 +280,18 @@ class PG::Connection
 	}
 
 	def self.async_api=(enable)
+		if !enable && defined?(Fiber) && Fiber.respond_to?(:scheduler) && Fiber.scheduler
+			raise ArgumentError, "When scheduler set, you can't use sync api"
+		end
+
 		REDIRECT_METHODS.each do |ali, (async, sync)|
 			remove_method(ali) if method_defined?(ali)
 			alias_method( ali, enable ? async : sync )
 		end
+	end
+
+	def self.async_api
+		@async_api
 	end
 
 	# pg-1.1.0+ defaults to libpq's async API for query related blocking methods
