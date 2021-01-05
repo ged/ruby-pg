@@ -36,16 +36,16 @@ environment:
       RUBYDOWNLOAD: x86
       PGVERSION: 10.6-1-windows
       PGVER: 10
-    - ruby_version: "24-x64"
+    - ruby_version: "27-x64"
       PGVERSION: 11.1-1-windows-x64
       PGVER: 11
-    - ruby_version: "24"
+    - ruby_version: "27"
       PGVERSION: 10.6-1-windows
       PGVER: 10
-    - ruby_version: "22"
+    - ruby_version: "24"
       PGVERSION: 9.3.25-1-windows
       PGVER: 9.3
-    - ruby_version: "22-x64"
+    - ruby_version: "24-x64"
       PGVER: 9.6
 matrix:
   allow_failures:
