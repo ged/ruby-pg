@@ -46,5 +46,8 @@ describe PG do
 		        ])
 	end
 
-end
+	it "tells about the libpq library path" do
+		expect( PG::POSTGRESQL_LIB_PATH ).to include("/")
+	end
 
+end

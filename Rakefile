@@ -37,6 +37,7 @@ CLOBBER.include( TESTDIR.to_s )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 CLEAN.include "lib/*/libpq.dll"
 CLEAN.include "lib/pg_ext.*"
+CLEAN.include "lib/pg/postgresql_lib_path.rb"
 
 # Set up Hoe plugins
 Hoe.plugin :mercurial
