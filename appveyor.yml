@@ -19,7 +19,6 @@ install:
         $(new-object net.webclient).DownloadFile('http://get.enterprisedb.com/postgresql/postgresql-' + $env:PGVERSION + '.exe', 'C:/postgresql-setup.exe')
         cmd /c "C:/postgresql-setup.exe" --mode unattended --extract-only 1
       }
-      $env:RUBY_DLL_PATH = 'C:/Program Files/PostgreSQL/' + $env:PGVER + '/bin;C:/Program Files (x86)/PostgreSQL/' + $env:PGVER + '/bin'
       $env:PATH = 'C:/Program Files/PostgreSQL/' + $env:PGVER + '/bin;' + $env:PATH
       $env:PATH = 'C:/Program Files (x86)/PostgreSQL/' + $env:PGVER + '/bin;' + $env:PATH
 build_script:
