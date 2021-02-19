@@ -250,7 +250,7 @@ describe 'Basic type mapping' do
 				[1, 0].each do |format|
 					res = @conn.exec_params( "SELECT E'\\\\000\\\\377'::BYTEA", [], format )
 					expect( res.values ).to eq( [[["00ff"].pack("H*")]] )
-					expect( res.values[0][0].encoding ).to eq( Encoding::ASCII_8BIT ) if Object.const_defined? :Encoding
+					expect( res.values[0][0].encoding ).to eq( Encoding::ASCII_8BIT )
 				end
 			end
 
@@ -262,11 +262,11 @@ describe 'Basic type mapping' do
 			end
 
 			it "should do string type conversions" do
-				@conn.internal_encoding = 'utf-8' if Object.const_defined? :Encoding
+				@conn.internal_encoding = 'utf-8'
 				[1, 0].each do |format|
 					res = @conn.exec_params( "SELECT 'abcäöü'::TEXT", [], format )
 					expect( res.values ).to eq( [['abcäöü']] )
-					expect( res.values[0][0].encoding ).to eq( Encoding::UTF_8 ) if Object.const_defined? :Encoding
+					expect( res.values[0][0].encoding ).to eq( Encoding::UTF_8 )
 				end
 			end
 
