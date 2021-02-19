@@ -325,7 +325,7 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 		@coder_maps = build_coder_maps(connection)
 
 		# Populate TypeMapByOid hash with decoders
-		@coder_maps.map{|f| f[:decoder].coders }.flatten.each do |coder|
+		@coder_maps.flat_map{|f| f[:decoder].coders }.each do |coder|
 			add_coder(coder)
 		end
 
@@ -371,7 +371,7 @@ class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
 		@coder_maps = build_coder_maps(connection)
 
 		# Populate TypeMapByOid hash with encoders
-		@coder_maps.map{|f| f[:encoder].coders }.flatten.each do |coder|
+		@coder_maps.flat_map{|f| f[:encoder].coders }.each do |coder|
 			add_coder(coder)
 		end
 	end
