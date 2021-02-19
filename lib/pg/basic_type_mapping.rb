@@ -40,31 +40,16 @@ module PG::BasicTypeRegistry
 		def initialize(result, coders_by_name, format, arraycoder)
 			coder_map = {}
 
-			_ranges, nodes = result.partition { |row| row['typinput'] == 'range_in' }
-			leaves, nodes = nodes.partition { |row| row['typelem'].to_i == 0 }
-			arrays, nodes = nodes.partition { |row| row['typinput'] == 'array_in' }
-
-			# populate the enum types
-			_enums, leaves = leaves.partition { |row| row['typinput'] == 'enum_in' }
-			# enums.each do |row|
-			#	coder_map[row['oid'].to_i] = OID::Enum.new
-			# end
+			arrays, nodes = result.partition { |row| row['typinput'] == 'array_in' }
 
 			# populate the base types
-			leaves.find_all { |row| coders_by_name.key?(row['typname']) }.each do |row|
+			nodes.find_all { |row| coders_by_name.key?(row['typname']) }.each do |row|
 				coder = coders_by_name[row['typname']].dup
 				coder.oid = row['oid'].to_i
 				coder.name = row['typname']
 				coder.format = format
 				coder_map[coder.oid] = coder
 			end
-
-			_records_by_oid = result.group_by { |row| row['oid'] }
-
-			# populate composite types
-			# nodes.each do |row|
-			#	add_oid row, records_by_oid, coder_map
-			# end
 
 			if arraycoder
 				# populate array types
@@ -81,13 +66,6 @@ module PG::BasicTypeRegistry
 					coder_map[coder.oid] = coder
 				end
 			end
-
-			# populate range types
-			# ranges.find_all { |row| coder_map.key? row['rngsubtype'].to_i }.each do |row|
-			#	subcoder = coder_map[row['rngsubtype'].to_i]
-			#	range = OID::Range.new subcoder
-			#	coder_map[row['oid'].to_i] = range
-			# end
 
 			@coders = coder_map.values
 			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }
@@ -118,14 +96,16 @@ module PG::BasicTypeRegistry
 	def build_coder_maps(connection)
 		if supports_ranges?(connection)
 			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname::text, t.typelem, t.typdelim, t.typinput::text, r.rngsubtype
+				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput, r.rngsubtype
 				FROM pg_type as t
-				LEFT JOIN pg_range as r ON oid = rngtypid
+				JOIN pg_proc as ti ON ti.oid = t.typinput
+				LEFT JOIN pg_range as r ON t.oid = r.rngtypid
 			SQL
 		else
 			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname::text, t.typelem, t.typdelim, t.typinput::text
+				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
 				FROM pg_type as t
+				JOIN pg_proc as ti ON ti.oid = t.typinput
 			SQL
 		end
 
@@ -200,6 +180,7 @@ module PG::BasicTypeRegistry
 	alias_type 0, 'char', 'text'
 	alias_type 0, 'bpchar', 'text'
 	alias_type 0, 'xml', 'text'
+	alias_type 0, 'name', 'text'
 
 	# FIXME: why are we keeping these types as strings?
 	# alias_type 'tsvector', 'text'
@@ -248,6 +229,7 @@ module PG::BasicTypeRegistry
 	alias_type 1, 'char', 'text'
 	alias_type 1, 'bpchar', 'text'
 	alias_type 1, 'xml', 'text'
+	alias_type 1, 'name', 'text'
 
 	register_type 1, 'bytea', PG::BinaryEncoder::Bytea, PG::BinaryDecoder::Bytea
 	register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
