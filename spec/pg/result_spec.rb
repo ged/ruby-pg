@@ -633,6 +633,14 @@ describe PG::Result do
 		expect( ObjectSpace.memsize_of(r) ).to be < 100
 	end
 
+	it "doesn't define #allocate" do
+		expect{ PG::Result.allocate }.to raise_error(TypeError)
+	end
+
+	it "doesn't define #new" do
+		expect{ PG::Result.new }.to raise_error(TypeError)
+	end
+
 	context 'result value conversions with TypeMapByColumn' do
 		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }

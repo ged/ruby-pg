@@ -1598,7 +1598,8 @@ init_pg_result()
 	sym_symbol = ID2SYM(rb_intern("symbol"));
 	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
-	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cData );
+	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cObject );
+	rb_undef_alloc_func(rb_cPGresult);
 	rb_include_module(rb_cPGresult, rb_mEnumerable);
 	rb_include_module(rb_cPGresult, rb_mPGconstants);
 
