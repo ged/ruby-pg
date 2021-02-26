@@ -264,9 +264,10 @@ describe 'Basic type mapping' do
 			it "should do string type conversions" do
 				@conn.internal_encoding = 'utf-8'
 				[1, 0].each do |format|
-					res = @conn.exec_params( "SELECT 'abcäöü'::TEXT", [], format )
-					expect( res.values ).to eq( [['abcäöü']] )
-					expect( res.values[0][0].encoding ).to eq( Encoding::UTF_8 )
+					res = @conn.exec_params( "SELECT 'abcäöü'::TEXT, 'colname'::name", [], format )
+					expect( res.values ).to eq( [['abcäöü', 'colname']] )
+					expect( [res.ftype(0), res.ftype(1)] ).to eq( [25, 19] )
+					expect( res.values[0].map(&:encoding) ).to eq( [Encoding::UTF_8] * 2 )
 				end
 			end
 
