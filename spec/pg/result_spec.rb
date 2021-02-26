@@ -634,11 +634,15 @@ describe PG::Result do
 	end
 
 	it "doesn't define #allocate" do
-		expect{ PG::Result.allocate }.to raise_error(TypeError)
+		expect{ PG::Result.allocate }.to raise_error { |error|
+			expect( error ).to satisfy { |v| [NoMethodError, TypeError].include?(v.class) }
+		}
 	end
 
 	it "doesn't define #new" do
-		expect{ PG::Result.new }.to raise_error(TypeError)
+		expect{ PG::Result.new }.to raise_error { |error|
+			expect( error ).to satisfy { |v| [NoMethodError, TypeError].include?(v.class) }
+		}
 	end
 
 	context 'result value conversions with TypeMapByColumn' do
