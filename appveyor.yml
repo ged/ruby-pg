@@ -30,17 +30,17 @@ environment:
   matrix:
     - ruby_version: "head"
       RUBYDOWNLOAD: x64
-      PGVERSION: 11.1-1-windows-x64
-      PGVER: 11
+      PGVERSION: 13.2-1-windows-x64
+      PGVER: 13
     - ruby_version: "head"
       RUBYDOWNLOAD: x86
-      PGVERSION: 10.6-1-windows
+      PGVERSION: 10.16-1-windows
       PGVER: 10
-    - ruby_version: "27-x64"
-      PGVERSION: 11.1-1-windows-x64
+    - ruby_version: "30-x64"
+      PGVERSION: 11.11-1-windows-x64
       PGVER: 11
-    - ruby_version: "27"
-      PGVERSION: 10.6-1-windows
+    - ruby_version: "30"
+      PGVERSION: 10.16-1-windows
       PGVER: 10
     - ruby_version: "24"
       PGVERSION: 9.3.25-1-windows

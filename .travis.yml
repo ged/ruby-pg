@@ -20,23 +20,23 @@ matrix:
     - rvm: "2.2"
       env:
         - "PGVERSION=9.3"
-    - rvm: "2.7"
+    - rvm: "3.0"
       env:
-        - "PGVERSION=12"
+        - "PGVERSION=13"
     - rvm: ruby-head
       env:
-        - "PGVERSION=12"
+        - "PGVERSION=11"
 
     - rvm: truffleruby
       env:
-        - "PGVERSION=12"
+        - "PGVERSION=11"
 
     - rvm: truffleruby-head
       env:
-        - "PGVERSION=12"
+        - "PGVERSION=13"
 
     - name: gem-windows
-      rvm: "2.7"
+      rvm: "3.0"
       before_install:
         - bundle install
         # Create a dummy cert to satisfy the build
