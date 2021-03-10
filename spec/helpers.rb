@@ -214,7 +214,8 @@ module PG::TestingHelpers
 			end
 
 			trace "Starting postgres"
-			log_and_run @logfile, 'pg_ctl', '-w', '-o', "-k #{TEST_DIRECTORY.to_s.dump}",
+			unix_socket = ['-o', "-k #{TEST_DIRECTORY.to_s.dump}"] unless RUBY_PLATFORM=~/mingw|mswin/i
+			log_and_run @logfile, 'pg_ctl', '-w', *unix_socket,
 				'-D', @test_pgdata.to_s, 'start'
 			sleep 2
 
