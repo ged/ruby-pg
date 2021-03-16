@@ -6,6 +6,7 @@ require 'tmpdir'
 
 begin
 	require 'rake/extensiontask'
+	require_relative 'misc/rake-compiler-make-install-patch'
 rescue LoadError
 	abort "This Rakefile requires rake-compiler (gem install rake-compiler)"
 end
@@ -63,7 +64,7 @@ $hoespec = Hoe.spec 'pg' do
 	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
 	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
 
-	self.dependency 'rake-compiler', '~> 1.0', :developer
+	self.dependency 'rake-compiler', '1.1.1', :developer
 	self.dependency 'rake-compiler-dock', ['~> 1.0'], :developer
 	self.dependency 'hoe-deveiate', '~> 0.9', :developer
 	self.dependency 'hoe-bundler', '~> 1.0', :developer

@@ -8,7 +8,7 @@ source "https://rubygems.org/"
 gem "hoe-mercurial", "~>1.4", :group => [:development, :test]
 gem "hoe-deveiate", "~>0.9", :group => [:development, :test]
 gem "hoe-highline", "~>0.2", :group => [:development, :test]
-gem "rake-compiler", "~>1.0", :group => [:development, :test]
+gem "rake-compiler", "1.1.1", :group => [:development, :test]
 gem "rake-compiler-dock", "~>1.0", :group => [:development, :test]
 gem "hoe-bundler", "~>1.0", :group => [:development, :test]
 gem "rspec", "~>3.5", :group => [:development, :test]
