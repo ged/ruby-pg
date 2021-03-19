@@ -1,7 +1,6 @@
 *.lock
 .test_symlink
 build/
-ChangeLog
 commit-msg.txt
 lib/*.bundle
 lib/*.so

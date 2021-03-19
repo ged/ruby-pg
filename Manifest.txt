@@ -1,6 +1,5 @@
 .gemtest
 BSDL
-ChangeLog
 Contributors.rdoc
 History.rdoc
 LICENSE

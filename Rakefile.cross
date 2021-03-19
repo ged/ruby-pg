@@ -287,7 +287,7 @@ end
 CrossLibraries.each do |xlib|
 	platform = xlib.for_platform
 	desc "Build fat binary gem for platform #{platform}"
-	task "gem:windows:#{platform}" => ['ChangeLog', 'gem:windows:prepare', xlib.openssl_tarball, xlib.postgresql_tarball] do
+	task "gem:windows:#{platform}" => ['gem:windows:prepare', xlib.openssl_tarball, xlib.postgresql_tarball] do
 		RakeCompilerDock.sh <<-EOT, platform: platform
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&

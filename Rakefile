@@ -143,38 +143,14 @@ if File.directory?( '.hg' )
 	Rake::Task[ 'docs' ].clear
 	RDoc::Task.new( 'docs' ) do |rdoc|
 		rdoc.main = "README.rdoc"
-		rdoc.rdoc_files.include( "*.rdoc", "ChangeLog", "lib/**/*.rb", 'ext/**/*.{c,h}' )
+		rdoc.rdoc_files.include( "*.rdoc", "lib/**/*.rb", 'ext/**/*.{c,h}' )
 		rdoc.generator = :fivefish
 		rdoc.title = "PG: The Ruby PostgreSQL Driver"
 		rdoc.rdoc_dir = 'doc'
 	end
 end
 
-
-# Make the ChangeLog update if the repo has changed since it was last built
-file '.hg/branch' do
-	warn "WARNING: You need the Mercurial repo to update the ChangeLog"
-end
-Rake::Task["ChangeLog"].clear
-file 'ChangeLog' do |task|
-	if File.exist?('.hg/branch')
-		$stderr.puts "Updating the changelog..."
-		begin
-			include Hoe::MercurialHelpers
-			content = make_changelog()
-		rescue NameError
-			abort "Packaging tasks require the hoe-mercurial plugin (gem install hoe-mercurial)"
-		end
-		File.open( task.name, 'w', 0644 ) do |fh|
-			fh.print( content )
-		end
-	else
-		touch 'ChangeLog'
-	end
-end
-
-# Rebuild the ChangeLog immediately before release
-task :prerelease => 'ChangeLog'
+task :prerelease
 
 
 desc "Stop any Postmaster instances that remain after testing."
