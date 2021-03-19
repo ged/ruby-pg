@@ -20,34 +20,12 @@ matrix:
     - rvm: "2.2"
       env:
         - "PGVERSION=9.3"
-    - rvm: "3.0"
-      env:
-        - "PGVERSION=13"
     - rvm: ruby-head
       env:
         - "PGVERSION=11"
 
-    - rvm: truffleruby
-      env:
-        - "PGVERSION=11"
-
-    - rvm: truffleruby-head
-      env:
-        - "PGVERSION=13"
-
-    - name: gem-windows
-      rvm: "3.0"
-      before_install:
-        - bundle install
-        # Create a dummy cert to satisfy the build
-        - ruby -ropenssl -e "puts OpenSSL::PKey::RSA.new(2048).to_pem" > ~/.gem/gem-private_key.pem
-        - gem cert --build travis-ci@dummy.org --private-key ~/.gem/gem-private_key.pem
-        - cp gem-public_cert.pem ~/.gem/gem-public_cert.pem
-      script:
-        - rake gem:windows:x86-mingw32
   allow_failures:
     - rvm: ruby-head
-    - rvm: truffleruby-head
   fast_finish: true
 
 before_install:
