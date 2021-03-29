@@ -158,7 +158,7 @@ pg_tmbc_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, i
 		return field_str;
 	}
 
-	return dec_func( p_coder, RSTRING_PTR(field_str), RSTRING_LEN(field_str), 0, fieldno, enc_idx );
+	return dec_func( p_coder, RSTRING_PTR(field_str), RSTRING_LENINT(field_str), 0, fieldno, enc_idx );
 }
 
 const struct pg_typemap_funcs pg_tmbc_funcs = {
@@ -250,12 +250,12 @@ pg_tmbc_allocate()
 static VALUE
 pg_tmbc_init(VALUE self, VALUE conv_ary)
 {
-	int i;
+	long i;
 	t_tmbc *this;
 	int conv_ary_len;
 
 	Check_Type(conv_ary, T_ARRAY);
-	conv_ary_len = RARRAY_LEN(conv_ary);
+	conv_ary_len = RARRAY_LENINT(conv_ary);
 	this = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * conv_ary_len);
 	/* Set nfields to 0 at first, so that GC mark function doesn't access uninitialized memory. */
 	this->nfields = 0;

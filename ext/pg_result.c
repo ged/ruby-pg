@@ -1017,7 +1017,7 @@ pgresult_cmd_tuples(VALUE self)
 {
 	long n;
 	n = strtol(PQcmdTuples(pgresult_get(self)),NULL, 10);
-	return INT2NUM(n);
+	return LONG2NUM(n);
 }
 
 /*

@@ -187,7 +187,7 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 	for( i=0; i<RARRAY_LEN(value); i++){
 		char *ptr1;
 		char *ptr2;
-		int strlen;
+		long strlen;
 		int backslashs;
 		VALUE subint;
 		VALUE entry;

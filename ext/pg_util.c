@@ -116,7 +116,7 @@ base64_decode( char *out, const char *in, unsigned int len)
 	}
 
 
-	return (char*)out_ptr - out;
+	return (int)((char*)out_ptr - out);
 }
 
 /*

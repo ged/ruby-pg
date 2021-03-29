@@ -501,9 +501,9 @@ pg_tuple_load(VALUE self, VALUE a)
 	rb_obj_freeze(field_names);
 	values = RARRAY_AREF(a, 1);
 	Check_Type(values, T_ARRAY);
-	num_fields = RARRAY_LEN(values);
+	num_fields = RARRAY_LENINT(values);
 
-	if (RARRAY_LEN(field_names) != num_fields)
+	if (RARRAY_LENINT(field_names) != num_fields)
 		rb_raise(rb_eTypeError, "different number of fields and values");
 
 	field_map = rb_hash_new();

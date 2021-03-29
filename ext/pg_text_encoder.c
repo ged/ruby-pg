@@ -191,7 +191,7 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 			if (neg)
 				*out++ = '-';
 
-			len = out - start;
+			len = (int)(out - start);
 
 			/* Reverse string. */
 			out--;
@@ -403,11 +403,11 @@ pg_text_enc_bytea(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 			*optr++ = hextab[c >> 4];
 			*optr++ = hextab[c & 0xf];
 		}
-		return optr - out;
+		return (int)(optr - out);
 	}else{
 		*intermediate = rb_obj_as_string(value);
 		/* The output starts with "\x" and each character is converted to hex. */
-		return 2 + RSTRING_LEN(*intermediate) * 2;
+		return 2 + RSTRING_LENINT(*intermediate) * 2;
 	}
 }
 
@@ -610,8 +610,8 @@ quote_identifier( VALUE value, VALUE out_string, char *current_out ){
 static char *
 pg_text_enc_array_identifier(VALUE value, VALUE string, char *out, int enc_idx)
 {
-	int i;
-	int nr_elems;
+	long i;
+	long nr_elems;
 
 	Check_Type(value, T_ARRAY);
 	nr_elems = RARRAY_LEN(value);

@@ -703,7 +703,7 @@ static VALUE
 pgconn_port(VALUE self)
 {
 	char* port = PQport(pg_get_pgconn(self));
-	return INT2NUM(atol(port));
+	return INT2NUM(atoi(port));
 }
 
 /*

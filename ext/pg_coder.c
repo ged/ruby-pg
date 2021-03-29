@@ -239,7 +239,7 @@ pg_coder_decode(int argc, VALUE *argv, VALUE self)
 		rb_raise(rb_eRuntimeError, "no decoder function defined");
 	}
 
-	res = this->dec_func(this, val, RSTRING_LEN(argv[0]), tuple, field, ENCODING_GET(argv[0]));
+	res = this->dec_func(this, val, RSTRING_LENINT(argv[0]), tuple, field, ENCODING_GET(argv[0]));
 
 	return res;
 }

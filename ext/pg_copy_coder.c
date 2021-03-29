@@ -245,7 +245,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 
 				if( strlen == -1 ){
 					/* we can directly use String value in subint */
-					strlen = RSTRING_LEN(subint);
+					strlen = RSTRING_LENINT(subint);
 
 					/* size of string assuming the worst case, that every character must be escaped. */
 					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2, current_out, end_capa_ptr );
@@ -417,7 +417,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 		int found_delim = 0;
 		const char *start_ptr;
 		const char *end_ptr;
-		int input_len;
+		long input_len;
 
 		/* Remember start of field on input side */
 		start_ptr = cur_ptr;
