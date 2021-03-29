@@ -34,18 +34,32 @@ else
 		libdir = `"#{pgconfig}" --libdir`.chomp
 		dir_config 'pg', incdir, libdir
 
-		# Try to use runtime path linker option, even if RbConfig doesn't know about it.
-		# The rpath option is usually set implicit by dir_config(), but so far not
-		# on MacOS-X.
-		if RbConfig::CONFIG["RPATHFLAG"].to_s.empty? && try_link('int main() {return 0;}', " -Wl,-rpath,#{libdir}")
-			$LDFLAGS << " -Wl,-rpath,#{libdir}"
-		end
+		# Windows traditionally stores DLLs beside executables, not in libdir
+		dlldir = RUBY_PLATFORM=~/mingw|mswin/ ? `"#{pgconfig}" --bindir`.chomp : libdir
+
 	else
 		$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
 			" --with-pg-config=/path/to/pg_config"
-		dir_config 'pg'
+		incdir, libdir = dir_config 'pg'
+		dlldir = libdir
+	end
+
+	# Try to use runtime path linker option, even if RbConfig doesn't know about it.
+	# The rpath option is usually set implicit by dir_config(), but so far not
+	# on MacOS-X.
+	if dlldir && RbConfig::CONFIG["RPATHFLAG"].to_s.empty?
+		append_ldflags "-Wl,-rpath,#{dlldir.quote}"
 	end
 end
+
+File.write("postgresql_lib_path.rb", <<-EOT)
+module PG
+	POSTGRESQL_LIB_PATH = #{dlldir.inspect}
+end
+EOT
+$INSTALLFILES = {
+	"./postgresql_lib_path.rb" => "$(RUBYLIBDIR)/pg/"
+}
 
 if RUBY_VERSION >= '2.3.0' && /solaris/ =~ RUBY_PLATFORM
 	append_cppflags( '-D__EXTENSIONS__' )
