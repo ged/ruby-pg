@@ -378,6 +378,21 @@ end
 #   # The format of the parameter is set to 0 (text) and the OID of this parameter is set to 20 (int8).
 #   res = conn.exec_params( "SELECT $1", [5] )
 class PG::BasicTypeMapForQueries < PG::TypeMapByClass
+	# Helper class for submission of binary strings into bytea columns.
+	#
+	# Since PG::BasicTypeMapForQueries chooses the encoder to be used by the class of the submitted value,
+	# it's necessary to send binary strings as BinaryData.
+	# That way they're distinct from text strings.
+	# Please note however that PG::BasicTypeMapForResults delivers bytea columns as plain String
+	# with binary encoding.
+	#
+	#   conn.type_map_for_queries = PG::BasicTypeMapForQueries.new(conn)
+	#   conn.exec("CREATE TEMP TABLE test (data bytea)")
+	#   bd = PG::BasicTypeMapForQueries::BinaryData.new("ab\xff\0cd")
+	#   conn.exec_params("INSERT INTO test (data) VALUES ($1)", [bd])
+	class BinaryData < String
+	end
+
 	include PG::BasicTypeRegistry
 
 	def initialize(connection)
@@ -488,6 +503,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		IPAddr => [0, 'inet'],
 		Hash => [0, 'json'],
 		Array => :get_array_type,
+		BinaryData => [1, 'bytea'],
 	}
 
 	DEFAULT_ARRAY_TYPE_MAP = {

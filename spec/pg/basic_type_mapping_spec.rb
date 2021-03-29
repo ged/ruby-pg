@@ -205,6 +205,13 @@ describe 'Basic type mapping' do
 			expect( result_typenames(res) ).to eq( ['text[]'] )
 		end
 
+		it "should take BinaryData for bytea columns" do
+			@conn.exec("CREATE TEMP TABLE IF NOT EXISTS bytea_test (data bytea)")
+			bd = PG::BasicTypeMapForQueries::BinaryData.new("ab\xff\0cd")
+			res = @conn.exec_params("INSERT INTO bytea_test (data) VALUES ($1) RETURNING data", [bd], nil, basic_type_mapping)
+
+			expect( res.to_a ).to eq([{"data" => "\\x6162ff006364"}])
+		end
 	end
 
 
