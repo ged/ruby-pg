@@ -89,25 +89,12 @@ module PG::BasicTypeRegistry
 
 	private
 
-	def supports_ranges?(connection)
-		connection.server_version >= 90200
-	end
-
 	def build_coder_maps(connection)
-		if supports_ranges?(connection)
-			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput, r.rngsubtype
-				FROM pg_type as t
-				JOIN pg_proc as ti ON ti.oid = t.typinput
-				LEFT JOIN pg_range as r ON t.oid = r.rngtypid
-			SQL
-		else
-			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
-				FROM pg_type as t
-				JOIN pg_proc as ti ON ti.oid = t.typinput
-			SQL
-		end
+		result = connection.exec <<-SQL
+			SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
+			FROM pg_type as t
+			JOIN pg_proc as ti ON ti.oid = t.typinput
+		SQL
 
 		[
 			[0, :encoder, PG::TextEncoder::Array],
