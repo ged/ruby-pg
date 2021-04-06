@@ -90,7 +90,7 @@ module PG::BasicTypeRegistry
 	private
 
 	def build_coder_maps(connection)
-		result = connection.exec <<-SQL
+		result = connection.exec(<<-SQL).to_a
 			SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
 			FROM pg_type as t
 			JOIN pg_proc as ti ON ti.oid = t.typinput
