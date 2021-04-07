@@ -87,8 +87,6 @@ module PG::BasicTypeRegistry
 		end
 	end
 
-	private
-
 	def build_coder_maps(connection)
 		result = connection.exec(<<-SQL).to_a
 			SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
@@ -107,6 +105,7 @@ module PG::BasicTypeRegistry
 			h
 		end
 	end
+	module_function :build_coder_maps
 
 	ValidFormats = { 0 => true, 1 => true }
 	ValidDirections = { :encoder => true, :decoder => true }
@@ -121,8 +120,6 @@ module PG::BasicTypeRegistry
 	# encoder_map is then dynamically built with oids as the key and Type
 	# objects as values.
 	CODERS_BY_NAME = []
-
-	public
 
 	# Register an encoder or decoder instance for casting a PostgreSQL type.
 	#
@@ -290,8 +287,8 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 		end
 	end
 
-	def initialize(connection)
-		@coder_maps = build_coder_maps(connection)
+	def initialize(connection, coder_maps: nil)
+		@coder_maps = coder_maps || build_coder_maps(connection)
 
 		# Populate TypeMapByOid hash with decoders
 		@coder_maps.flat_map{|f| f[:decoder].coders }.each do |coder|
@@ -382,8 +379,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 
 	include PG::BasicTypeRegistry
 
-	def initialize(connection)
-		@coder_maps = build_coder_maps(connection)
+	def initialize(connection, coder_maps: nil)
+		@coder_maps = coder_maps || build_coder_maps(connection)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
 		init_encoders
