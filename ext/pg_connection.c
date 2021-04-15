@@ -188,12 +188,21 @@ pgconn_gc_free( t_pg_connection *this )
 	xfree(this);
 }
 
+/*
+ * GC Size function
+ */
+static size_t
+pgconn_memsize( t_pg_connection *this )
+{
+	return sizeof(*this);
+}
+
 static const rb_data_type_t pg_connection_type = {
 	"PG::Connection",
 	{
 		(void (*)(void*))pgconn_gc_mark,
 		(void (*)(void*))pgconn_gc_free,
-		(size_t (*)(const void *))NULL,
+		(size_t (*)(const void *))pgconn_memsize,
 		pg_compact_callback(pgconn_gc_compact),
 	},
 	0,

@@ -315,6 +315,7 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
+void pg_coder_mark 																		 _(( t_pg_coder * ));
 void pg_coder_compact                                  _(( t_pg_coder * ));
 char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
 
@@ -336,6 +337,7 @@ VALUE pg_typemap_result_value                          _(( t_typemap *, VALUE, i
 t_pg_coder *pg_typemap_typecast_query_param            _(( t_typemap *, VALUE, int ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
 void pg_typemap_mark                                   _(( t_typemap * ));
+size_t pg_typemap_memsize                              _(( t_typemap * ));
 void pg_typemap_compact                                _(( t_typemap * ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));

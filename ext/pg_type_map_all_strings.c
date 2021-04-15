@@ -12,8 +12,8 @@ static const rb_data_type_t pg_tmas_type = {
 	"PG::TypeMapAllStrings",
 	{
 		(void (*)(void*))pg_typemap_mark,
-		(void (*)(void*))-1,
-		(size_t (*)(const void *))NULL,
+		RUBY_TYPED_DEFAULT_FREE,
+		(size_t (*)(const void *))pg_typemap_memsize,
 		pg_compact_callback(pg_typemap_compact),
 	},
 	&pg_typemap_type,
