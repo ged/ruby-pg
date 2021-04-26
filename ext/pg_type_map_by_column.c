@@ -26,7 +26,7 @@ pg_tmbc_fit_to_result( VALUE self, VALUE result )
 				nfields, this->nfields );
 	}
 
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
 
@@ -60,7 +60,7 @@ pg_tmbc_fit_to_query( VALUE self, VALUE params )
 				nfields, this->nfields );
 	}
 
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 
@@ -72,7 +72,7 @@ pg_tmbc_fit_to_copy_get( VALUE self )
 {
 	t_tmbc *this = RTYPEDDATA_DATA( self );
 
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_copy_get( this->typemap.default_typemap );
 

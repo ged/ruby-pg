@@ -54,7 +54,7 @@ Other enhancements:
 - Improve performance of PG::Result#stream_each_tuple .
 - Store client encoding in data part of PG::Connection and PG::Result objects, so that we no longer use ruby's internal encoding bits. #280
 - Update Windows fat binary gem to OpenSSL-1.1.1d and PostgreSQL-12.1.
-- Add support for TruffleRuby. It is regulary tested as part of our CI.
+- Add support for TruffleRuby. It is regularly tested as part of our CI.
 - Enable +frozen_string_literal+ in all pg's ruby files
 
 Bugfixes:
@@ -117,10 +117,10 @@ Deprecated (disable warnings per PG_SKIP_DEPRECATION_WARNING=1):
 - Forwarding conn.async_exec_params to conn.async_exec is deprecated.
 
 PG::Connection enhancements:
-- Provide PG::Connection#sync_* and PG::Connection#async_* query methods for explicit calling syncronous or asynchronous libpq API.
+- Provide PG::Connection#sync_* and PG::Connection#async_* query methods for explicit calling synchronous or asynchronous libpq API.
 - Make PG::Connection#exec and siblings switchable between sync and async API per PG::Connection.async_api= and change the default to async flavors.
 - Add async flavors of exec_params, prepare, exec_prepared, describe_prepared and describe_portal.
-  They are identical to their syncronous counterpart, but make use of PostgreSQL's async API.
+  They are identical to their synchronous counterpart, but make use of PostgreSQL's async API.
 - Replace `rb_thread_fd_select()` by faster `rb_wait_for_single_fd()` in `conn.block` and `conn.async_exec` .
 - Add PG::Connection#discard_results .
 - Raise an ArgumentError for strings containing zero bytes by #escape, #escape_literal, #escape_identifier, #quote_ident and PG::TextEncoder::Identifier. These methods previously truncated strings.
@@ -275,7 +275,7 @@ Bugfixes:
 - Revert addition of PG::Connection#hostaddr [#202].
 - Fix decoding of fractional timezones and timestamps [#203]
 - Fixes for non-C99 compilers
-- Avoid possible symbol name clash when linking againt static libpq.
+- Avoid possible symbol name clash when linking against static libpq.
 
 
 == v0.18.1 [2015-01-05] Michael Granger <ged@FaerieMUD.org>
@@ -311,7 +311,7 @@ Enhancements:
 Bugfixes:
 
 - Fix compatibility with signal handlers defined in Ruby. This reverts
-  cancelation of queries running on top of the blocking libpq API (like
+  cancellation of queries running on top of the blocking libpq API (like
   Connection#exec) in case of signals. As an alternative the #async_exec
   can be used, which is reverted to use the non-blocking API, again.
 - Wrap PQcancel to be called without GVL. It internally waits for
@@ -389,7 +389,7 @@ Enhancements:
 
 - Tested under Ruby 2.0.0p0.
 - Add single row mode of PostgreSQL 9.2.
-- Set fallback_application_name to programm name $0. Thanks to Will Leinweber
+- Set fallback_application_name to program name $0. Thanks to Will Leinweber
   for the patch.
 - Release Ruby's GVL while calls to blocking libpq functions to allow better
   concurrency in threaded applications.
@@ -397,7 +397,7 @@ Enhancements:
 - Make use of rb_thread_fd_select() on Ruby 1.9 and avoid deprecated
   rb_thread_select().
 - Add an example of how to insert array data using a prepared statement (#145).
-- Add continous integration tests on travis-ci.org.
+- Add continuous integration tests on travis-ci.org.
 - Add PG::Result#each_row for iterative over result sets by row. Thanks to
   Aaron Patterson for the patch.
 - Add a PG::Connection#socket_io method for fetching a (non-autoclosing) IO

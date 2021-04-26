@@ -66,7 +66,7 @@ END_DATA
 			end
 		rescue Errno => err
 			errmsg = "%s while reading copy data: %s" % [err.class.name, err.message]
-			puts "an error occured"
+			puts "an error occurred"
 		end
 
 		if errmsg

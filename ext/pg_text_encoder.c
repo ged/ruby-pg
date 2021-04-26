@@ -252,7 +252,7 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		}
 
 		/*
-		 * The following computaion is roughly a conversion kind of
+		 * The following computation is roughly a conversion kind of
 		 *   sprintf( out, "%.16E", dvalue);
 		 */
 

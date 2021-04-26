@@ -854,7 +854,7 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 
 		ip_int_native = read_nbo32(dst);
 
-		/* Work around broken IPAddr behavior of convering portion
+		/* Work around broken IPAddr behavior of converting portion
 		   of address after netmask to 0 */
 		switch (mask) {
 			case 0:
