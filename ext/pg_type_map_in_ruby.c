@@ -76,7 +76,7 @@ pg_tmir_fit_to_result( VALUE self, VALUE result )
 		new_typemap = self;
 	}
 
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
 
@@ -144,7 +144,7 @@ pg_tmir_fit_to_query( VALUE self, VALUE params )
 		rb_funcall( self, s_id_fit_to_query, 1, params );
 	}
 
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_query( this->typemap.default_typemap, params );
 
@@ -222,7 +222,7 @@ pg_tmir_fit_to_copy_get( VALUE self )
 		rb_raise( rb_eTypeError, "wrong return type from fit_to_copy_get: %s expected kind of Integer",
 				rb_obj_classname( num_columns ) );
 	}
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	default_tm->funcs.fit_to_copy_get( this->typemap.default_typemap );
 

@@ -87,7 +87,7 @@ class PGMonitor
 	#########
 
 	### Ask the master for the current xlog information, to compare
-	### to slaves.  Returns true on succcess.  On failure, populates
+	### to slaves.  Returns true on success.  On failure, populates
 	### the failures array and returns false.
 	###
 	def get_current_wal

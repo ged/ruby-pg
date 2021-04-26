@@ -1046,7 +1046,7 @@ struct query_params_data {
 	 * Filled by alloc_query_params()
 	 */
 
-	/* Wraps the pointer of allocated memory, if function parameters dont't
+	/* Wraps the pointer of allocated memory, if function parameters don't
 	 * fit in the memory_pool below.
 	 */
 	VALUE heap_pool;
@@ -1064,7 +1064,7 @@ struct query_params_data {
 	Oid *types;
 
 	/* This array takes the string values for the timeframe of the query,
-	 * if param value convertion is required
+	 * if param value conversion is required
 	 */
 	VALUE gc_array;
 
@@ -2875,7 +2875,7 @@ notice_processor_proxy(void *arg, const char *message)
  * call-seq:
  *   conn.set_notice_processor {|message| ... } -> Proc
  *
- * See #set_notice_receiver for the desription of what this and the
+ * See #set_notice_receiver for the description of what this and the
  * notice_processor methods do.
  *
  * This function takes a new block to act as the notice processor and returns

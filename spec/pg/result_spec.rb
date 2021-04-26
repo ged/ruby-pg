@@ -78,7 +78,7 @@ describe PG::Result do
 		expect( e.to_a ).to eq [['1', '2']]
 	end
 
-	it "yields a row as an Enumerator of hashs" do
+	it "yields a row as an Enumerator of hashes" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		e = res.each
 		expect( e ).to be_a_kind_of(Enumerator)
@@ -86,7 +86,7 @@ describe PG::Result do
 		expect( e.to_a ).to eq [{'a'=>'1', 'b'=>'2'}]
 	end
 
-	it "yields a row as an Enumerator of hashs with symbols" do
+	it "yields a row as an Enumerator of hashes with symbols" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		res.field_name_type = :symbol
 		expect( res.each.to_a ).to eq [{:a=>'1', :b=>'2'}]
@@ -649,7 +649,7 @@ describe PG::Result do
 		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 		let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }
 
-		it "should allow reading, assigning and diabling type conversions" do
+		it "should allow reading, assigning and disabling type conversions" do
 			res = @conn.exec( "SELECT 123" )
 			expect( res.type_map ).to be_kind_of(PG::TypeMapAllStrings)
 			res.type_map = PG::TypeMapByColumn.new [textdec_int]
@@ -675,7 +675,7 @@ describe PG::Result do
 			expect( res.tuple_values(0) ).to eq( [123] )
 		end
 
-		it "should be usable for several querys" do
+		it "should be usable for several queries" do
 			colmap = PG::TypeMapByColumn.new [textdec_int]
 			res = @conn.exec( "SELECT 123" )
 			res.type_map = colmap

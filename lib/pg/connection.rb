@@ -88,7 +88,7 @@ class PG::Connection
 	#  call-seq:
 	#     conn.copy_data( sql [, coder] ) {|sql_result| ... } -> PG::Result
 	#
-	# Execute a copy process for transfering data to or from the server.
+	# Execute a copy process for transferring data to or from the server.
 	#
 	# This issues the SQL COPY command via #exec. The response to this
 	# (if there is no error in the command) is a PG::Result object that

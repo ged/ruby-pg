@@ -150,7 +150,7 @@ class PGWarehouse
 			end
 		end
 
-		# Add table inheritence information.
+		# Add table inheritance information.
 		#
 		db.exec 'SELECT inhrelid AS oid, inhparent AS parent FROM pg_inherits' do |res|
 			res.each do |row|

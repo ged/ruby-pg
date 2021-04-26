@@ -272,7 +272,7 @@ task 'gem:windows:prepare' do
 	require 'io/console'
 	require 'rake_compiler_dock'
 
-	# Copy gem signing key and certs to be accessable from the docker container
+	# Copy gem signing key and certs to be accessible from the docker container
 	mkdir_p 'build/gem'
 	sh "cp ~/.gem/gem-*.pem build/gem/ || true"
 	sh "bundle package"

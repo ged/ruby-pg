@@ -123,7 +123,7 @@ pg_tmbo_fit_to_result( VALUE self, VALUE result )
 	t_tmbo *this = RTYPEDDATA_DATA( self );
 	PGresult *pgresult = pgresult_get( result );
 
-	/* Ensure that the default type map fits equaly. */
+	/* Ensure that the default type map fits equally. */
 	t_typemap *default_tm = RTYPEDDATA_DATA( this->typemap.default_typemap );
 	VALUE sub_typemap = default_tm->funcs.fit_to_result( this->typemap.default_typemap, result );
 

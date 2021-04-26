@@ -350,7 +350,7 @@ module WalShipper
 		###
 		def dispatch_dest( dest )
 			if ! dest.enabled.nil? && ! dest.enabled
-				self.log "Skipping explicity disabled destination %p, WAL is queued." % [ dest.label ]
+				self.log "Skipping explicitly disabled destination %p, WAL is queued." % [ dest.label ]
 				return
 			end
 
