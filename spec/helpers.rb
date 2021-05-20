@@ -9,6 +9,15 @@ DEFAULT_TEST_DIR_STR = File.join(Dir.pwd, "tmp_test_specs")
 TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
 TEST_DIRECTORY = Pathname.new(TEST_DIR_STR)
 
+if ENV['TEST_FIBER_SCHEDULER'] == '1'
+	if Fiber.respond_to? :set_scheduler
+		require_relative 'scheduler'
+		Fiber.set_scheduler Scheduler.new
+	else
+		raise "#{RUBY_VERSION} doesn't support Fiber Scheduler, remove `TEST_FIBER_SCHEDULER`"
+	end
+end
+
 module PG::TestingHelpers
 
 	### Automatically set up the database when it's used, and wrap a transaction around

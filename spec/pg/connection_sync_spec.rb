@@ -5,10 +5,16 @@ require_relative '../helpers'
 
 context "running with sync_* methods" do
 	before :each do
+		if ENV['TEST_FIBER_SCHEDULER'] == '1'
+			Fiber.set_scheduler nil
+		end
 		PG::Connection.async_api = false
 	end
 
 	after :each do
+		if ENV['TEST_FIBER_SCHEDULER'] == '1'
+			Fiber.set_scheduler Scheduler.new
+		end
 		PG::Connection.async_api = true
 	end
 
