@@ -22,7 +22,7 @@ install:
       $env:PATH = 'C:/Program Files/PostgreSQL/' + $env:PGVER + '/bin;' + $env:PATH
       $env:PATH = 'C:/Program Files (x86)/PostgreSQL/' + $env:PGVER + '/bin;' + $env:PATH
 build_script:
-  - bundle exec rake -rdevkit compile
+  - bundle exec rake -rdevkit compile --trace
 test_script:
   - bundle exec rake test
 environment:
