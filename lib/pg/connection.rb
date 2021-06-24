@@ -49,8 +49,7 @@ class PG::Connection
 		if args.length == 1
 			case args.first
 			when URI, /\A#{URI::ABS_URI_REF}\z/
-				uri = URI(args.first)
-				options.merge!( Hash[URI.decode_www_form( uri.query )] ) if uri.query
+				return args.first
 			when /=/
 				# Option string style
 				option_string = args.first.to_s
