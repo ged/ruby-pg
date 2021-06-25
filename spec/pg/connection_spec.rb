@@ -167,11 +167,12 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "connects using multiple hosts" do
-		tmpconn = described_class.connect(
-			"postgres://localhost:#{@port},127.0.0.1:#{@port}/test?keepalives=1"
-			)
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+	context "multiple hosts" do
+		let(:uri) { "postgres://localhost:#{@port},127.0.0.1:#{@port}/test?keepalives=1" }
+		it "connects using multiple hosts" do
+			tmpconn = described_class.connect( uri )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+		end
 	end
 
 	it "raises an exception when connecting with an invalid number of arguments" do
