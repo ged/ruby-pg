@@ -49,7 +49,7 @@ class PG::Connection
 		if args.length == 1
 			case args.first
 			when URI, /\A#{URI::ABS_URI_REF}\z/
-				return args.first
+				uri = args.first
 			when /=/
 				# Option string style
 				option_string = args.first.to_s
@@ -70,13 +70,16 @@ class PG::Connection
 		options.merge!( hash_arg )
 
 		if uri
-			uri.host     = nil if options[:host]
-			uri.port     = nil if options[:port]
-			uri.user     = nil if options[:user]
-			uri.password = nil if options[:password]
-			uri.path     = '' if options[:dbname]
-			uri.query    = URI.encode_www_form( options )
-			return uri.to_s.sub( /^#{uri.scheme}:(?!\/\/)/, "#{uri.scheme}://" )
+			query = URI.encode_www_form( options )
+			if uri.is_a? URI
+				uri = uri.to_s
+			end
+			if uri.include?("?")
+				uri += "&#{query}"
+			else
+				uri += "?#{query}"
+			end
+			return uri
 		else
 			option_string += ' ' unless option_string.empty? && options.empty?
 			return option_string + options.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
