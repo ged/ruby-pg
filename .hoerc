@@ -1,2 +1,0 @@
---- 
-exclude: !ruby/regexp /(?:\.(hg|hoe|bundle|irb|pry|ruby-(version|gemset)|gems|tm|DS_Store|travis\.yml)|sample|vendor|tmp|certs|build|lib/.*(so|dll)|appveyor\.yml|misc|spec/env|Gemfile|pg\.gemspec)/

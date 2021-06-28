@@ -51,12 +51,6 @@ module PG
 	end
 
 
-	# Library version
-	VERSION = '1.2.3'
-
-	# VCS revision
-	REVISION = %q$Revision: 6f611e78845a $
-
 	class NotAllCopyDataRetrieved < PG::Error
 	end
 
@@ -85,5 +79,6 @@ module PG
 	require 'pg/connection'
 	require 'pg/result'
 	require 'pg/tuple'
+	require 'pg/version'
 
 end # module PG

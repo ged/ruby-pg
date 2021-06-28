@@ -3,21 +3,12 @@
 require 'rbconfig'
 require 'pathname'
 require 'tmpdir'
-
-begin
-	require 'rake/extensiontask'
-	require_relative 'misc/rake-compiler-make-install-patch'
-rescue LoadError
-	abort "This Rakefile requires rake-compiler (gem install rake-compiler)"
-end
-
-begin
-	require 'hoe'
-rescue LoadError
-	abort "This Rakefile requires hoe (gem install hoe)"
-end
-
+require 'rake/extensiontask'
+require_relative 'misc/rake-compiler-make-install-patch'
 require 'rake/clean'
+require 'rspec/core/rake_task'
+require 'bundler'
+require 'bundler/gem_helper'
 
 # Build directory constants
 BASEDIR = Pathname( __FILE__ ).dirname
@@ -33,76 +24,16 @@ EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
 GEMSPEC = 'pg.gemspec'
 
-
 CLOBBER.include( TESTDIR.to_s )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 CLEAN.include "lib/*/libpq.dll"
 CLEAN.include "lib/pg_ext.*"
 CLEAN.include "lib/pg/postgresql_lib_path.rb"
 
-# Set up Hoe plugins
-Hoe.plugin :mercurial
-Hoe.plugin :signing
-Hoe.plugin :deveiate
-Hoe.plugin :bundler
-
-Hoe.plugins.delete :rubyforge
-Hoe.plugins.delete :compiler
-
 load 'Rakefile.cross'
 
-
-# Hoe specification
-$hoespec = Hoe.spec 'pg' do
-	self.readme_file = 'README.rdoc'
-	self.history_file = 'History.rdoc'
-	self.extra_rdoc_files = Rake::FileList[ '*.rdoc' ]
-	self.extra_rdoc_files.include( 'POSTGRES', 'LICENSE' )
-	self.extra_rdoc_files.include( 'ext/*.c' )
-	self.license 'BSD-2-Clause'
-
-	self.developer 'Michael Granger', 'ged@FaerieMUD.org'
-	self.developer 'Lars Kanis', 'lars@greiz-reinsdorf.de'
-
-	self.dependency 'rake-compiler', '1.1.1', :developer
-	self.dependency 'rake-compiler-dock', ['~> 1.0'], :developer
-	self.dependency 'hoe-deveiate', '~> 0.9', :developer
-	self.dependency 'hoe-bundler', '~> 1.0', :developer
-	self.dependency 'rspec', '~> 3.5', :developer
-	self.dependency 'rdoc', '~> 5.1', :developer
-
-	self.spec_extras[:extensions] = [ 'ext/extconf.rb' ]
-
-	self.require_ruby_version( '>= 2.2' )
-
-	self.hg_sign_tags = true if self.respond_to?( :hg_sign_tags= )
-	self.check_history_on_release = true if self.respond_to?( :check_history_on_release= )
-
-	self.rdoc_locations << "deveiate:/usr/local/www/public/code/#{remote_rdoc_dir}"
-end
-
-ENV['VERSION'] ||= $hoespec.spec.version.to_s
-
-# Tests should pass before checking in
-task 'hg:precheckin' => [ :check_history, :check_manifest, :spec, :gemspec ]
-
-# Support for 'rvm specs'
-task :specs => :spec
-
-# Compile before testing
-task :spec => :compile
-
-# gem-testers support
-task :test do
-	# rake-compiler always wants to copy the compiled extension into lib/, but
-	# we don't want testers to have to re-compile, especially since that
-	# often fails because they can't (and shouldn't have to) write to tmp/ in
-	# the installed gem dir. So we clear the task rake-compiler set up
-	# to break the dependency between :spec and :compile when running under
-	# rubygems-test, and then run :spec.
-	Rake::Task[ EXT.to_s ].clear if File.exist?(EXT.to_s)
-	Rake::Task[ :spec ].execute
-end
+Bundler::GemHelper.install_tasks
+$gem_spec = Bundler.load_gemspec(GEMSPEC)
 
 desc "Turn on warnings and debugging in the build."
 task :maint do
@@ -112,7 +43,7 @@ end
 # Rake-compiler task
 Rake::ExtensionTask.new do |ext|
 	ext.name           = 'pg_ext'
-	ext.gem_spec       = $hoespec.spec
+	ext.gem_spec       = $gem_spec
 	ext.ext_dir        = 'ext'
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
@@ -137,29 +68,27 @@ Rake::ExtensionTask.new do |ext|
 	end
 end
 
+RSpec::Core::RakeTask.new(:spec)
+task :test => :spec
 
 # Use the fivefish formatter for docs generated from development checkout
-if File.directory?( '.hg' )
-	require 'rdoc/task'
+require 'rdoc/task'
 
-	Rake::Task[ 'docs' ].clear
-	RDoc::Task.new( 'docs' ) do |rdoc|
-		rdoc.main = "README.rdoc"
-		rdoc.rdoc_files.include( "*.rdoc", "lib/**/*.rb", 'ext/**/*.{c,h}' )
-		rdoc.generator = :fivefish
-		rdoc.title = "PG: The Ruby PostgreSQL Driver"
-		rdoc.rdoc_dir = 'doc'
-	end
+RDoc::Task.new( 'docs' ) do |rdoc|
+	rdoc.main = "README.rdoc"
+	rdoc.rdoc_files.include( "*.rdoc", "lib/**/*.rb", 'ext/**/*.{c,h}' )
+	rdoc.generator = :fivefish
+	rdoc.title = "PG: The Ruby PostgreSQL Driver"
+	rdoc.rdoc_dir = 'doc'
 end
 
-task :prerelease
+desc "Build the source gem #{$gem_spec.full_name}.gem into the pkg directory"
+task :gem => :build
 
-
-desc "Stop any Postmaster instances that remain after testing."
-task :cleanup_testing_dbs do
-    require_relative 'spec/helpers'
-    PG::TestingHelpers.stop_existing_postmasters()
-    Rake::Task[:clobber].invoke
+task :clobber do
+	puts "Stop any Postmaster instances that remain after testing."
+	require_relative 'spec/helpers'
+	PG::TestingHelpers.stop_existing_postmasters()
 end
 
 desc "Update list of server error codes"
@@ -176,20 +105,3 @@ file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
 end
-
-task :gemspec => GEMSPEC
-file GEMSPEC => __FILE__
-task GEMSPEC do |task|
-	spec = $hoespec.spec
-	spec.files.delete( '.gemtest' )
-	spec.signing_key = nil
-	spec.version = "#{spec.version.bump}.0.pre#{Time.now.strftime("%Y%m%d%H%M%S")}"
-	spec.cert_chain = [ 'certs/ged.pem' ]
-	File.open( task.name, 'w' ) do |fh|
-		fh.write( spec.to_ruby )
-	end
-end
-
-CLOBBER.include( '*.gemspec' )
-task :default => :gemspec
-
