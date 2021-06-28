@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: MSP-Greg/ruby-setup-ruby@win-ucrt
         with:
           ruby-version: ${{ matrix.ruby }}
 
@@ -70,6 +70,11 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: source-gem
+
+      - name: Install required packages Windows
+        if: matrix.os == 'windows'
+        shell: cmd
+        run: ridk exec sh -c "pacman --sync --refresh --needed --noconfirm  ${MINGW_PACKAGE_PREFIX}-gcc"
 
       - name: Download PostgreSQL
         if: matrix.os == 'windows'
