@@ -74,7 +74,7 @@ jobs:
       - name: Install required packages Windows
         if: matrix.os == 'windows'
         shell: cmd
-        run: ridk exec sh -c "pacman --sync --refresh --needed --noconfirm  ${MINGW_PACKAGE_PREFIX}-gcc"
+        run: ridk exec sh -c "pacman --sync --needed --noconfirm  ${MINGW_PACKAGE_PREFIX}-gcc"
 
       - name: Download PostgreSQL Windows
         if: matrix.os == 'windows'
