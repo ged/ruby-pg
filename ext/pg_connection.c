@@ -2948,49 +2948,6 @@ pgconn_set_client_encoding(VALUE self, VALUE str)
 	return Qnil;
 }
 
-/*
- * call-seq:
- *    conn.transaction { |conn| ... } -> result of the block
- *
- * Executes a +BEGIN+ at the start of the block,
- * and a +COMMIT+ at the end of the block, or
- * +ROLLBACK+ if any exception occurs.
- */
-static VALUE
-pgconn_transaction(VALUE self)
-{
-	PGconn *conn = pg_get_pgconn(self);
-	PGresult *result;
-	VALUE rb_pgresult;
-	VALUE block_result = Qnil;
-	int status;
-
-	if (rb_block_given_p()) {
-		result = gvl_PQexec(conn, "BEGIN");
-		rb_pgresult = pg_new_result(result, self);
-		pg_result_check(rb_pgresult);
-		block_result = rb_protect(rb_yield, self, &status);
-		if(status == 0) {
-			result = gvl_PQexec(conn, "COMMIT");
-			rb_pgresult = pg_new_result(result, self);
-			pg_result_check(rb_pgresult);
-		}
-		else {
-			/* exception occurred, ROLLBACK and re-raise */
-			result = gvl_PQexec(conn, "ROLLBACK");
-			rb_pgresult = pg_new_result(result, self);
-			pg_result_check(rb_pgresult);
-			rb_jump_tag(status);
-		}
-
-	}
-	else {
-		/* no block supplied? */
-		rb_raise(rb_eArgError, "Must supply block for PG::Connection#transaction");
-	}
-	return block_result;
-}
-
 
 /*
  * call-seq:
@@ -4320,7 +4277,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
 	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");
-	rb_define_method(rb_cPGconn, "transaction", pgconn_transaction, 0);
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");

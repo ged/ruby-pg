@@ -378,6 +378,20 @@ describe PG::Connection do
 		expect( (Time.now - start) ).to be < 10
 	end
 
+	it "can stop a thread that runs a blocking transaction with async_exec" do
+		start = Time.now
+		t = Thread.new do
+			@conn.transaction do |c|
+				c.async_exec( 'select pg_sleep(10)' )
+			end
+		end
+		sleep 0.1
+
+		t.kill
+		t.join
+		expect( (Time.now - start) ).to be < 10
+	end
+
 	it "should work together with signal handlers", :unix do
 		signal_received = false
 		trap 'USR2' do
@@ -405,9 +419,9 @@ describe PG::Connection do
 			expect {
 				res = @conn.transaction do
 					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
-					raise "Oh noes! All pie is gone!"
+					raise Exception, "Oh noes! All pie is gone!"
 				end
-			}.to raise_exception( RuntimeError, /all pie is gone/i )
+			}.to raise_exception( Exception, /all pie is gone/i )
 
 			res = @conn.exec( "SELECT * FROM pie" )
 			expect( res.ntuples ).to eq( 0 )
@@ -416,15 +430,17 @@ describe PG::Connection do
 		end
 	end
 
-	it "returns the block result from Connection#transaction" do
+	it "Connection#transaction passes the connection to the block and returns the block result" do
 		# abort the per-example transaction so we can test our own
 		@conn.exec( 'ROLLBACK' )
 
-		res = @conn.transaction do
+		res = @conn.transaction do |co|
+			expect( co ).to equal( @conn )
 			"transaction result"
 		end
 		expect( res ).to eq( "transaction result" )
 	end
+
 
 	it "not read past the end of a large object" do
 		@conn.transaction do

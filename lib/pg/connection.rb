@@ -214,6 +214,23 @@ class PG::Connection
 		define_method( :isthreadsafe, &PG.method(:isthreadsafe) )
 	end
 
+	#
+	# call-seq:
+	#    conn.transaction { |conn| ... } -> result of the block
+	#
+	# Executes a +BEGIN+ at the start of the block,
+	# and a +COMMIT+ at the end of the block, or
+	# +ROLLBACK+ if any exception occurs.
+	def transaction
+		exec "BEGIN"
+		res = yield(self)
+	rescue Exception
+		exec "ROLLBACK"
+		raise
+	else
+		exec "COMMIT"
+		res
+	end
 
 	### Returns an array of Hashes with connection defaults. See ::conndefaults
 	### for details.
