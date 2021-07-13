@@ -2210,7 +2210,7 @@ pgconn_flush(self)
  *    conn.cancel() -> String
  *
  * Requests cancellation of the command currently being
- * processed. (Only implemented in PostgreSQL >= 8.0)
+ * processed.
  *
  * Returns +nil+ on success, or a string containing the
  * error message if a failure occurs.
