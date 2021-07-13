@@ -2227,7 +2227,7 @@ pgconn_cancel(VALUE self)
 	if(cancel == NULL)
 		rb_raise(rb_ePGerror,"Invalid connection!");
 
-	ret = gvl_PQcancel(cancel, errbuf, 256);
+	ret = gvl_PQcancel(cancel, errbuf, sizeof(errbuf));
 	if(ret == 1)
 		retval = Qnil;
 	else
