@@ -11,14 +11,15 @@ TEST_DIRECTORY = Pathname.new(TEST_DIR_STR)
 
 module PG::TestingHelpers
 
-	### Automatically set up the database when it's used, and wrap a transaction around
-	### examples that don't disable it.
+	### Automatically wrap a transaction around examples that don't disable it.
 	def self::included( mod )
 		super
 
 		if mod.respond_to?( :around )
 
-			mod.before( :all ) { @conn = setup_testing_db(described_class ? described_class.name : mod.description) }
+			mod.before( :all ) do
+				@conn = connect_testing_db
+			end
 
 			mod.around( :each ) do |example|
 				begin
@@ -33,7 +34,10 @@ module PG::TestingHelpers
 				end
 			end
 
-			mod.after( :all ) { teardown_testing_db(@conn) }
+			mod.after( :all ) do
+				check_for_lingering_connections( @conn )
+				@conn.finish
+			end
 		end
 
 	end
@@ -188,20 +192,22 @@ module PG::TestingHelpers
 		end
 	end
 
+	def define_testing_conninfo
+		ENV['PGPORT'] ||= "54321"
+		@port = ENV['PGPORT'].to_i
+		ENV['PGHOST'] = 'localhost'
+		@conninfo = "host=localhost port=#{@port} dbname=test"
+	end
 
 	### Set up a PostgreSQL database instance for testing.
 	def setup_testing_db( description )
-		require 'pg'
 		stop_existing_postmasters()
 
 		trace "Setting up test database for #{description}"
 		@test_pgdata = TEST_DIRECTORY + 'data'
 		@test_pgdata.mkpath
 
-		ENV['PGPORT'] ||= "54321"
-		@port = ENV['PGPORT'].to_i
-		ENV['PGHOST'] = 'localhost'
-		@conninfo = "host=localhost port=#{@port} dbname=test"
+		define_testing_conninfo
 
 		@logfile = TEST_DIRECTORY + 'setup.log'
 		trace "Command output logged to #{@logfile}"
@@ -229,7 +235,10 @@ module PG::TestingHelpers
 			$stderr.puts err.backtrace if $DEBUG
 			fail
 		end
+	end
 
+	def connect_testing_db
+		define_testing_conninfo
 		conn = PG.connect( @conninfo )
 		conn.set_notice_processor do |message|
 			$stderr.puts( description + ':' + message ) if $DEBUG
@@ -238,14 +247,8 @@ module PG::TestingHelpers
 		return conn
 	end
 
-
-	def teardown_testing_db( conn )
+	def teardown_testing_db
 		trace "Tearing down test database"
-
-		if conn
-			check_for_lingering_connections( conn )
-			conn.finish
-		end
 
 		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
 	end
@@ -378,4 +381,12 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_96 ) if PG.library_version <  90600
 	config.filter_run_excluding( :postgresql_10 ) if PG.library_version < 100000
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
+
+	### Automatically set up and tear down the database
+	config.before(:suite) do |*args|
+		PG::TestingHelpers.setup_testing_db("the spec suite")
+	end
+	config.after(:suite) do
+		PG::TestingHelpers.teardown_testing_db
+	end
 end
