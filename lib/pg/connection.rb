@@ -225,6 +225,8 @@ class PG::Connection
 		exec "BEGIN"
 		res = yield(self)
 	rescue Exception
+		cancel if transaction_status != PG::PQTRANS_IDLE
+		block
 		exec "ROLLBACK"
 		raise
 	else

@@ -366,32 +366,57 @@ describe PG::Connection do
 		expect( error ).to eq( true )
 	end
 
-	it "can stop a thread that runs a blocking query with async_exec" do
+	def interrupt_thread(exc=nil)
 		start = Time.now
 		t = Thread.new do
-			@conn.async_exec( 'select pg_sleep(10)' )
-		end
-		sleep 0.1
-
-		t.kill
-		t.join
-		expect( (Time.now - start) ).to be < 10
-		@conn.cancel
-	end
-
-	it "can stop a thread that runs a blocking transaction with async_exec" do
-		start = Time.now
-		t = Thread.new do
-			@conn.transaction do |c|
-				c.async_exec( 'select pg_sleep(10)' )
+			begin
+				yield
+			rescue Exception => err
+				err
 			end
 		end
 		sleep 0.1
 
-		t.kill
+		if exc
+			t.raise exc, "Stop the query by #{exc}"
+		else
+			t.kill
+		end
 		t.join
-		expect( (Time.now - start) ).to be < 10
-		@conn.cancel
+
+		[t, Time.now - start]
+	end
+
+	it "can stop a thread that runs a blocking query with async_exec" do
+		t, duration = interrupt_thread do
+			@conn.async_exec( 'select pg_sleep(10)' )
+		end
+
+		expect( t.value ).to be_nil
+		expect( duration ).to be < 10
+		@conn.cancel # Stop the query that is still running on the server
+	end
+
+	it "can stop a thread that runs a blocking transaction with async_exec" do
+		t, duration = interrupt_thread(Interrupt) do
+			@conn.transaction do |c|
+				c.async_exec( 'select pg_sleep(10)' )
+			end
+		end
+
+		expect( t.value ).to be_kind_of( Interrupt )
+		expect( duration ).to be < 10
+	end
+
+	it "can stop a thread that runs a no query but a transacted ruby sleep" do
+		t, duration = interrupt_thread(Interrupt) do
+			@conn.transaction do |c|
+				sleep 10
+			end
+		end
+
+		expect( t.value ).to be_kind_of( Interrupt )
+		expect( duration ).to be < 10
 	end
 
 	it "should work together with signal handlers", :unix do
