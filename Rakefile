@@ -68,7 +68,7 @@ Rake::ExtensionTask.new do |ext|
 	end
 end
 
-RSpec::Core::RakeTask.new(:spec)
+RSpec::Core::RakeTask.new(:spec).rspec_opts = "--profile"
 task :test => :spec
 
 # Use the fivefish formatter for docs generated from development checkout
