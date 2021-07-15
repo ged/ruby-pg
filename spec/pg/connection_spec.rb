@@ -376,6 +376,7 @@ describe PG::Connection do
 		t.kill
 		t.join
 		expect( (Time.now - start) ).to be < 10
+		@conn.cancel
 	end
 
 	it "can stop a thread that runs a blocking transaction with async_exec" do
@@ -390,6 +391,7 @@ describe PG::Connection do
 		t.kill
 		t.join
 		expect( (Time.now - start) ).to be < 10
+		@conn.cancel
 	end
 
 	it "should work together with signal handlers", :unix do
@@ -494,7 +496,7 @@ describe PG::Connection do
 		t = Thread.new do
 			begin
 				conn = described_class.connect( @conninfo )
-				sleep 1
+				sleep 0.1
 				conn.async_exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
@@ -514,7 +516,7 @@ describe PG::Connection do
 		t = Thread.new do
 			begin
 				conn = described_class.connect( @conninfo )
-				sleep 1
+				sleep 0.1
 				conn.async_exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
@@ -1242,18 +1244,16 @@ describe PG::Connection do
 		end
 
 		it "should receive rows before entire query is finished" do
-			@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(1);" )
+			@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(10);" )
 			@conn.set_single_row_mode
 
 			start_time = Time.now
-			first_row_time = nil
-			loop do
-				res = @conn.get_result or break
-				res.check
-				first_row_time = Time.now unless first_row_time
-			end
-			expect( (Time.now - start_time) ).to be >= 0.9
-			expect( (first_row_time - start_time) ).to be < 0.9
+			res = @conn.get_result
+			res.check
+
+			expect( (Time.now - start_time) ).to be < 9
+			expect( res.values ).to eq([["0", nil]])
+			@conn.cancel
 		end
 
 		it "should receive rows before entire query fails" do
@@ -1686,9 +1686,10 @@ describe PG::Connection do
 				@conn.exec( "select pg_sleep(1)" )
 			end
 
-			sleep 0.5
+			sleep 0.1
 			expect( t ).to be_alive()
-			t.join
+			t.kill
+			@conn.cancel
 		end
 
 		it "Connection.new shouldn't block a second thread" do
