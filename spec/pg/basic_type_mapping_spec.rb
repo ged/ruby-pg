@@ -635,4 +635,12 @@ describe 'Basic type mapping' do
 			end
 		end
 	end
+
+	describe PG::BasicTypeRegistry do
+		it "can build coder maps" do
+			expect do
+				described_class.build_coder_maps(@conn)
+			end.to_not raise_error
+		end
+	end
 end
