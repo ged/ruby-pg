@@ -123,6 +123,13 @@ pg_tmbk_mark( t_tmbk *this )
 {
 	pg_typemap_mark(&this->typemap);
 	rb_gc_mark_movable(this->klass_to_coder);
+	rb_gc_mark_movable(this->self);
+}
+
+static size_t
+pg_tmbk_memsize( t_tmbk *this )
+{
+	return sizeof(*this);
 }
 
 static void
@@ -142,8 +149,8 @@ static const rb_data_type_t pg_tmbk_type = {
 	"PG::TypeMapByClass",
 	{
 		(void (*)(void*))pg_tmbk_mark,
-		(void (*)(void*))-1,
-		(size_t (*)(const void *))NULL,
+		RUBY_TYPED_DEFAULT_FREE,
+		(size_t (*)(const void *))pg_tmbk_memsize,
 		pg_compact_callback(pg_tmbk_compact),
 	},
 	&pg_typemap_type,

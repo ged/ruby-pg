@@ -104,6 +104,12 @@ pg_tmbmt_mark( t_tmbmt *this )
 	FOR_EACH_MRI_TYPE( GC_MARK_AS_USED );
 }
 
+static size_t
+pg_tmbmt_memsize( t_tmbmt *this )
+{
+	return sizeof(*this);
+}
+
 #define GC_COMPACT(type) \
 	pg_gc_location( this->coders.ask_##type ); \
 	pg_gc_location( this->coders.coder_obj_##type );
@@ -119,8 +125,8 @@ static const rb_data_type_t pg_tmbmt_type = {
 	"PG::TypeMapByMriType",
 	{
 		(void (*)(void*))pg_tmbmt_mark,
-		(void (*)(void*))-1,
-		(size_t (*)(const void *))NULL,
+		RUBY_TYPED_DEFAULT_FREE,
+		(size_t (*)(const void *))pg_tmbmt_memsize,
 		pg_compact_callback(pg_tmbmt_compact),
 	},
 	&pg_typemap_type,
