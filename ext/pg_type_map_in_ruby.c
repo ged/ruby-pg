@@ -19,6 +19,11 @@ typedef struct {
 	VALUE self;
 } t_tmir;
 
+static size_t
+pg_tmir_memsize( t_tmir *this )
+{
+	return sizeof(*this);
+}
 
 static void
 pg_tmir_compact( t_tmir *this )
@@ -32,7 +37,7 @@ static const rb_data_type_t pg_tmir_type = {
 	{
 		(void (*)(void*))pg_typemap_mark,
 		RUBY_TYPED_DEFAULT_FREE,
-		(size_t (*)(const void *))pg_typemap_memsize,
+		(size_t (*)(const void *))pg_tmir_memsize,
 		pg_compact_callback(pg_tmir_compact),
 	},
 	&pg_typemap_type,
