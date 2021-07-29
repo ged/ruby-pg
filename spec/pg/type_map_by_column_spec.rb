@@ -29,6 +29,15 @@ describe PG::TypeMapByColumn do
 		type
 	end
 
+	it "should give account about memory usage" do
+		tm = PG::TypeMapByColumn.new( [] )
+		size0 =  ObjectSpace.memsize_of(tm)
+		expect( size0 ).to be > DATA_OBJ_MEMSIZE
+
+		tm = PG::TypeMapByColumn.new( [textenc_float, nil, textenc_int] )
+		expect( ObjectSpace.memsize_of(tm) ).to be > size0
+	end
+
 	it "should retrieve it's conversions" do
 		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, nil] )
 		expect( cm.coders ).to eq( [

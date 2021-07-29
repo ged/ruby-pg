@@ -8,6 +8,11 @@ require 'pg'
 
 describe PG::TypeMapInRuby do
 
+	it "should give account about memory usage" do
+		tm = PG::TypeMapInRuby.new
+		expect( ObjectSpace.memsize_of(tm) ).to be > DATA_OBJ_MEMSIZE
+	end
+
 	context "result values" do
 		it "should be usable non-derived" do
 			tm = PG::TypeMapInRuby.new

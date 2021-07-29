@@ -489,6 +489,11 @@ describe "PG::Type derivations" do
 			expect( t.oid ).to eq( 0 )
 			expect( t.name ).to be_nil
 		end
+
+		it "should give account about memory usage" do
+			expect( ObjectSpace.memsize_of(textenc_int) ).to be > DATA_OBJ_MEMSIZE
+			expect( ObjectSpace.memsize_of(binarydec_integer) ).to be > DATA_OBJ_MEMSIZE
+		end
 	end
 
 	describe PG::CompositeCoder do
@@ -810,7 +815,12 @@ describe "PG::Type derivations" do
 				expect( t.delimiter ).to eq( ',' )
 				expect( t.elements_type ).to be_nil
 			end
+
+		it "should give account about memory usage" do
+			expect( ObjectSpace.memsize_of(textenc_int_array) ).to be > DATA_OBJ_MEMSIZE
+			expect( ObjectSpace.memsize_of(textdec_bytea_array) ).to be > DATA_OBJ_MEMSIZE
 		end
+	end
 
 		it "should encode Strings as base64 in TextEncoder" do
 			e = PG::TextEncoder::ToBase64.new
@@ -919,6 +929,10 @@ describe "PG::Type derivations" do
 					PG::TextEncoder::CopyRow.new
 				end
 
+				it "should give account about memory usage" do
+					expect( ObjectSpace.memsize_of(encoder) ).to be > DATA_OBJ_MEMSIZE
+				end
+
 				it "should encode different types of Ruby objects" do
 					expect( encoder.encode([:xyz, 123, 2456, 34567, 456789, 5678901, [1,2,3], 12.1, "abcdefg", nil]) ).
 						to eq("xyz\t123\t2456\t34567\t456789\t5678901\t[1, 2, 3]\t12.1\tabcdefg\t\\N\n")
@@ -1010,6 +1024,10 @@ describe "PG::Type derivations" do
 					PG::TextDecoder::CopyRow.new type_map: tm
 				end
 
+				it "should give account about memory usage" do
+					expect( ObjectSpace.memsize_of(decoder) ).to be > DATA_OBJ_MEMSIZE
+				end
+
 				describe '#decode' do
 					it "should decode different types of Ruby objects" do
 						expect( decoder.decode("123\t \0#\t#\n#\r#\\ \t234\t#\x01#\002\n".gsub("#", "\\"))).to eq( [123, " \0\t\n\r\\ ", 235, "\x01\x02"] )
@@ -1024,6 +1042,10 @@ describe "PG::Type derivations" do
 			context "with default typemap" do
 				let!(:encoder) do
 					PG::TextEncoder::Record.new
+				end
+
+				it "should give account about memory usage" do
+					expect( ObjectSpace.memsize_of(encoder) ).to be > DATA_OBJ_MEMSIZE
 				end
 
 				it "should encode different types of Ruby objects" do
@@ -1082,6 +1104,10 @@ describe "PG::Type derivations" do
 			context "with default typemap" do
 				let!(:decoder) do
 					PG::TextDecoder::Record.new
+				end
+
+				it "should give account about memory usage" do
+					expect( ObjectSpace.memsize_of(decoder) ).to be > DATA_OBJ_MEMSIZE
 				end
 
 				describe '#decode' do
