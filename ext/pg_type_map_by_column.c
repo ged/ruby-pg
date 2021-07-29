@@ -186,6 +186,12 @@ pg_tmbc_mark( t_tmbc *this )
 	}
 }
 
+static size_t
+pg_tmbc_memsize( t_tmbc *this )
+{
+	return sizeof(*this);
+}
+
 static void
 pg_tmbc_compact( t_tmbc *this )
 {
@@ -215,7 +221,7 @@ static const rb_data_type_t pg_tmbc_type = {
 	{
 		(void (*)(void*))pg_tmbc_mark,
 		(void (*)(void*))pg_tmbc_free,
-		(size_t (*)(const void *))NULL,
+		(size_t (*)(const void *))pg_tmbc_memsize,
 		pg_compact_callback(pg_tmbc_compact),
 	},
 	&pg_typemap_type,

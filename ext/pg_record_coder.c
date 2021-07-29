@@ -18,7 +18,14 @@ typedef struct {
 static void
 pg_recordcoder_mark( t_pg_recordcoder *this )
 {
+	pg_coder_mark(&this->comp);
 	rb_gc_mark_movable(this->typemap);
+}
+
+static size_t
+pg_recordcoder_memsize( t_pg_recordcoder *this )
+{
+	return sizeof(*this);
 }
 
 static void
@@ -32,8 +39,8 @@ static const rb_data_type_t pg_recordcoder_type = {
 	"PG::RecordCoder",
 	{
 		(void (*)(void*))pg_recordcoder_mark,
-		(void (*)(void*))-1,
-		(size_t (*)(const void *))NULL,
+		RUBY_TYPED_DEFAULT_FREE,
+		(size_t (*)(const void *))pg_recordcoder_memsize,
 		pg_compact_callback(pg_recordcoder_compact),
 	},
 	&pg_coder_type,
