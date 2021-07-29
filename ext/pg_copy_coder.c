@@ -21,21 +21,24 @@ typedef struct {
 
 
 static void
-pg_copycoder_mark( t_pg_copycoder *this )
+pg_copycoder_mark( void *_this )
 {
+	t_pg_copycoder *this = (t_pg_copycoder *)_this;
 	rb_gc_mark_movable(this->typemap);
 	rb_gc_mark_movable(this->null_string);
 }
 
 static size_t
-pg_copycoder_memsize( t_pg_copycoder *this )
+pg_copycoder_memsize( const void *_this )
 {
+	const t_pg_copycoder *this = (const t_pg_copycoder *)_this;
 	return sizeof(*this);
 }
 
 static void
-pg_copycoder_compact( t_pg_copycoder *this )
+pg_copycoder_compact( void *_this )
 {
+	t_pg_copycoder *this = (t_pg_copycoder *)_this;
 	pg_coder_compact(&this->comp);
 	pg_gc_location(this->typemap);
 	pg_gc_location(this->null_string);
@@ -44,9 +47,9 @@ pg_copycoder_compact( t_pg_copycoder *this )
 static const rb_data_type_t pg_copycoder_type = {
 	"PG::CopyCoder",
 	{
-		(void (*)(void*))pg_copycoder_mark,
+		pg_copycoder_mark,
 		RUBY_TYPED_DEFAULT_FREE,
-		(size_t (*)(const void *))pg_copycoder_memsize,
+		pg_copycoder_memsize,
 		pg_compact_callback(pg_copycoder_compact),
 	},
 	&pg_coder_type,

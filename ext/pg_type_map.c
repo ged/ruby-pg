@@ -7,29 +7,32 @@
 #include "pg.h"
 
 void
-pg_typemap_mark( t_typemap *this )
+pg_typemap_mark( void *_this )
 {
+	t_typemap *this = (t_typemap *)_this;
 	rb_gc_mark_movable(this->default_typemap);
 }
 
 size_t
-pg_typemap_memsize( t_typemap *this )
+pg_typemap_memsize( const void *_this )
 {
+	t_typemap *this = (t_typemap *)_this;
 	return sizeof(*this);
 }
 
 void
-pg_typemap_compact( t_typemap *this )
+pg_typemap_compact( void *_this )
 {
+	t_typemap *this = (t_typemap *)_this;
 	pg_gc_location(this->default_typemap);
 }
 
 const rb_data_type_t pg_typemap_type = {
 	"PG::TypeMap",
 	{
-		(void (*)(void*))pg_typemap_mark,
+		pg_typemap_mark,
 		RUBY_TYPED_DEFAULT_FREE,
-		(size_t (*)(const void *))pg_typemap_memsize,
+		pg_typemap_memsize,
 		pg_compact_callback(pg_typemap_compact),
 	},
 	0,

@@ -98,15 +98,17 @@ pg_tmbmt_fit_to_query( VALUE self, VALUE params )
 	rb_gc_mark_movable( this->coders.coder_obj_##type );
 
 static void
-pg_tmbmt_mark( t_tmbmt *this )
+pg_tmbmt_mark( void *_this )
 {
+	t_tmbmt *this = (t_tmbmt *)_this;
 	pg_typemap_mark(&this->typemap);
 	FOR_EACH_MRI_TYPE( GC_MARK_AS_USED );
 }
 
 static size_t
-pg_tmbmt_memsize( t_tmbmt *this )
+pg_tmbmt_memsize( const void *_this )
 {
+	const t_tmbmt *this = (const t_tmbmt *)_this;
 	return sizeof(*this);
 }
 
@@ -115,8 +117,9 @@ pg_tmbmt_memsize( t_tmbmt *this )
 	pg_gc_location( this->coders.coder_obj_##type );
 
 static void
-pg_tmbmt_compact( t_tmbmt *this )
+pg_tmbmt_compact( void *_this )
 {
+	t_tmbmt *this = (t_tmbmt *)_this;
 	pg_typemap_compact(&this->typemap);
 	FOR_EACH_MRI_TYPE( GC_COMPACT );
 }
@@ -124,9 +127,9 @@ pg_tmbmt_compact( t_tmbmt *this )
 static const rb_data_type_t pg_tmbmt_type = {
 	"PG::TypeMapByMriType",
 	{
-		(void (*)(void*))pg_tmbmt_mark,
+		pg_tmbmt_mark,
 		RUBY_TYPED_DEFAULT_FREE,
-		(size_t (*)(const void *))pg_tmbmt_memsize,
+		pg_tmbmt_memsize,
 		pg_compact_callback(pg_tmbmt_compact),
 	},
 	&pg_typemap_type,

@@ -70,8 +70,9 @@ pg_tuple_get_field_names( t_pg_tuple *this )
 }
 
 static void
-pg_tuple_gc_mark( t_pg_tuple *this )
+pg_tuple_gc_mark( void *_this )
 {
+	t_pg_tuple *this = (t_pg_tuple *)_this;
 	int i;
 
 	if( !this ) return;
@@ -86,8 +87,9 @@ pg_tuple_gc_mark( t_pg_tuple *this )
 }
 
 static void
-pg_tuple_gc_compact( t_pg_tuple *this )
+pg_tuple_gc_compact( void *_this )
 {
+	t_pg_tuple *this = (t_pg_tuple *)_this;
 	int i;
 
 	if( !this ) return;
@@ -102,15 +104,17 @@ pg_tuple_gc_compact( t_pg_tuple *this )
 }
 
 static void
-pg_tuple_gc_free( t_pg_tuple *this )
+pg_tuple_gc_free( void *_this )
 {
+	t_pg_tuple *this = (t_pg_tuple *)_this;
 	if( !this ) return;
 	xfree(this);
 }
 
 static size_t
-pg_tuple_memsize( t_pg_tuple *this )
+pg_tuple_memsize( const void *_this )
 {
+	const t_pg_tuple *this = (const t_pg_tuple *)_this;
 	if( this==NULL ) return 0;
 	return sizeof(*this) +  sizeof(*this->values) * this->num_fields;
 }
@@ -118,9 +122,9 @@ pg_tuple_memsize( t_pg_tuple *this )
 static const rb_data_type_t pg_tuple_type = {
 	"PG::Tuple",
 	{
-		(void (*)(void*))pg_tuple_gc_mark,
-		(void (*)(void*))pg_tuple_gc_free,
-		(size_t (*)(const void *))pg_tuple_memsize,
+		pg_tuple_gc_mark,
+		pg_tuple_gc_free,
+		pg_tuple_memsize,
 		pg_compact_callback(pg_tuple_gc_compact),
 	},
 	0, 0,

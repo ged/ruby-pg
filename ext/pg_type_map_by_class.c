@@ -119,16 +119,18 @@ pg_tmbk_fit_to_query( VALUE self, VALUE params )
 }
 
 static void
-pg_tmbk_mark( t_tmbk *this )
+pg_tmbk_mark( void *_this )
 {
+	t_tmbk *this = (t_tmbk *)_this;
 	pg_typemap_mark(&this->typemap);
 	rb_gc_mark_movable(this->klass_to_coder);
 	rb_gc_mark_movable(this->self);
 }
 
 static size_t
-pg_tmbk_memsize( t_tmbk *this )
+pg_tmbk_memsize( const void *_this )
 {
+	const t_tmbk *this = (const t_tmbk *)_this;
 	return sizeof(*this);
 }
 
@@ -148,9 +150,9 @@ pg_tmbk_compact(void *ptr)
 static const rb_data_type_t pg_tmbk_type = {
 	"PG::TypeMapByClass",
 	{
-		(void (*)(void*))pg_tmbk_mark,
+		pg_tmbk_mark,
 		RUBY_TYPED_DEFAULT_FREE,
-		(size_t (*)(const void *))pg_tmbk_memsize,
+		pg_tmbk_memsize,
 		pg_compact_callback(pg_tmbk_compact),
 	},
 	&pg_typemap_type,

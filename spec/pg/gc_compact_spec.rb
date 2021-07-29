@@ -12,9 +12,9 @@
 #   static const rb_data_type_t pg_tmbo_type = {
 #     "PG::TypeMapByOid",
 #     {
-#       (void (*)(void*))pg_tmbo_mark,
-#       (void (*)(void*))-1,
-#       (size_t (*)(const void *))NULL,
+#       pg_tmbo_mark,
+#       RUBY_TYPED_DEFAULT_FREE,
+#       pg_tmbo_memsize,
 #   //    pg_compact_callback(pg_tmbo_compact),
 #     },
 #

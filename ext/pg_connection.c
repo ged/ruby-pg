@@ -146,8 +146,9 @@ static const char *pg_cstr_enc(VALUE str, int enc_idx){
  * GC Mark function
  */
 static void
-pgconn_gc_mark( t_pg_connection *this )
+pgconn_gc_mark( void *_this )
 {
+	t_pg_connection *this = (t_pg_connection *)_this;
 	rb_gc_mark_movable( this->socket_io );
 	rb_gc_mark_movable( this->notice_receiver );
 	rb_gc_mark_movable( this->notice_processor );
@@ -159,8 +160,9 @@ pgconn_gc_mark( t_pg_connection *this )
 }
 
 static void
-pgconn_gc_compact( t_pg_connection *this )
+pgconn_gc_compact( void *_this )
 {
+	t_pg_connection *this = (t_pg_connection *)_this;
 	pg_gc_location( this->socket_io );
 	pg_gc_location( this->notice_receiver );
 	pg_gc_location( this->notice_processor );
@@ -176,8 +178,9 @@ pgconn_gc_compact( t_pg_connection *this )
  * GC Free function
  */
 static void
-pgconn_gc_free( t_pg_connection *this )
+pgconn_gc_free( void *_this )
 {
+	t_pg_connection *this = (t_pg_connection *)_this;
 #if defined(_WIN32)
 	if ( RTEST(this->socket_io) )
 		rb_w32_unwrap_io_handle( this->ruby_sd );
@@ -189,20 +192,21 @@ pgconn_gc_free( t_pg_connection *this )
 }
 
 /*
- * GC Size function
+ * Object Size function
  */
 static size_t
-pgconn_memsize( t_pg_connection *this )
+pgconn_memsize( const void *_this )
 {
+	const t_pg_connection *this = (const t_pg_connection *)_this;
 	return sizeof(*this);
 }
 
 static const rb_data_type_t pg_connection_type = {
 	"PG::Connection",
 	{
-		(void (*)(void*))pgconn_gc_mark,
-		(void (*)(void*))pgconn_gc_free,
-		(size_t (*)(const void *))pgconn_memsize,
+		pgconn_gc_mark,
+		pgconn_gc_free,
+		pgconn_memsize,
 		pg_compact_callback(pgconn_gc_compact),
 	},
 	0,
@@ -1087,8 +1091,9 @@ struct query_params_data {
 };
 
 static void
-free_typecast_heap_chain(struct linked_typecast_data *chain_entry)
+free_typecast_heap_chain(void *_chain_entry)
 {
+	struct linked_typecast_data *chain_entry = (struct linked_typecast_data *)_chain_entry;
 	while(chain_entry){
 		struct linked_typecast_data *next = chain_entry->next;
 		xfree(chain_entry);
@@ -1099,8 +1104,8 @@ free_typecast_heap_chain(struct linked_typecast_data *chain_entry)
 static const rb_data_type_t pg_typecast_buffer_type = {
 	"PG::Connection typecast buffer chain",
 	{
-		(void (*)(void*))NULL,
-		(void (*)(void*))free_typecast_heap_chain,
+		(RUBY_DATA_FUNC) NULL,
+		free_typecast_heap_chain,
 		(size_t (*)(const void *))NULL,
 	},
 	0,
@@ -1132,8 +1137,8 @@ alloc_typecast_buf( VALUE *typecast_heap_chain, int len )
 static const rb_data_type_t pg_query_heap_pool_type = {
 	"PG::Connection query heap pool",
 	{
-		(void (*)(void*))NULL,
-		(void (*)(void*))-1,
+		(RUBY_DATA_FUNC) NULL,
+		RUBY_TYPED_DEFAULT_FREE,
 		(size_t (*)(const void *))NULL,
 	},
 	0,

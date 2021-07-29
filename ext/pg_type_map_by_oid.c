@@ -154,8 +154,9 @@ pg_tmbo_fit_to_result( VALUE self, VALUE result )
 }
 
 static void
-pg_tmbo_mark( t_tmbo *this )
+pg_tmbo_mark( void *_this )
 {
+	t_tmbo *this = (t_tmbo *)_this;
 	int i;
 
 	pg_typemap_mark(&this->typemap);
@@ -165,14 +166,16 @@ pg_tmbo_mark( t_tmbo *this )
 }
 
 static size_t
-pg_tmbo_memsize( t_tmbo *this )
+pg_tmbo_memsize( const void *_this )
 {
+	const t_tmbo *this = (const t_tmbo *)_this;
 	return sizeof(*this);
 }
 
 static void
-pg_tmbo_compact( t_tmbo *this )
+pg_tmbo_compact( void *_this )
 {
+	t_tmbo *this = (t_tmbo *)_this;
 	int i;
 
 	pg_typemap_compact(&this->typemap);
@@ -184,9 +187,9 @@ pg_tmbo_compact( t_tmbo *this )
 static const rb_data_type_t pg_tmbo_type = {
 	"PG::TypeMapByOid",
 	{
-		(void (*)(void*))pg_tmbo_mark,
+		pg_tmbo_mark,
 		RUBY_TYPED_DEFAULT_FREE,
-		(size_t (*)(const void *))pg_tmbo_memsize,
+		pg_tmbo_memsize,
 		pg_compact_callback(pg_tmbo_compact),
 	},
 	&pg_typemap_type,
