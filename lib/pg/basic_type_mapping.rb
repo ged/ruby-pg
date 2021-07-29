@@ -87,27 +87,12 @@ module PG::BasicTypeRegistry
 		end
 	end
 
-	private
-
-	def supports_ranges?(connection)
-		connection.server_version >= 90200
-	end
-
 	def build_coder_maps(connection)
-		if supports_ranges?(connection)
-			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput, r.rngsubtype
-				FROM pg_type as t
-				JOIN pg_proc as ti ON ti.oid = t.typinput
-				LEFT JOIN pg_range as r ON t.oid = r.rngtypid
-			SQL
-		else
-			result = connection.exec <<-SQL
-				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
-				FROM pg_type as t
-				JOIN pg_proc as ti ON ti.oid = t.typinput
-			SQL
-		end
+		result = connection.exec(<<-SQL).to_a
+			SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
+			FROM pg_type as t
+			JOIN pg_proc as ti ON ti.oid = t.typinput
+		SQL
 
 		[
 			[0, :encoder, PG::TextEncoder::Array],
@@ -120,6 +105,7 @@ module PG::BasicTypeRegistry
 			h
 		end
 	end
+	module_function :build_coder_maps
 
 	ValidFormats = { 0 => true, 1 => true }
 	ValidDirections = { :encoder => true, :decoder => true }
@@ -134,8 +120,6 @@ module PG::BasicTypeRegistry
 	# encoder_map is then dynamically built with oids as the key and Type
 	# objects as values.
 	CODERS_BY_NAME = []
-
-	public
 
 	# Register an encoder or decoder instance for casting a PostgreSQL type.
 	#
@@ -303,8 +287,8 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 		end
 	end
 
-	def initialize(connection)
-		@coder_maps = build_coder_maps(connection)
+	def initialize(connection, coder_maps: nil)
+		@coder_maps = coder_maps || build_coder_maps(connection)
 
 		# Populate TypeMapByOid hash with decoders
 		@coder_maps.flat_map{|f| f[:decoder].coders }.each do |coder|
@@ -395,8 +379,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 
 	include PG::BasicTypeRegistry
 
-	def initialize(connection)
-		@coder_maps = build_coder_maps(connection)
+	def initialize(connection, coder_maps: nil)
+		@coder_maps = coder_maps || build_coder_maps(connection)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
 		init_encoders
