@@ -37,8 +37,13 @@ else
 		# Windows traditionally stores DLLs beside executables, not in libdir
 		dlldir = RUBY_PLATFORM=~/mingw|mswin/ ? `"#{pgconfig}" --bindir`.chomp : libdir
 
+	elsif checking_for "libpq per pkg-config" do
+			_cflags, ldflags, _libs = pkg_config("libpq")
+			dlldir = ldflags[/-L([^ ]+)/] && $1
+		end
+
 	else
-		$stderr.puts "No pg_config... trying anyway. If building fails, please try again with",
+		$stderr.puts "No pg_config, no pkg-config(libpq)... trying anyway. If building fails, please try again with",
 			" --with-pg-config=/path/to/pg_config"
 		incdir, libdir = dir_config 'pg'
 		dlldir = libdir
