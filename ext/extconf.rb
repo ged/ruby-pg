@@ -57,6 +57,8 @@ else
 	end
 end
 
+$stderr.puts "Using libpq from #{dlldir}"
+
 File.write("postgresql_lib_path.rb", <<-EOT)
 module PG
 	POSTGRESQL_LIB_PATH = #{dlldir.inspect}
