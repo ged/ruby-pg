@@ -23,7 +23,6 @@ typedef struct {
 static void
 pg_copycoder_mark( t_pg_copycoder *this )
 {
-	pg_coder_mark(&this->comp);
 	rb_gc_mark_movable(this->typemap);
 	rb_gc_mark_movable(this->null_string);
 }

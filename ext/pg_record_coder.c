@@ -18,7 +18,6 @@ typedef struct {
 static void
 pg_recordcoder_mark( t_pg_recordcoder *this )
 {
-	pg_coder_mark(&this->comp);
 	rb_gc_mark_movable(this->typemap);
 }
 

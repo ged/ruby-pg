@@ -315,7 +315,6 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
-void pg_coder_mark 																		 _(( t_pg_coder * ));
 void pg_coder_compact                                  _(( t_pg_coder * ));
 char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
 

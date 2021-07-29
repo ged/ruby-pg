@@ -61,18 +61,6 @@ pg_coder_init_decoder( VALUE self )
 	rb_iv_set( self, "@name", Qnil );
 }
 
-void
-pg_coder_mark(t_pg_coder *this)
-{
-	rb_gc_mark_movable(this->coder_obj);
-}
-
-static void
-pg_composite_coder_mark(t_pg_composite_coder *this)
-{
-  pg_coder_mark(&this->comp);
-}
-
 static size_t
 pg_coder_memsize(t_pg_coder *this)
 {
@@ -100,7 +88,7 @@ pg_composite_coder_compact(t_pg_composite_coder *this)
 const rb_data_type_t pg_coder_type = {
 	"PG::Coder",
 	{
-		(void (*)(void*))pg_coder_mark,
+		(void (*)(void*))NULL,
 		RUBY_TYPED_DEFAULT_FREE,
 		(size_t (*)(const void *))pg_coder_memsize,
 		pg_compact_callback(pg_coder_compact),
@@ -122,7 +110,7 @@ pg_simple_encoder_allocate( VALUE klass )
 static const rb_data_type_t pg_composite_coder_type = {
 	"PG::CompositeCoder",
 	{
-		(void (*)(void*))pg_composite_coder_mark,
+		(void (*)(void*))NULL,
 		RUBY_TYPED_DEFAULT_FREE,
 		(size_t (*)(const void *))pg_composite_coder_memsize,
 		pg_compact_callback(pg_composite_coder_compact),
