@@ -189,7 +189,7 @@ pg_tmbc_mark( t_tmbc *this )
 static size_t
 pg_tmbc_memsize( t_tmbc *this )
 {
-	return sizeof(*this);
+	return sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * this->nfields;
 }
 
 static void
