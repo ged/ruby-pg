@@ -48,6 +48,10 @@ describe PG::TypeMapByClass do
 		tm
 	end
 
+	it "should give account about memory usage" do
+		expect( ObjectSpace.memsize_of(tm) ).to be > DATA_OBJ_MEMSIZE
+	end
+
 	it "should retrieve all conversions" do
 		expect( tm.coders ).to eq( {
 			Integer => binaryenc_int,

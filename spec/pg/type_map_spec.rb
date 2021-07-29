@@ -9,6 +9,10 @@ require 'pg'
 describe PG::TypeMap do
 	let!(:tm){ PG::TypeMap.new }
 
+	it "should give account about memory usage" do
+		expect( ObjectSpace.memsize_of(tm) ).to be > DATA_OBJ_MEMSIZE
+	end
+
 	it "should raise an error when used for param type casts" do
 		expect{
 			@conn.exec_params( "SELECT $1", [5], 0, tm )

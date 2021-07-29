@@ -9,6 +9,10 @@ require 'pg'
 
 describe PG::Connection do
 
+	it "should give account about memory usage" do
+		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
+	end
+
 	it "can create a connection option string from a Hash of options" do
 		optstring = described_class.parse_connect_args(
 			:host => 'pgsql.example.com',

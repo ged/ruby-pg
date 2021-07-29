@@ -79,7 +79,7 @@ typedef long suseconds_t;
 #endif
 
 #ifdef HAVE_RB_GC_MARK_MOVABLE
-#define pg_compact_callback(x) ((void (*)(void*))(x))
+#define pg_compact_callback(x) (x)
 #define pg_gc_location(x) x = rb_gc_location(x)
 #else
 #define rb_gc_mark_movable(x) rb_gc_mark(x)
@@ -315,7 +315,7 @@ VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
-void pg_coder_compact                                  _(( t_pg_coder * ));
+void pg_coder_compact                                  _(( void * ));
 char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
 
 #define PG_RB_STR_ENSURE_CAPA( str, expand_len, curr_ptr, end_ptr ) \
@@ -335,8 +335,9 @@ int pg_typemap_fit_to_copy_get                         _(( VALUE ));
 VALUE pg_typemap_result_value                          _(( t_typemap *, VALUE, int, int ));
 t_pg_coder *pg_typemap_typecast_query_param            _(( t_typemap *, VALUE, int ));
 VALUE pg_typemap_typecast_copy_get                     _(( t_typemap *, VALUE, int, int, int ));
-void pg_typemap_mark                                   _(( t_typemap * ));
-void pg_typemap_compact                                _(( t_typemap * ));
+void pg_typemap_mark                                   _(( void * ));
+size_t pg_typemap_memsize                              _(( const void * ));
+void pg_typemap_compact                                _(( void * ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));

@@ -44,6 +44,11 @@ describe PG::TypeMapByMriType do
 		tm
 	end
 
+	it "should give account about memory usage" do
+		tm = PG::TypeMapByMriType.new
+		expect( ObjectSpace.memsize_of(tm) ).to be > DATA_OBJ_MEMSIZE
+	end
+
 	it "should retrieve all conversions" do
 		expect( tm.coders ).to eq( {
 			"T_FIXNUM" => binaryenc_int,

@@ -107,8 +107,9 @@ pgresult_approx_size(const PGresult *result)
  * GC Mark function
  */
 static void
-pgresult_gc_mark( t_pg_result *this )
+pgresult_gc_mark( void *_this )
 {
+	t_pg_result *this = (t_pg_result *)_this;
 	int i;
 
 	rb_gc_mark_movable( this->connection );
@@ -122,8 +123,9 @@ pgresult_gc_mark( t_pg_result *this )
 }
 
 static void
-pgresult_gc_compact( t_pg_result *this )
+pgresult_gc_compact( void *_this )
 {
+	t_pg_result *this = (t_pg_result *)_this;
 	int i;
 
 	pg_gc_location( this->connection );
@@ -140,8 +142,9 @@ pgresult_gc_compact( t_pg_result *this )
  * GC Free function
  */
 static void
-pgresult_clear( t_pg_result *this )
+pgresult_clear( void *_this )
 {
+	t_pg_result *this = (t_pg_result *)_this;
 	if( this->pgresult && !this->autoclear ){
 		PQclear(this->pgresult);
 #ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
@@ -154,15 +157,17 @@ pgresult_clear( t_pg_result *this )
 }
 
 static void
-pgresult_gc_free( t_pg_result *this )
+pgresult_gc_free( void *_this )
 {
+	t_pg_result *this = (t_pg_result *)_this;
 	pgresult_clear( this );
 	xfree(this);
 }
 
 static size_t
-pgresult_memsize( t_pg_result *this )
+pgresult_memsize( const void *_this )
 {
+	const t_pg_result *this = (const t_pg_result *)_this;
 	/* Ideally the memory 'this' is pointing to should be taken into account as well.
 	 * However we don't want to store two memory sizes in t_pg_result just for reporting by ObjectSpace.memsize_of.
 	 */
@@ -172,9 +177,9 @@ pgresult_memsize( t_pg_result *this )
 static const rb_data_type_t pgresult_type = {
 	"PG::Result",
 	{
-		(void (*)(void*))pgresult_gc_mark,
-		(void (*)(void*))pgresult_gc_free,
-		(size_t (*)(const void *))pgresult_memsize,
+		pgresult_gc_mark,
+		pgresult_gc_free,
+		pgresult_memsize,
 		pg_compact_callback(pgresult_gc_compact),
 	},
 	0, 0,

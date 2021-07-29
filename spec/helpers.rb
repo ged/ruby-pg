@@ -8,6 +8,7 @@ require 'pg'
 DEFAULT_TEST_DIR_STR = File.join(Dir.pwd, "tmp_test_specs")
 TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
 TEST_DIRECTORY = Pathname.new(TEST_DIR_STR)
+DATA_OBJ_MEMSIZE = 40
 
 module PG::TestingHelpers
 

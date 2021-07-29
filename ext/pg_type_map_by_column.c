@@ -171,8 +171,9 @@ const struct pg_typemap_funcs pg_tmbc_funcs = {
 };
 
 static void
-pg_tmbc_mark( t_tmbc *this )
+pg_tmbc_mark( void *_this )
 {
+	t_tmbc *this = (t_tmbc *)_this;
 	int i;
 
 	/* allocated but not initialized ? */
@@ -186,9 +187,17 @@ pg_tmbc_mark( t_tmbc *this )
 	}
 }
 
-static void
-pg_tmbc_compact( t_tmbc *this )
+static size_t
+pg_tmbc_memsize( const void *_this )
 {
+	const t_tmbc *this = (const t_tmbc *)_this;
+	return sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * this->nfields;
+}
+
+static void
+pg_tmbc_compact( void *_this )
+{
+	t_tmbc *this = (t_tmbc *)_this;
 	int i;
 
 	/* allocated but not initialized ? */
@@ -203,8 +212,9 @@ pg_tmbc_compact( t_tmbc *this )
 }
 
 static void
-pg_tmbc_free( t_tmbc *this )
+pg_tmbc_free( void *_this )
 {
+	t_tmbc *this = (t_tmbc *)_this;
 	/* allocated but not initialized ? */
 	if( this == (t_tmbc *)&pg_typemap_funcs ) return;
 	xfree( this );
@@ -213,9 +223,9 @@ pg_tmbc_free( t_tmbc *this )
 static const rb_data_type_t pg_tmbc_type = {
 	"PG::TypeMapByColumn",
 	{
-		(void (*)(void*))pg_tmbc_mark,
-		(void (*)(void*))pg_tmbc_free,
-		(size_t (*)(const void *))NULL,
+		pg_tmbc_mark,
+		pg_tmbc_free,
+		pg_tmbc_memsize,
 		pg_compact_callback(pg_tmbc_compact),
 	},
 	&pg_typemap_type,
