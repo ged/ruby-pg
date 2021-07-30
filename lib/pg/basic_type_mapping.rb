@@ -87,25 +87,50 @@ module PG::BasicTypeRegistry
 		end
 	end
 
-	def build_coder_maps(connection)
-		result = connection.exec(<<-SQL).to_a
-			SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
-			FROM pg_type as t
-			JOIN pg_proc as ti ON ti.oid = t.typinput
-		SQL
+	# An instance of this class stores CoderMap instances to be used for text and binary wire formats
+	# as well as encoder and decoder directions.
+	#
+	# A PG::BasicTypeRegistry::CoderMapsBundle instance retrieves all type definitions from the PostgreSQL server and matches them with the coder definitions of the global PG::BasicTypeRegistry .
+	# It provides 4 separate CoderMap instances for the combinations of the two formats and directions.
+	#
+	# A PG::BasicTypeRegistry::CoderMapsBundle instance can be used to initialize an instance of
+	# * PG::BasicTypeMapForResults
+	# * PG::BasicTypeMapForQueries
+	# * PG::BasicTypeMapBasedOnResult
+	# by passing it instead of the connection object like so:
+	#
+	#   conn = PG::Connection.new
+	#   maps = PG::BasicTypeRegistry::CoderMapsBundle.new(conn)
+	#   conn.type_map_for_results = PG::BasicTypeMapForResults.new(maps)
+	#
+	class CoderMapsBundle
+		def initialize(connection)
+			result = connection.exec(<<-SQL).to_a
+				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
+				FROM pg_type as t
+				JOIN pg_proc as ti ON ti.oid = t.typinput
+			SQL
 
-		[
-			[0, :encoder, PG::TextEncoder::Array],
-			[0, :decoder, PG::TextDecoder::Array],
-			[1, :encoder, nil],
-			[1, :decoder, nil],
-		].inject([]) do |h, (format, direction, arraycoder)|
-			h[format] ||= {}
-			h[format][direction] = CoderMap.new result, CODERS_BY_NAME[format][direction], format, arraycoder
-			h
+			@maps = [
+				[0, :encoder, PG::TextEncoder::Array],
+				[0, :decoder, PG::TextDecoder::Array],
+				[1, :encoder, nil],
+				[1, :decoder, nil],
+			].inject([]) do |h, (format, direction, arraycoder)|
+				h[format] ||= {}
+				h[format][direction] = CoderMap.new result, CODERS_BY_NAME[format][direction], format, arraycoder
+				h
+			end
+		end
+
+		def each_format(direction)
+			@maps.map { |f| f[direction] }
+		end
+
+		def map_for(format, direction)
+			@maps[format][direction]
 		end
 	end
-	module_function :build_coder_maps
 
 	ValidFormats = { 0 => true, 1 => true }
 	ValidDirections = { :encoder => true, :decoder => true }
@@ -116,9 +141,7 @@ module PG::BasicTypeRegistry
 	end
 	protected :check_format_and_direction
 
-	# The key of this hash maps to the `typname` column from the table.
-	# encoder_map is then dynamically built with oids as the key and Type
-	# objects as values.
+	# The key of these hashs maps to the `typname` column from the table pg_type.
 	CODERS_BY_NAME = []
 
 	# Register an encoder or decoder instance for casting a PostgreSQL type.
@@ -287,15 +310,15 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 		end
 	end
 
-	def initialize(connection, coder_maps: nil)
-		@coder_maps = coder_maps || build_coder_maps(connection)
+	def initialize(connection_or_coder_maps)
+		@coder_maps = connection_or_coder_maps.is_a?(CoderMapsBundle) ? connection_or_coder_maps : CoderMapsBundle.new(connection_or_coder_maps)
 
 		# Populate TypeMapByOid hash with decoders
-		@coder_maps.flat_map{|f| f[:decoder].coders }.each do |coder|
+		@coder_maps.each_format(:decoder).flat_map{|f| f.coders }.each do |coder|
 			add_coder(coder)
 		end
 
-		typenames = @coder_maps.map{|f| f[:decoder].typenames_by_oid }
+		typenames = @coder_maps.each_format(:decoder).map{|f| f.typenames_by_oid }
 		self.default_type_map = WarningTypeMap.new(typenames)
 	end
 end
@@ -333,11 +356,11 @@ end
 class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
 	include PG::BasicTypeRegistry
 
-	def initialize(connection)
-		@coder_maps = build_coder_maps(connection)
+	def initialize(connection_or_coder_maps)
+		@coder_maps = connection_or_coder_maps.is_a?(CoderMapsBundle) ? connection_or_coder_maps : CoderMapsBundle.new(connection_or_coder_maps)
 
 		# Populate TypeMapByOid hash with encoders
-		@coder_maps.flat_map{|f| f[:encoder].coders }.each do |coder|
+		@coder_maps.each_format(:encoder).flat_map{|f| f.coders }.each do |coder|
 			add_coder(coder)
 		end
 	end
@@ -379,8 +402,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 
 	include PG::BasicTypeRegistry
 
-	def initialize(connection, coder_maps: nil)
-		@coder_maps = coder_maps || build_coder_maps(connection)
+	def initialize(connection_or_coder_maps)
+		@coder_maps = connection_or_coder_maps.is_a?(CoderMapsBundle) ? connection_or_coder_maps : CoderMapsBundle.new(connection_or_coder_maps)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
 		init_encoders
@@ -424,7 +447,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 
 	def coder_by_name(format, direction, name)
 		check_format_and_direction(format, direction)
-		@coder_maps[format][direction].coder_by_name(name)
+		@coder_maps.map_for(format, direction).coder_by_name(name)
 	end
 
 	def populate_encoder_list

@@ -28,6 +28,12 @@ describe 'Basic type mapping' do
 			PG::BasicTypeMapForQueries.new @conn
 		end
 
+		it "can be initialized with a CoderMapsBundle instead of a connection" do
+			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn)
+			tm = PG::BasicTypeMapForQueries.new(maps)
+			expect( tm[Integer] ).to be_kind_of(PG::TextEncoder::Integer)
+		end
+
 		#
 		# Encoding Examples
 		#
@@ -219,6 +225,12 @@ describe 'Basic type mapping' do
 	describe PG::BasicTypeMapForResults do
 		let!(:basic_type_mapping) do
 			PG::BasicTypeMapForResults.new @conn
+		end
+
+		it "can be initialized with a CoderMapsBundle instead of a connection" do
+			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn)
+			tm = PG::BasicTypeMapForResults.new(maps)
+			expect( tm.rm_coder(0, 16) ).to be_kind_of(PG::TextDecoder::Boolean)
 		end
 
 		#
@@ -569,6 +581,12 @@ describe 'Basic type mapping' do
 			PG::BasicTypeMapBasedOnResult.new @conn
 		end
 
+		it "can be initialized with a CoderMapsBundle instead of a connection" do
+			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn)
+			tm = PG::BasicTypeMapBasedOnResult.new(maps)
+			expect( tm.rm_coder(0, 16) ).to be_kind_of(PG::TextEncoder::Boolean)
+		end
+
 		context "with usage of result oids for bind params encoder selection" do
 			it "can type cast query params" do
 				@conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[])" )
@@ -633,14 +651,6 @@ describe 'Basic type mapping' do
 				res = @conn.exec( "SELECT * FROM copytable" )
 				expect( res.values ).to eq( [['a', '123', '{5,4,3}'], ['b', '234', '{2,3}']] )
 			end
-		end
-	end
-
-	describe PG::BasicTypeRegistry do
-		it "can build coder maps" do
-			expect do
-				described_class.build_coder_maps(@conn)
-			end.to_not raise_error
 		end
 	end
 end
