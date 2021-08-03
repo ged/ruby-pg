@@ -3,7 +3,7 @@
 
 require 'pg' unless defined?( PG )
 
-# This module defines the mapping between OID and encoder/decoder classes for PG::BasicTypeMapForResults, PG::BasicTypeMapForQueries and PG::BasicTypeMapBasedOnResult.
+# This class defines the mapping between PostgreSQL types and encoder/decoder classes for PG::BasicTypeMapForResults, PG::BasicTypeMapForQueries and PG::BasicTypeMapBasedOnResult.
 #
 # Additional types can be added like so:
 #
@@ -21,11 +21,15 @@ require 'pg' unless defined?( PG )
 #     end
 #   end
 #
-#   # 0 if for text format, can also be 1 for binary
-#   PG::BasicTypeRegistry.register_type(0, 'inet', InetEncoder, InetDecoder)
-module PG::BasicTypeRegistry
-	# An instance of this class stores the coders that should be used for a given wire format (text or binary)
+#   conn = PG.connect
+#   regi = PG::BasicTypeRegistry.new.define_default_types
+#   regi.register_type(0, 'inet', InetEncoder, InetDecoder)
+#   conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn, registry: regi)
+class PG::BasicTypeRegistry
+	# An instance of this class stores the coders that should be used for a particular wire format (text or binary)
 	# and type cast direction (encoder or decoder).
+	#
+	# Each coder object is filled with the PostgreSQL type name, OID, wire format and array coders are filled with the base elements_type.
 	class CoderMap
 		# Hash of text types that don't require quotation, when used within composite types.
 		#   type.name => true
@@ -70,13 +74,11 @@ module PG::BasicTypeRegistry
 			@coders = coder_map.values
 			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }
 			@coders_by_oid = @coders.inject({}){|h, t| h[t.oid] = t; h }
-			@typenames_by_oid = result.inject({}){|h, t| h[t['oid'].to_i] = t['typname']; h }
 		end
 
 		attr_reader :coders
 		attr_reader :coders_by_oid
 		attr_reader :coders_by_name
-		attr_reader :typenames_by_oid
 
 		def coder_by_name(name)
 			@coders_by_name[name]
@@ -104,7 +106,11 @@ module PG::BasicTypeRegistry
 	#   conn.type_map_for_results = PG::BasicTypeMapForResults.new(maps)
 	#
 	class CoderMapsBundle
-		def initialize(connection)
+		attr_reader :typenames_by_oid
+
+		def initialize(connection, registry: nil)
+			registry ||= DEFAULT_TYPE_REGISTRY
+
 			result = connection.exec(<<-SQL).to_a
 				SELECT t.oid, t.typname, t.typelem, t.typdelim, ti.proname AS typinput
 				FROM pg_type as t
@@ -117,10 +123,13 @@ module PG::BasicTypeRegistry
 				[1, :encoder, nil],
 				[1, :decoder, nil],
 			].inject([]) do |h, (format, direction, arraycoder)|
+				coders = registry.coders_for(format, direction) || {}
 				h[format] ||= {}
-				h[format][direction] = CoderMap.new result, CODERS_BY_NAME[format][direction], format, arraycoder
+				h[format][direction] = CoderMap.new(result, coders, format, arraycoder)
 				h
 			end
+
+			@typenames_by_oid = result.inject({}){|h, t| h[t['oid'].to_i] = t['typname']; h }
 		end
 
 		def each_format(direction)
@@ -132,24 +141,46 @@ module PG::BasicTypeRegistry
 		end
 	end
 
-	ValidFormats = { 0 => true, 1 => true }
-	ValidDirections = { :encoder => true, :decoder => true }
+	module Checker
+		ValidFormats = { 0 => true, 1 => true }
+		ValidDirections = { :encoder => true, :decoder => true }
 
-	def check_format_and_direction(format, direction)
-		raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
-		raise(ArgumentError, "Invalid direction %p" % direction) unless ValidDirections[direction]
+		protected def check_format_and_direction(format, direction)
+			raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
+			raise(ArgumentError, "Invalid direction %p" % direction) unless ValidDirections[direction]
+		end
+
+		protected def build_coder_maps(conn_or_maps, registry: nil)
+			if conn_or_maps.is_a?(PG::BasicTypeRegistry::CoderMapsBundle)
+				raise ArgumentError, "registry argument must be given to CoderMapsBundle" if registry
+				conn_or_maps
+			else
+				PG::BasicTypeRegistry::CoderMapsBundle.new(conn_or_maps, registry: registry)
+			end
+		end
 	end
-	protected :check_format_and_direction
 
-	# The key of these hashs maps to the `typname` column from the table pg_type.
-	CODERS_BY_NAME = []
+	include Checker
+
+  def initialize
+		# The key of these hashs maps to the `typname` column from the table pg_type.
+		@coders_by_name = []
+	end
+
+	# Retrieve a Hash of all en- or decoders for a given wire format.
+	# The hash key is the name as defined in table +pg_type+.
+	# The hash value is the registered coder object.
+	def coders_for(format, direction)
+		check_format_and_direction(format, direction)
+		@coders_by_name[format]&.[](direction)
+	end
 
 	# Register an encoder or decoder instance for casting a PostgreSQL type.
 	#
 	# Coder#name must correspond to the +typname+ column in the +pg_type+ table.
 	# Coder#format can be 0 for text format and 1 for binary.
-	def self.register_coder(coder)
-		h = CODERS_BY_NAME[coder.format] ||= { encoder: {}, decoder: {} }
+	def register_coder(coder)
+		h = @coders_by_name[coder.format] ||= { encoder: {}, decoder: {} }
 		name = coder.name || raise(ArgumentError, "name of #{coder.inspect} must be defined")
 		h[:encoder][name] = coder if coder.respond_to?(:encode)
 		h[:decoder][name] = coder if coder.respond_to?(:decode)
@@ -159,91 +190,105 @@ module PG::BasicTypeRegistry
 	#
 	# +name+ must correspond to the +typname+ column in the +pg_type+ table.
 	# +format+ can be 0 for text format and 1 for binary.
-	def self.register_type(format, name, encoder_class, decoder_class)
+	def register_type(format, name, encoder_class, decoder_class)
 		register_coder(encoder_class.new(name: name, format: format)) if encoder_class
 		register_coder(decoder_class.new(name: name, format: format)) if decoder_class
 	end
 
 	# Alias the +old+ type to the +new+ type.
-	def self.alias_type(format, new, old)
+	def alias_type(format, new, old)
 		[:encoder, :decoder].each do |ende|
-			enc = CODERS_BY_NAME[format][ende][old]
+			enc = @coders_by_name[format][ende][old]
 			if enc
-				CODERS_BY_NAME[format][ende][new] = enc
+				@coders_by_name[format][ende][new] = enc
 			else
-				CODERS_BY_NAME[format][ende].delete(new)
+				@coders_by_name[format][ende].delete(new)
 			end
 		end
 	end
 
-	register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
-	alias_type    0, 'int4', 'int2'
-	alias_type    0, 'int8', 'int2'
-	alias_type    0, 'oid',  'int2'
+	# Add the builtin types of ruby-pg to the registry
+	def define_default_types
+		register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
+		alias_type    0, 'int4', 'int2'
+		alias_type    0, 'int8', 'int2'
+		alias_type    0, 'oid',  'int2'
 
-	register_type 0, 'numeric', PG::TextEncoder::Numeric, PG::TextDecoder::Numeric
-	register_type 0, 'text', PG::TextEncoder::String, PG::TextDecoder::String
-	alias_type 0, 'varchar', 'text'
-	alias_type 0, 'char', 'text'
-	alias_type 0, 'bpchar', 'text'
-	alias_type 0, 'xml', 'text'
-	alias_type 0, 'name', 'text'
+		register_type 0, 'numeric', PG::TextEncoder::Numeric, PG::TextDecoder::Numeric
+		register_type 0, 'text', PG::TextEncoder::String, PG::TextDecoder::String
+		alias_type 0, 'varchar', 'text'
+		alias_type 0, 'char', 'text'
+		alias_type 0, 'bpchar', 'text'
+		alias_type 0, 'xml', 'text'
+		alias_type 0, 'name', 'text'
 
-	# FIXME: why are we keeping these types as strings?
-	# alias_type 'tsvector', 'text'
-	# alias_type 'interval', 'text'
-	# alias_type 'macaddr',  'text'
-	# alias_type 'uuid',     'text'
-	#
-	# register_type 'money', OID::Money.new
-	# There is no PG::TextEncoder::Bytea, because it's simple and more efficient to send bytea-data
-	# in binary format, either with PG::BinaryEncoder::Bytea or in Hash param format.
-	register_type 0, 'bytea', nil, PG::TextDecoder::Bytea
-	register_type 0, 'bool', PG::TextEncoder::Boolean, PG::TextDecoder::Boolean
-	# register_type 'bit', OID::Bit.new
-	# register_type 'varbit', OID::Bit.new
+		# FIXME: why are we keeping these types as strings?
+		# alias_type 'tsvector', 'text'
+		# alias_type 'interval', 'text'
+		# alias_type 'macaddr',  'text'
+		# alias_type 'uuid',     'text'
+		#
+		# register_type 'money', OID::Money.new
+		# There is no PG::TextEncoder::Bytea, because it's simple and more efficient to send bytea-data
+		# in binary format, either with PG::BinaryEncoder::Bytea or in Hash param format.
+		register_type 0, 'bytea', nil, PG::TextDecoder::Bytea
+		register_type 0, 'bool', PG::TextEncoder::Boolean, PG::TextDecoder::Boolean
+		# register_type 'bit', OID::Bit.new
+		# register_type 'varbit', OID::Bit.new
 
-	register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
-	alias_type 0, 'float8', 'float4'
+		register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
+		alias_type 0, 'float8', 'float4'
 
-	register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
-	register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
-	register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
-	# register_type 'time', OID::Time.new
-	#
-	# register_type 'path', OID::Text.new
-	# register_type 'point', OID::Point.new
-	# register_type 'polygon', OID::Text.new
-	# register_type 'circle', OID::Text.new
-	# register_type 'hstore', OID::Hstore.new
-	register_type 0, 'json', PG::TextEncoder::JSON, PG::TextDecoder::JSON
-	alias_type    0, 'jsonb',  'json'
-	# register_type 'citext', OID::Text.new
-	# register_type 'ltree', OID::Text.new
-	#
-	register_type 0, 'inet', PG::TextEncoder::Inet, PG::TextDecoder::Inet
-	alias_type 0, 'cidr', 'inet'
+		register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
+		register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
+		register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
+		# register_type 'time', OID::Time.new
+		#
+		# register_type 'path', OID::Text.new
+		# register_type 'point', OID::Point.new
+		# register_type 'polygon', OID::Text.new
+		# register_type 'circle', OID::Text.new
+		# register_type 'hstore', OID::Hstore.new
+		register_type 0, 'json', PG::TextEncoder::JSON, PG::TextDecoder::JSON
+		alias_type    0, 'jsonb',  'json'
+		# register_type 'citext', OID::Text.new
+		# register_type 'ltree', OID::Text.new
+		#
+		register_type 0, 'inet', PG::TextEncoder::Inet, PG::TextDecoder::Inet
+		alias_type 0, 'cidr', 'inet'
 
 
 
-	register_type 1, 'int2', PG::BinaryEncoder::Int2, PG::BinaryDecoder::Integer
-	register_type 1, 'int4', PG::BinaryEncoder::Int4, PG::BinaryDecoder::Integer
-	register_type 1, 'int8', PG::BinaryEncoder::Int8, PG::BinaryDecoder::Integer
-	alias_type    1, 'oid',  'int2'
+		register_type 1, 'int2', PG::BinaryEncoder::Int2, PG::BinaryDecoder::Integer
+		register_type 1, 'int4', PG::BinaryEncoder::Int4, PG::BinaryDecoder::Integer
+		register_type 1, 'int8', PG::BinaryEncoder::Int8, PG::BinaryDecoder::Integer
+		alias_type    1, 'oid',  'int2'
 
-	register_type 1, 'text', PG::BinaryEncoder::String, PG::BinaryDecoder::String
-	alias_type 1, 'varchar', 'text'
-	alias_type 1, 'char', 'text'
-	alias_type 1, 'bpchar', 'text'
-	alias_type 1, 'xml', 'text'
-	alias_type 1, 'name', 'text'
+		register_type 1, 'text', PG::BinaryEncoder::String, PG::BinaryDecoder::String
+		alias_type 1, 'varchar', 'text'
+		alias_type 1, 'char', 'text'
+		alias_type 1, 'bpchar', 'text'
+		alias_type 1, 'xml', 'text'
+		alias_type 1, 'name', 'text'
 
-	register_type 1, 'bytea', PG::BinaryEncoder::Bytea, PG::BinaryDecoder::Bytea
-	register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
-	register_type 1, 'float4', nil, PG::BinaryDecoder::Float
-	register_type 1, 'float8', nil, PG::BinaryDecoder::Float
-	register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtc
-	register_type 1, 'timestamptz', nil, PG::BinaryDecoder::TimestampUtcToLocal
+		register_type 1, 'bytea', PG::BinaryEncoder::Bytea, PG::BinaryDecoder::Bytea
+		register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
+		register_type 1, 'float4', nil, PG::BinaryDecoder::Float
+		register_type 1, 'float8', nil, PG::BinaryDecoder::Float
+		register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtc
+		register_type 1, 'timestamptz', nil, PG::BinaryDecoder::TimestampUtcToLocal
+
+		self
+	end
+
+	DEFAULT_TYPE_REGISTRY = PG::BasicTypeRegistry.new.define_default_types
+
+	# Delegate class method calls to DEFAULT_TYPE_REGISTRY
+	%i[ register_coder register_type alias_type ].each do |meth|
+		self.class.define_method(meth) do |*args|
+			DEFAULT_TYPE_REGISTRY.send(meth, *args)
+		end
+	end
 end
 
 # Simple set of rules for type casting common PostgreSQL types to Ruby.
@@ -291,7 +336,7 @@ end
 #
 # See also PG::BasicTypeMapBasedOnResult for the encoder direction and PG::BasicTypeRegistry for the definition of additional types.
 class PG::BasicTypeMapForResults < PG::TypeMapByOid
-	include PG::BasicTypeRegistry
+	include PG::BasicTypeRegistry::Checker
 
 	class WarningTypeMap < PG::TypeMapInRuby
 		def initialize(typenames)
@@ -303,22 +348,22 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 			format = result.fformat(field)
 			oid = result.ftype(field)
 			unless @already_warned[format][oid]
-				$stderr.puts "Warning: no type cast defined for type #{@typenames_by_oid[format][oid].inspect} with oid #{oid}. Please cast this type explicitly to TEXT to be safe for future changes."
+				$stderr.puts "Warning: no type cast defined for type #{@typenames_by_oid[oid].inspect} format #{format} with oid #{oid}. Please cast this type explicitly to TEXT to be safe for future changes."
 				 @already_warned[format][oid] = true
 			end
 			super
 		end
 	end
 
-	def initialize(connection_or_coder_maps)
-		@coder_maps = connection_or_coder_maps.is_a?(CoderMapsBundle) ? connection_or_coder_maps : CoderMapsBundle.new(connection_or_coder_maps)
+	def initialize(connection_or_coder_maps, registry: nil)
+		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 
 		# Populate TypeMapByOid hash with decoders
 		@coder_maps.each_format(:decoder).flat_map{|f| f.coders }.each do |coder|
 			add_coder(coder)
 		end
 
-		typenames = @coder_maps.each_format(:decoder).map{|f| f.typenames_by_oid }
+		typenames = @coder_maps.typenames_by_oid
 		self.default_type_map = WarningTypeMap.new(typenames)
 	end
 end
@@ -354,10 +399,10 @@ end
 # This inserts a single row into copytable with type casts from ruby to
 # database types.
 class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
-	include PG::BasicTypeRegistry
+	include PG::BasicTypeRegistry::Checker
 
-	def initialize(connection_or_coder_maps)
-		@coder_maps = connection_or_coder_maps.is_a?(CoderMapsBundle) ? connection_or_coder_maps : CoderMapsBundle.new(connection_or_coder_maps)
+	def initialize(connection_or_coder_maps, registry: nil)
+		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 
 		# Populate TypeMapByOid hash with encoders
 		@coder_maps.each_format(:encoder).flat_map{|f| f.coders }.each do |coder|
@@ -400,10 +445,10 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	class BinaryData < String
 	end
 
-	include PG::BasicTypeRegistry
+	include PG::BasicTypeRegistry::Checker
 
-	def initialize(connection_or_coder_maps)
-		@coder_maps = connection_or_coder_maps.is_a?(CoderMapsBundle) ? connection_or_coder_maps : CoderMapsBundle.new(connection_or_coder_maps)
+	def initialize(connection_or_coder_maps, registry: nil)
+		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
 		init_encoders
@@ -455,12 +500,21 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 			if Array === selector
 				format, name, oid_name = selector
 				coder = coder_by_name(format, :encoder, name).dup
-				if oid_name
-					coder.oid = coder_by_name(format, :encoder, oid_name).oid
+				if coder
+					if oid_name
+						oid_coder = coder_by_name(format, :encoder, oid_name)
+						if oid_coder
+							coder.oid = oid_coder.oid
+						else
+							$stderr.puts "Warning: no encoder defined for type #{oid_name.inspect} format #{format}"
+						end
+					else
+						coder.oid = 0
+					end
+					self[klass] = coder
 				else
-					coder.oid = 0
+					$stderr.puts "Warning: no encoder defined for type #{name.inspect} format #{format}"
 				end
-				self[klass] = coder
 			else
 
 				case @encode_array_as
@@ -471,7 +525,12 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 					when :record
 						self[klass] = PG::TextEncoder::Record.new type_map: self
 					when /\A_/
-						self[klass] = coder_by_name(0, :encoder, @encode_array_as) || raise(ArgumentError, "unknown array type #{@encode_array_as.inspect}")
+						coder = coder_by_name(0, :encoder, @encode_array_as)
+						if coder
+							self[klass] = coder
+						else
+							$stderr.puts "Warning: no encoder defined for type #{@encode_array_as.inspect} format #{format}"
+						end
 					else
 						raise ArgumentError, "invalid pg_type #{@encode_array_as.inspect}"
 				end
