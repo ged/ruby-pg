@@ -3,6 +3,7 @@
 
 require 'pg'
 require 'time'
+require 'objspace'
 
 
 describe "PG::Type derivations" do
