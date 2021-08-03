@@ -490,6 +490,11 @@ describe "PG::Type derivations" do
 			expect( t.name ).to be_nil
 		end
 
+		it "should overwrite default values" do
+			t = PG::BinaryEncoder::Int4.new(format: 0)
+			expect( t.format ).to eq( 0 )
+		end
+
 		it "should give account about memory usage" do
 			expect( ObjectSpace.memsize_of(textenc_int) ).to be > DATA_OBJ_MEMSIZE
 			expect( ObjectSpace.memsize_of(binarydec_integer) ).to be > DATA_OBJ_MEMSIZE

@@ -8,7 +8,7 @@ module PG
 		module BinaryFormatting
 			Params = { format: 1 }
 			def initialize( params={} )
-				super(params.merge(Params))
+				super(Params.merge(params))
 			end
 		end
 
