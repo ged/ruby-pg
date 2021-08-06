@@ -22,12 +22,24 @@ describe 'Basic type mapping' do
 		it "can be initialized with a custom type registry" do
 			regi = PG::BasicTypeRegistry.new
 			regi.register_type 0, 'int8', PG::BinaryEncoder::Int8, nil
-			tm = nil
-			expect do
-				tm = PG::BasicTypeMapForQueries.new(@conn, registry: regi)
-			end.to output(/no encoder/).to_stderr
+			tm = PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: proc{})
 			res = @conn.exec_params( "SELECT $1", [0x3031323334353637], 0, tm )
 			expect( res.values ).to eq( [["01234567"]] )
+		end
+
+		it "can take a Proc and nitify about undefined types" do
+			regi = PG::BasicTypeRegistry.new
+			args = []
+			pr = proc { |*a| args << a }
+			PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: pr)
+			expect( args.last ).to eq( ['bytea', 1] )
+		end
+
+		it "raises UndefinedEncoder for undefined types" do
+			regi = PG::BasicTypeRegistry.new
+			expect do
+				PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: nil)
+			end.to raise_error(PG::BasicTypeMapForQueries::UndefinedEncoder)
 		end
 
 		#

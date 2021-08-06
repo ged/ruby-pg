@@ -445,12 +445,23 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	class BinaryData < String
 	end
 
+	class UndefinedEncoder < RuntimeError
+	end
+
 	include PG::BasicTypeRegistry::Checker
 
-	def initialize(connection_or_coder_maps, registry: nil)
+	# Create a new type map for query submission
+	#
+	# Options:
+	# * +registry+: Custom type registry, nil for default global registry
+	# * +if_undefined+: Optional +Proc+ object which is called, if no type for an parameter class is not defined in the registry.
+	def initialize(connection_or_coder_maps, registry: nil, if_undefined: nil)
 		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
+		@if_undefined = if_undefined || proc { |oid_name, format|
+			raise UndefinedEncoder, "no encoder defined for type #{oid_name.inspect} format #{format}"
+		}
 		init_encoders
 	end
 
@@ -495,6 +506,10 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		@coder_maps.map_for(format, direction).coder_by_name(name)
 	end
 
+	def undefined(name, format)
+		@if_undefined.call(name, format)
+	end
+
 	def populate_encoder_list
 		DEFAULT_TYPE_MAP.each do |klass, selector|
 			if Array === selector
@@ -506,14 +521,14 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 						if oid_coder
 							coder.oid = oid_coder.oid
 						else
-							$stderr.puts "Warning: no encoder defined for type #{oid_name.inspect} format #{format}"
+							undefined(oid_name, format)
 						end
 					else
 						coder.oid = 0
 					end
 					self[klass] = coder
 				else
-					$stderr.puts "Warning: no encoder defined for type #{name.inspect} format #{format}"
+					undefined(name, format)
 				end
 			else
 
@@ -529,7 +544,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 						if coder
 							self[klass] = coder
 						else
-							$stderr.puts "Warning: no encoder defined for type #{@encode_array_as.inspect} format #{format}"
+							undefined(@encode_array_as, format)
 						end
 					else
 						raise ArgumentError, "invalid pg_type #{@encode_array_as.inspect}"
