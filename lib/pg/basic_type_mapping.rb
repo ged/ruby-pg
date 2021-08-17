@@ -207,7 +207,7 @@ class PG::BasicTypeRegistry
 		end
 	end
 
-	# Add the builtin types of ruby-pg to the registry
+	# Populate the registry with all builtin types of ruby-pg
 	def define_default_types
 		register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
 		alias_type    0, 'int4', 'int2'
@@ -281,11 +281,13 @@ class PG::BasicTypeRegistry
 		self
 	end
 
+	# @private
 	DEFAULT_TYPE_REGISTRY = PG::BasicTypeRegistry.new.define_default_types
 
 	# Delegate class method calls to DEFAULT_TYPE_REGISTRY
 	%i[ register_coder register_type alias_type ].each do |meth|
 		self.class.define_method(meth) do |*args|
+			warn "PG::BasicTypeRegistry.#{meth} is deprecated. Please use your own instance by PG::BasicTypeRegistry.new instead!"
 			DEFAULT_TYPE_REGISTRY.send(meth, *args)
 		end
 	end
