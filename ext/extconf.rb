@@ -90,11 +90,10 @@ if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
 	end
 end
 
-# optional headers/functions
-have_func 'PQsetSingleRowMode' or
+have_func 'PQconninfo' or
 	abort "Your PostgreSQL is too old. Either install an older version " +
-	      "of this gem or upgrade your database to at least PostgreSQL-9.2."
-have_func 'PQconninfo' # since PostgreSQL-9.3
+	      "of this gem or upgrade your database to at least PostgreSQL-9.3."
+# optional headers/functions
 have_func 'PQsslAttribute' # since PostgreSQL-9.5
 have_func 'PQresultVerboseErrorMessage' # since PostgreSQL-9.6
 have_func 'PQencryptPasswordConn' # since PostgreSQL-10

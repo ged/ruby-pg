@@ -376,7 +376,6 @@ RSpec.configure do |config|
 		config.filter_run_excluding :windows
 	end
 
-	config.filter_run_excluding( :postgresql_93 ) if PG.library_version <  90300
 	config.filter_run_excluding( :postgresql_94 ) if PG.library_version <  90400
 	config.filter_run_excluding( :postgresql_95 ) if PG.library_version <  90500
 	config.filter_run_excluding( :postgresql_96 ) if PG.library_version <  90600
