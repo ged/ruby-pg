@@ -23,7 +23,7 @@ describe 'Basic type mapping' do
 			regi = PG::BasicTypeRegistry.new
 			regi.register_type 0, 'int8', PG::BinaryEncoder::Int8, nil
 			tm = PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: proc{})
-			res = @conn.exec_params( "SELECT $1", [0x3031323334353637], 0, tm )
+			res = @conn.exec_params( "SELECT $1::text", [0x3031323334353637], 0, tm )
 			expect( res.values ).to eq( [["01234567"]] )
 		end
 
