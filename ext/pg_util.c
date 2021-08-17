@@ -91,7 +91,7 @@ base64_decode( char *out, const char *in, unsigned int len)
 			*out_ptr++ = (b << 4) | (c >> 2);
 			*out_ptr++ = (c << 6) | d;
 		} else if (in_ptr < iend_ptr){
-			a = b = c = d = 0xff;
+			b = c = d = 0xff;
 			while ((a = base64_decode_table[*in_ptr++]) == 0xff && in_ptr < iend_ptr) {}
 			if (in_ptr < iend_ptr){
 				while ((b = base64_decode_table[*in_ptr++]) == 0xff && in_ptr < iend_ptr) {}

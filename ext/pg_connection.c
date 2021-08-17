@@ -2002,7 +2002,6 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 
 	if(NIL_P(paramsData.params)) {
 		paramsData.params = rb_ary_new2(0);
-		resultFormat = 0;
 	}
 	pgconn_query_assign_typemap( self, &paramsData );
 
