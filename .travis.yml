@@ -17,7 +17,7 @@ matrix:
       script: |
         docker run --rm -t --network=host ruby-pg
 
-    - rvm: "2.3"
+    - rvm: "2.4"
       env:
         - "PGVERSION=9.3"
     - rvm: ruby-head
