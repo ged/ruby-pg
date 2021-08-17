@@ -41,7 +41,7 @@ jobs:
             ruby: "head"
             PGVER: "13"
           - os: ubuntu
-            ruby: "2.2"
+            ruby: "2.3"
             PGVER: "9.3"
           - os: ubuntu
             ruby: "truffleruby"

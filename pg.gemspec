@@ -10,10 +10,10 @@ Gem::Specification.new do |spec|
   spec.email         = ["ged@FaerieMUD.org", "lars@greiz-reinsdorf.de"]
 
   spec.summary       = "Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/]"
-  spec.description   = "Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].\n\nIt works with {PostgreSQL 9.2 and later}[http://www.postgresql.org/support/versioning/].\n\nA small example usage:\n\n  #!/usr/bin/env ruby\n\n  require 'pg'\n\n  # Output a table of current connections to the DB\n  conn = PG.connect( dbname: 'sales' )\n  conn.exec( \"SELECT * FROM pg_stat_activity\" ) do |result|\n    puts \"     PID | User             | Query\"\n    result.each do |row|\n      puts \" %7d | %-16s | %s \" %\n        row.values_at('pid', 'usename', 'query')\n    end\n  end"
+  spec.description   = "Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].\n\nIt works with {PostgreSQL 9.3 and later}[http://www.postgresql.org/support/versioning/].\n\nA small example usage:\n\n  #!/usr/bin/env ruby\n\n  require 'pg'\n\n  # Output a table of current connections to the DB\n  conn = PG.connect( dbname: 'sales' )\n  conn.exec( \"SELECT * FROM pg_stat_activity\" ) do |result|\n    puts \"     PID | User             | Query\"\n    result.each do |row|\n      puts \" %7d | %-16s | %s \" %\n        row.values_at('pid', 'usename', 'query')\n    end\n  end"
   spec.homepage      = "https://github.com/ged/ruby-pg"
   spec.license       = "BSD-2-Clause"
-  spec.required_ruby_version = ">= 2.2"
+  spec.required_ruby_version = ">= 2.3"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/ged/ruby-pg"

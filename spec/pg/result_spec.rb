@@ -280,7 +280,7 @@ describe PG::Result do
 		expect( result.error_field(PG::PG_DIAG_SEVERITY_NONLOCALIZED) ).to eq( 'ERROR' )
 	end
 
-	it "encapsulates database object names for integrity constraint violations", :postgresql_93 do
+	it "encapsulates database object names for integrity constraint violations" do
 		@conn.exec( "CREATE TABLE integrity (id SERIAL PRIMARY KEY)" )
 		exception = nil
 		begin

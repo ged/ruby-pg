@@ -842,14 +842,14 @@ describe PG::Connection do
 		expect( @conn.conndefaults_hash ).to eq( described_class.conndefaults_hash )
 	end
 
-	it "can return the connection's connection options", :postgresql_93 do
+	it "can return the connection's connection options" do
 		expect( @conn.conninfo ).to be_a( Array )
 		expect( @conn.conninfo ).to all( be_a(Hash) )
 		expect( @conn.conninfo[0] ).to include( :keyword, :label, :dispchar, :dispsize )
 	end
 
 
-	it "can return the connection's connection options as a Hash", :postgresql_93 do
+	it "can return the connection's connection options as a Hash" do
 		expect( @conn.conninfo_hash ).to be_a( Hash )
 		expect( @conn.conninfo_hash ).to include( :user, :password, :connect_timeout, :dbname, :host )
 		expect( @conn.conninfo_hash[:dbname] ).to eq( 'test' )
@@ -875,7 +875,7 @@ describe PG::Connection do
 	end
 
 
-	it "honors the connect_timeout connection parameter", :postgresql_93 do
+	it "honors the connect_timeout connection parameter" do
 		conn = PG.connect( port: @port, dbname: 'test', connect_timeout: 11 )
 		begin
 			expect( conn.conninfo_hash[:connect_timeout] ).to eq( "11" )

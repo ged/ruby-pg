@@ -17,12 +17,12 @@ matrix:
       script: |
         docker run --rm -t --network=host ruby-pg
 
-    - rvm: "2.2"
+    - rvm: "2.3"
       env:
         - "PGVERSION=9.3"
     - rvm: ruby-head
       env:
-        - "PGVERSION=11"
+        - "PGVERSION=13"
 
   allow_failures:
     - rvm: ruby-head
