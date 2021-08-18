@@ -43,8 +43,6 @@ else
 		end
 
 	else
-		$stderr.puts "No pg_config, no pkg-config(libpq)... trying anyway. If building fails, please try again with",
-			" --with-pg-config=/path/to/pg_config"
 		incdir, libdir = dir_config 'pg'
 		dlldir = libdir
 	end
@@ -72,14 +70,57 @@ if RUBY_VERSION >= '2.3.0' && /solaris/ =~ RUBY_PLATFORM
 	append_cppflags( '-D__EXTENSIONS__' )
 end
 
-find_header( 'libpq-fe.h' ) or abort "Can't find the 'libpq-fe.h header"
-find_header( 'libpq/libpq-fs.h' ) or abort "Can't find the 'libpq/libpq-fs.h header"
-find_header( 'pg_config_manual.h' ) or abort "Can't find the 'pg_config_manual.h' header"
+begin
+	find_header( 'libpq-fe.h' ) or abort "Can't find the 'libpq-fe.h header"
+	find_header( 'libpq/libpq-fs.h' ) or abort "Can't find the 'libpq/libpq-fs.h header"
+	find_header( 'pg_config_manual.h' ) or abort "Can't find the 'pg_config_manual.h' header"
 
-abort "Can't find the PostgreSQL client library (libpq)" unless
-	have_library( 'pq', 'PQconnectdb', ['libpq-fe.h'] ) ||
-	have_library( 'libpq', 'PQconnectdb', ['libpq-fe.h'] ) ||
-	have_library( 'ms/libpq', 'PQconnectdb', ['libpq-fe.h'] )
+	abort "Can't find the PostgreSQL client library (libpq)" unless
+		have_library( 'pq', 'PQconnectdb', ['libpq-fe.h'] ) ||
+		have_library( 'libpq', 'PQconnectdb', ['libpq-fe.h'] ) ||
+		have_library( 'ms/libpq', 'PQconnectdb', ['libpq-fe.h'] )
+
+rescue SystemExit => err
+	install_text = case RUBY_PLATFORM
+	when /linux/
+	<<-EOT
+Please install libpq or postgresql client package like so:
+  sudo apt install libpq-dev
+  sudo yum install postgresql-devel
+  sudo zypper in postgresql-devel
+  sudo pacman -S postgresql-libs
+EOT
+	when /darwin/
+	<<-EOT
+Please install libpq or postgresql client package like so:
+  brew install libpq
+EOT
+	when /mingw/
+	<<-EOT
+Please install libpq or postgresql client package like so:
+  ridk exec sh -c "pacman -S ${MINGW_PACKAGE_PREFIX}-postgresql"
+EOT
+	else
+	<<-EOT
+Please install libpq or postgresql client package.
+EOT
+	end
+
+	$stderr.puts <<-EOT
+*****************************************************************************
+
+Unable to find PostgreSQL client library.
+
+#{install_text}
+or try again with:
+  gem install pg -- --with-pg-config=/path/to/pg_config
+
+or set library paths manually with:
+  gem install pg -- --with-pg-include=/path/to/libpq-fe.h/ --with-pg-lib=/path/to/libpq.so/
+
+EOT
+	raise
+end
 
 if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
 	# Work around: https://sourceware.org/bugzilla/show_bug.cgi?id=22504
