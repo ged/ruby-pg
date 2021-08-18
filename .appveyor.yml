@@ -29,8 +29,8 @@ environment:
   matrix:
     - ruby_version: "head"
       RUBYDOWNLOAD: x86
-      PGVERSION: 13.4-1-windows
-      PGVER: 13
+      PGVERSION: 10.16-1-windows
+      PGVER: 10
     - ruby_version: "24"
       PGVERSION: 9.3.25-1-windows
       PGVER: 9.3
