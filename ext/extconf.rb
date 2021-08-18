@@ -39,7 +39,7 @@ else
 
 	elsif checking_for "libpq per pkg-config" do
 			_cflags, ldflags, _libs = pkg_config("libpq")
-			dlldir = ldflags[/-L([^ ]+)/] && $1
+			dlldir = ldflags && ldflags[/-L([^ ]+)/] && $1
 		end
 
 	else
