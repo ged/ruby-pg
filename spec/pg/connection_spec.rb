@@ -266,6 +266,105 @@ describe PG::Connection do
 		end
 	end
 
+	context "in nonblocking mode" do
+		after :each do
+			@conn.setnonblocking(false)
+		end
+
+		it "defaults to blocking" do
+			expect( @conn.isnonblocking ).to eq(false)
+			expect( @conn.nonblocking? ).to eq(false)
+		end
+
+		it "can set nonblocking" do
+			expect( @conn.setnonblocking(true) ).to be_nil
+			expect( @conn.isnonblocking ).to eq(true)
+			expect( @conn.nonblocking? ).to eq(true)
+
+			expect( @conn.setnonblocking(false) ).to be_nil
+			expect( @conn.isnonblocking ).to eq(false)
+			expect( @conn.nonblocking? ).to eq(false)
+		end
+
+		it "can send query" do
+			@conn.setnonblocking(true)
+
+			@conn.send_query("SELECT 3")
+			wait_for_flush(@conn)
+
+			res = wait_for_query_result(@conn)
+			expect( res.values ).to eq([["3"]])
+		end
+
+		it "can send query with params" do
+			@conn.setnonblocking(true)
+
+			data = "x" * 1000 * 1000 * 10
+			@conn.send_query_params("SELECT LENGTH($1)", [data])
+			wait_for_flush(@conn)
+
+			res = wait_for_query_result(@conn)
+			expect( res.values ).to eq([[data.length.to_s]])
+		end
+
+		it "rejects to send lots of COPY data" do
+			skip("takes around an hour to succeed on Windows") if RUBY_PLATFORM=~/mingw|mswin/
+
+			conn = described_class.new(@conninfo)
+			conn.setnonblocking(true)
+			conn.exec <<-EOSQL
+				CREATE TEMP TABLE copytable (col1 TEXT);
+
+				CREATE OR REPLACE FUNCTION delay_input() RETURNS trigger AS $x$
+						BEGIN
+							PERFORM pg_sleep(1);
+							RETURN NEW;
+						END;
+				$x$ LANGUAGE plpgsql;
+
+				CREATE TRIGGER delay_input BEFORE INSERT ON copytable
+						FOR EACH ROW EXECUTE PROCEDURE delay_input();
+			EOSQL
+
+			res = nil
+			conn.exec( "COPY copytable FROM STDOUT CSV" )
+
+			data = "x" * 1000 * 1000
+			data << "\n"
+			10000.times do
+				res = conn.put_copy_data(data)
+				break if res == false
+			end
+			expect( res ).to be_falsey
+
+			conn.cancel
+			conn.get_last_result rescue nil
+			conn.finish
+		end
+
+		it "needs to flush data after send_query" do
+			conn = described_class.new(@conninfo)
+			conn.setnonblocking(true)
+
+			data = "x" * 1000 * 1000 * 50
+			res = conn.send_query_params("SELECT LENGTH($1)", [data])
+			expect( res ).to be_nil
+
+			res = conn.flush
+			expect( res ).to be_falsey
+
+			until conn.flush()
+				IO.select(nil, [conn.socket_io], nil, 10)
+			end
+			expect( conn.flush ).to be_truthy
+
+			res = conn.get_last_result
+			expect( res.values ).to eq( [[data.length.to_s]] )
+
+			conn.finish
+		end
+	end
+
 	it "raises proper error when sending fails" do
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 		expect{ conn.exec 'SELECT 1' }.to raise_error(PG::UnableToSend, /no connection/)

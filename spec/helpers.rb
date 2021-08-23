@@ -357,6 +357,15 @@ module PG::TestingHelpers
 		result
 	end
 
+	def wait_for_flush(conn)
+		until conn.flush()
+			# wait for the socket to become read- or write-ready
+			readable, writable = IO.select([conn.socket_io], [conn.socket_io])
+			if readable.any?
+				conn.consume_input
+			end
+		end
+	end
 end
 
 
