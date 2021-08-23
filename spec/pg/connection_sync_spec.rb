@@ -4,11 +4,13 @@
 require_relative '../helpers'
 
 context "running with sync_* methods" do
-	before :each do
+	before :all do
+		@conn.finish
 		PG::Connection.async_api = false
+		@conn = connect_testing_db
 	end
 
-	after :each do
+	after :all do
 		PG::Connection.async_api = true
 	end
 

@@ -4,6 +4,8 @@ require 'pathname'
 require 'rspec'
 require 'shellwords'
 require 'pg'
+require_relative 'helpers/scheduler.rb'
+require_relative 'helpers/tcp_gate_scheduler.rb'
 
 DEFAULT_TEST_DIR_STR = File.join(Dir.pwd, "tmp_test_specs")
 TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
