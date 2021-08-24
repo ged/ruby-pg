@@ -60,9 +60,13 @@ class TcpGateScheduler < Scheduler
 					connect
 
 					begin
-						read_str = @external_io.readpartial(1000)
+						puts "read  fd:#{@external_io.fileno}->#{@internal_io.fileno} start"
+						read_str = @external_io.read_nonblock(1000)
 						print_data("read  fd:#{@external_io.fileno}->#{@internal_io.fileno}", read_str)
 						@internal_io.write(read_str)
+					rescue IO::WaitReadable, Errno::EINTR
+						@external_io.wait_readable
+						retry
 					rescue EOFError
 						puts "read_eof from fd:#{@external_io.fileno}"
 						@internal_io.close_write
@@ -86,9 +90,13 @@ class TcpGateScheduler < Scheduler
 					loop do
 						len = 65536
 						begin
-							read_str = @internal_io.readpartial(len)
+							puts "write fd:#{@internal_io.fileno}->#{@external_io.fileno} start"
+							read_str = @internal_io.read_nonblock(len)
 							print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
 							@external_io.write(read_str)
+						rescue IO::WaitReadable, Errno::EINTR
+							@internal_io.wait_readable
+							retry
 						rescue EOFError
 							puts "write_eof from fd:#{@internal_io.fileno}"
 							@external_io.close_write

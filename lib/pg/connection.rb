@@ -308,12 +308,27 @@ class PG::Connection
 		end
 	end
 
+	private def wait_for_query_result
+		result = nil
+		loop do
+			# Buffer any incoming data on the socket until a full result is ready.
+			consume_input
+			while is_busy
+				socket_io.wait_readable
+				consume_input
+			end
+
+			# Fetch the next result. If there isn't one, the query is finished
+			result = get_result || break
+		end
+		result
+	end
+
 	def async_exec(*args)
 		discard_results
 		async_send_query(*args)
 
-		block()
-		res = get_last_result
+		res = wait_for_query_result
 
 		if block_given?
 			begin
@@ -335,8 +350,7 @@ class PG::Connection
 			async_send_query_params(*args)
 		end
 
-		block()
-		res = get_last_result
+		res = wait_for_query_result
 
 		if block_given?
 			begin
