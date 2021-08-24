@@ -23,11 +23,11 @@ class TcpGateScheduler < Scheduler
 
 		def print_data(desc, data)
 			return unless @debug
-			if data.bytesize >= 90
-				sdata = data[0..90]
-				puts "#{desc}: #{sdata} (... #{data.bytesize} bytes)"
+			if data.bytesize >= 70
+				sdata = data[0..70]
+				puts "#{desc}: #{sdata.inspect} (... #{data.bytesize} bytes)"
 			else
-				puts "#{desc}: #{data} (#{data.bytesize} bytes)"
+				puts "#{desc}: #{data.inspect} (#{data.bytesize} bytes)"
 			end
 		end
 
@@ -42,6 +42,7 @@ class TcpGateScheduler < Scheduler
 				@pending_connect = true
 				Fiber.schedule do
 					@external_io = TCPSocket.new(@external_host, @external_port)
+					puts "connected to external: #{@external_io.inspect}"
 					@pending_connect = false
 				end
 			end
@@ -137,7 +138,8 @@ class TcpGateScheduler < Scheduler
 				# Wait for new connections to the TCP gate
 				while client=@server_io.accept
 					break if @finish
-					conn = Connection.new(client, @external_host, @external_port)
+					conn = Connection.new(client, @external_host, @external_port, debug: @debug)
+					puts "accept new observed connection: #{conn.internal_io.inspect}"
 					@connections << conn
 				end
 			end
