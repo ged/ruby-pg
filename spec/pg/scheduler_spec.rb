@@ -5,7 +5,7 @@ require_relative '../helpers'
 
 $scheduler_timeout = false
 
-context "with a Fiber scheduler" do
+context "with a Fiber scheduler", :scheduler do
 
 	def setup
 		# Run examples with gated scheduler
