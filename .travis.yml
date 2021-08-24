@@ -38,7 +38,7 @@ before_install:
   - export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
 
 script:
-  - bundle exec rake compile test
+  - bundle exec rake compile test PG_DEBUG=1
 
 after_failure:
   - "find tmp -name mkmf.log | xargs cat"

@@ -24,7 +24,7 @@ install:
 build_script:
   - bundle exec rake -rdevkit compile --trace
 test_script:
-  - bundle exec rake test
+  - bundle exec rake test PG_DEBUG=1
 environment:
   matrix:
     - ruby_version: "head"

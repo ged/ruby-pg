@@ -111,7 +111,9 @@ jobs:
 
       - run: gem install --local *.gem --verbose
       - name: Run specs
-        run: ruby -rpg -S rspec spec/**/*_spec.rb
+        env:
+          PG_DEBUG: 1
+        run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
 
       - name: Print logs if job failed
         if: ${{ failure() && matrix.os == 'windows' }}
