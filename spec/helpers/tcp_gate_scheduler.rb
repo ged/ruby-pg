@@ -38,22 +38,27 @@ class TcpGateScheduler < Scheduler
 
 		def connect
 			# Not yet connected?
-			if !@external_io && !@pending_connect
-				@pending_connect = true
-				Fiber.schedule do
+			if !@external_io
+				if !@pending_connect
+					@pending_connect = Queue.new
 					@external_io = TCPSocket.new(@external_host, @external_port)
-					puts "connected to external: #{@external_io.inspect}"
+					@pending_connect.close
 					@pending_connect = false
+					puts "connected to external: #{@external_io.inspect}"
+				else
+					# connection is being established -> wait for it before doing read/write
+					@pending_connect.pop
 				end
 			end
 		end
 
 		def read
-			connect
-
-			if @external_io && !@pending_read
+			if !@pending_read
 				@pending_read = true
+
 				Fiber.schedule do
+					connect
+
 					begin
 						read_str = @external_io.readpartial(1000)
 						print_data("read  fd:#{@external_io.fileno}->#{@internal_io.fileno}", read_str)
@@ -68,30 +73,30 @@ class TcpGateScheduler < Scheduler
 		end
 
 		def write(amount=5)
-			connect
-			if @external_io
-				if @pending_write
-					@pending_write += amount
-				else
-					@pending_write = amount
-					Fiber.schedule do
-						# transfer up to 5*65536 bytes
-						# this should be enough to trigger writability on the observed connection
-						loop do
-							len = 65536
-							begin
-								read_str = @internal_io.readpartial(len)
-								print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
-								@external_io.write(read_str)
-							rescue EOFError
-								puts "write_eof from fd:#{@internal_io.fileno}"
-								@external_io.close_write
-							end
-							@pending_write -= 1
-							break if !read_str || read_str.bytesize < len || @pending_write <= 0
+			if @pending_write
+				@pending_write += amount
+			else
+				@pending_write = amount
+
+				Fiber.schedule do
+					connect
+
+					# transfer up to 5*65536 bytes
+					# this should be enough to trigger writability on the observed connection
+					loop do
+						len = 65536
+						begin
+							read_str = @internal_io.readpartial(len)
+							print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
+							@external_io.write(read_str)
+						rescue EOFError
+							puts "write_eof from fd:#{@internal_io.fileno}"
+							@external_io.close_write
 						end
-						@pending_write = false
+						@pending_write -= 1
+						break if !read_str || read_str.bytesize < len || @pending_write <= 0
 					end
+					@pending_write = false
 				end
 			end
 		end
