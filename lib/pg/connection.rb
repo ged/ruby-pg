@@ -309,7 +309,7 @@ class PG::Connection
 	end
 
 	private def wait_for_query_result
-		result = nil
+		cur = prev = nil
 		loop do
 			# Buffer any incoming data on the socket until a full result is ready.
 			consume_input
@@ -319,9 +319,19 @@ class PG::Connection
 			end
 
 			# Fetch the next result. If there isn't one, the query is finished
-			result = get_result || break
+			cur = get_result || break
+
+			prev.clear if prev
+			prev = cur
+
+			status = cur.result_status
+			break if status == PGRES_COPY_OUT || status == PGRES_COPY_IN || status == PGRES_COPY_BOTH
+
+			if prev
+				prev.check
+			end
 		end
-		result
+		prev
 	end
 
 	def async_exec(*args)
