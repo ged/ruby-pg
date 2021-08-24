@@ -312,28 +312,31 @@ describe PG::Connection do
 
 			conn = described_class.new(@conninfo)
 			conn.setnonblocking(true)
-			conn.exec <<-EOSQL
-				CREATE TEMP TABLE copytable (col1 TEXT);
-
-				CREATE OR REPLACE FUNCTION delay_input() RETURNS trigger AS $x$
-						BEGIN
-							PERFORM pg_sleep(1);
-							RETURN NEW;
-						END;
-				$x$ LANGUAGE plpgsql;
-
-				CREATE TRIGGER delay_input BEFORE INSERT ON copytable
-						FOR EACH ROW EXECUTE PROCEDURE delay_input();
-			EOSQL
 
 			res = nil
-			conn.exec( "COPY copytable FROM STDOUT CSV" )
+			Timeout.timeout(60) do
+				conn.exec <<-EOSQL
+					CREATE TEMP TABLE copytable (col1 TEXT);
 
-			data = "x" * 1000 * 1000
-			data << "\n"
-			10000.times do
-				res = conn.put_copy_data(data)
-				break if res == false
+					CREATE OR REPLACE FUNCTION delay_input() RETURNS trigger AS $x$
+							BEGIN
+								PERFORM pg_sleep(1);
+								RETURN NEW;
+							END;
+					$x$ LANGUAGE plpgsql;
+
+					CREATE TRIGGER delay_input BEFORE INSERT ON copytable
+							FOR EACH ROW EXECUTE PROCEDURE delay_input();
+				EOSQL
+
+				conn.exec( "COPY copytable FROM STDOUT CSV" )
+
+				data = "x" * 1000 * 1000
+				data << "\n"
+				20000.times do
+					res = conn.put_copy_data(data)
+					break if res == false
+				end
 			end
 			expect( res ).to be_falsey
 
@@ -346,7 +349,7 @@ describe PG::Connection do
 			conn = described_class.new(@conninfo)
 			conn.setnonblocking(true)
 
-			data = "x" * 1000 * 1000 * 50
+			data = "x" * 1000 * 1000 * 100
 			res = conn.send_query_params("SELECT LENGTH($1)", [data])
 			expect( res ).to be_nil
 
