@@ -931,7 +931,7 @@ pgconn_socket_io(VALUE self)
 			ruby_sd = sd;
 		#endif
 
-		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 1, INT2NUM(ruby_sd) );
+		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 2, INT2NUM(ruby_sd), INT2NUM(2 /* File::RDWR */) );
 
 		/* Disable autoclose feature */
 		rb_funcall( socket_io, id_autoclose, 1, Qfalse );
