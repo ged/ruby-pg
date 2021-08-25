@@ -291,9 +291,19 @@ class PG::Connection
 
 		until flush()
 			# wait for the socket to become read- or write-ready
-			events = socket_io.wait(nil, :read_write)
-			if !events.is_a?(Integer) || (events & IO::READABLE) > 0
-				consume_input
+
+			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
+				# If a scheduler is set use it directly.
+				# This is necessary since IO.select isn't passed to the scheduler.
+				events = Fiber.scheduler.io_wait(socket_io, IO::READABLE | IO::WRITABLE, nil)
+				if (events & IO::READABLE) > 0
+					consume_input
+				end
+			else
+				readable, writable = IO.select([socket_io], [socket_io])
+				if readable.any?
+					consume_input
+				end
 			end
 		end
 	end
