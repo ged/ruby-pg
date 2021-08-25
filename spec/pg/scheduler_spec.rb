@@ -86,6 +86,52 @@ context "with a Fiber scheduler", :scheduler do
 			end
 		end
 	end
+
+	it "can retrieve several results" do
+		thread_with_timeout(10) do
+			setup
+			Fiber.schedule do
+				conn = PG.connect(@conninfo_gate)
+
+				res = conn.send_query <<-EOT
+					SELECT generate_series(0,999), NULL;
+					SELECT 1000, pg_sleep(0.1);
+				EOT
+
+				conn.block
+				res = conn.get_result
+				expect( res.values.length ).to eq( 1000 )
+
+				conn.block
+				res = conn.get_result
+				expect( res.values ).to eq( [["1000", ""]] )
+
+				res = conn.get_result
+				expect( res ).to be_nil
+
+				conn.finish
+				stop_scheduler
+			end
+		end
+	end
+
+	it "can retrieve the last one of several results" do
+		thread_with_timeout(10) do
+			setup
+			Fiber.schedule do
+				conn = PG.connect(@conninfo_gate)
+
+				res = conn.exec <<-EOT
+					SELECT 1, NULL;
+					SELECT 3, pg_sleep(0.1);
+				EOT
+				expect( res.values ).to eq( [["3", ""]] )
+
+				conn.finish
+				stop_scheduler
+			end
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.
