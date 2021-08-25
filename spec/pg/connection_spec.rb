@@ -916,7 +916,7 @@ describe PG::Connection do
 		sleep 0.5
 		expect( t ).to be_alive()
 		@conn.cancel
-		t.join
+		expect( t.value ).to be_truthy
 		expect( (Time.now - start) ).to be < 3
 	end
 
@@ -924,10 +924,11 @@ describe PG::Connection do
 		@conn.send_query( "select pg_sleep(100)" )
 
 		start = Time.now
-		@conn.block( 0.3 )
+		res = @conn.block( 0.3 )
 		finish = Time.now
 		@conn.cancel
 
+		expect( res ).to be_falsey
 		expect( (finish - start) ).to be_between( 0.2, 99 ).exclusive
 	end
 
