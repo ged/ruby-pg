@@ -1,8 +1,21 @@
 # frozen_string_literal: true
 
-# This is an example and simplified scheduler for test purposes.
-# It is not efficient for a large number of file descriptors as it uses IO.select().
-# Production Fiber schedulers should use epoll/kqueue/etc.
+# This is a special scheduler for testing compatibility to Fiber.scheduler of functions using a TCP connection.
+#
+# It works as a gate between the client and the server.
+# Data is transferred only, when the scheduler receives wait_io requests.
+# The TCP communication in a C extension can be verified in a (mostly) timing insensitive way.
+# If a call does IO but doesn't call the scheduler, the test will block and can be caught by an external timeout.
+#
+#   PG.connect
+#    port:5444                    TcpGateScheduler                     DB
+#  -------------      ----------------------------------------      --------
+#  | scheduler |      | TCPServer                  TCPSocket |      |      |
+#  |   specs   |----->|  port 5444                  port 5432|----->|Server|
+#  -------------  ^   |                                      |      | port |
+#                 '-------  wait_readable:  <-send data--    |      | 5432 |
+#           observe fd|     wait_writable:  --send data->    |      --------
+#                     ----------------------------------------
 
 module Helpers
 class TcpGateScheduler < Scheduler
