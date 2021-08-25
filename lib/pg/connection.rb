@@ -334,8 +334,7 @@ class PG::Connection
 		discard_results
 		async_send_query(*args)
 
-		block
-		res = get_last_result
+		res = async_get_last_result
 
 		if block_given?
 			begin
@@ -357,8 +356,7 @@ class PG::Connection
 			async_send_query_params(*args)
 		end
 
-		block
-		res = get_last_result
+		res = async_get_last_result
 
 		if block_given?
 			begin
@@ -368,6 +366,18 @@ class PG::Connection
 			end
 		end
 		res
+	end
+
+	alias sync_get_result get_result
+	def async_get_result(*args)
+		block
+		sync_get_result
+	end
+
+	alias sync_get_last_result get_last_result
+	def async_get_last_result(*args)
+		block
+		sync_get_last_result
 	end
 
 	alias sync_send_query send_query
@@ -459,6 +469,8 @@ class PG::Connection
 			:describe_portal => [:async_describe_portal, :sync_describe_portal],
 			:describe_prepared => [:async_describe_prepared, :sync_describe_prepared],
 			:setnonblocking => [:async_setnonblocking, :sync_setnonblocking],
+			:get_result => [:async_get_result, :sync_get_result],
+			:get_last_result => [:async_get_last_result, :sync_get_last_result],
 		}
 
 		def async_send_api=(enable)

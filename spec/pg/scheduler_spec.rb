@@ -98,11 +98,9 @@ context "with a Fiber scheduler", :scheduler do
 					SELECT 1000, pg_sleep(0.1);
 				EOT
 
-				conn.block
 				res = conn.get_result
 				expect( res.values.length ).to eq( 1000 )
 
-				conn.block
 				res = conn.get_result
 				expect( res.values ).to eq( [["1000", ""]] )
 
