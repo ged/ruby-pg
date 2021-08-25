@@ -298,37 +298,34 @@ class PG::Connection
 		end
 	end
 
-	private def wait_for_query_result
-		cur = prev = nil
-		loop do
+	if RUBY_PLATFORM =~ /mingw|mswin/
+		def block(timeout=nil)
+			# pgconn_block in the C ext isn't Fiber.scheduler compatible on Windows.
+			# So use ruby code and socket_io.wait_readable instead.
+
 			# Buffer any incoming data on the socket until a full result is ready.
 			consume_input
+
+			if timeout
+				aborttime = Time.now + timeout
+			end
+
 			while is_busy
-				socket_io.wait_readable
+				unless socket_io.wait_readable(timeout && [0.0, aborttime - Time.now].max)
+					return false
+				end
 				consume_input
 			end
-
-			# Fetch the next result. If there isn't one, the query is finished
-			cur = get_result || break
-
-			prev.clear if prev
-			prev = cur
-
-			status = cur.result_status
-			break if status == PGRES_COPY_OUT || status == PGRES_COPY_IN || status == PGRES_COPY_BOTH
-
-			if prev
-				prev.check
-			end
+			return true
 		end
-		prev
 	end
 
 	def async_exec(*args)
 		discard_results
 		async_send_query(*args)
 
-		res = wait_for_query_result
+		block
+		res = get_last_result
 
 		if block_given?
 			begin
@@ -350,7 +347,8 @@ class PG::Connection
 			async_send_query_params(*args)
 		end
 
-		res = wait_for_query_result
+		block
+		res = get_last_result
 
 		if block_given?
 			begin

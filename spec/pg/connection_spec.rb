@@ -1195,7 +1195,7 @@ EOT
 		end
 		serv.close
 		expect{ conn.block }.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
-		expect{ conn.block }.to raise_error(PG::ConnectionBad, /can't get socket descriptor/)
+		expect{ conn.block }.to raise_error(PG::ConnectionBad, /can't get socket descriptor|connection not open/)
 	end
 
 	it "sets the fallback_application_name on new connections" do
