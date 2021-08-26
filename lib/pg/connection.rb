@@ -317,11 +317,13 @@ class PG::Connection
 			consume_input
 
 			if timeout
-				aborttime = Time.now + timeout
+				aborttime = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
 			end
 
 			while is_busy
-				unless socket_io.wait_readable(timeout && [0.0, aborttime - Time.now].max)
+				tm = timeout &&
+						[0.0, aborttime - Process.clock_gettime(Process::CLOCK_MONOTONIC)].max
+				unless socket_io.wait_readable(tm)
 					return false
 				end
 				consume_input
