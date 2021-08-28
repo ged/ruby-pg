@@ -570,7 +570,7 @@ EOT
 			sleep 0.1
 			Process.kill("USR2", Process.pid)
 		end
-		@conn.exec("select pg_sleep(0.3)")
+		@conn.async_exec("select pg_sleep(0.3)")
 		expect( signal_received ).to be_truthy
 	end
 
@@ -1850,7 +1850,7 @@ EOT
 	context "OS thread support" do
 		it "Connection#exec shouldn't block a second thread" do
 			t = Thread.new do
-				@conn.exec( "select pg_sleep(1)" )
+				@conn.async_exec( "select pg_sleep(1)" )
 			end
 
 			sleep 0.1
@@ -1864,7 +1864,7 @@ EOT
 			t = Thread.new do
 				serv = TCPServer.new( '127.0.0.1', 54320 )
 				expect {
-					described_class.new( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+					described_class.async_connect( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 				}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
 			end
 

@@ -46,13 +46,19 @@
 		return NULL; \
 	}
 
-#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+#define nono_DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 		struct gvl_wrapper_##name##_params params = { \
 			{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
 		}; \
 		rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, RUBY_UBF_IO, 0); \
 		when_non_void( return params.retval; ) \
+	}
+
+#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
+		when_non_void( return ) \
+			name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
 	}
 
 #define DEFINE_GVL_STUB_DECL(name, when_non_void, rettype, lastparamtype, lastparamname) \
@@ -66,13 +72,18 @@
 		return NULL; \
 	}
 
-#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+#define nono_DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 		struct gvl_wrapper_##name##_params params = { \
 			{FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname}, when_non_void((rettype)0) \
 		}; \
 		rb_thread_call_with_gvl(gvl_##name##_skeleton, &params); \
 		when_non_void( return params.retval; ) \
+	}
+#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
+		when_non_void( return ) \
+			name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
 	}
 
 #define GVL_TYPE_VOID(string)
