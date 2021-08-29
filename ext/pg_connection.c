@@ -2575,8 +2575,8 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
  * forces the COPY command to fail with the string
  * _error_message_.
  *
- * Returns true if the end-of-data was sent, false if it was
- * not sent (false is only possible if the connection
+ * Returns true if the end-of-data was sent, *false* if it was
+ * not sent (*false* is only possible if the connection
  * is in nonblocking mode, and this command would block).
  */
 static VALUE
