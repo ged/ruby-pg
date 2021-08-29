@@ -382,6 +382,19 @@ class PG::Connection
 		sync_get_last_result
 	end
 
+	alias sync_get_copy_data get_copy_data
+	def async_get_copy_data(async=false, decoder=nil)
+		if async
+			return sync_get_copy_data(async, decoder)
+		else
+			while (res=sync_get_copy_data(true, decoder)) == false
+				socket_io.wait_readable
+				consume_input
+			end
+			return res
+		end
+	end
+
 	alias sync_send_query send_query
 	def async_send_query(*args, &block)
 		sync_send_query(*args)
@@ -473,6 +486,7 @@ class PG::Connection
 			:setnonblocking => [:async_setnonblocking, :sync_setnonblocking],
 			:get_result => [:async_get_result, :sync_get_result],
 			:get_last_result => [:async_get_last_result, :sync_get_last_result],
+			:get_copy_data => [:async_get_copy_data, :sync_get_copy_data],
 		}
 
 		def async_send_api=(enable)

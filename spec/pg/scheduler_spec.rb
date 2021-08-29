@@ -130,6 +130,27 @@ context "with a Fiber scheduler", :scheduler do
 			end
 		end
 	end
+
+	it "can receive COPY data" do
+		thread_with_timeout(10) do
+			setup
+			Fiber.schedule do
+				conn = PG.connect(@conninfo_gate)
+
+				rows = []
+				conn.copy_data( "COPY (SELECT generate_series(0,999)::TEXT UNION ALL SELECT pg_sleep(1)::TEXT || '1000') TO STDOUT" ) do |res|
+					res = nil
+					1002.times do
+						rows << conn.get_copy_data
+					end
+				end
+				expect( rows ).to eq( 1001.times.map{|i| "#{i}\n" } + [nil] )
+
+				conn.finish
+				stop_scheduler
+			end
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.
