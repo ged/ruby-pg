@@ -424,6 +424,23 @@ class PG::Connection
 		false
 	end
 
+	alias sync_put_copy_data put_copy_data
+	def async_put_copy_data(buffer, encoder=nil)
+		until sync_put_copy_data(buffer, encoder)
+			wait_for_flush
+		end
+		wait_for_flush
+		true
+	end
+	alias sync_put_copy_end put_copy_end
+	def async_put_copy_end(*args)
+		until sync_put_copy_end(*args)
+			wait_for_flush
+		end
+		wait_for_flush
+		true
+	end
+
 
 	class << self
 		alias sync_connect new
@@ -469,11 +486,14 @@ class PG::Connection
 			:new => [:async_connect, :sync_connect],
 		}
 
+		# These methods are affected by PQsetnonblocking
 		REDIRECT_SEND_METHODS = {
 			:send_query => [:async_send_query, :sync_send_query],
 			:send_query_params => [:async_send_query_params, :sync_send_query_params],
 			:isnonblocking => [:async_isnonblocking, :sync_isnonblocking],
 			:nonblocking? => [:async_isnonblocking, :sync_isnonblocking],
+			:put_copy_data => [:async_put_copy_data, :sync_put_copy_data],
+			:put_copy_end => [:async_put_copy_end, :sync_put_copy_end],
 		}
 		REDIRECT_METHODS = {
 			:exec => [:async_exec, :sync_exec],

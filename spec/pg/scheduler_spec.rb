@@ -151,6 +151,33 @@ context "with a Fiber scheduler", :scheduler do
 			end
 		end
 	end
+
+	it "can send lots of data per put_copy_data" do
+		thread_with_timeout(60) do
+			setup
+			Fiber.schedule do
+				conn = PG.connect(@conninfo_gate)
+
+				conn.exec <<-EOSQL
+					CREATE TEMP TABLE copytable (col1 TEXT);
+				EOSQL
+
+				res = nil
+				conn.copy_data( "COPY copytable FROM STDOUT CSV" ) do
+					data = "x" * 1000 * 1000
+					data << "\n"
+					50.times do
+						res = conn.put_copy_data(data)
+						break if res == false
+					end
+				end
+				expect( res ).to be_truthy
+				conn.finish
+
+				stop_scheduler
+			end
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.
