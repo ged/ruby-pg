@@ -89,11 +89,9 @@ class TcpGateScheduler < Scheduler
 			end
 		end
 
-		def write(amount=5)
-			if @pending_write
-				@pending_write += amount
-			else
-				@pending_write = amount
+		def write(until_writeable: false)
+			if !@pending_write
+				@pending_write = true
 
 				Fiber.schedule do
 					connect
@@ -107,6 +105,11 @@ class TcpGateScheduler < Scheduler
 							read_str = @internal_io.read_nonblock(len)
 							print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
 							@external_io.write(read_str)
+							if until_writeable
+								res = IO.select(nil, [until_writeable], nil, 0)
+								break if res
+							end
+
 						rescue IO::WaitReadable, Errno::EINTR
 							@internal_io.wait_readable
 							retry
@@ -114,8 +117,7 @@ class TcpGateScheduler < Scheduler
 							puts "write_eof from fd:#{@internal_io.fileno}"
 							@external_io.close_write
 						end
-						@pending_write -= 1
-						break if !read_str || read_str.bytesize < len || @pending_write <= 0
+						break if !read_str || read_str.bytesize < len
 					end
 					@pending_write = false
 				end
@@ -190,7 +192,7 @@ class TcpGateScheduler < Scheduler
 			# If the blocking IO function doesn't make use of ruby wait functions, then it won't get any data and starve as a result.
 
 			if (events & IO::WRITABLE) > 0
-				conn.write
+				conn.write(until_writeable: io)
 
 				if (events & IO::READABLE) > 0
 					conn.read
@@ -201,7 +203,7 @@ class TcpGateScheduler < Scheduler
 					# In this case the callback wait_io(IO::WRITABLE) isn't called, so that we don't get a trigger to transfer data.
 					# But after sending some data the caller usually waits for some answer to read.
 					# Therefore trigger transfer of all pending written data.
-					conn.write(99999)
+					conn.write
 
 					conn.read
 				end
