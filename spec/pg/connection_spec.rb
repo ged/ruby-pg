@@ -286,6 +286,14 @@ describe PG::Connection do
 			expect( @conn.nonblocking? ).to eq(false)
 		end
 
+		it "sets nonblocking for the connection only" do
+			co2 = PG.connect(@conninfo)
+			expect( co2.setnonblocking(true) ).to be_nil
+			expect( co2.isnonblocking ).to eq(true)
+			expect( @conn.isnonblocking ).to eq(false)
+			co2.finish
+		end
+
 		it "can send query" do
 			@conn.setnonblocking(true)
 
