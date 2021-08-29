@@ -2604,11 +2604,11 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 
 /*
  * call-seq:
- *    conn.get_copy_data( [ async = false [, decoder = nil ]] ) -> Object
+ *    conn.get_copy_data( [ nonblock = false [, decoder = nil ]] ) -> Object
  *
  * Return one row of data, +nil+
  * if the copy is done, or +false+ if the call would
- * block (only possible if _async_ is true).
+ * block (only possible if _nonblock_ is true).
  *
  * If _decoder_ is not set or +nil+, data is returned as binary string.
  *

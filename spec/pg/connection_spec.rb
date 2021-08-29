@@ -366,6 +366,22 @@ describe PG::Connection do
 
 			conn.finish
 		end
+
+		it "returns immediately from get_copy_data(nonblock=true)" do
+			expect do
+				@conn.copy_data( "COPY (SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(10)) TO STDOUT" ) do |res|
+					res = nil
+					1000.times do
+						res = @conn.get_copy_data(true)
+						break if res==false
+					end
+					@conn.cancel
+					expect( res ).to be_falsey
+					while @conn.get_copy_data
+					end
+				end
+			end.to raise_error(PG::QueryCanceled)
+		end
 	end
 
 	it "raises proper error when sending fails" do
