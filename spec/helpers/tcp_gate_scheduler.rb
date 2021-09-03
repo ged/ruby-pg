@@ -73,7 +73,6 @@ class TcpGateScheduler < Scheduler
 					connect
 
 					begin
-						puts "read  fd:#{@external_io.fileno}->#{@internal_io.fileno} start"
 						read_str = @external_io.read_nonblock(1000)
 						print_data("read  fd:#{@external_io.fileno}->#{@internal_io.fileno}", read_str)
 						@internal_io.write(read_str)
@@ -92,22 +91,28 @@ class TcpGateScheduler < Scheduler
 		def write(until_writeable: false)
 			if !@pending_write
 				@pending_write = true
+				@until_writeable = until_writeable
 
 				Fiber.schedule do
+					puts "start write #{until_writeable ? "until #{until_writeable.inspect} is writeable" : "all pending data"}"
 					connect
 
-					# transfer up to 5*65536 bytes
-					# this should be enough to trigger writability on the observed connection
+					# transfer data blocks of up to 65536 bytes
+					# until the observed connection is writable again or
+					# no data left to read
 					loop do
 						len = 65536
 						begin
-							puts "write fd:#{@internal_io.fileno}->#{@external_io.fileno} start"
 							read_str = @internal_io.read_nonblock(len)
 							print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
+							sleep 0
 							@external_io.write(read_str)
-							if until_writeable
-								res = IO.select(nil, [until_writeable], nil, 0)
-								break if res
+							if @until_writeable
+								res = IO.select(nil, [@until_writeable], nil, 0)
+								if res
+									puts "stop writing - #{@until_writeable.inspect} is writable again"
+									break
+								end
 							end
 
 						rescue IO::WaitReadable, Errno::EINTR
@@ -119,8 +124,14 @@ class TcpGateScheduler < Scheduler
 						end
 						break if !read_str || read_str.bytesize < len
 					end
+					@until_writeable = false
 					@pending_write = false
 				end
+
+			elsif until_writeable == false
+				# If a write request without stopping on writablility comes in,
+				# make sure, that the pending transfer doesn't abort prematurely.
+				@until_writeable = false
 			end
 		end
 	end
