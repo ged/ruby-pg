@@ -94,7 +94,7 @@ class TcpGateScheduler < Scheduler
 				@until_writeable = until_writeable
 
 				Fiber.schedule do
-					puts "start write #{until_writeable ? "until #{until_writeable.inspect} is writeable" : "all pending data"}"
+					puts "start write #{@until_writeable ? "until #{@until_writeable.inspect} is writeable" : "all pending data"}"
 					connect
 
 					# transfer data blocks of up to 65536 bytes
@@ -108,7 +108,7 @@ class TcpGateScheduler < Scheduler
 							sleep 0
 							@external_io.write(read_str)
 							if @until_writeable
-								res = IO.select(nil, [@until_writeable], nil, 0)
+								res = IO.select(nil, [@until_writeable], nil, 0) rescue nil
 								if res
 									puts "stop writing - #{@until_writeable.inspect} is writable again"
 									break
