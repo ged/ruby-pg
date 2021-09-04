@@ -65,36 +65,57 @@ class TcpGateScheduler < Scheduler
 			end
 		end
 
-		def read
+		# transfer data in read direction
+		#
+		# Option `transfer_until` can be (higher to lower priority):
+		#   :eof => transfer until channel is closed
+		#   false => transfer only one block
+		#
+		# The method does nothing if a transfer is already pending, but might raise the transfer_until option, if the requested priority is higher than the pending transfer.
+		def read( transfer_until: )
 			if !@pending_read
 				@pending_read = true
+				@transfer_until = transfer_until
 
 				Fiber.schedule do
 					connect
 
 					begin
-						read_str = @external_io.read_nonblock(1000)
-						print_data("read  fd:#{@external_io.fileno}->#{@internal_io.fileno}", read_str)
-						@internal_io.write(read_str)
-					rescue IO::WaitReadable, Errno::EINTR
-						@external_io.wait_readable
-						retry
-					rescue EOFError
-						puts "read_eof from fd:#{@external_io.fileno}"
-						@internal_io.close_write
-					end
+						begin
+							read_str = @external_io.read_nonblock(1000)
+							print_data("read  fd:#{@external_io.fileno}->#{@internal_io.fileno}", read_str)
+							@internal_io.write(read_str)
+						rescue IO::WaitReadable, Errno::EINTR
+							@external_io.wait_readable
+							retry
+						rescue EOFError
+							puts "read_eof from fd:#{@external_io.fileno}"
+							@internal_io.close_write
+							break
+						end
+					end while @transfer_until
 					@pending_read = false
 				end
+			elsif transfer_until == :eof
+				@transfer_until = transfer_until
 			end
 		end
 
-		def write(until_writeable: false)
+		# transfer data in write direction
+		#
+		# Option `transfer_until` can be (higher to lower priority):
+		#   :eof => transfer until channel is closed
+		#   :nodata => transfer until no immediate data is available
+		#   IO object => transfer until IO is writeable
+		#
+		# The method does nothing if a transfer is already pending, but might raise the transfer_until option, if the requested priority is higher than the pending transfer.
+		def write( transfer_until: )
 			if !@pending_write
 				@pending_write = true
-				@until_writeable = until_writeable
+				@transfer_until = transfer_until
 
 				Fiber.schedule do
-					puts "start write #{@until_writeable ? "until #{@until_writeable.inspect} is writeable" : "all pending data"}"
+					puts "start write #{@transfer_until ? "until #{@transfer_until.inspect} is writeable" : "all pending data"}"
 					connect
 
 					# transfer data blocks of up to 65536 bytes
@@ -107,10 +128,10 @@ class TcpGateScheduler < Scheduler
 							print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
 							sleep 0
 							@external_io.write(read_str)
-							if @until_writeable
-								res = IO.select(nil, [@until_writeable], nil, 0) rescue nil
+							if @transfer_until.is_a?(IO)
+								res = IO.select(nil, [@transfer_until], nil, 0) rescue nil
 								if res
-									puts "stop writing - #{@until_writeable.inspect} is writable again"
+									puts "stop writing - #{@transfer_until.inspect} is writable again"
 									break
 								end
 							end
@@ -121,18 +142,26 @@ class TcpGateScheduler < Scheduler
 						rescue EOFError
 							puts "write_eof from fd:#{@internal_io.fileno}"
 							@external_io.close_write
+							break
 						end
-						break if !read_str || read_str.bytesize < len
+						break if @transfer_until != :eof && (!read_str || read_str.bytesize < len)
 					end
 					@until_writeable = false
 					@pending_write = false
 				end
 
-			elsif until_writeable == false
+			elsif (transfer_until == :nodata && @transfer_until.is_a?(IO)) ||
+					transfer_until == :eof
 				# If a write request without stopping on writablility comes in,
 				# make sure, that the pending transfer doesn't abort prematurely.
-				@until_writeable = false
+				@transfer_until = transfer_until
 			end
+		end
+
+		# Make sure all data is transferred and both connections are closed.
+		def finish
+			write transfer_until: :eof
+			read transfer_until: :eof
 		end
 	end
 
@@ -176,10 +205,14 @@ class TcpGateScheduler < Scheduler
 			Fiber.schedule do
 				# Wait for new connections to the TCP gate
 				while client=@server_io.accept
-					break if @finish
-					conn = Connection.new(client, @external_host, @external_port, debug: @debug)
-					puts "accept new observed connection: #{conn.internal_io.inspect}"
-					@connections << conn
+					if @finish
+						@connections.each(&:finish)
+						break
+					else
+						conn = Connection.new(client, @external_host, @external_port, debug: @debug)
+						puts "accept new observed connection: #{conn.internal_io.inspect}"
+						@connections << conn
+					end
 				end
 			end
 		end
@@ -203,20 +236,20 @@ class TcpGateScheduler < Scheduler
 			# If the blocking IO function doesn't make use of ruby wait functions, then it won't get any data and starve as a result.
 
 			if (events & IO::WRITABLE) > 0
-				conn.write(until_writeable: io)
+				conn.write(transfer_until: io)
 
 				if (events & IO::READABLE) > 0
-					conn.read
+					conn.read(transfer_until: false)
 				end
 			else
 				if (events & IO::READABLE) > 0
-					# The write handler is called here because writes usually succeed without waiting for writablility.
+					# Call the write handler here because writes usually succeed without waiting for writablility.
 					# In this case the callback wait_io(IO::WRITABLE) isn't called, so that we don't get a trigger to transfer data.
 					# But after sending some data the caller usually waits for some answer to read.
 					# Therefore trigger transfer of all pending written data.
-					conn.write
+					conn.write(transfer_until: :nodata)
 
-					conn.read
+					conn.read(transfer_until: false)
 				end
 			end
 		end
