@@ -115,7 +115,7 @@ class TcpGateScheduler < Scheduler
 				@transfer_until = transfer_until
 
 				Fiber.schedule do
-					puts "start write #{@transfer_until ? "until #{@transfer_until.inspect} is writeable" : "all pending data"}"
+					puts "start write #{@transfer_until.is_a?(IO) ? "until #{@transfer_until.inspect} is writeable" : "until #{@transfer_until}"}"
 					connect
 
 					# transfer data blocks of up to 65536 bytes
