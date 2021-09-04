@@ -88,7 +88,7 @@ class TcpGateScheduler < Scheduler
 						rescue IO::WaitReadable, Errno::EINTR
 							@external_io.wait_readable
 							retry
-						rescue EOFError
+						rescue EOFError, Errno::ECONNRESET
 							puts "read_eof from fd:#{@external_io.fileno}"
 							@internal_io.close_write
 							break
@@ -139,7 +139,7 @@ class TcpGateScheduler < Scheduler
 						rescue IO::WaitReadable, Errno::EINTR
 							@internal_io.wait_readable
 							retry
-						rescue EOFError
+						rescue EOFError, Errno::ECONNRESET
 							puts "write_eof from fd:#{@internal_io.fileno}"
 							@external_io.close_write
 							break
