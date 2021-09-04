@@ -43,139 +43,101 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
-	it "connects to a server" do
-		thread_with_timeout(10) do
+	def run_with_scheduler(timeout=10)
+		thread_with_timeout(timeout) do
 			setup
 			Fiber.schedule do
 				conn = PG.connect(@conninfo_gate)
 
-				res = conn.exec_params("SELECT 7", [])
-				expect(res.values).to eq([["7"]])
+				yield conn
 
 				conn.finish
 				stop_scheduler
 			end
+		end
+	end
+
+	it "connects to a server" do
+		run_with_scheduler do |conn|
+			res = conn.exec_params("SELECT 7", [])
+			expect(res.values).to eq([["7"]])
 		end
 	end
 
 	it "waits when sending data" do
-		thread_with_timeout(10) do
-			setup
-			Fiber.schedule do
-				conn = PG.connect(@conninfo_gate)
-
-				data = "x" * 1000 * 1000 * 10
-				res = conn.exec_params("SELECT LENGTH($1)", [data])
-				expect(res.values).to eq([[data.length.to_s]])
-
-				conn.finish
-				stop_scheduler
-			end
+		run_with_scheduler do |conn|
+			data = "x" * 1000 * 1000 * 10
+			res = conn.exec_params("SELECT LENGTH($1)", [data])
+			expect(res.values).to eq([[data.length.to_s]])
 		end
 	end
 
 	it "connects several times" do
-		thread_with_timeout(10) do
-			setup
-			Fiber.schedule do
-				3.times do
-					conn = PG.connect(@conninfo_gate)
-					conn.finish
-				end
-				stop_scheduler
+		run_with_scheduler do
+			3.times do
+				conn = PG.connect(@conninfo_gate)
+				conn.finish
 			end
 		end
 	end
 
 	it "can retrieve several results" do
-		thread_with_timeout(10) do
-			setup
-			Fiber.schedule do
-				conn = PG.connect(@conninfo_gate)
+		run_with_scheduler do |conn|
+			res = conn.send_query <<-EOT
+				SELECT generate_series(0,999), NULL;
+				SELECT 1000, pg_sleep(0.1);
+			EOT
 
-				res = conn.send_query <<-EOT
-					SELECT generate_series(0,999), NULL;
-					SELECT 1000, pg_sleep(0.1);
-				EOT
+			res = conn.get_result
+			expect( res.values.length ).to eq( 1000 )
 
-				res = conn.get_result
-				expect( res.values.length ).to eq( 1000 )
+			res = conn.get_result
+			expect( res.values ).to eq( [["1000", ""]] )
 
-				res = conn.get_result
-				expect( res.values ).to eq( [["1000", ""]] )
-
-				res = conn.get_result
-				expect( res ).to be_nil
-
-				conn.finish
-				stop_scheduler
-			end
+			res = conn.get_result
+			expect( res ).to be_nil
 		end
 	end
 
 	it "can retrieve the last one of several results" do
-		thread_with_timeout(10) do
-			setup
-			Fiber.schedule do
-				conn = PG.connect(@conninfo_gate)
-
-				res = conn.exec <<-EOT
-					SELECT 1, NULL;
-					SELECT 3, pg_sleep(0.1);
-				EOT
-				expect( res.values ).to eq( [["3", ""]] )
-
-				conn.finish
-				stop_scheduler
-			end
+		run_with_scheduler do |conn|
+			res = conn.exec <<-EOT
+				SELECT 1, NULL;
+				SELECT 3, pg_sleep(0.1);
+			EOT
+			expect( res.values ).to eq( [["3", ""]] )
 		end
 	end
 
 	it "can receive COPY data" do
-		thread_with_timeout(10) do
-			setup
-			Fiber.schedule do
-				conn = PG.connect(@conninfo_gate)
-
-				rows = []
-				conn.copy_data( "COPY (SELECT generate_series(0,999)::TEXT UNION ALL SELECT pg_sleep(1)::TEXT || '1000') TO STDOUT" ) do |res|
-					res = nil
-					1002.times do
-						rows << conn.get_copy_data
-					end
+		run_with_scheduler do |conn|
+			rows = []
+			conn.copy_data( "COPY (SELECT generate_series(0,999)::TEXT UNION ALL SELECT pg_sleep(1)::TEXT || '1000') TO STDOUT" ) do |res|
+				res = nil
+				1002.times do
+					rows << conn.get_copy_data
 				end
-				expect( rows ).to eq( 1001.times.map{|i| "#{i}\n" } + [nil] )
-
-				conn.finish
-				stop_scheduler
 			end
+			expect( rows ).to eq( 1001.times.map{|i| "#{i}\n" } + [nil] )
 		end
 	end
 
 	it "can send lots of data per put_copy_data" do
-		thread_with_timeout(60) do
-			setup
-			Fiber.schedule do
-				conn = PG.connect(@conninfo_gate)
+		run_with_scheduler(60) do |conn|
+			conn.exec <<-EOSQL
+				CREATE TEMP TABLE copytable (col1 TEXT);
+			EOSQL
 
-				conn.exec <<-EOSQL
-					CREATE TEMP TABLE copytable (col1 TEXT);
-				EOSQL
-
-				res = nil
-				conn.copy_data( "COPY copytable FROM STDOUT CSV" ) do
-					data = "x" * 1000 * 1000
-					data << "\n"
-					50.times do
-						res = conn.put_copy_data(data)
-						break if res == false
-					end
+			res = nil
+			conn.copy_data( "COPY copytable FROM STDOUT CSV" ) do
+				data = "x" * 1000 * 1000
+				data << "\n"
+				50.times do
+					res = conn.put_copy_data(data)
+					break if res == false
 				end
-				expect( res ).to be_truthy
-				conn.finish
-
-				stop_scheduler
 			end
+			expect( res ).to be_truthy
 		end
 	end
 end
