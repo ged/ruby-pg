@@ -140,6 +140,45 @@ context "with a Fiber scheduler", :scheduler do
 			expect( res ).to be_truthy
 		end
 	end
+
+	it "discards any pending results" do
+		run_with_scheduler do |conn|
+			conn.send_query("SELECT 5")
+			res = conn.exec("SELECT 6")
+			expect( res.values ).to eq( [["6"]] )
+		end
+	end
+
+	it "can discard_results after query" do
+		run_with_scheduler do |conn|
+			conn.send_query("SELECT 7")
+			conn.discard_results
+			conn.send_query("SELECT 8")
+			res = conn.get_result
+			expect( res.values ).to eq( [["8"]] )
+		end
+	end
+
+	it "can discard_results after COPY FROM STDIN" do
+		run_with_scheduler do |conn|
+			conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+			conn.exec( "COPY copytable FROM STDIN" )
+			conn.discard_results
+			conn.send_query("SELECT 2")
+			res = conn.get_result
+			expect( res.values ).to eq( [["2"]] )
+		end
+	end
+
+	it "can discard_results after COPY TO STDOUT" do
+		run_with_scheduler do |conn|
+			conn.exec("COPY (SELECT generate_series(0,999)::TEXT UNION ALL SELECT pg_sleep(1)::TEXT || '1000') TO STDOUT" )
+			conn.discard_results
+			conn.send_query("SELECT 3")
+			res = conn.get_result
+			expect( res.values ).to eq( [["3"]] )
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.

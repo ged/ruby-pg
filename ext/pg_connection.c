@@ -3113,22 +3113,55 @@ static VALUE
 pgconn_discard_results(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
+	VALUE socket_io;
 
-	PGresult *cur;
-	while ((cur = gvl_PQgetResult(conn)) != NULL) {
+	if( PQtransactionStatus(conn) == PQTRANS_IDLE ) {
+		return Qnil;
+	}
+
+	socket_io = pgconn_socket_io(self);
+
+	for(;;) {
+		PGresult *cur;
+
+		/* pgconn_block() raises an exception in case of errors.
+		* To avoid this call rb_io_wait() and PQconsumeInput() without rb_raise().
+		*/
+		while( gvl_PQisBusy(conn) ){
+			rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
+			if ( PQconsumeInput(conn) == 0 )
+				return Qfalse;
+		}
+
+		cur = gvl_PQgetResult(conn);
+		if( cur == NULL) break;
+
 		int status = PQresultStatus(cur);
 		PQclear(cur);
 		if (status == PGRES_COPY_IN){
 			gvl_PQputCopyEnd(conn, "COPY terminated by new PQexec");
 		}
 		if (status == PGRES_COPY_OUT){
-			char *buffer = NULL;
-			while( gvl_PQgetCopyData(conn, &buffer, 0) > 0)
-				PQfreemem(buffer);
+			for(;;) {
+				char *buffer = NULL;
+				int st = gvl_PQgetCopyData(conn, &buffer, 1);
+				if( st == 0 ) {
+					/* would block -> wait for readable data */
+					rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
+					if ( PQconsumeInput(conn) == 0 )
+						return Qfalse;
+				} else if( st > 0 ) {
+					/* some data retrieved -> discard it */
+					PQfreemem(buffer);
+				} else {
+					/* no more data */
+					break;
+				}
+			}
 		}
 	}
 
-	return Qnil;
+	return Qtrue;
 }
 
 /*
