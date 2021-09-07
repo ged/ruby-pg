@@ -3101,6 +3101,24 @@ pgconn_get_last_result(VALUE self)
 	return rb_pgresult;
 }
 
+#if !defined(HAVE_RB_IO_WAIT)
+
+typedef enum {
+    RUBY_IO_READABLE = RB_WAITFD_IN,
+    RUBY_IO_WRITABLE = RB_WAITFD_OUT,
+    RUBY_IO_PRIORITY = RB_WAITFD_PRI,
+} rb_io_event_t;
+
+#define rb_io_wait(io, event, timeout) do { \
+	rb_io_t *fptr; \
+	GetOpenFile((io), fptr); \
+	if( (event) == RB_INT2NUM(RUBY_IO_READABLE) ) \
+		rb_io_wait_readable(fptr->fd); \
+	else \
+		rb_io_wait_writable(fptr->fd); \
+} while(0)
+#endif
+
 /*
  * call-seq:
  *    conn.discard_results()
