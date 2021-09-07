@@ -197,7 +197,7 @@ class TcpGateScheduler < Scheduler
 			sock = TCPSocket.for_fd(io.fileno)
 			sock.autoclose = false
 			remote_address = sock.remote_address
-		rescue Errno::ENOTCONN
+		rescue Errno::ENOTCONN, Errno::EINVAL
 		end
 
 		unless @started
