@@ -417,15 +417,16 @@ class PG::Connection
 		true
 	end
 
+	alias sync_reset reset
+	def async_reset
+		reset_start
+		self.class.send(:async_connect_reset, self, :reset_poll)
+	end
 
 	class << self
 		alias sync_connect new
 
-		def async_connect(*args, **kwargs)
-			conn = PG::Connection.connect_start( *args, **kwargs ) or
-				raise(PG::Error, "Unable to create a new connection")
-			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
-
+		private def async_connect_reset(conn, poll_meth)
 			# Now grab a reference to the underlying socket so we know when the connection is established
 			socket = conn.socket_io
 
@@ -445,7 +446,7 @@ class PG::Connection
 				end
 
 				# Check to see if it's finished or failed yet
-				poll_status = conn.connect_poll
+				poll_status = conn.send( poll_meth )
 			end
 
 			raise(PG::ConnectionBad, conn.error_message) unless conn.status == PG::CONNECTION_OK
@@ -456,6 +457,14 @@ class PG::Connection
 			conn.set_default_encoding
 
 			conn
+		end
+
+		def async_connect(*args, **kwargs)
+			conn = PG::Connection.connect_start(*args, **kwargs ) or
+				raise(PG::Error, "Unable to create a new connection")
+			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
+
+			async_connect_reset(conn, :connect_poll)
 		end
 
 		REDIRECT_CLASS_METHODS = {
@@ -483,6 +492,7 @@ class PG::Connection
 			:get_result => [:async_get_result, :sync_get_result],
 			:get_last_result => [:async_get_last_result, :sync_get_last_result],
 			:get_copy_data => [:async_get_copy_data, :sync_get_copy_data],
+			:reset => [:async_reset, :sync_reset],
 		}
 
 		def async_send_api=(enable)

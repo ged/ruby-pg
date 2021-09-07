@@ -81,6 +81,17 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
+	it "can reset the connection" do
+		run_with_scheduler do
+			conn = PG.connect(@conninfo_gate)
+			conn.exec("SET search_path TO test1")
+			expect( conn.exec("SHOW search_path").values ).to eq( [["test1"]] )
+			conn.reset
+			expect( conn.exec("SHOW search_path").values ).to eq( [['"$user", public']] )
+			conn.finish
+		end
+	end
+
 	it "can retrieve several results" do
 		run_with_scheduler do |conn|
 			res = conn.send_query <<-EOT
