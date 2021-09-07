@@ -2970,8 +2970,6 @@ get_result_readable(PGconn *conn)
  */
 static VALUE
 pgconn_block( int argc, VALUE *argv, VALUE self ) {
-	PGconn *conn = pg_get_pgconn( self );
-
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
 	VALUE timeout_in;
