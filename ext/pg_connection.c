@@ -2289,103 +2289,43 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
-/* Win32 + Ruby 1.9+ */
-#if defined( _WIN32 )
-/*
- * On Windows, use platform-specific strategies to wait for the socket
- * instead of rb_wait_for_single_fd().
- */
 
-int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
+#if !defined(HAVE_RB_IO_WAIT)
 
-static void *
-wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *) )
-{
-	int sd = PQsocket( conn );
-	void *retval;
-	struct timeval aborttime={0,0}, currtime, waittime;
-	DWORD timeout_milisec = INFINITE;
-	DWORD wait_ret;
-	WSAEVENT hEvent;
+typedef enum {
+    RUBY_IO_READABLE = RB_WAITFD_IN,
+    RUBY_IO_WRITABLE = RB_WAITFD_OUT,
+    RUBY_IO_PRIORITY = RB_WAITFD_PRI,
+} rb_io_event_t;
 
-	if ( sd < 0 )
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
+static VALUE
+rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
+	rb_io_t *fptr;
+	struct timeval waittime;
+	int res;
 
-	hEvent = WSACreateEvent();
-
-	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if( PQconsumeInput(conn) == 0 ) {
-		WSACloseEvent( hEvent );
-		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
+	GetOpenFile((io), fptr);
+	if( !NIL_P(timeout) ){
+		waittime.tv_sec = (time_t)(NUM2DBL(timeout));
+		waittime.tv_usec = (time_t)(NUM2DBL(timeout) - (double)waittime.tv_sec);
 	}
+	res = rb_wait_for_single_fd(fptr->fd, NUM2UINT(events), NIL_P(timeout) ? NULL : &waittime);
 
-	if ( ptimeout ) {
-		gettimeofday(&currtime, NULL);
-		timeradd(&currtime, ptimeout, &aborttime);
-	}
-
-	while ( !(retval=is_readable(conn)) ) {
-		if ( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
-		}
-
-		if ( ptimeout ) {
-			gettimeofday(&currtime, NULL);
-			timersub(&aborttime, &currtime, &waittime);
-			timeout_milisec = (DWORD)( waittime.tv_sec * 1e3 + waittime.tv_usec / 1e3 );
-		}
-
-		/* Is the given timeout valid? */
-		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
-			/* Wait for the socket to become readable before checking again */
-			wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
-		} else {
-			wait_ret = WAIT_TIMEOUT;
-		}
-
-		if ( wait_ret == WAIT_TIMEOUT ) {
-			WSACloseEvent( hEvent );
-			return NULL;
-		} else if ( wait_ret == WAIT_OBJECT_0 ) {
-			/* The event we were waiting for. */
-		} else if ( wait_ret == WAIT_OBJECT_0 + 1) {
-			/* This indicates interruption from timer thread, GC, exception
-			 * from other threads etc... */
-			rb_thread_check_ints();
-		} else if ( wait_ret == WAIT_FAILED ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
-		} else {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "Wait on socket abandoned (WaitForMultipleObjects)" );
-		}
-
-		/* Check for connection errors (PQisBusy is true on connection errors) */
-		if ( PQconsumeInput(conn) == 0 ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
-		}
-	}
-
-	WSACloseEvent( hEvent );
-	return retval;
+	return UINT2NUM(res);
 }
-
-#else
-
-/* non Win32 */
+#endif
 
 static void *
-wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
+wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
 {
-	int sd = PQsocket( conn );
-	int ret;
+	VALUE socket_io;
+	VALUE ret;
 	void *retval;
 	struct timeval aborttime={0,0}, currtime, waittime;
+	VALUE wait_timeout = Qnil;
+	PGconn *conn = pg_get_pgconn(self);
 
-	if ( sd < 0 )
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
+	socket_io = pgconn_socket_io(self);
 
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if ( PQconsumeInput(conn) == 0 )
@@ -2400,22 +2340,19 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		if ( ptimeout ) {
 			gettimeofday(&currtime, NULL);
 			timersub(&aborttime, &currtime, &waittime);
+			wait_timeout = DBL2NUM((double)(waittime.tv_sec) + (double)(waittime.tv_usec) / 1000000.0);
 		}
 
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
 			/* Wait for the socket to become readable before checking again */
-			ret = rb_wait_for_single_fd( sd, RB_WAITFD_IN, ptimeout ? &waittime : NULL );
+			ret = rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), wait_timeout);
 		} else {
-			ret = 0;
-		}
-
-		if ( ret < 0 ){
-			rb_sys_fail( "rb_wait_for_single_fd()" );
+			ret = Qfalse;
 		}
 
 		/* Return false if the select() timed out */
-		if ( ret == 0 ){
+		if ( ret == Qfalse ){
 			return NULL;
 		}
 
@@ -2428,8 +2365,6 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	return retval;
 }
 
-
-#endif
 
 static void *
 notify_readable(PGconn *conn)
@@ -2468,7 +2403,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 		ptimeout = &timeout;
 	}
 
-	pnotification = (PGnotify*) wait_socket_readable( this->pgconn, ptimeout, notify_readable);
+	pnotification = (PGnotify*) wait_socket_readable( self, ptimeout, notify_readable);
 
 	/* Return nil if the select timed out */
 	if ( !pnotification ) return Qnil;
@@ -3050,7 +2985,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		ptimeout = &timeout;
 	}
 
-	ret = wait_socket_readable( conn, ptimeout, get_result_readable);
+	ret = wait_socket_readable( self, ptimeout, get_result_readable);
 
 	if( !ret )
 		return Qfalse;
@@ -3100,24 +3035,6 @@ pgconn_get_last_result(VALUE self)
 
 	return rb_pgresult;
 }
-
-#if !defined(HAVE_RB_IO_WAIT)
-
-typedef enum {
-    RUBY_IO_READABLE = RB_WAITFD_IN,
-    RUBY_IO_WRITABLE = RB_WAITFD_OUT,
-    RUBY_IO_PRIORITY = RB_WAITFD_PRI,
-} rb_io_event_t;
-
-#define rb_io_wait(io, event, timeout) do { \
-	rb_io_t *fptr; \
-	GetOpenFile((io), fptr); \
-	if( (event) == RB_INT2NUM(RUBY_IO_READABLE) ) \
-		rb_io_wait_readable(fptr->fd); \
-	else \
-		rb_io_wait_writable(fptr->fd); \
-} while(0)
-#endif
 
 /*
  * call-seq:

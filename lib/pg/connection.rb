@@ -308,30 +308,6 @@ class PG::Connection
 		end
 	end
 
-	if RUBY_PLATFORM =~ /mingw|mswin/
-		def block(timeout=nil)
-			# pgconn_block in the C ext isn't Fiber.scheduler compatible on Windows.
-			# So use ruby code and socket_io.wait_readable instead.
-
-			# Buffer any incoming data on the socket until a full result is ready.
-			consume_input
-
-			if timeout
-				aborttime = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
-			end
-
-			while is_busy
-				tm = timeout &&
-						[0.0, aborttime - Process.clock_gettime(Process::CLOCK_MONOTONIC)].max
-				unless socket_io.wait_readable(tm)
-					return false
-				end
-				consume_input
-			end
-			return true
-		end
-	end
-
 	def async_exec(*args)
 		discard_results
 		async_send_query(*args)
