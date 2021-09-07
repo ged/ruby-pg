@@ -322,35 +322,45 @@ describe PG::Connection do
 			conn.setnonblocking(true)
 
 			res = nil
-			Timeout.timeout(60) do
-				conn.exec <<-EOSQL
-					CREATE TEMP TABLE copytable (col1 TEXT);
+			begin
+				Timeout.timeout(60) do
+					conn.exec <<-EOSQL
+						CREATE TEMP TABLE copytable (col1 TEXT);
 
-					CREATE OR REPLACE FUNCTION delay_input() RETURNS trigger AS $x$
-							BEGIN
-								PERFORM pg_sleep(1);
-								RETURN NEW;
-							END;
-					$x$ LANGUAGE plpgsql;
+						CREATE OR REPLACE FUNCTION delay_input() RETURNS trigger AS $x$
+								BEGIN
+									PERFORM pg_sleep(1);
+									RETURN NEW;
+								END;
+						$x$ LANGUAGE plpgsql;
 
-					CREATE TRIGGER delay_input BEFORE INSERT ON copytable
-							FOR EACH ROW EXECUTE PROCEDURE delay_input();
-				EOSQL
+						CREATE TRIGGER delay_input BEFORE INSERT ON copytable
+								FOR EACH ROW EXECUTE PROCEDURE delay_input();
+					EOSQL
 
-				conn.exec( "COPY copytable FROM STDOUT CSV" )
+					conn.exec( "COPY copytable FROM STDOUT CSV" )
 
-				data = "x" * 1000 * 1000
-				data << "\n"
-				20000.times do
-					res = conn.put_copy_data(data)
-					break if res == false
+					data = "x" * 1000 * 1000
+					data << "\n"
+					20000.times do
+						res = conn.put_copy_data(data)
+						break if res == false
+					end
 				end
-			end
-			expect( res ).to be_falsey
+				expect( res ).to be_falsey
+			rescue Timeout::Error
+				skip <<-EOT
+Unfortunately this test is not reliable.
 
-			conn.cancel
-			conn.get_last_result rescue nil
-			conn.finish
+It is timing dependent, since it assumes that the ruby process
+sends data faster than the PostgreSQL server can process it.
+This assumption is wrong in some environments.
+EOT
+			ensure
+				conn.cancel
+				conn.discard_results
+				conn.finish
+			end
 		end
 
 		it "needs to flush data after send_query" do
