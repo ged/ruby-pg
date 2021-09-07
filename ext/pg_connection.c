@@ -21,6 +21,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
 
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
+static VALUE pgconn_wait_for_flush( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
 static const rb_data_type_t pg_connection_type;
 
@@ -1811,6 +1812,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
 		}
+		pgconn_wait_for_flush( self );
 		return Qnil;
 	}
 
@@ -1888,6 +1890,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -1951,6 +1954,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2019,6 +2023,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2040,6 +2045,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2062,6 +2068,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2291,6 +2298,7 @@ pgconn_notifies(VALUE self)
 
 
 #if !defined(HAVE_RB_IO_WAIT)
+/* For compat with ruby < 3.0 */
 
 typedef enum {
     RUBY_IO_READABLE = RB_WAITFD_IN,
@@ -2365,6 +2373,29 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 	return retval;
 }
 
+static VALUE
+pgconn_wait_for_flush( VALUE self ){
+	if( !pg_get_connection_safe(self)->flush_data )
+		return Qnil;
+
+	while( pgconn_flush(self) == Qfalse ){
+		/* wait for the socket to become read- or write-ready */
+		int events;
+		VALUE socket_io = pgconn_socket_io(self);
+		events = RB_NUM2INT(rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE | RUBY_IO_WRITABLE), Qnil));
+
+		if (events & RUBY_IO_READABLE)
+			pgconn_consume_input(self);
+	}
+	return Qnil;
+}
+
+static VALUE
+pgconn_flush_data_set( VALUE self, VALUE enabled ){
+	t_pg_connection *conn = pg_get_connection(self);
+	conn->flush_data = RTEST(enabled);
+	return enabled;
+}
 
 static void *
 notify_readable(PGconn *conn)
@@ -4254,6 +4285,8 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
 	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
+	rb_define_private_method(rb_cPGconn, "wait_for_flush", pgconn_wait_for_flush, 0);
+	rb_define_private_method(rb_cPGconn, "flush_data=", pgconn_flush_data_set, 1);
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);

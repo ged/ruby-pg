@@ -285,67 +285,6 @@ class PG::Connection
 		end
 	end
 
-	private def wait_for_flush
-		# From https://www.postgresql.org/docs/13/libpq-async.html
-		# After sending any command or data on a nonblocking connection, call PQflush. If it returns 1, wait for the socket to become read- or write-ready. If it becomes write-ready, call PQflush again. If it becomes read-ready, call PQconsumeInput , then call PQflush again. Repeat until PQflush returns 0. (It is necessary to check for read-ready and drain the input with PQconsumeInput , because the server can block trying to send us data, e.g., NOTICE messages, and won't read our data until we read its.) Once PQflush returns 0, wait for the socket to be read-ready and then read the response as described above.
-
-		until flush()
-			# wait for the socket to become read- or write-ready
-
-			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
-				# If a scheduler is set use it directly.
-				# This is necessary since IO.select isn't passed to the scheduler.
-				events = Fiber.scheduler.io_wait(socket_io, IO::READABLE | IO::WRITABLE, nil)
-				if (events & IO::READABLE) > 0
-					consume_input
-				end
-			else
-				readable, writable = IO.select([socket_io], [socket_io])
-				if readable.any?
-					consume_input
-				end
-			end
-		end
-	end
-
-	def async_exec(*args)
-		discard_results
-		async_send_query(*args)
-
-		res = async_get_last_result
-
-		if block_given?
-			begin
-				return yield(res)
-			ensure
-				res.clear
-			end
-		end
-		res
-	end
-
-	def async_exec_params(*args)
-		discard_results
-
-		if args[1].nil?
-			# TODO: pg_deprecated(3, ("forwarding async_exec_params to async_exec is deprecated"));
-			async_send_query(*args)
-		else
-			async_send_query_params(*args)
-		end
-
-		res = async_get_last_result
-
-		if block_given?
-			begin
-				return yield(res)
-			ensure
-				res.clear
-			end
-		end
-		res
-	end
-
 	alias sync_get_result get_result
 	def async_get_result(*args)
 		block
@@ -371,18 +310,6 @@ class PG::Connection
 		end
 	end
 
-	alias sync_send_query send_query
-	def async_send_query(*args, &block)
-		sync_send_query(*args)
-		wait_for_flush
-	end
-
-	alias sync_send_query_params send_query_params
-	def async_send_query_params(*args, &block)
-		sync_send_query_params(*args)
-		wait_for_flush
-	end
-
 	# In async_api=false mode all send calls run directly on libpq.
 	# Blocking vs. nonblocking state can be changed in libpq.
 	alias sync_setnonblocking setnonblocking
@@ -391,6 +318,7 @@ class PG::Connection
 	# The difference is that setnonblocking(true) disables automatic handling of would-block cases.
 	def async_setnonblocking(enabled)
 		singleton_class.async_send_api = !enabled
+		self.flush_data = !enabled
 		sync_setnonblocking(true)
 	end
 
@@ -420,51 +348,52 @@ class PG::Connection
 	alias sync_reset reset
 	def async_reset
 		reset_start
-		self.class.send(:async_connect_reset, self, :reset_poll)
+		async_connect_reset(:reset_poll)
+	end
+
+	private def async_connect_reset(poll_meth)
+		# Now grab a reference to the underlying socket so we know when the connection is established
+		socket = socket_io
+
+		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
+		poll_status = PG::PGRES_POLLING_WRITING
+		until poll_status == PG::PGRES_POLLING_OK ||
+				poll_status == PG::PGRES_POLLING_FAILED
+
+			# If the socket needs to read, wait 'til it becomes readable to poll again
+			case poll_status
+			when PG::PGRES_POLLING_READING
+				socket.wait_readable
+
+			# ...and the same for when the socket needs to write
+			when PG::PGRES_POLLING_WRITING
+				socket.wait_writable
+			end
+
+			# Check to see if it's finished or failed yet
+			poll_status = send( poll_meth )
+		end
+
+		raise(PG::ConnectionBad, error_message) unless status == PG::CONNECTION_OK
+
+		# Set connection to nonblocking to handle all blocking states in ruby.
+		# That way a fiber scheduler is able to handle IO requests.
+		sync_setnonblocking(true)
+		self.flush_data = true
+		set_default_encoding
+
+		self
 	end
 
 	class << self
 		alias sync_connect new
-
-		private def async_connect_reset(conn, poll_meth)
-			# Now grab a reference to the underlying socket so we know when the connection is established
-			socket = conn.socket_io
-
-			# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
-			poll_status = PG::PGRES_POLLING_WRITING
-			until poll_status == PG::PGRES_POLLING_OK ||
-					poll_status == PG::PGRES_POLLING_FAILED
-
-				# If the socket needs to read, wait 'til it becomes readable to poll again
-				case poll_status
-				when PG::PGRES_POLLING_READING
-					socket.wait_readable
-
-				# ...and the same for when the socket needs to write
-				when PG::PGRES_POLLING_WRITING
-					socket.wait_writable
-				end
-
-				# Check to see if it's finished or failed yet
-				poll_status = conn.send( poll_meth )
-			end
-
-			raise(PG::ConnectionBad, conn.error_message) unless conn.status == PG::CONNECTION_OK
-
-			# Set connection to nonblocking to handle all blocking states in ruby.
-			# That way a fiber scheduler is able to handle IO requests.
-			conn.sync_setnonblocking(true)
-			conn.set_default_encoding
-
-			conn
-		end
 
 		def async_connect(*args, **kwargs)
 			conn = PG::Connection.connect_start(*args, **kwargs ) or
 				raise(PG::Error, "Unable to create a new connection")
 			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
 
-			async_connect_reset(conn, :connect_poll)
+			conn.send(:async_connect_reset, :connect_poll)
 		end
 
 		REDIRECT_CLASS_METHODS = {
@@ -473,8 +402,6 @@ class PG::Connection
 
 		# These methods are affected by PQsetnonblocking
 		REDIRECT_SEND_METHODS = {
-			:send_query => [:async_send_query, :sync_send_query],
-			:send_query_params => [:async_send_query_params, :sync_send_query_params],
 			:isnonblocking => [:async_isnonblocking, :sync_isnonblocking],
 			:nonblocking? => [:async_isnonblocking, :sync_isnonblocking],
 			:put_copy_data => [:async_put_copy_data, :sync_put_copy_data],

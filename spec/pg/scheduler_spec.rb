@@ -64,7 +64,7 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
-	it "waits when sending data" do
+	it "waits when sending query data" do
 		run_with_scheduler do |conn|
 			data = "x" * 1000 * 1000 * 10
 			res = conn.exec_params("SELECT LENGTH($1)", [data])
@@ -188,6 +188,33 @@ context "with a Fiber scheduler", :scheduler do
 			conn.send_query("SELECT 3")
 			res = conn.get_result
 			expect( res.values ).to eq( [["3"]] )
+		end
+	end
+
+	it "should convert strings and parameters to #prepare and #exec_prepared" do
+		run_with_scheduler do |conn|
+			conn.prepare("weiß1", "VALUES( LENGTH($1), 'grün')")
+			data = "x" * 1000 * 1000 * 10
+			r = conn.exec_prepared("weiß1", [data])
+			expect( r.values ).to eq( [[data.length.to_s, 'grün']] )
+		end
+	end
+
+	it "should convert strings to #describe_prepared" do
+		run_with_scheduler do |conn|
+			conn.prepare("weiß2", "VALUES(123)")
+			r = conn.describe_prepared("weiß2")
+			expect( r.nfields ).to eq( 1 )
+		end
+	end
+
+	it "should convert strings to #describe_portal" do
+		run_with_scheduler do |conn|
+			conn.transaction do
+				conn.exec "DECLARE cörsör CURSOR FOR VALUES(1,2,3)"
+				r = conn.describe_portal("cörsör")
+				expect( r.nfields ).to eq( 3 )
+			end
 		end
 	end
 end
