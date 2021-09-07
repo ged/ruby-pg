@@ -15,6 +15,10 @@ if pgdir = with_config( 'pg' )
 	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
+if enable_config("nogvl")
+	$defs.push( "-DENABLE_NOGVL" )
+end
+
 if enable_config("windows-cross")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc"
