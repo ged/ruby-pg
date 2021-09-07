@@ -12,6 +12,7 @@
 
 VALUE rb_cPGconn;
 static ID s_id_encode;
+static ID s_id_autoclose_set;
 static VALUE sym_type, sym_format, sym_value;
 static VALUE sym_symbol, sym_string, sym_static_symbol;
 
@@ -916,7 +917,6 @@ pgconn_socket_io(VALUE self)
 {
 	int sd;
 	int ruby_sd;
-	ID id_autoclose = rb_intern("autoclose=");
 	t_pg_connection *this = pg_get_connection_safe( self );
 	VALUE socket_io = this->socket_io;
 
@@ -934,7 +934,7 @@ pgconn_socket_io(VALUE self)
 		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 2, INT2NUM(ruby_sd), INT2NUM(2 /* File::RDWR */) );
 
 		/* Disable autoclose feature */
-		rb_funcall( socket_io, id_autoclose, 1, Qfalse );
+		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
 
 		this->socket_io = socket_io;
 	}
@@ -4201,6 +4201,7 @@ void
 init_pg_connection()
 {
 	s_id_encode = rb_intern("encode");
+	s_id_autoclose_set = rb_intern("autoclose=");
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_format = ID2SYM(rb_intern("format"));
 	sym_value = ID2SYM(rb_intern("value"));
