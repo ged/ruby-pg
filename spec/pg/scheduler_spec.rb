@@ -64,6 +64,28 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
+	it "connects to a server with setting default encoding" do
+		Encoding.default_internal = Encoding::ISO8859_3
+		begin
+			run_with_scheduler do |conn|
+				res = conn.exec_params("SELECT 8", [])
+				expect(res.getvalue(0,0).encoding).to eq(Encoding::ISO8859_3)
+				expect( conn.get_client_encoding ).to eq( "LATIN3" )
+			end
+		ensure
+			Encoding.default_internal = nil
+		end
+	end
+
+	it "can set_client_encoding" do
+		run_with_scheduler do |conn|
+			expect( conn.set_client_encoding('iso8859-4') ).to eq( nil )
+			expect( conn.get_client_encoding ).to eq( "LATIN4" )
+			conn.client_encoding = 'iso8859-2'
+			expect( conn.get_client_encoding ).to eq( "LATIN2" )
+		end
+	end
+
 	it "waits when sending query data" do
 		run_with_scheduler do |conn|
 			data = "x" * 1000 * 1000 * 10

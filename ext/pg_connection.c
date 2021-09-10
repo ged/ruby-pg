@@ -2906,9 +2906,11 @@ pgconn_get_client_encoding(VALUE self)
 
 /*
  * call-seq:
- *    conn.set_client_encoding( encoding )
+ *    conn.sync_set_client_encoding( encoding )
  *
- * Sets the client encoding to the _encoding_ String.
+ * This function has the same behavior as #async_set_client_encoding, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #set_client_encoding instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_set_client_encoding(VALUE self, VALUE str)
@@ -3853,16 +3855,33 @@ pgconn_external_encoding(VALUE self)
 	return rb_enc_from_encoding( enc );
 }
 
+/*
+ * call-seq:
+ *    conn.set_client_encoding( encoding )
+ *
+ * Sets the client encoding to the _encoding_ String.
+ */
+static VALUE
+pgconn_async_set_client_encoding(VALUE self, VALUE encname)
+{
+	VALUE query_format, query;
+
+	Check_Type(encname, T_STRING);
+	query_format = rb_str_new_cstr("set client_encoding to '%s'");
+	query = rb_funcall(query_format, rb_intern("%"), 1, encname);
+
+	pgconn_async_exec(1, &query, self);
+	pgconn_set_internal_encoding_index( self );
+
+	return Qnil;
+}
 
 static VALUE
 pgconn_set_client_encoding_async1( VALUE args )
 {
 	VALUE self = ((VALUE*)args)[0];
 	VALUE encname = ((VALUE*)args)[1];
-	VALUE query_format = rb_str_new_cstr("set client_encoding to '%s'");
-	VALUE query = rb_funcall(query_format, rb_intern("%"), 1, encname);
-
-	pgconn_async_exec(1, &query, self);
+	pgconn_async_set_client_encoding(self, encname);
 	return 0;
 }
 
@@ -3877,9 +3896,9 @@ pgconn_set_client_encoding_async2( VALUE arg, VALUE ex )
 
 
 static VALUE
-pgconn_set_client_encoding_async( VALUE self, const char *encname )
+pgconn_set_client_encoding_async( VALUE self, VALUE encname )
 {
-	VALUE args[] = { self, rb_str_new_cstr(encname) };
+	VALUE args[] = { self, encname };
 	return rb_rescue(pgconn_set_client_encoding_async1, (VALUE)&args, pgconn_set_client_encoding_async2, Qnil);
 }
 
@@ -3901,10 +3920,9 @@ pgconn_set_default_encoding( VALUE self )
 
 	if (( enc = rb_default_internal_encoding() )) {
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( pgconn_set_client_encoding_async(self, encname) != 0 )
+		if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
 			rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
-		pgconn_set_internal_encoding_index( self );
 		return rb_enc_from_encoding( enc );
 	} else {
 		pgconn_set_internal_encoding_index( self );
@@ -4282,8 +4300,9 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Other    ******/
 	rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
-	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
-	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");
+	rb_define_method(rb_cPGconn, "sync_set_client_encoding", pgconn_set_client_encoding, 1);
+	rb_define_method(rb_cPGconn, "async_set_client_encoding", pgconn_async_set_client_encoding, 1);
+	rb_define_alias(rb_cPGconn, "async_client_encoding=", "async_set_client_encoding");
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
 	rb_define_private_method(rb_cPGconn, "wait_for_flush", pgconn_wait_for_flush, 0);
 	rb_define_private_method(rb_cPGconn, "flush_data=", pgconn_flush_data_set, 1);

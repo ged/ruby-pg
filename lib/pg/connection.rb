@@ -420,6 +420,8 @@ class PG::Connection
 			:get_last_result => [:async_get_last_result, :sync_get_last_result],
 			:get_copy_data => [:async_get_copy_data, :sync_get_copy_data],
 			:reset => [:async_reset, :sync_reset],
+			:set_client_encoding => [:async_set_client_encoding, :sync_set_client_encoding],
+			:client_encoding= => [:async_set_client_encoding, :sync_set_client_encoding],
 		}
 
 		def async_send_api=(enable)
