@@ -38,8 +38,10 @@ module PG::TestingHelpers
 			end
 
 			mod.after( :all ) do
-				check_for_lingering_connections( @conn )
-				@conn.finish
+				if @conn
+					check_for_lingering_connections( @conn )
+					@conn.finish
+				end
 			end
 		end
 
