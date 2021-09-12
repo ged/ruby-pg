@@ -41,11 +41,7 @@ class PG::Connection
 		option_string = ''
 		options = {}
 
-		# Parameter 'fallback_application_name' was introduced in PostgreSQL 9.0
-		# together with PQescapeLiteral().
-		if PG::Connection.instance_methods.find {|m| m.to_sym == :escape_literal }
-			options[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
-		end
+		options[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
 
 		if args.length == 1
 			case args.first
