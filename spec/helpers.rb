@@ -393,6 +393,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_10 ) if PG.library_version < 100000
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
 	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0"
+	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|

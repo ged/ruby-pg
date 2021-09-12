@@ -26,17 +26,46 @@ class PG::Connection
 	CONNECT_ARGUMENT_ORDER = %w[host port options tty dbname user password]
 
 
-	### Quote the given +value+ for use in a connection-parameter string.
-	def self::quote_connstr( value )
+	### Quote a single +value+ for use in a connection-parameter string.
+	def self.quote_connstr( value )
 		return "'" + value.to_s.gsub( /[\\']/ ) {|m| '\\' + m } + "'"
 	end
 
+	# Convert Hash options to connection String
+	#
+	# Values are properly quoted and escaped.
+	def self.connect_hash_to_string( hash )
+		hash.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
+	end
+
+	# Decode a connection string to Hash options
+	#
+	# Value are properly unquoted and unescaped.
+	def self.connect_string_to_hash( str )
+		options = {}
+		key = nil
+		value = String.new
+		str.scan(/\G\s*(?>([^\s\\\']+)\s*=\s*|([^\s\\\']+)|'((?:[^\'\\]|\\.)*)'|(\\.?)|(\S))(\s|\z)?/m) do
+					|k, word, sq, esc, garbage, sep|
+			raise ArgumentError, "unterminated quoted string in connection info string: #{str.inspect}" if garbage
+			if k
+				key = k
+			else
+				value << (word || (sq || esc).gsub(/\\(.)/, '\\1'))
+			end
+			if sep
+				raise "missing = after #{value.inspect}" unless key
+				options[key.to_sym] = value
+				key = nil
+				value = String.new
+			end
+		end
+		options
+	end
 
 	### Parse the connection +args+ into a connection-parameter string. See PG::Connection.new
 	### for valid arguments.
 	def self::parse_connect_args( *args )
-		return '' if args.empty?
-
 		hash_arg = args.last.is_a?( Hash ) ? args.pop : {}
 		option_string = ''
 		options = {}
@@ -65,7 +94,28 @@ class PG::Connection
 			end
 		end
 
-		options.merge!( hash_arg )
+		options.merge!( hash_arg.transform_keys(&:to_sym) )
+
+		# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
+		if (host = options[:host] || connect_string_to_hash(option_string)[:host]) &&
+				 # isn't UnixSocket
+				!host.empty? && !host.start_with?("/") &&
+				 # isn't a path on Windows
+				(RUBY_PLATFORM !~ /mingw|mswin/ || host !~ /\A\w:[\/\\]/)
+
+			options[:hostaddr] ||= if
+					Fiber.respond_to?(:scheduler) &&
+					Fiber.scheduler &&
+					RUBY_VERSION < '3.1.'
+
+				# Use pure Ruby address resolver to avoid blocking of the scheduler.
+				# `IPSocket.getaddress` isn't fiber aware before ruby-3.1.
+				require "resolv"
+				Resolv.getaddress(host)
+			else
+				IPSocket.getaddress(host)
+			end
+		end
 
 		if uri
 			uri.host     = nil if options[:host]
@@ -77,7 +127,7 @@ class PG::Connection
 			return uri.to_s.sub( /^#{uri.scheme}:(?!\/\/)/, "#{uri.scheme}://" )
 		else
 			option_string += ' ' unless option_string.empty? && options.empty?
-			return option_string + options.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
+			return option_string + connect_hash_to_string(options)
 		end
 	end
 

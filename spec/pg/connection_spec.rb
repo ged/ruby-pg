@@ -14,27 +14,70 @@ describe PG::Connection do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
 	end
 
-	it "can create a connection option string from a Hash of options" do
+	it "encode and decode Hash to connection string to Hash" do
+		hash = {
+			:host => 'pgsql.example.com',
+			:dbname => 'db01',
+			'sslmode' => 'require',
+			'somekey' => '',
+			'password' => "\\ \t\n\"'",
+		}
+		optstring = described_class.connect_hash_to_string(hash)
+		res = described_class.connect_string_to_hash(optstring)
+
+		expect( res ).to eq( hash.transform_keys(&:to_sym) )
+	end
+
+	it "decode option string to Hash" do
+		optstring = "host=c:\\\\pipe password = \\\\\\'\"  "
+		res = described_class.connect_string_to_hash(optstring)
+
+		expect( res ).to eq({
+			host: 'c:\pipe',
+			password: "\\'\"",
+		})
+	end
+
+	it "shouldn't resolve absolute path in connection option string" do
+		optstring = described_class.parse_connect_args(
+			:host => '/var/socket'
+		)
+		expect( optstring ).to match( /(^|\s)host='\/var\/socket'/ )
+		expect( optstring ).not_to match( /hostaddr/ )
+	end
+
+	it "shouldn't resolve Windows path in connection option string", :windows do
+		optstring = described_class.parse_connect_args(
+			:host => "C:\\pipe\\00"
+		)
+		expect( optstring ).to match( /(^|\s)host='C:\\\\pipe\\\\00'/ )
+		expect( optstring ).not_to match( /hostaddr/ )
+	end
+
+	it "can create a connection option string from a Hash parameter" do
 		optstring = described_class.parse_connect_args(
 			:host => 'pgsql.example.com',
 			:dbname => 'db01',
-			'sslmode' => 'require'
+			'sslmode' => 'require',
+			'hostaddr' => '1.2.3.4'
 		  )
 
 		expect( optstring ).to be_a( String )
 		expect( optstring ).to match( /(^|\s)host='pgsql.example.com'/ )
 		expect( optstring ).to match( /(^|\s)dbname='db01'/ )
 		expect( optstring ).to match( /(^|\s)sslmode='require'/ )
+		expect( optstring ).to match( /(^|\s)hostaddr='1.2.3.4'/ )
 	end
 
 	it "can create a connection option string from positional parameters" do
-		optstring = described_class.parse_connect_args( 'pgsql.example.com', nil, '-c geqo=off', nil,
+		optstring = described_class.parse_connect_args( 'localhost', nil, '-c geqo=off', nil,
 		                                       'sales' )
 
 		expect( optstring ).to be_a( String )
-		expect( optstring ).to match( /(^|\s)host='pgsql.example.com'/ )
+		expect( optstring ).to match( /(^|\s)host='localhost'/ )
 		expect( optstring ).to match( /(^|\s)dbname='sales'/ )
 		expect( optstring ).to match( /(^|\s)options='-c geqo=off'/ )
+		expect( optstring ).to match( /(^|\s)hostaddr='(::1|127.0.0.1)'/ )
 
 		expect( optstring ).to_not match( /port=/ )
 		expect( optstring ).to_not match( /tty=/ )
@@ -42,30 +85,32 @@ describe PG::Connection do
 
 	it "can create a connection option string from a mix of positional and hash parameters" do
 		optstring = described_class.parse_connect_args( 'pgsql.example.com',
-		                                       :dbname => 'licensing', :user => 'jrandom' )
+		                                       :dbname => 'licensing', :user => 'jrandom',
+				'hostaddr' => '1.2.3.4' )
 
 		expect( optstring ).to be_a( String )
 		expect( optstring ).to match( /(^|\s)host='pgsql.example.com'/ )
 		expect( optstring ).to match( /(^|\s)dbname='licensing'/ )
 		expect( optstring ).to match( /(^|\s)user='jrandom'/ )
+		expect( optstring ).to match( /(^|\s)hostaddr='1.2.3.4'/ )
 	end
 
 	it "can create a connection option string from an option string and a hash" do
-		optstring = described_class.parse_connect_args( 'dbname=original', :user => 'jrandom' )
+		optstring = described_class.parse_connect_args( 'dbname=original', :user => 'jrandom', 'host' => 'localhost' )
 
 		expect( optstring ).to be_a( String )
 		expect( optstring ).to match( /(^|\s)dbname=original/ )
 		expect( optstring ).to match( /(^|\s)user='jrandom'/ )
+		expect( optstring ).to match( /(^|\s)hostaddr='(::1|127.0.0.1)'/ )
 	end
 
 	it "escapes single quotes and backslashes in connection parameters" do
 		expect(
-			described_class.parse_connect_args( "DB 'browser' \\" )
-		).to match( /host='DB \\'browser\\' \\\\'/ )
-
+			described_class.parse_connect_args( password: "DB 'browser' \\" )
+		).to match( /password='DB \\'browser\\' \\\\'/ )
 	end
 
-	let(:uri) { 'postgresql://user:pass@pgsql.example.com:222/db01?sslmode=require' }
+	let(:uri) { 'postgresql://user:pass@pgsql.example.com:222/db01?sslmode=require&hostaddr=4.3.2.1' }
 
 	it "can connect using a URI" do
 		string = described_class.parse_connect_args( uri )
@@ -88,7 +133,9 @@ describe PG::Connection do
 		expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
 		expect( string ).to match( %r{\?.*sslmode=require} )
 		expect( string ).to match( %r{\?.*connect_timeout=2} )
+	end
 
+	it "can create a connection URI from a URI and prefers the hash" do
 		string = described_class.parse_connect_args( uri,
 			:user => 'a',
 			:password => 'b',
@@ -103,6 +150,7 @@ describe PG::Connection do
 		expect( string ).to match( %r{\?.*host=localhost} )
 		expect( string ).to match( %r{\?.*port=555} )
 		expect( string ).to match( %r{\?.*dbname=x} )
+		expect( string ).to match( %r{\?.*hostaddr=(%3A%3A1|127.0.0.1)} )
 	end
 
 	it "can create a connection URI with a non-standard domain socket directory" do
@@ -120,7 +168,7 @@ describe PG::Connection do
 	end
 
 	it "connects with defaults if no connection parameters are given" do
-		expect( described_class.parse_connect_args ).to eq( '' )
+		expect( described_class.parse_connect_args ).to match( /fallback_application_name='[^']+'/ )
 	end
 
 	it "connects successfully with connection string" do
@@ -134,6 +182,7 @@ describe PG::Connection do
 		expect( string ).to match( %r{(^|\s)host=localhost} )
 		expect( string ).to match( %r{(^|\s)port=555} )
 		expect( string ).to match( %r{(^|\s)dbname=test} )
+		expect( string ).to match( %r{(^|\s)hostaddr='(::1|127.0.0.1)'} )
 	end
 
 	it "connects successfully with connection string" do

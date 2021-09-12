@@ -103,6 +103,16 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
+	it "can connect with DNS lookup", :scheduler_address_resolve do
+		run_with_scheduler do
+			conninfo = @conninfo_gate.gsub(/(^| )host=\w+/, " host=scheduler-localhost")
+			conn = PG.connect(conninfo)
+			opt = conn.conninfo.find { |info| info[:keyword] == 'host' }
+			expect( opt[:val] ).to eq( 'scheduler-localhost' )
+			conn.finish
+		end
+	end
+
 	it "can reset the connection" do
 		run_with_scheduler do
 			conn = PG.connect(@conninfo_gate)

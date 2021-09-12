@@ -256,5 +256,13 @@ class TcpGateScheduler < Scheduler
 
 		super
 	end
+
+	# Rewrite the hostname to verify that address resolution goes through the scheduler.
+	def address_resolve(hostname)
+		if hostname =~ /\Ascheduler-(.*)/
+			hostname = $1
+		end
+		super(hostname)
+	end
 end
 end
