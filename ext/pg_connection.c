@@ -3089,6 +3089,7 @@ pgconn_discard_results(VALUE self)
 
 	for(;;) {
 		PGresult *cur;
+		int status;
 
 		/* pgconn_block() raises an exception in case of errors.
 		* To avoid this call rb_io_wait() and PQconsumeInput() without rb_raise().
@@ -3102,7 +3103,7 @@ pgconn_discard_results(VALUE self)
 		cur = gvl_PQgetResult(conn);
 		if( cur == NULL) break;
 
-		int status = PQresultStatus(cur);
+		status = PQresultStatus(cur);
 		PQclear(cur);
 		if (status == PGRES_COPY_IN){
 			gvl_PQputCopyEnd(conn, "COPY terminated by new PQexec");
