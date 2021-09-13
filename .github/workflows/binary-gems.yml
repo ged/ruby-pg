@@ -40,7 +40,7 @@ jobs:
           - ruby: "3.0"
             PGVERSION: 13.2-1-windows-x64
             PGVER: "13"
-          - ruby: "2.4"
+          - ruby: "2.5"
             PGVERSION: 10.16-1-windows
             PGVER: "10"
 

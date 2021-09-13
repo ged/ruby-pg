@@ -31,6 +31,6 @@ environment:
       RUBYDOWNLOAD: x86
       PGVERSION: 10.16-1-windows
       PGVER: 10
-    - ruby_version: "24"
+    - ruby_version: "25"
       PGVERSION: 9.3.25-1-windows
       PGVER: 9.3

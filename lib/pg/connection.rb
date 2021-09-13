@@ -485,8 +485,7 @@ class PG::Connection
 			end
 			REDIRECT_CLASS_METHODS.each do |ali, (async, sync)|
 				singleton_class.remove_method(ali) if method_defined?(ali)
-				# TODO: send is necessary for ruby < 2.5
-				singleton_class.send(:alias_method, ali, enable ? async : sync )
+				singleton_class.alias_method(ali, enable ? async : sync )
 			end
 		end
 	end
