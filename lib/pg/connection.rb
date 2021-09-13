@@ -54,7 +54,7 @@ class PG::Connection
 				value << (word || (sq || esc).gsub(/\\(.)/, '\\1'))
 			end
 			if sep
-				raise "missing = after #{value.inspect}" unless key
+				raise ArgumentError, "missing = after #{value.inspect}" unless key
 				options[key.to_sym] = value
 				key = nil
 				value = String.new
