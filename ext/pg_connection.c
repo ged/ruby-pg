@@ -286,13 +286,16 @@ pgconn_s_allocate( VALUE klass )
  *   PG::Connection.new
  *
  *   # As a Hash
- *   PG::Connection.new( :dbname => 'test', :port => 5432 )
+ *   PG::Connection.new( dbname: 'test', port: 5432 )
  *
  *   # As a String
  *   PG::Connection.new( "dbname=test port=5432" )
  *
  *   # As an Array
  *   PG::Connection.new( nil, 5432, nil, nil, 'test', nil, nil )
+ *
+ *   # As an URI
+ *   PG::Connection.new( "postgresql://user:pass@pgsql.example.com:5432/testdb?sslmode=require" )
  *
  * If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
  * connection will have its +client_encoding+ set accordingly.

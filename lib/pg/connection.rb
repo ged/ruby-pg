@@ -63,71 +63,99 @@ class PG::Connection
 		options
 	end
 
-	### Parse the connection +args+ into a connection-parameter string. See PG::Connection.new
-	### for valid arguments.
-	def self::parse_connect_args( *args )
-		hash_arg = args.last.is_a?( Hash ) ? args.pop : {}
-		option_string = ''
-		options = {}
+	# URI defined in RFC3986
+	# This regexp is modified to allow host to specify multiple comma separated components captured as <hostports>
+	# Taken from: https://github.com/ruby/ruby/blob/be04006c7d2f9aeb7e9d8d09d945b3a9c7850202/lib/uri/rfc3986_parser.rb#L6
+	POSTGRESQL_URI = /\A(?<URI>(?<scheme>[A-Za-z][+\-.0-9A-Za-z]*):(?<hier-part>\/\/(?<authority>(?:(?<userinfo>(?:%\h\h|[!$&-.0-;=A-Z_a-z~])*)@)?(?<hostports>(?<host>(?<IP-literal>\[(?:(?<IPv6address>(?:\h{1,4}:){6}(?<ls32>\h{1,4}:\h{1,4}|(?<IPv4address>(?<dec-octet>[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]|\d)\.\g<dec-octet>\.\g<dec-octet>\.\g<dec-octet>))|::(?:\h{1,4}:){5}\g<ls32>|\h{1,4}?::(?:\h{1,4}:){4}\g<ls32>|(?:(?:\h{1,4}:)?\h{1,4})?::(?:\h{1,4}:){3}\g<ls32>|(?:(?:\h{1,4}:){,2}\h{1,4})?::(?:\h{1,4}:){2}\g<ls32>|(?:(?:\h{1,4}:){,3}\h{1,4})?::\h{1,4}:\g<ls32>|(?:(?:\h{1,4}:){,4}\h{1,4})?::\g<ls32>|(?:(?:\h{1,4}:){,5}\h{1,4})?::\h{1,4}|(?:(?:\h{1,4}:){,6}\h{1,4})?::)|(?<IPvFuture>v\h+\.[!$&-.0-;=A-Z_a-z~]+))\])|\g<IPv4address>|(?<reg-name>(?:%\h\h|[!$&-.0-9;=A-Z_a-z~])+))?(?::(?<port>\d*))?(?:,\g<host>(?::\g<port>)?)*))(?<path-abempty>(?:\/(?<segment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])*))*)|(?<path-absolute>\/(?:(?<segment-nz>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])+)(?:\/\g<segment>)*)?)|(?<path-rootless>\g<segment-nz>(?:\/\g<segment>)*)|(?<path-empty>))(?:\?(?<query>[^#]*))?(?:\#(?<fragment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~\/?])*))?)\z/
 
-		options[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
+	# Parse the connection +args+ into a connection-parameter string.
+	# See PG::Connection.new for valid arguments.
+	#
+	# It accepts:
+	# * an option String kind of "host=name port=5432"
+	# * an option Hash kind of {host: "name", port: 5432}
+	# * URI string
+	# * URI object
+	# * positional arguments
+	#
+	# The method adds the option "hostaddr" and "fallback_application_name" if they aren't already set.
+	# The URI and the options string is passed through and "hostaddr" as well as "fallback_application_name"
+	# are added to the end.
+	def self::parse_connect_args( *args )
+		hash_arg = args.last.is_a?( Hash ) ? args.pop.transform_keys(&:to_sym) : {}
+		option_string = ""
+		iopts = {}
 
 		if args.length == 1
 			case args.first
-			when URI, /\A#{URI::ABS_URI_REF}\z/
-				uri = URI(args.first)
-				options.merge!( Hash[URI.decode_www_form( uri.query )] ) if uri.query
+			when URI, POSTGRESQL_URI
+				uri = args.first.to_s
+				uri_match = POSTGRESQL_URI.match(uri)
+				if uri_match['query']
+					iopts = URI.decode_www_form(uri_match['query']).to_h.transform_keys(&:to_sym)
+				end
+				# extract "host1,host2" from "host1:5432,host2:5432"
+				iopts[:host] = uri_match['hostports'].split(",").map { |hp| hp.split(":", 2)[0] }.join(",")
+				oopts = {}
 			when /=/
 				# Option string style
 				option_string = args.first.to_s
+				iopts = connect_string_to_hash(option_string)
+				oopts = {}
 			else
-				# Positional parameters
-				options[CONNECT_ARGUMENT_ORDER.first.to_sym] = args.first
+				# Positional parameters (only host given)
+				iopts[CONNECT_ARGUMENT_ORDER.first.to_sym] = args.first
+				oopts = iopts.dup
 			end
 		else
+			# Positional parameters
 			max = CONNECT_ARGUMENT_ORDER.length
 			raise ArgumentError,
 				"Extra positional parameter %d: %p" % [ max + 1, args[max] ] if args.length > max
 
 			CONNECT_ARGUMENT_ORDER.zip( args ) do |(k,v)|
-				options[ k.to_sym ] = v if v
+				iopts[ k.to_sym ] = v if v
 			end
+			oopts = iopts.dup
 		end
 
-		options.merge!( hash_arg.transform_keys(&:to_sym) )
+		iopts.merge!( hash_arg )
+		oopts.merge!( hash_arg )
 
 		# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
-		if (host = options[:host] || connect_string_to_hash(option_string)[:host]) &&
-				 # isn't UnixSocket
-				!host.empty? && !host.start_with?("/") &&
-				 # isn't a path on Windows
-				(RUBY_PLATFORM !~ /mingw|mswin/ || host !~ /\A\w:[\/\\]/)
+		if (host=iopts[:host]) && !iopts[:hostaddr]
+			hostaddrs = host.split(",").map do |mhost|
+				if !mhost.empty? && !mhost.start_with?("/") &&  # isn't UnixSocket
+						# isn't a path on Windows
+						(RUBY_PLATFORM !~ /mingw|mswin/ || mhost !~ /\A\w:[\/\\]/)
 
-			options[:hostaddr] ||= if
-					Fiber.respond_to?(:scheduler) &&
-					Fiber.scheduler &&
-					RUBY_VERSION < '3.1.'
+					if Fiber.respond_to?(:scheduler) &&
+							Fiber.scheduler &&
+							RUBY_VERSION < '3.1.'
 
-				# Use pure Ruby address resolver to avoid blocking of the scheduler.
-				# `IPSocket.getaddress` isn't fiber aware before ruby-3.1.
-				require "resolv"
-				Resolv.getaddress(host)
-			else
-				IPSocket.getaddress(host)
+						# Use pure Ruby address resolver to avoid blocking of the scheduler.
+						# `IPSocket.getaddress` isn't fiber aware before ruby-3.1.
+						require "resolv"
+						Resolv.getaddress(mhost) rescue ''
+					else
+						IPSocket.getaddress(mhost) rescue ''
+					end
+				end
 			end
+			oopts[:hostaddr] = hostaddrs.join(",") if hostaddrs.any?
+		end
+
+		if !iopts[:fallback_application_name]
+			oopts[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
 		end
 
 		if uri
-			uri.host     = nil if options[:host]
-			uri.port     = nil if options[:port]
-			uri.user     = nil if options[:user]
-			uri.password = nil if options[:password]
-			uri.path     = '' if options[:dbname]
-			uri.query    = URI.encode_www_form( options )
-			return uri.to_s.sub( /^#{uri.scheme}:(?!\/\/)/, "#{uri.scheme}://" )
+			uri += uri_match['query'] ? "&" : "?"
+			uri += URI.encode_www_form( oopts )
+			return uri
 		else
-			option_string += ' ' unless option_string.empty? && options.empty?
-			return option_string + connect_hash_to_string(options)
+			option_string += ' ' unless option_string.empty? && oopts.empty?
+			return option_string + connect_hash_to_string(oopts)
 		end
 	end
 
