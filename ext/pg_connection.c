@@ -922,6 +922,7 @@ pgconn_socket_io(VALUE self)
 	int sd;
 	int ruby_sd;
 	t_pg_connection *this = pg_get_connection_safe( self );
+	VALUE cSocket;
 	VALUE socket_io = this->socket_io;
 
 	if ( !RTEST(socket_io) ) {
@@ -935,7 +936,8 @@ pgconn_socket_io(VALUE self)
 			ruby_sd = sd;
 		#endif
 
-		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 2, INT2NUM(ruby_sd), INT2NUM(2 /* File::RDWR */) );
+		cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+		socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
 
 		/* Disable autoclose feature */
 		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
@@ -958,6 +960,51 @@ static VALUE
 pgconn_backend_pid(VALUE self)
 {
 	return INT2NUM(PQbackendPID(pg_get_pgconn(self)));
+}
+
+typedef struct
+{
+	struct sockaddr_storage addr;
+	socklen_t salen;
+} SockAddr;
+
+/* Copy of struct pg_cancel from libpq-int.h
+ *
+ * See https://github.com/postgres/postgres/blame/master/src/interfaces/libpq/libpq-int.h#L577-L586
+ */
+struct pg_cancel
+{
+	SockAddr	raddr;			/* Remote address */
+	int			be_pid;			/* PID of backend --- needed for cancels */
+	int			be_key;			/* key of backend --- needed for cancels */
+};
+
+/*
+ * call-seq:
+ *    conn.backend_key() -> Integer
+ *
+ * Returns the key of the backend server process for this connection.
+ * This key can be used to cancel queries on the server.
+ */
+static VALUE
+pgconn_backend_key(VALUE self)
+{
+	int be_key;
+	struct pg_cancel *cancel;
+	PGconn *conn = pg_get_pgconn(self);
+
+	cancel = (struct pg_cancel*)PQgetCancel(conn);
+	if(cancel == NULL)
+		rb_raise(rb_ePGerror,"Invalid connection!");
+
+	if( cancel->be_pid != PQbackendPID(conn) )
+		rb_raise(rb_ePGerror,"Unexpected binary struct layout - please file a bug report at ruby-pg!");
+
+	be_key = cancel->be_key;
+
+	PQfreeCancel(cancel);
+
+	return INT2NUM(be_key);
 }
 
 /*
@@ -4227,6 +4274,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
 	rb_define_method(rb_cPGconn, "socket_io", pgconn_socket_io, 0);
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
+	rb_define_method(rb_cPGconn, "backend_key", pgconn_backend_key, 0);
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);
 	/* rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0); */

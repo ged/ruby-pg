@@ -249,6 +249,14 @@ context "with a Fiber scheduler", :scheduler do
 			end
 		end
 	end
+
+	it "can cancel a query" do
+		run_with_scheduler do |conn|
+			conn.send_query "SELECT pg_sleep(5)"
+			conn.cancel
+			expect{ conn.get_last_result }.to raise_error(PG::QueryCanceled)
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.

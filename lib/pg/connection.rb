@@ -4,6 +4,7 @@
 require 'pg' unless defined?( PG )
 require 'uri'
 require 'io/wait'
+require 'socket'
 
 # The PostgreSQL connection class. The interface for this class is based on
 # {libpq}[http://www.postgresql.org/docs/9.2/interactive/libpq.html], the C
@@ -425,6 +426,31 @@ class PG::Connection
 		async_connect_reset(:reset_poll)
 	end
 
+	alias sync_cancel cancel
+	def async_cancel
+		cl = socket_io.remote_address.connect
+		be_pid = backend_pid
+		be_key = backend_key
+		# Send CANCEL_REQUEST_CODE and parameters
+		cl.write([0x10, 1234, 5678, be_pid, be_key].pack("NnnNN"))
+
+		# Wait for the postmaster to close the connection, which indicates that it's processed the request.
+		# cl.read should be enough, but read isn't scheduler compatible on Windows.
+		# Work around by using read_nonblock.
+		begin
+			cl.read_nonblock(1)
+		rescue IO::WaitReadable, Errno::EINTR
+			cl.wait_readable
+			retry
+		rescue EOFError
+		end
+
+		cl.close
+		nil
+	rescue SystemCallError => err
+		err.to_s
+	end
+
 	private def async_connect_reset(poll_meth)
 		# Now grab a reference to the underlying socket so we know when the connection is established
 		socket = socket_io
@@ -496,6 +522,7 @@ class PG::Connection
 			:reset => [:async_reset, :sync_reset],
 			:set_client_encoding => [:async_set_client_encoding, :sync_set_client_encoding],
 			:client_encoding= => [:async_set_client_encoding, :sync_set_client_encoding],
+			:cancel => [:async_cancel, :sync_cancel],
 		}
 
 		def async_send_api=(enable)

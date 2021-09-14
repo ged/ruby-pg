@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #if !defined(_WIN32)
 #	include <sys/time.h>
+#	include <sys/socket.h>
 #endif
 #if defined(HAVE_UNISTD_H) && !defined(_WIN32)
 #	include <unistd.h>
