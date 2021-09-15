@@ -423,7 +423,7 @@ class PG::Connection
 	alias sync_reset reset
 	def async_reset
 		reset_start
-		async_connect_reset(:reset_poll)
+		async_connect_or_reset(:reset_poll)
 	end
 
 	alias sync_cancel cancel
@@ -451,7 +451,7 @@ class PG::Connection
 		err.to_s
 	end
 
-	private def async_connect_reset(poll_meth)
+	private def async_connect_or_reset(poll_meth)
 		# Now grab a reference to the underlying socket so we know when the connection is established
 		socket = socket_io
 
@@ -491,9 +491,10 @@ class PG::Connection
 		def async_connect(*args, **kwargs)
 			conn = PG::Connection.connect_start(*args, **kwargs ) or
 				raise(PG::Error, "Unable to create a new connection")
+
 			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
 
-			conn.send(:async_connect_reset, :connect_poll)
+			conn.send(:async_connect_or_reset, :connect_poll)
 		end
 
 		REDIRECT_CLASS_METHODS = {
