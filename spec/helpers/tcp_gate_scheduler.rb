@@ -210,7 +210,7 @@ class TcpGateScheduler < Scheduler
 	end
 
 	def io_wait(io, events, duration)
-		#$stderr.puts [:IO_WAIT, io, events, duration, Fiber.current].inspect
+		puts "io_wait(#{io.inspect}, #{events}, #{duration}) from #{caller[0]}"
 
 		begin
 			sock = TCPSocket.for_fd(io.fileno)
@@ -261,23 +261,23 @@ class TcpGateScheduler < Scheduler
 			conn.observed_fd = io.fileno
 
 			if (events & IO::WRITABLE) > 0
-				puts "write-trigger from fd:#{io.fileno} #{conn.write_fds} until #{io.fileno} writeable"
+				puts "write-trigger #{conn.write_fds} until #{io.fileno} writeable"
 				conn.write(transfer_until: io)
 
 				if (events & IO::READABLE) > 0
-					puts "read-trigger from fd:#{io.fileno} #{conn.read_fds} single block"
+					puts "read-trigger #{conn.read_fds} single block"
 					conn.read(transfer_until: false)
 				end
 			else
 				if (events & IO::READABLE) > 0
-					puts "write-trigger from fd:#{io.fileno} #{conn.write_fds} until wouldblock"
+					puts "write-trigger #{conn.write_fds} until wouldblock"
 					# Many applications wait for writablility only in a would-block case.
 					# Then we get no trigger although data was written to the observed IO.
 					# After writing some data the caller usually waits for some answer to read.
 					# We take this event as a trigger to transfer of all pending written data.
 					conn.write(transfer_until: :wouldblock)
 
-					puts "read-trigger from fd:#{io.fileno} #{conn.read_fds} single block"
+					puts "read-trigger #{conn.read_fds} single block"
 					conn.read(transfer_until: false)
 				end
 			end
