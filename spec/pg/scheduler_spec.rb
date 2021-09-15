@@ -94,11 +94,17 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
-	it "connects several times" do
+	it "connects several times concurrently" do
 		run_with_scheduler do
+			q = Queue.new
 			3.times do
-				conn = PG.connect(@conninfo_gate)
-				conn.finish
+				Fiber.schedule do
+					conn = PG.connect(@conninfo_gate)
+					conn.finish
+					q << true
+				end
+			end.times do
+				q.pop
 			end
 		end
 	end
