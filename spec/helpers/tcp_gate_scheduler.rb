@@ -37,7 +37,7 @@ class TcpGateScheduler < Scheduler
 
 		def other_side_of?(local_address, remote_address)
 			internal_io.local_address.to_s == remote_address.to_s && internal_io.remote_address.to_s == local_address.to_s
-		rescue Errno::ENOTCONN
+		rescue Errno::ENOTCONN, Errno::EINVAL
 			# internal_io.remote_address fails, if connection is already half closed
 			false
 		end
