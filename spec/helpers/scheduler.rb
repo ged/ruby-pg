@@ -39,13 +39,7 @@ class Scheduler
 		_fiber, timeout = @waiting.min_by{|key, value| value}
 
 		if timeout
-			offset = timeout - current_time
-
-			if offset < 0
-				return 0
-			else
-				return offset
-			end
+			[0, timeout - current_time].max
 		end
 	end
 

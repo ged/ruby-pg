@@ -435,7 +435,7 @@ class PG::Connection
 		cl.write([0x10, 1234, 5678, be_pid, be_key].pack("NnnNN"))
 
 		# Wait for the postmaster to close the connection, which indicates that it's processed the request.
-		# cl.read should be enough, but read isn't scheduler compatible on Windows.
+		# cl.read(1) should be enough, but read isn't scheduler compatible on Windows.
 		# Work around by using read_nonblock.
 		begin
 			cl.read_nonblock(1)

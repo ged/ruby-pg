@@ -22,6 +22,7 @@ class TcpGateScheduler < Scheduler
 	class Connection
 		attr_reader :internal_io
 		attr_reader :external_io
+		attr_accessor :observed_fd
 
 		def initialize(internal_io, external_host, external_port, debug: false)
 			@internal_io = internal_io
@@ -32,6 +33,13 @@ class TcpGateScheduler < Scheduler
 			@pending_read = false
 			@pending_write = false
 			@debug = debug
+		end
+
+		def other_side_of?(local_address, remote_address)
+			internal_io.local_address.to_s == remote_address.to_s && internal_io.remote_address.to_s == local_address.to_s
+		rescue Errno::ENOTCONN
+			# internal_io.remote_address fails, if connection is already half closed
+			false
 		end
 
 		def print_data(desc, data)
@@ -57,7 +65,7 @@ class TcpGateScheduler < Scheduler
 					@external_io = TCPSocket.new(@external_host, @external_port)
 					@pending_connect.close
 					@pending_connect = false
-					puts "connected to external: #{@external_io.inspect}"
+					puts "connected ext:#{@external_io.inspect} (belongs to int:#{@internal_io.fileno})"
 				else
 					# connection is being established -> wait for it before doing read/write
 					@pending_connect.pop
@@ -83,13 +91,13 @@ class TcpGateScheduler < Scheduler
 					begin
 						begin
 							read_str = @external_io.read_nonblock(1000)
-							print_data("read  fd:#{@external_io.fileno}->#{@internal_io.fileno}", read_str)
+							print_data("read-transfer #{read_fds}", read_str)
 							@internal_io.write(read_str)
 						rescue IO::WaitReadable, Errno::EINTR
 							@external_io.wait_readable
 							retry
 						rescue EOFError, Errno::ECONNRESET
-							puts "read_eof from fd:#{@external_io.fileno}"
+							puts "read_eof from #{read_fds}"
 							@internal_io.close_write
 							break
 						end
@@ -105,7 +113,7 @@ class TcpGateScheduler < Scheduler
 		#
 		# Option `transfer_until` can be (higher to lower priority):
 		#   :eof => transfer until channel is closed
-		#   :nodata => transfer until no immediate data is available
+		#   :wouldblock => transfer until no immediate data is available
 		#   IO object => transfer until IO is writeable
 		#
 		# The method does nothing if a transfer is already pending, but might raise the transfer_until option, if the requested priority is higher than the pending transfer.
@@ -115,7 +123,6 @@ class TcpGateScheduler < Scheduler
 				@transfer_until = transfer_until
 
 				Fiber.schedule do
-					puts "start write #{@transfer_until.is_a?(IO) ? "until #{@transfer_until.inspect} is writeable" : "until #{@transfer_until}"}"
 					connect
 
 					# transfer data blocks of up to 65536 bytes
@@ -125,7 +132,7 @@ class TcpGateScheduler < Scheduler
 						len = 65536
 						begin
 							read_str = @internal_io.read_nonblock(len)
-							print_data("write fd:#{@internal_io.fileno}->#{@external_io.fileno}", read_str)
+							print_data("write-transfer #{write_fds}", read_str)
 							sleep 0
 							@external_io.write(read_str)
 							if @transfer_until.is_a?(IO)
@@ -140,7 +147,7 @@ class TcpGateScheduler < Scheduler
 							@internal_io.wait_readable
 							retry
 						rescue EOFError, Errno::ECONNRESET
-							puts "write_eof from fd:#{@internal_io.fileno}"
+							puts "write_eof from #{write_fds}"
 							@external_io.close_write
 							break
 						end
@@ -150,7 +157,7 @@ class TcpGateScheduler < Scheduler
 					@pending_write = false
 				end
 
-			elsif (transfer_until == :nodata && @transfer_until.is_a?(IO)) ||
+			elsif (transfer_until == :wouldblock && @transfer_until.is_a?(IO)) ||
 					transfer_until == :eof
 				# If a write request without stopping on writablility comes in,
 				# make sure, that the pending transfer doesn't abort prematurely.
@@ -158,8 +165,17 @@ class TcpGateScheduler < Scheduler
 			end
 		end
 
+		def read_fds
+			"ext:#{@external_io&.fileno || '-'}->int:#{@internal_io.fileno} obs:#{observed_fd}"
+		end
+
+		def write_fds
+			"int:#{@internal_io.fileno}->ext:#{@external_io&.fileno || '-'} obs:#{observed_fd}"
+		end
+
 		# Make sure all data is transferred and both connections are closed.
 		def finish
+			puts "finish transfers #{write_fds} and #{read_fds}"
 			write transfer_until: :eof
 			read transfer_until: :eof
 		end
@@ -174,6 +190,7 @@ class TcpGateScheduler < Scheduler
 		@external_port = external_port
 		@finish = false
 		@debug = debug
+		puts "TcpGate server listening: #{@server_io.inspect}"
 	end
 
 	def finish
@@ -196,6 +213,7 @@ class TcpGateScheduler < Scheduler
 		begin
 			sock = TCPSocket.for_fd(io.fileno)
 			sock.autoclose = false
+			local_address = sock.local_address
 			remote_address = sock.remote_address
 		rescue Errno::ENOTCONN, Errno::EINVAL
 		end
@@ -210,7 +228,7 @@ class TcpGateScheduler < Scheduler
 						break
 					else
 						conn = Connection.new(client, @external_host, @external_port, debug: @debug)
-						puts "accept new observed connection: #{conn.internal_io.inspect}"
+						puts "accept new int:#{conn.internal_io.inspect} from #{conn.internal_io.remote_address.inspect} server fd:#{@server_io.fileno}"
 						@connections << conn
 					end
 				end
@@ -225,9 +243,8 @@ class TcpGateScheduler < Scheduler
 		# Some IO call is waiting for data by rb_wait_for_single_fd() or so.
 		# Is it on our intercepted IO?
 		# Inspect latest connections first, since closed connections aren't removed immediately.
-		if cidx=@connections.rindex { |g| g.internal_io.local_address.to_s == remote_address.to_s }
+		if cidx=@connections.rindex { _1.other_side_of?(local_address, remote_address) }
 			conn = @connections[cidx]
-			puts "trigger: fd:#{io.fileno} #{{addr: remote_address, events: events}}"
 			# Success! Our observed client IO waits for some data to be readable or writable.
 			# The IO function running on the observed IO did make proper use of some ruby wait function.
 			# As a reward we provide some data to read or write.
@@ -235,20 +252,30 @@ class TcpGateScheduler < Scheduler
 			# To the contrary:
 			# If the blocking IO function doesn't make use of ruby wait functions, then it won't get any data and starve as a result.
 
+			# compare and store the fileno for debugging
+			if conn.observed_fd && conn.observed_fd != io.fileno
+				raise "observed fd changed: old:#{conn.observed_fd} new:#{io.fileno}"
+			end
+			conn.observed_fd = io.fileno
+
 			if (events & IO::WRITABLE) > 0
+				puts "write-trigger from fd:#{io.fileno} #{conn.write_fds} until #{io.fileno} writeable"
 				conn.write(transfer_until: io)
 
 				if (events & IO::READABLE) > 0
+					puts "read-trigger from fd:#{io.fileno} #{conn.read_fds} single block"
 					conn.read(transfer_until: false)
 				end
 			else
 				if (events & IO::READABLE) > 0
-					# Call the write handler here because writes usually succeed without waiting for writablility.
-					# In this case the callback wait_io(IO::WRITABLE) isn't called, so that we don't get a trigger to transfer data.
-					# But after sending some data the caller usually waits for some answer to read.
-					# Therefore trigger transfer of all pending written data.
-					conn.write(transfer_until: :nodata)
+					puts "write-trigger from fd:#{io.fileno} #{conn.write_fds} until wouldblock"
+					# Many applications wait for writablility only in a would-block case.
+					# Then we get no trigger although data was written to the observed IO.
+					# After writing some data the caller usually waits for some answer to read.
+					# We take this event as a trigger to transfer of all pending written data.
+					conn.write(transfer_until: :wouldblock)
 
+					puts "read-trigger from fd:#{io.fileno} #{conn.read_fds} single block"
 					conn.read(transfer_until: false)
 				end
 			end
