@@ -3077,6 +3077,42 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 
 /*
  * call-seq:
+ *    conn.sync_get_last_result( ) -> PG::Result
+ *
+ * This function has the same behavior as #async_get_last_result, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #get_last_result instead, unless you have a good reason to do so.
+ */
+static VALUE
+pgconn_get_last_result(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	VALUE rb_pgresult = Qnil;
+	PGresult *cur, *prev;
+
+
+	cur = prev = NULL;
+	while ((cur = gvl_PQgetResult(conn)) != NULL) {
+		int status;
+
+		if (prev) PQclear(prev);
+		prev = cur;
+
+		status = PQresultStatus(cur);
+		if (status == PGRES_COPY_OUT || status == PGRES_COPY_IN || status == PGRES_COPY_BOTH)
+			break;
+	}
+
+	if (prev) {
+		rb_pgresult = pg_new_result( prev, self );
+		pg_result_check(rb_pgresult);
+	}
+
+	return rb_pgresult;
+}
+
+/*
+ * call-seq:
  *    conn.get_last_result( ) -> PG::Result
  *
  * This function retrieves all available results
@@ -3090,16 +3126,21 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
  * one result.
  */
 static VALUE
-pgconn_get_last_result(VALUE self)
+pgconn_async_get_last_result(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	VALUE rb_pgresult = Qnil;
 	PGresult *cur, *prev;
 
-
-	cur = prev = NULL;
-	while ((cur = gvl_PQgetResult(conn)) != NULL) {
+  cur = prev = NULL;
+	for(;;) {
 		int status;
+
+		pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+
+		cur = gvl_PQgetResult(conn);
+		if (cur == NULL)
+			break;
 
 		if (prev) PQclear(prev);
 		prev = cur;
@@ -3215,8 +3256,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 
 	pgconn_discard_results( self );
 	pgconn_send_query( argc, argv, self );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3288,8 +3328,7 @@ pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
 	} else {
 		pgconn_send_query_params( argc, argv, self );
 	}
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3327,8 +3366,7 @@ pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
 
 	pgconn_discard_results( self );
 	pgconn_send_prepare( argc, argv, self );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3381,8 +3419,7 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 	pgconn_discard_results( self );
 	pgconn_send_query_prepared( argc, argv, self );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3406,8 +3443,7 @@ pgconn_async_describe_portal(VALUE self, VALUE portal)
 
 	pgconn_discard_results( self );
 	pgconn_send_describe_portal( self, portal );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3431,8 +3467,7 @@ pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
 
 	pgconn_discard_results( self );
 	pgconn_send_describe_prepared( self, stmt_name );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -4361,7 +4396,8 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
-	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
+	rb_define_method(rb_cPGconn, "sync_get_last_result", pgconn_get_last_result, 0);
+	rb_define_method(rb_cPGconn, "async_get_last_result", pgconn_async_get_last_result, 0);
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
 	rb_define_method(rb_cPGconn, "encrypt_password", pgconn_encrypt_password, -1);
 #endif

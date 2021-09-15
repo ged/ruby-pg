@@ -366,12 +366,6 @@ class PG::Connection
 		sync_get_result
 	end
 
-	alias sync_get_last_result get_last_result
-	def async_get_last_result(*args)
-		block
-		sync_get_last_result
-	end
-
 	alias sync_get_copy_data get_copy_data
 	def async_get_copy_data(async=false, decoder=nil)
 		if async

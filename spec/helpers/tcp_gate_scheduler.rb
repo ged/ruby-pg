@@ -90,7 +90,9 @@ class TcpGateScheduler < Scheduler
 
 					begin
 						begin
-							read_str = @external_io.read_nonblock(1000)
+							# 140 bytes transfer is required to trigger an error in spec "can cancel a query", when get_last_error doesn't wait for readability between PQgetResult calls.
+							# TODO: Make an explicit spec for this case.
+							read_str = @external_io.read_nonblock(140)
 							print_data("read-transfer #{read_fds}", read_str)
 							@internal_io.write(read_str)
 						rescue IO::WaitReadable, Errno::EINTR
