@@ -167,7 +167,14 @@ class Scheduler
 			@writable[io] = Fiber.current
 		end
 
+		if duration
+			@waiting[Fiber.current] = current_time + duration
+		end
+
 		Fiber.yield
+	ensure
+		# Remove from @waiting in the case event occured before the timeout expired:
+		@waiting.delete(Fiber.current) if duration
 	end
 
 	# Used for Kernel#sleep and Thread::Mutex#sleep
