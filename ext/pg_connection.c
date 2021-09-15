@@ -936,7 +936,7 @@ pgconn_socket_io(VALUE self)
 			ruby_sd = sd;
 		#endif
 
-		cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+		cSocket = rb_const_get(rb_cObject, rb_intern("Socket"));
 		socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
 
 		/* Disable autoclose feature */
