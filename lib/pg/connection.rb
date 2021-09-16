@@ -422,21 +422,33 @@ class PG::Connection
 
 	alias sync_cancel cancel
 	def async_cancel
-		cl = socket_io.remote_address.connect
 		be_pid = backend_pid
 		be_key = backend_key
-		# Send CANCEL_REQUEST_CODE and parameters
-		cl.write([0x10, 1234, 5678, be_pid, be_key].pack("NnnNN"))
+		cancel_request = [0x10, 1234, 5678, be_pid, be_key].pack("NnnNN")
 
-		# Wait for the postmaster to close the connection, which indicates that it's processed the request.
-		# cl.read(1) should be enough, but read isn't scheduler compatible on Windows.
-		# Work around by using read_nonblock.
-		begin
-			cl.read_nonblock(1)
-		rescue IO::WaitReadable, Errno::EINTR
-			cl.wait_readable
-			retry
-		rescue EOFError
+		if Fiber.respond_to?(:scheduler) && Fiber.scheduler && RUBY_PLATFORM =~ /mingw|mswin/
+			# Ruby's nonblocking IO is not really supported on Windows.
+			# We work around by using threads and explicit calls to wait_readable/wait_writable.
+			cl = Thread.new(socket_io.remote_address) { |ra| ra.connect }.value
+			begin
+				cl.write_nonblock(cancel_request)
+			rescue IO::WaitReadable, Errno::EINTR
+				cl.wait_writable
+				retry
+			end
+			begin
+				cl.read_nonblock(1)
+			rescue IO::WaitReadable, Errno::EINTR
+				cl.wait_readable
+				retry
+			rescue EOFError
+			end
+		else
+			cl = socket_io.remote_address.connect
+			# Send CANCEL_REQUEST_CODE and parameters
+			cl.write(cancel_request)
+			# Wait for the postmaster to close the connection, which indicates that it's processed the request.
+			cl.read(1)
 		end
 
 		cl.close
