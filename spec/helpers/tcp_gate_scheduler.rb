@@ -36,7 +36,7 @@ class TcpGateScheduler < Scheduler
 		end
 
 		def other_side_of?(local_address, remote_address)
-			internal_io.local_address.to_s == remote_address.to_s && internal_io.remote_address.to_s == local_address.to_s
+			internal_io.local_address.to_s == remote_address && internal_io.remote_address.to_s == local_address
 		rescue Errno::ENOTCONN, Errno::EINVAL
 			# internal_io.remote_address fails, if connection is already half closed
 			false
@@ -183,10 +183,13 @@ class TcpGateScheduler < Scheduler
 		end
 	end
 
+	UnknownConnection = Struct.new :fileno, :events
+
 	def initialize(external_host:, external_port:, internal_host: 'localhost', internal_port: 0, debug: false)
 		super()
 		@started = false
 		@connections = []
+		@unknown_connections = {}
 		@server_io = TCPServer.new(internal_host, internal_port)
 		@external_host = external_host
 		@external_port = external_port
@@ -219,8 +222,8 @@ class TcpGateScheduler < Scheduler
 		begin
 			sock = TCPSocket.for_fd(io.fileno)
 			sock.autoclose = false
-			local_address = sock.local_address
-			remote_address = sock.remote_address
+			local_address = sock.local_address.to_s
+			remote_address = sock.remote_address.to_s
 		rescue Errno::ENOTCONN, Errno::EINVAL
 		end
 
@@ -236,6 +239,20 @@ class TcpGateScheduler < Scheduler
 						conn = Connection.new(client, @external_host, @external_port, debug: @debug)
 						puts "accept new int:#{conn.internal_io.inspect} from #{conn.internal_io.remote_address.inspect} server fd:#{@server_io.fileno}"
 						@connections << conn
+
+						# Have there been any events on the connection before accept?
+						if uconn=@unknown_connections.delete([conn.internal_io.remote_address.to_s, conn.internal_io.local_address.to_s])
+							conn.observed_fd = uconn.fileno
+
+							if (uconn.events & IO::WRITABLE) > 0
+								puts "late-write-trigger #{conn.write_fds} until wouldblock"
+								conn.write(transfer_until: :wouldblock)
+							end
+							if (uconn.events & IO::READABLE) > 0
+								puts "late-read-trigger #{conn.read_fds} single block"
+								conn.read(transfer_until: false)
+							end
+						end
 					end
 				end
 			end
@@ -284,6 +301,14 @@ class TcpGateScheduler < Scheduler
 					puts "read-trigger #{conn.read_fds} single block"
 					conn.read(transfer_until: false)
 				end
+			end
+		else
+			# Maybe the connection is not yet accepted.
+			# We store it to do the transfer after accept arrived.
+			if uc=@unknown_connections[[local_address, remote_address]]
+				uc.events |= events
+			else
+				@unknown_connections[[local_address, remote_address]] = UnknownConnection.new(io.fileno, events)
 			end
 		end
 
