@@ -192,6 +192,7 @@ class TcpGateScheduler < Scheduler
 		@external_port = external_port
 		@finish = false
 		@debug = debug
+		@in_puts = false
 		puts "TcpGate server listening: #{@server_io.inspect}"
 	end
 
@@ -205,8 +206,11 @@ class TcpGateScheduler < Scheduler
 	end
 
 	def puts(*args)
-		return unless @debug
+		return if !@debug || @in_puts # Avoid recursive calls of puts
+		@in_puts = true
 		super
+	ensure
+		@in_puts = false
 	end
 
 	def io_wait(io, events, duration)
