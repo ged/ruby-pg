@@ -443,6 +443,24 @@ class PG::Connection
 				retry
 			rescue EOFError
 			end
+		elsif RUBY_ENGINE == 'truffleruby'
+			begin
+				cl = socket_io.remote_address.connect
+			rescue NotImplementedError
+				# Workaround for truffleruby < 21.3.0
+				cl2 = Socket.for_fd(socket_io.fileno)
+				cl2.autoclose = false
+				adr = cl2.remote_address
+				if adr.ip?
+					cl = TCPSocket.new(adr.ip_address, adr.ip_port)
+					cl.autoclose = false
+				else
+					cl = UNIXSocket.new(adr.unix_path)
+					cl.autoclose = false
+				end
+			end
+			cl.write(cancel_request)
+			cl.read(1)
 		else
 			cl = socket_io.remote_address.connect
 			# Send CANCEL_REQUEST_CODE and parameters
