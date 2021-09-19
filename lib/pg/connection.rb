@@ -414,6 +414,14 @@ class PG::Connection
 		true
 	end
 
+	if method_defined? :encrypt_password
+		alias sync_encrypt_password encrypt_password
+		def async_encrypt_password( password, username, algorithm=nil )
+			algorithm ||= exec("SHOW password_encryption").getvalue(0,0)
+			sync_encrypt_password(password, username, algorithm)
+		end
+	end
+
 	alias sync_reset reset
 	def async_reset
 		reset_start
@@ -549,6 +557,12 @@ class PG::Connection
 			:client_encoding= => [:async_set_client_encoding, :sync_set_client_encoding],
 			:cancel => [:async_cancel, :sync_cancel],
 		}
+
+		if PG::Connection.instance_methods.include? :async_encrypt_password
+			REDIRECT_METHODS.merge!({
+				:encrypt_password => [:async_encrypt_password, :sync_encrypt_password],
+			})
+		end
 
 		def async_send_api=(enable)
 			REDIRECT_SEND_METHODS.each do |ali, (async, sync)|

@@ -264,6 +264,15 @@ context "with a Fiber scheduler", :scheduler do
 			expect{ conn.get_last_result }.to raise_error(PG::QueryCanceled)
 		end
 	end
+
+	it "can encrypt_password", :postgresql_10 do
+		run_with_scheduler do |conn|
+			res = conn.encrypt_password "passw", "myuser"
+			expect( res ).to  match( /\S+/ )
+			res = conn.encrypt_password "passw", "myuser", "md5"
+			expect( res ).to eq( "md57883f68fde2c10fdabfb7640c74cf1a7" )
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.
