@@ -273,6 +273,15 @@ context "with a Fiber scheduler", :scheduler do
 			expect( res ).to eq( "md57883f68fde2c10fdabfb7640c74cf1a7" )
 		end
 	end
+
+	it "can ping server" do
+		run_with_scheduler do |conn|
+			# ping doesn't trigger the scheduler, but runs in a second thread.
+			# This is why @conninfo is used instead of @conninfo_gate
+			ping = PG::Connection.ping(@conninfo)
+			expect( ping ).to eq( PG::PQPING_OK )
+		end
+	end
 end
 
 # Do not wait for threads doing blocking calls at the process shutdown.

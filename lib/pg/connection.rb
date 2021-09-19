@@ -529,8 +529,20 @@ class PG::Connection
 			conn.send(:async_connect_or_reset, :connect_poll)
 		end
 
+		alias sync_ping ping
+		def async_ping(*args)
+			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
+				# Run PQping in a second thread to avoid blocking of the scheduler.
+				# Unfortunately there's no nonblocking way to run ping.
+				Thread.new { sync_ping(*args) }.value
+			else
+				sync_ping(*args)
+			end
+		end
+
 		REDIRECT_CLASS_METHODS = {
 			:new => [:async_connect, :sync_connect],
+			:ping => [:async_ping, :sync_ping],
 		}
 
 		# These methods are affected by PQsetnonblocking
