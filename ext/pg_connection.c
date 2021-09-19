@@ -402,7 +402,7 @@ pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
 	VALUE conninfo;
 
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
-	ping     = PQping( StringValueCStr(conninfo) );
+	ping     = gvl_PQping( StringValueCStr(conninfo) );
 
 	return INT2FIX((int)ping);
 }

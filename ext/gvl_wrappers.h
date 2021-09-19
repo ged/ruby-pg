@@ -95,6 +95,8 @@
 
 #define FOR_EACH_PARAM_OF_PQresetPoll(param)
 
+#define FOR_EACH_PARAM_OF_PQping(param)
+
 #define FOR_EACH_PARAM_OF_PQexec(param) \
 	param(PGconn *, conn)
 
@@ -196,6 +198,7 @@
 	function(PQreset, GVL_TYPE_VOID, void, PGconn *, conn) \
 	function(PQresetStart, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQresetPoll, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGconn *, conn) \
+	function(PQping, GVL_TYPE_NONVOID, PGPing, const char *, conninfo) \
 	function(PQexec, GVL_TYPE_NONVOID, PGresult *, const char *, command) \
 	function(PQexecParams, GVL_TYPE_NONVOID, PGresult *, int, resultFormat) \
 	function(PQexecPrepared, GVL_TYPE_NONVOID, PGresult *, int, resultFormat) \
