@@ -50,7 +50,7 @@
 		return NULL; \
 	}
 
-#ifdef ENABLE_NOGVL
+#ifdef ENABLE_GVL_UNLOCK
 #define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 		struct gvl_wrapper_##name##_params params = { \
@@ -78,7 +78,7 @@
 		return NULL; \
 	}
 
-#ifdef ENABLE_NOGVL
+#ifdef ENABLE_GVL_UNLOCK
 #define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 		struct gvl_wrapper_##name##_params params = { \

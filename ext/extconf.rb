@@ -15,8 +15,11 @@ if pgdir = with_config( 'pg' )
 	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
-if enable_config("nogvl")
-	$defs.push( "-DENABLE_NOGVL" )
+if enable_config("gvl-unlock", true)
+	$defs.push( "-DENABLE_GVL_UNLOCK" )
+	$stderr.puts "Calling libpq with GVL unlocked"
+else
+	$stderr.puts "Calling libpq with GVL locked"
 end
 
 if enable_config("windows-cross")
