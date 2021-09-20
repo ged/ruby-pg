@@ -224,7 +224,7 @@ class TcpGateScheduler < Scheduler
 			sock.autoclose = false
 			local_address = sock.local_address.to_s
 			remote_address = sock.remote_address.to_s
-		rescue Errno::ENOTCONN, Errno::EINVAL
+		rescue Errno::ENOTCONN, Errno::EINVAL, Errno::EBADF
 		end
 
 		unless @started
