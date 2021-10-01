@@ -134,10 +134,9 @@ class PG::Connection
 							Fiber.scheduler &&
 							RUBY_VERSION < '3.1.'
 
-						# Use pure Ruby address resolver to avoid blocking of the scheduler.
+						# Use a second thread to avoid blocking of the scheduler.
 						# `IPSocket.getaddress` isn't fiber aware before ruby-3.1.
-						require "resolv"
-						Resolv.getaddress(mhost) rescue ''
+						Thread.new{ IPSocket.getaddress(mhost) rescue '' }.value
 					else
 						IPSocket.getaddress(mhost) rescue ''
 					end
