@@ -1,5 +1,5 @@
 sudo: required
-dist: xenial
+dist: focal
 services:
   - docker
 language: ruby
@@ -17,10 +17,15 @@ matrix:
       script: |
         docker run --rm -t --network=host ruby-pg
 
-    - rvm: "2.4"
+    - rvm: "2.5"
       env:
         - "PGVERSION=9.3"
+      # Use Ubuntu-16.04 since postgresql-9.3 depends on openssl-1.0.0, which isn't available in 20.04
+      dist: xenial
     - rvm: ruby-head
+      env:
+        - "PGVERSION=13"
+    - rvm: truffleruby
       env:
         - "PGVERSION=13"
 
@@ -38,7 +43,7 @@ before_install:
   - export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
 
 script:
-  - bundle exec rake compile test
+  - bundle exec rake compile test PG_DEBUG=1
 
 after_failure:
   - "find tmp -name mkmf.log | xargs cat"

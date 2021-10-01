@@ -291,7 +291,7 @@ CrossLibraries.each do |xlib|
 		RakeCompilerDock.sh <<-EOT, platform: platform
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKE="make -j`nproc`"
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKE="make -j`nproc`" RUBY_CC_VERSION=3.0.0:2.7.0:2.6.0:2.5.0
 		EOT
 	end
 	desc "Build the windows binary gems"

@@ -17,6 +17,10 @@
 
 #include <ruby/thread.h>
 
+#ifdef RUBY_EXTCONF_H
+#	include RUBY_EXTCONF_H
+#endif
+
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
 
@@ -46,6 +50,7 @@
 		return NULL; \
 	}
 
+#ifdef ENABLE_GVL_UNLOCK
 #define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 		struct gvl_wrapper_##name##_params params = { \
@@ -54,6 +59,13 @@
 		rb_thread_call_without_gvl(gvl_##name##_skeleton, &params, RUBY_UBF_IO, 0); \
 		when_non_void( return params.retval; ) \
 	}
+#else
+#define DEFINE_GVL_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
+		when_non_void( return ) \
+			name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
+	}
+#endif
 
 #define DEFINE_GVL_STUB_DECL(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname);
@@ -66,6 +78,7 @@
 		return NULL; \
 	}
 
+#ifdef ENABLE_GVL_UNLOCK
 #define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
 	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
 		struct gvl_wrapper_##name##_params params = { \
@@ -74,6 +87,13 @@
 		rb_thread_call_with_gvl(gvl_##name##_skeleton, &params); \
 		when_non_void( return params.retval; ) \
 	}
+#else
+#define DEFINE_GVLCB_STUB(name, when_non_void, rettype, lastparamtype, lastparamname) \
+	rettype gvl_##name(FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST3) lastparamtype lastparamname){ \
+		when_non_void( return ) \
+			name( FOR_EACH_PARAM_OF_##name(DEFINE_PARAM_LIST1) lastparamname ); \
+	}
+#endif
 
 #define GVL_TYPE_VOID(string)
 #define GVL_TYPE_NONVOID(string) string

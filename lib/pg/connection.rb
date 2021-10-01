@@ -3,6 +3,8 @@
 
 require 'pg' unless defined?( PG )
 require 'uri'
+require 'io/wait'
+require 'socket'
 
 # The PostgreSQL connection class. The interface for this class is based on
 # {libpq}[http://www.postgresql.org/docs/9.2/interactive/libpq.html], the C
@@ -25,62 +27,135 @@ class PG::Connection
 	CONNECT_ARGUMENT_ORDER = %w[host port options tty dbname user password]
 
 
-	### Quote the given +value+ for use in a connection-parameter string.
-	def self::quote_connstr( value )
+	### Quote a single +value+ for use in a connection-parameter string.
+	def self.quote_connstr( value )
 		return "'" + value.to_s.gsub( /[\\']/ ) {|m| '\\' + m } + "'"
 	end
 
+	# Convert Hash options to connection String
+	#
+	# Values are properly quoted and escaped.
+	def self.connect_hash_to_string( hash )
+		hash.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
+	end
 
-	### Parse the connection +args+ into a connection-parameter string. See PG::Connection.new
-	### for valid arguments.
-	def self::parse_connect_args( *args )
-		return '' if args.empty?
-
-		hash_arg = args.last.is_a?( Hash ) ? args.pop : {}
-		option_string = ''
+	# Decode a connection string to Hash options
+	#
+	# Value are properly unquoted and unescaped.
+	def self.connect_string_to_hash( str )
 		options = {}
-
-		# Parameter 'fallback_application_name' was introduced in PostgreSQL 9.0
-		# together with PQescapeLiteral().
-		if PG::Connection.instance_methods.find {|m| m.to_sym == :escape_literal }
-			options[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
+		key = nil
+		value = String.new
+		str.scan(/\G\s*(?>([^\s\\\']+)\s*=\s*|([^\s\\\']+)|'((?:[^\'\\]|\\.)*)'|(\\.?)|(\S))(\s|\z)?/m) do
+					|k, word, sq, esc, garbage, sep|
+			raise ArgumentError, "unterminated quoted string in connection info string: #{str.inspect}" if garbage
+			if k
+				key = k
+			else
+				value << (word || (sq || esc).gsub(/\\(.)/, '\\1'))
+			end
+			if sep
+				raise ArgumentError, "missing = after #{value.inspect}" unless key
+				options[key.to_sym] = value
+				key = nil
+				value = String.new
+			end
 		end
+		options
+	end
+
+	# URI defined in RFC3986
+	# This regexp is modified to allow host to specify multiple comma separated components captured as <hostports>
+	# Taken from: https://github.com/ruby/ruby/blob/be04006c7d2f9aeb7e9d8d09d945b3a9c7850202/lib/uri/rfc3986_parser.rb#L6
+	POSTGRESQL_URI = /\A(?<URI>(?<scheme>[A-Za-z][+\-.0-9A-Za-z]*):(?<hier-part>\/\/(?<authority>(?:(?<userinfo>(?:%\h\h|[!$&-.0-;=A-Z_a-z~])*)@)?(?<hostports>(?<host>(?<IP-literal>\[(?:(?<IPv6address>(?:\h{1,4}:){6}(?<ls32>\h{1,4}:\h{1,4}|(?<IPv4address>(?<dec-octet>[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]|\d)\.\g<dec-octet>\.\g<dec-octet>\.\g<dec-octet>))|::(?:\h{1,4}:){5}\g<ls32>|\h{1,4}?::(?:\h{1,4}:){4}\g<ls32>|(?:(?:\h{1,4}:)?\h{1,4})?::(?:\h{1,4}:){3}\g<ls32>|(?:(?:\h{1,4}:){,2}\h{1,4})?::(?:\h{1,4}:){2}\g<ls32>|(?:(?:\h{1,4}:){,3}\h{1,4})?::\h{1,4}:\g<ls32>|(?:(?:\h{1,4}:){,4}\h{1,4})?::\g<ls32>|(?:(?:\h{1,4}:){,5}\h{1,4})?::\h{1,4}|(?:(?:\h{1,4}:){,6}\h{1,4})?::)|(?<IPvFuture>v\h+\.[!$&-.0-;=A-Z_a-z~]+))\])|\g<IPv4address>|(?<reg-name>(?:%\h\h|[!$&-.0-9;=A-Z_a-z~])+))?(?::(?<port>\d*))?(?:,\g<host>(?::\g<port>)?)*))(?<path-abempty>(?:\/(?<segment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])*))*)|(?<path-absolute>\/(?:(?<segment-nz>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])+)(?:\/\g<segment>)*)?)|(?<path-rootless>\g<segment-nz>(?:\/\g<segment>)*)|(?<path-empty>))(?:\?(?<query>[^#]*))?(?:\#(?<fragment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~\/?])*))?)\z/
+
+	# Parse the connection +args+ into a connection-parameter string.
+	# See PG::Connection.new for valid arguments.
+	#
+	# It accepts:
+	# * an option String kind of "host=name port=5432"
+	# * an option Hash kind of {host: "name", port: 5432}
+	# * URI string
+	# * URI object
+	# * positional arguments
+	#
+	# The method adds the option "hostaddr" and "fallback_application_name" if they aren't already set.
+	# The URI and the options string is passed through and "hostaddr" as well as "fallback_application_name"
+	# are added to the end.
+	def self::parse_connect_args( *args )
+		hash_arg = args.last.is_a?( Hash ) ? args.pop.transform_keys(&:to_sym) : {}
+		option_string = ""
+		iopts = {}
 
 		if args.length == 1
 			case args.first
-			when URI, /\A#{URI::ABS_URI_REF}\z/
-				uri = URI(args.first)
-				options.merge!( Hash[URI.decode_www_form( uri.query )] ) if uri.query
+			when URI, POSTGRESQL_URI
+				uri = args.first.to_s
+				uri_match = POSTGRESQL_URI.match(uri)
+				if uri_match['query']
+					iopts = URI.decode_www_form(uri_match['query']).to_h.transform_keys(&:to_sym)
+				end
+				# extract "host1,host2" from "host1:5432,host2:5432"
+				iopts[:host] = uri_match['hostports'].split(",").map { |hp| hp.split(":", 2)[0] }.join(",")
+				oopts = {}
 			when /=/
 				# Option string style
 				option_string = args.first.to_s
+				iopts = connect_string_to_hash(option_string)
+				oopts = {}
 			else
-				# Positional parameters
-				options[CONNECT_ARGUMENT_ORDER.first.to_sym] = args.first
+				# Positional parameters (only host given)
+				iopts[CONNECT_ARGUMENT_ORDER.first.to_sym] = args.first
+				oopts = iopts.dup
 			end
 		else
+			# Positional parameters
 			max = CONNECT_ARGUMENT_ORDER.length
 			raise ArgumentError,
 				"Extra positional parameter %d: %p" % [ max + 1, args[max] ] if args.length > max
 
 			CONNECT_ARGUMENT_ORDER.zip( args ) do |(k,v)|
-				options[ k.to_sym ] = v if v
+				iopts[ k.to_sym ] = v if v
 			end
+			oopts = iopts.dup
 		end
 
-		options.merge!( hash_arg )
+		iopts.merge!( hash_arg )
+		oopts.merge!( hash_arg )
+
+		# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
+		if (host=iopts[:host]) && !iopts[:hostaddr]
+			hostaddrs = host.split(",").map do |mhost|
+				if !mhost.empty? && !mhost.start_with?("/") &&  # isn't UnixSocket
+						# isn't a path on Windows
+						(RUBY_PLATFORM !~ /mingw|mswin/ || mhost !~ /\A\w:[\/\\]/)
+
+					if Fiber.respond_to?(:scheduler) &&
+							Fiber.scheduler &&
+							RUBY_VERSION < '3.1.'
+
+						# Use a second thread to avoid blocking of the scheduler.
+						# `IPSocket.getaddress` isn't fiber aware before ruby-3.1.
+						Thread.new{ IPSocket.getaddress(mhost) rescue '' }.value
+					else
+						IPSocket.getaddress(mhost) rescue ''
+					end
+				end
+			end
+			oopts[:hostaddr] = hostaddrs.join(",") if hostaddrs.any?
+		end
+
+		if !iopts[:fallback_application_name]
+			oopts[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
+		end
 
 		if uri
-			uri.host     = nil if options[:host]
-			uri.port     = nil if options[:port]
-			uri.user     = nil if options[:user]
-			uri.password = nil if options[:password]
-			uri.path     = '' if options[:dbname]
-			uri.query    = URI.encode_www_form( options )
-			return uri.to_s.sub( /^#{uri.scheme}:(?!\/\/)/, "#{uri.scheme}://" )
+			uri += uri_match['query'] ? "&" : "?"
+			uri += URI.encode_www_form( oopts )
+			return uri
 		else
-			option_string += ' ' unless option_string.empty? && options.empty?
-			return option_string + options.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
+			option_string += ' ' unless option_string.empty? && oopts.empty?
+			return option_string + connect_hash_to_string(oopts)
 		end
 	end
 
@@ -284,20 +359,239 @@ class PG::Connection
 		end
 	end
 
-	REDIRECT_METHODS = {
-		:exec => [:async_exec, :sync_exec],
-		:query => [:async_exec, :sync_exec],
-		:exec_params => [:async_exec_params, :sync_exec_params],
-		:prepare => [:async_prepare, :sync_prepare],
-		:exec_prepared => [:async_exec_prepared, :sync_exec_prepared],
-		:describe_portal => [:async_describe_portal, :sync_describe_portal],
-		:describe_prepared => [:async_describe_prepared, :sync_describe_prepared],
-	}
+	alias sync_get_result get_result
+	def async_get_result(*args)
+		block
+		sync_get_result
+	end
 
-	def self.async_api=(enable)
-		REDIRECT_METHODS.each do |ali, (async, sync)|
-			remove_method(ali) if method_defined?(ali)
-			alias_method( ali, enable ? async : sync )
+	alias sync_get_copy_data get_copy_data
+	def async_get_copy_data(async=false, decoder=nil)
+		if async
+			return sync_get_copy_data(async, decoder)
+		else
+			while (res=sync_get_copy_data(true, decoder)) == false
+				socket_io.wait_readable
+				consume_input
+			end
+			return res
+		end
+	end
+
+	# In async_api=false mode all send calls run directly on libpq.
+	# Blocking vs. nonblocking state can be changed in libpq.
+	alias sync_setnonblocking setnonblocking
+
+	# In async_api=true mode (default) all send calls run nonblocking.
+	# The difference is that setnonblocking(true) disables automatic handling of would-block cases.
+	def async_setnonblocking(enabled)
+		singleton_class.async_send_api = !enabled
+		self.flush_data = !enabled
+		sync_setnonblocking(true)
+	end
+
+	# sync/async isnonblocking methods are switched by async_setnonblocking()
+	alias sync_isnonblocking isnonblocking
+	def async_isnonblocking
+		false
+	end
+
+	alias sync_put_copy_data put_copy_data
+	def async_put_copy_data(buffer, encoder=nil)
+		until sync_put_copy_data(buffer, encoder)
+			wait_for_flush
+		end
+		wait_for_flush
+		true
+	end
+	alias sync_put_copy_end put_copy_end
+	def async_put_copy_end(*args)
+		until sync_put_copy_end(*args)
+			wait_for_flush
+		end
+		wait_for_flush
+		true
+	end
+
+	if method_defined? :encrypt_password
+		alias sync_encrypt_password encrypt_password
+		def async_encrypt_password( password, username, algorithm=nil )
+			algorithm ||= exec("SHOW password_encryption").getvalue(0,0)
+			sync_encrypt_password(password, username, algorithm)
+		end
+	end
+
+	alias sync_reset reset
+	def async_reset
+		reset_start
+		async_connect_or_reset(:reset_poll)
+	end
+
+	alias sync_cancel cancel
+	def async_cancel
+		be_pid = backend_pid
+		be_key = backend_key
+		cancel_request = [0x10, 1234, 5678, be_pid, be_key].pack("NnnNN")
+
+		if Fiber.respond_to?(:scheduler) && Fiber.scheduler && RUBY_PLATFORM =~ /mingw|mswin/
+			# Ruby's nonblocking IO is not really supported on Windows.
+			# We work around by using threads and explicit calls to wait_readable/wait_writable.
+			cl = Thread.new(socket_io.remote_address) { |ra| ra.connect }.value
+			begin
+				cl.write_nonblock(cancel_request)
+			rescue IO::WaitReadable, Errno::EINTR
+				cl.wait_writable
+				retry
+			end
+			begin
+				cl.read_nonblock(1)
+			rescue IO::WaitReadable, Errno::EINTR
+				cl.wait_readable
+				retry
+			rescue EOFError
+			end
+		elsif RUBY_ENGINE == 'truffleruby'
+			begin
+				cl = socket_io.remote_address.connect
+			rescue NotImplementedError
+				# Workaround for truffleruby < 21.3.0
+				cl2 = Socket.for_fd(socket_io.fileno)
+				cl2.autoclose = false
+				adr = cl2.remote_address
+				if adr.ip?
+					cl = TCPSocket.new(adr.ip_address, adr.ip_port)
+					cl.autoclose = false
+				else
+					cl = UNIXSocket.new(adr.unix_path)
+					cl.autoclose = false
+				end
+			end
+			cl.write(cancel_request)
+			cl.read(1)
+		else
+			cl = socket_io.remote_address.connect
+			# Send CANCEL_REQUEST_CODE and parameters
+			cl.write(cancel_request)
+			# Wait for the postmaster to close the connection, which indicates that it's processed the request.
+			cl.read(1)
+		end
+
+		cl.close
+		nil
+	rescue SystemCallError => err
+		err.to_s
+	end
+
+	private def async_connect_or_reset(poll_meth)
+		# Now grab a reference to the underlying socket so we know when the connection is established
+		socket = socket_io
+
+		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
+		poll_status = PG::PGRES_POLLING_WRITING
+		until poll_status == PG::PGRES_POLLING_OK ||
+				poll_status == PG::PGRES_POLLING_FAILED
+
+			# If the socket needs to read, wait 'til it becomes readable to poll again
+			case poll_status
+			when PG::PGRES_POLLING_READING
+				socket.wait_readable
+
+			# ...and the same for when the socket needs to write
+			when PG::PGRES_POLLING_WRITING
+				socket.wait_writable
+			end
+
+			# Check to see if it's finished or failed yet
+			poll_status = send( poll_meth )
+		end
+
+		raise(PG::ConnectionBad, error_message) unless status == PG::CONNECTION_OK
+
+		# Set connection to nonblocking to handle all blocking states in ruby.
+		# That way a fiber scheduler is able to handle IO requests.
+		sync_setnonblocking(true)
+		self.flush_data = true
+		set_default_encoding
+
+		self
+	end
+
+	class << self
+		alias sync_connect new
+
+		def async_connect(*args, **kwargs)
+			conn = PG::Connection.connect_start(*args, **kwargs ) or
+				raise(PG::Error, "Unable to create a new connection")
+
+			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
+
+			conn.send(:async_connect_or_reset, :connect_poll)
+		end
+
+		alias sync_ping ping
+		def async_ping(*args)
+			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
+				# Run PQping in a second thread to avoid blocking of the scheduler.
+				# Unfortunately there's no nonblocking way to run ping.
+				Thread.new { sync_ping(*args) }.value
+			else
+				sync_ping(*args)
+			end
+		end
+
+		REDIRECT_CLASS_METHODS = {
+			:new => [:async_connect, :sync_connect],
+			:ping => [:async_ping, :sync_ping],
+		}
+
+		# These methods are affected by PQsetnonblocking
+		REDIRECT_SEND_METHODS = {
+			:isnonblocking => [:async_isnonblocking, :sync_isnonblocking],
+			:nonblocking? => [:async_isnonblocking, :sync_isnonblocking],
+			:put_copy_data => [:async_put_copy_data, :sync_put_copy_data],
+			:put_copy_end => [:async_put_copy_end, :sync_put_copy_end],
+		}
+		REDIRECT_METHODS = {
+			:exec => [:async_exec, :sync_exec],
+			:query => [:async_exec, :sync_exec],
+			:exec_params => [:async_exec_params, :sync_exec_params],
+			:prepare => [:async_prepare, :sync_prepare],
+			:exec_prepared => [:async_exec_prepared, :sync_exec_prepared],
+			:describe_portal => [:async_describe_portal, :sync_describe_portal],
+			:describe_prepared => [:async_describe_prepared, :sync_describe_prepared],
+			:setnonblocking => [:async_setnonblocking, :sync_setnonblocking],
+			:get_result => [:async_get_result, :sync_get_result],
+			:get_last_result => [:async_get_last_result, :sync_get_last_result],
+			:get_copy_data => [:async_get_copy_data, :sync_get_copy_data],
+			:reset => [:async_reset, :sync_reset],
+			:set_client_encoding => [:async_set_client_encoding, :sync_set_client_encoding],
+			:client_encoding= => [:async_set_client_encoding, :sync_set_client_encoding],
+			:cancel => [:async_cancel, :sync_cancel],
+		}
+
+		if PG::Connection.instance_methods.include? :async_encrypt_password
+			REDIRECT_METHODS.merge!({
+				:encrypt_password => [:async_encrypt_password, :sync_encrypt_password],
+			})
+		end
+
+		def async_send_api=(enable)
+			REDIRECT_SEND_METHODS.each do |ali, (async, sync)|
+				undef_method(ali) if method_defined?(ali)
+				alias_method( ali, enable ? async : sync )
+			end
+		end
+
+		def async_api=(enable)
+			self.async_send_api = enable
+			REDIRECT_METHODS.each do |ali, (async, sync)|
+				remove_method(ali) if method_defined?(ali)
+				alias_method( ali, enable ? async : sync )
+			end
+			REDIRECT_CLASS_METHODS.each do |ali, (async, sync)|
+				singleton_class.remove_method(ali) if method_defined?(ali)
+				singleton_class.alias_method(ali, enable ? async : sync )
+			end
 		end
 	end
 

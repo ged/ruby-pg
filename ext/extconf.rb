@@ -15,6 +15,13 @@ if pgdir = with_config( 'pg' )
 	ENV['PATH'] = "#{pgdir}/bin" + File::PATH_SEPARATOR + ENV['PATH']
 end
 
+if enable_config("gvl-unlock", true)
+	$defs.push( "-DENABLE_GVL_UNLOCK" )
+	$stderr.puts "Calling libpq with GVL unlocked"
+else
+	$stderr.puts "Calling libpq with GVL locked"
+end
+
 if enable_config("windows-cross")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc"
@@ -142,6 +149,7 @@ have_func 'PQresultMemorySize' # since PostgreSQL-12
 have_func 'timegm'
 have_func 'rb_gc_adjust_memory_usage' # since ruby-2.4
 have_func 'rb_gc_mark_movable' # since ruby-2.7
+have_func 'rb_io_wait' # since ruby-3.0
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'

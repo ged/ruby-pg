@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #if !defined(_WIN32)
 #	include <sys/time.h>
+#	include <sys/socket.h>
 #endif
 #if defined(HAVE_UNISTD_H) && !defined(_WIN32)
 #	include <unistd.h>
@@ -113,6 +114,8 @@ typedef struct {
 	int enc_idx : PG_ENC_IDX_BITS;
 	/* flags controlling Symbol/String field names */
 	unsigned int flags : 2;
+	/* enable automatic flushing of send data at the end of send_query calls */
+	unsigned int flush_data : 1;
 
 #if defined(_WIN32)
 	/* File descriptor to be used for rb_w32_unwrap_io_handle() */

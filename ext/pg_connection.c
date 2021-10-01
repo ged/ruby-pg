@@ -12,6 +12,7 @@
 
 VALUE rb_cPGconn;
 static ID s_id_encode;
+static ID s_id_autoclose_set;
 static VALUE sym_type, sym_format, sym_value;
 static VALUE sym_symbol, sym_string, sym_static_symbol;
 
@@ -20,6 +21,7 @@ static PQnoticeProcessor default_notice_processor = NULL;
 
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
+static VALUE pgconn_wait_for_flush( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
 static const rb_data_type_t pg_connection_type;
 
@@ -284,13 +286,16 @@ pgconn_s_allocate( VALUE klass )
  *   PG::Connection.new
  *
  *   # As a Hash
- *   PG::Connection.new( :dbname => 'test', :port => 5432 )
+ *   PG::Connection.new( dbname: 'test', port: 5432 )
  *
  *   # As a String
  *   PG::Connection.new( "dbname=test port=5432" )
  *
  *   # As an Array
  *   PG::Connection.new( nil, 5432, nil, nil, 'test', nil, nil )
+ *
+ *   # As an URI
+ *   PG::Connection.new( "postgresql://user:pass@pgsql.example.com:5432/testdb?sslmode=require" )
  *
  * If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
  * connection will have its +client_encoding+ set accordingly.
@@ -916,8 +921,8 @@ pgconn_socket_io(VALUE self)
 {
 	int sd;
 	int ruby_sd;
-	ID id_autoclose = rb_intern("autoclose=");
 	t_pg_connection *this = pg_get_connection_safe( self );
+	VALUE cSocket;
 	VALUE socket_io = this->socket_io;
 
 	if ( !RTEST(socket_io) ) {
@@ -931,10 +936,11 @@ pgconn_socket_io(VALUE self)
 			ruby_sd = sd;
 		#endif
 
-		socket_io = rb_funcall( rb_cIO, rb_intern("for_fd"), 2, INT2NUM(ruby_sd), INT2NUM(2 /* File::RDWR */) );
+		cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+		socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
 
 		/* Disable autoclose feature */
-		rb_funcall( socket_io, id_autoclose, 1, Qfalse );
+		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
 
 		this->socket_io = socket_io;
 	}
@@ -954,6 +960,51 @@ static VALUE
 pgconn_backend_pid(VALUE self)
 {
 	return INT2NUM(PQbackendPID(pg_get_pgconn(self)));
+}
+
+typedef struct
+{
+	struct sockaddr_storage addr;
+	socklen_t salen;
+} SockAddr;
+
+/* Copy of struct pg_cancel from libpq-int.h
+ *
+ * See https://github.com/postgres/postgres/blame/master/src/interfaces/libpq/libpq-int.h#L577-L586
+ */
+struct pg_cancel
+{
+	SockAddr	raddr;			/* Remote address */
+	int			be_pid;			/* PID of backend --- needed for cancels */
+	int			be_key;			/* key of backend --- needed for cancels */
+};
+
+/*
+ * call-seq:
+ *    conn.backend_key() -> Integer
+ *
+ * Returns the key of the backend server process for this connection.
+ * This key can be used to cancel queries on the server.
+ */
+static VALUE
+pgconn_backend_key(VALUE self)
+{
+	int be_key;
+	struct pg_cancel *cancel;
+	PGconn *conn = pg_get_pgconn(self);
+
+	cancel = (struct pg_cancel*)PQgetCancel(conn);
+	if(cancel == NULL)
+		rb_raise(rb_ePGerror,"Invalid connection!");
+
+	if( cancel->be_pid != PQbackendPID(conn) )
+		rb_raise(rb_ePGerror,"Unexpected binary struct layout - please file a bug report at ruby-pg!");
+
+	be_key = cancel->be_key;
+
+	PQfreeCancel(cancel);
+
+	return INT2NUM(be_key);
 }
 
 /*
@@ -1811,6 +1862,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 			rb_iv_set(error, "@connection", self);
 			rb_exc_raise(error);
 		}
+		pgconn_wait_for_flush( self );
 		return Qnil;
 	}
 
@@ -1888,6 +1940,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -1951,6 +2004,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2019,6 +2073,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2040,6 +2095,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2062,6 +2118,7 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
 	}
+	pgconn_wait_for_flush( self );
 	return Qnil;
 }
 
@@ -2289,103 +2346,44 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
-/* Win32 + Ruby 1.9+ */
-#if defined( _WIN32 )
-/*
- * On Windows, use platform-specific strategies to wait for the socket
- * instead of rb_wait_for_single_fd().
- */
 
-int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
+#if !defined(HAVE_RB_IO_WAIT)
+/* For compat with ruby < 3.0 */
 
-static void *
-wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *) )
-{
-	int sd = PQsocket( conn );
-	void *retval;
-	struct timeval aborttime={0,0}, currtime, waittime;
-	DWORD timeout_milisec = INFINITE;
-	DWORD wait_ret;
-	WSAEVENT hEvent;
+typedef enum {
+    RUBY_IO_READABLE = RB_WAITFD_IN,
+    RUBY_IO_WRITABLE = RB_WAITFD_OUT,
+    RUBY_IO_PRIORITY = RB_WAITFD_PRI,
+} rb_io_event_t;
 
-	if ( sd < 0 )
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
+static VALUE
+rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
+	rb_io_t *fptr;
+	struct timeval waittime;
+	int res;
 
-	hEvent = WSACreateEvent();
-
-	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if( PQconsumeInput(conn) == 0 ) {
-		WSACloseEvent( hEvent );
-		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
+	GetOpenFile((io), fptr);
+	if( !NIL_P(timeout) ){
+		waittime.tv_sec = (time_t)(NUM2DBL(timeout));
+		waittime.tv_usec = (time_t)(NUM2DBL(timeout) - (double)waittime.tv_sec);
 	}
+	res = rb_wait_for_single_fd(fptr->fd, NUM2UINT(events), NIL_P(timeout) ? NULL : &waittime);
 
-	if ( ptimeout ) {
-		gettimeofday(&currtime, NULL);
-		timeradd(&currtime, ptimeout, &aborttime);
-	}
-
-	while ( !(retval=is_readable(conn)) ) {
-		if ( WSAEventSelect(sd, hEvent, FD_READ|FD_CLOSE) == SOCKET_ERROR ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
-		}
-
-		if ( ptimeout ) {
-			gettimeofday(&currtime, NULL);
-			timersub(&aborttime, &currtime, &waittime);
-			timeout_milisec = (DWORD)( waittime.tv_sec * 1e3 + waittime.tv_usec / 1e3 );
-		}
-
-		/* Is the given timeout valid? */
-		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
-			/* Wait for the socket to become readable before checking again */
-			wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
-		} else {
-			wait_ret = WAIT_TIMEOUT;
-		}
-
-		if ( wait_ret == WAIT_TIMEOUT ) {
-			WSACloseEvent( hEvent );
-			return NULL;
-		} else if ( wait_ret == WAIT_OBJECT_0 ) {
-			/* The event we were waiting for. */
-		} else if ( wait_ret == WAIT_OBJECT_0 + 1) {
-			/* This indicates interruption from timer thread, GC, exception
-			 * from other threads etc... */
-			rb_thread_check_ints();
-		} else if ( wait_ret == WAIT_FAILED ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
-		} else {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "Wait on socket abandoned (WaitForMultipleObjects)" );
-		}
-
-		/* Check for connection errors (PQisBusy is true on connection errors) */
-		if ( PQconsumeInput(conn) == 0 ) {
-			WSACloseEvent( hEvent );
-			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
-		}
-	}
-
-	WSACloseEvent( hEvent );
-	return retval;
+	return UINT2NUM(res);
 }
-
-#else
-
-/* non Win32 */
+#endif
 
 static void *
-wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
+wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
 {
-	int sd = PQsocket( conn );
-	int ret;
+	VALUE socket_io;
+	VALUE ret;
 	void *retval;
 	struct timeval aborttime={0,0}, currtime, waittime;
+	VALUE wait_timeout = Qnil;
+	PGconn *conn = pg_get_pgconn(self);
 
-	if ( sd < 0 )
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
+	socket_io = pgconn_socket_io(self);
 
 	/* Check for connection errors (PQisBusy is true on connection errors) */
 	if ( PQconsumeInput(conn) == 0 )
@@ -2400,22 +2398,19 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 		if ( ptimeout ) {
 			gettimeofday(&currtime, NULL);
 			timersub(&aborttime, &currtime, &waittime);
+			wait_timeout = DBL2NUM((double)(waittime.tv_sec) + (double)(waittime.tv_usec) / 1000000.0);
 		}
 
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
 			/* Wait for the socket to become readable before checking again */
-			ret = rb_wait_for_single_fd( sd, RB_WAITFD_IN, ptimeout ? &waittime : NULL );
+			ret = rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), wait_timeout);
 		} else {
-			ret = 0;
-		}
-
-		if ( ret < 0 ){
-			rb_sys_fail( "rb_wait_for_single_fd()" );
+			ret = Qfalse;
 		}
 
 		/* Return false if the select() timed out */
-		if ( ret == 0 ){
+		if ( ret == Qfalse ){
 			return NULL;
 		}
 
@@ -2428,8 +2423,29 @@ wait_socket_readable( PGconn *conn, struct timeval *ptimeout, void *(*is_readabl
 	return retval;
 }
 
+static VALUE
+pgconn_wait_for_flush( VALUE self ){
+	if( !pg_get_connection_safe(self)->flush_data )
+		return Qnil;
 
-#endif
+	while( pgconn_flush(self) == Qfalse ){
+		/* wait for the socket to become read- or write-ready */
+		int events;
+		VALUE socket_io = pgconn_socket_io(self);
+		events = RB_NUM2INT(rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE | RUBY_IO_WRITABLE), Qnil));
+
+		if (events & RUBY_IO_READABLE)
+			pgconn_consume_input(self);
+	}
+	return Qnil;
+}
+
+static VALUE
+pgconn_flush_data_set( VALUE self, VALUE enabled ){
+	t_pg_connection *conn = pg_get_connection(self);
+	conn->flush_data = RTEST(enabled);
+	return enabled;
+}
 
 static void *
 notify_readable(PGconn *conn)
@@ -2468,7 +2484,7 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 		ptimeout = &timeout;
 	}
 
-	pnotification = (PGnotify*) wait_socket_readable( this->pgconn, ptimeout, notify_readable);
+	pnotification = (PGnotify*) wait_socket_readable( self, ptimeout, notify_readable);
 
 	/* Return nil if the select timed out */
 	if ( !pnotification ) return Qnil;
@@ -2575,8 +2591,8 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
  * forces the COPY command to fail with the string
  * _error_message_.
  *
- * Returns true if the end-of-data was sent, false if it was
- * not sent (false is only possible if the connection
+ * Returns true if the end-of-data was sent, *false* if it was
+ * not sent (*false* is only possible if the connection
  * is in nonblocking mode, and this command would block).
  */
 static VALUE
@@ -2940,9 +2956,11 @@ pgconn_get_client_encoding(VALUE self)
 
 /*
  * call-seq:
- *    conn.set_client_encoding( encoding )
+ *    conn.sync_set_client_encoding( encoding )
  *
- * Sets the client encoding to the _encoding_ String.
+ * This function has the same behavior as #async_set_client_encoding, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #set_client_encoding instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_set_client_encoding(VALUE self, VALUE str)
@@ -3035,8 +3053,6 @@ get_result_readable(PGconn *conn)
  */
 static VALUE
 pgconn_block( int argc, VALUE *argv, VALUE self ) {
-	PGconn *conn = pg_get_pgconn( self );
-
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
 	VALUE timeout_in;
@@ -3050,7 +3066,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 		ptimeout = &timeout;
 	}
 
-	ret = wait_socket_readable( conn, ptimeout, get_result_readable);
+	ret = wait_socket_readable( self, ptimeout, get_result_readable);
 
 	if( !ret )
 		return Qfalse;
@@ -3061,17 +3077,11 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
 
 /*
  * call-seq:
- *    conn.get_last_result( ) -> PG::Result
+ *    conn.sync_get_last_result( ) -> PG::Result
  *
- * This function retrieves all available results
- * on the current connection (from previously issued
- * asynchronous commands like +send_query()+) and
- * returns the last non-NULL result, or +nil+ if no
- * results are available.
- *
- * This function is similar to #get_result
- * except that it is designed to get one and only
- * one result.
+ * This function has the same behavior as #async_get_last_result, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #get_last_result instead, unless you have a good reason to do so.
  */
 static VALUE
 pgconn_get_last_result(VALUE self)
@@ -3103,6 +3113,53 @@ pgconn_get_last_result(VALUE self)
 
 /*
  * call-seq:
+ *    conn.get_last_result( ) -> PG::Result
+ *
+ * This function retrieves all available results
+ * on the current connection (from previously issued
+ * asynchronous commands like +send_query()+) and
+ * returns the last non-NULL result, or +nil+ if no
+ * results are available.
+ *
+ * This function is similar to #get_result
+ * except that it is designed to get one and only
+ * one result.
+ */
+static VALUE
+pgconn_async_get_last_result(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	VALUE rb_pgresult = Qnil;
+	PGresult *cur, *prev;
+
+  cur = prev = NULL;
+	for(;;) {
+		int status;
+
+		pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+
+		cur = gvl_PQgetResult(conn);
+		if (cur == NULL)
+			break;
+
+		if (prev) PQclear(prev);
+		prev = cur;
+
+		status = PQresultStatus(cur);
+		if (status == PGRES_COPY_OUT || status == PGRES_COPY_IN || status == PGRES_COPY_BOTH)
+			break;
+	}
+
+	if (prev) {
+		rb_pgresult = pg_new_result( prev, self );
+		pg_result_check(rb_pgresult);
+	}
+
+	return rb_pgresult;
+}
+
+/*
+ * call-seq:
  *    conn.discard_results()
  *
  * Silently discard any prior query result that application didn't eat.
@@ -3113,22 +3170,56 @@ static VALUE
 pgconn_discard_results(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
+	VALUE socket_io;
 
-	PGresult *cur;
-	while ((cur = gvl_PQgetResult(conn)) != NULL) {
-		int status = PQresultStatus(cur);
+	if( PQtransactionStatus(conn) == PQTRANS_IDLE ) {
+		return Qnil;
+	}
+
+	socket_io = pgconn_socket_io(self);
+
+	for(;;) {
+		PGresult *cur;
+		int status;
+
+		/* pgconn_block() raises an exception in case of errors.
+		* To avoid this call rb_io_wait() and PQconsumeInput() without rb_raise().
+		*/
+		while( gvl_PQisBusy(conn) ){
+			rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
+			if ( PQconsumeInput(conn) == 0 )
+				return Qfalse;
+		}
+
+		cur = gvl_PQgetResult(conn);
+		if( cur == NULL) break;
+
+		status = PQresultStatus(cur);
 		PQclear(cur);
 		if (status == PGRES_COPY_IN){
 			gvl_PQputCopyEnd(conn, "COPY terminated by new PQexec");
 		}
 		if (status == PGRES_COPY_OUT){
-			char *buffer = NULL;
-			while( gvl_PQgetCopyData(conn, &buffer, 0) > 0)
-				PQfreemem(buffer);
+			for(;;) {
+				char *buffer = NULL;
+				int st = gvl_PQgetCopyData(conn, &buffer, 1);
+				if( st == 0 ) {
+					/* would block -> wait for readable data */
+					rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
+					if ( PQconsumeInput(conn) == 0 )
+						return Qfalse;
+				} else if( st > 0 ) {
+					/* some data retrieved -> discard it */
+					PQfreemem(buffer);
+				} else {
+					/* no more data */
+					break;
+				}
+			}
 		}
 	}
 
-	return Qnil;
+	return Qtrue;
 }
 
 /*
@@ -3165,8 +3256,7 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
 
 	pgconn_discard_results( self );
 	pgconn_send_query( argc, argv, self );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3238,8 +3328,7 @@ pgconn_async_exec_params(int argc, VALUE *argv, VALUE self)
 	} else {
 		pgconn_send_query_params( argc, argv, self );
 	}
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3277,8 +3366,7 @@ pgconn_async_prepare(int argc, VALUE *argv, VALUE self)
 
 	pgconn_discard_results( self );
 	pgconn_send_prepare( argc, argv, self );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3331,8 +3419,7 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 
 	pgconn_discard_results( self );
 	pgconn_send_query_prepared( argc, argv, self );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3356,8 +3443,7 @@ pgconn_async_describe_portal(VALUE self, VALUE portal)
 
 	pgconn_discard_results( self );
 	pgconn_send_describe_portal( self, portal );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3381,8 +3467,7 @@ pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
 
 	pgconn_discard_results( self );
 	pgconn_send_describe_prepared( self, stmt_name );
-	pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
-	rb_pgresult = pgconn_get_last_result( self );
+	rb_pgresult = pgconn_async_get_last_result( self );
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
@@ -3856,16 +3941,33 @@ pgconn_external_encoding(VALUE self)
 	return rb_enc_from_encoding( enc );
 }
 
+/*
+ * call-seq:
+ *    conn.set_client_encoding( encoding )
+ *
+ * Sets the client encoding to the _encoding_ String.
+ */
+static VALUE
+pgconn_async_set_client_encoding(VALUE self, VALUE encname)
+{
+	VALUE query_format, query;
+
+	Check_Type(encname, T_STRING);
+	query_format = rb_str_new_cstr("set client_encoding to '%s'");
+	query = rb_funcall(query_format, rb_intern("%"), 1, encname);
+
+	pgconn_async_exec(1, &query, self);
+	pgconn_set_internal_encoding_index( self );
+
+	return Qnil;
+}
 
 static VALUE
 pgconn_set_client_encoding_async1( VALUE args )
 {
 	VALUE self = ((VALUE*)args)[0];
 	VALUE encname = ((VALUE*)args)[1];
-	VALUE query_format = rb_str_new_cstr("set client_encoding to '%s'");
-	VALUE query = rb_funcall(query_format, rb_intern("%"), 1, encname);
-
-	pgconn_async_exec(1, &query, self);
+	pgconn_async_set_client_encoding(self, encname);
 	return 0;
 }
 
@@ -3880,9 +3982,9 @@ pgconn_set_client_encoding_async2( VALUE arg, VALUE ex )
 
 
 static VALUE
-pgconn_set_client_encoding_async( VALUE self, const char *encname )
+pgconn_set_client_encoding_async( VALUE self, VALUE encname )
 {
-	VALUE args[] = { self, rb_str_new_cstr(encname) };
+	VALUE args[] = { self, encname };
 	return rb_rescue(pgconn_set_client_encoding_async1, (VALUE)&args, pgconn_set_client_encoding_async2, Qnil);
 }
 
@@ -3904,10 +4006,9 @@ pgconn_set_default_encoding( VALUE self )
 
 	if (( enc = rb_default_internal_encoding() )) {
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( pgconn_set_client_encoding_async(self, encname) != 0 )
+		if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
 			rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
-		pgconn_set_internal_encoding_index( self );
 		return rb_enc_from_encoding( enc );
 	} else {
 		pgconn_set_internal_encoding_index( self );
@@ -4150,6 +4251,7 @@ void
 init_pg_connection()
 {
 	s_id_encode = rb_intern("encode");
+	s_id_autoclose_set = rb_intern("autoclose=");
 	sym_type = ID2SYM(rb_intern("type"));
 	sym_format = ID2SYM(rb_intern("format"));
 	sym_value = ID2SYM(rb_intern("value"));
@@ -4207,6 +4309,7 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
 	rb_define_method(rb_cPGconn, "socket_io", pgconn_socket_io, 0);
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
+	rb_define_method(rb_cPGconn, "backend_key", pgconn_backend_key, 0);
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);
 	/* rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0); */
@@ -4284,13 +4387,17 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Other    ******/
 	rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
-	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_set_client_encoding, 1);
-	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");
+	rb_define_method(rb_cPGconn, "sync_set_client_encoding", pgconn_set_client_encoding, 1);
+	rb_define_method(rb_cPGconn, "async_set_client_encoding", pgconn_async_set_client_encoding, 1);
+	rb_define_alias(rb_cPGconn, "async_client_encoding=", "async_set_client_encoding");
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
+	rb_define_private_method(rb_cPGconn, "wait_for_flush", pgconn_wait_for_flush, 0);
+	rb_define_private_method(rb_cPGconn, "flush_data=", pgconn_flush_data_set, 1);
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
-	rb_define_method(rb_cPGconn, "get_last_result", pgconn_get_last_result, 0);
+	rb_define_method(rb_cPGconn, "sync_get_last_result", pgconn_get_last_result, 0);
+	rb_define_method(rb_cPGconn, "async_get_last_result", pgconn_async_get_last_result, 0);
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
 	rb_define_method(rb_cPGconn, "encrypt_password", pgconn_encrypt_password, -1);
 #endif

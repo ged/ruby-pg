@@ -34,14 +34,17 @@ jobs:
             PGVERSION: 13.2-1-windows-x64
             PGVER: "13"
           - os: windows
-            ruby: "2.4"
+            ruby: "2.5"
             PGVERSION: 9.3.25-1-windows-x64
             PGVER: "9.3"
           - os: ubuntu
             ruby: "head"
             PGVER: "13"
           - os: ubuntu
-            ruby: "2.4"
+            ruby: "3.0"
+            PGVER: "12"
+          - os: ubuntu
+            ruby: "2.5"
             PGVER: "9.3"
           - os: ubuntu
             ruby: "truffleruby"
@@ -110,8 +113,12 @@ jobs:
       - run: bundle install
 
       - run: gem install --local *.gem --verbose
+
       - name: Run specs
-        run: ruby -rpg -S rspec spec/**/*_spec.rb
+        continue-on-error: ${{ matrix.ruby == 'truffleruby' }}
+        env:
+          PG_DEBUG: 1
+        run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
 
       - name: Print logs if job failed
         if: ${{ failure() && matrix.os == 'windows' }}

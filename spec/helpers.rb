@@ -4,6 +4,8 @@ require 'pathname'
 require 'rspec'
 require 'shellwords'
 require 'pg'
+require_relative 'helpers/scheduler.rb'
+require_relative 'helpers/tcp_gate_scheduler.rb'
 
 DEFAULT_TEST_DIR_STR = File.join(Dir.pwd, "tmp_test_specs")
 TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
@@ -36,8 +38,10 @@ module PG::TestingHelpers
 			end
 
 			mod.after( :all ) do
-				check_for_lingering_connections( @conn )
-				@conn.finish
+				if @conn
+					check_for_lingering_connections( @conn )
+					@conn.finish
+				end
 			end
 		end
 
@@ -390,6 +394,8 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_96 ) if PG.library_version <  90600
 	config.filter_run_excluding( :postgresql_10 ) if PG.library_version < 100000
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
+	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0"
+	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|
