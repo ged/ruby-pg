@@ -1,5 +1,5 @@
 sudo: required
-dist: xenial
+dist: focal
 services:
   - docker
 language: ruby
@@ -20,7 +20,12 @@ matrix:
     - rvm: "2.5"
       env:
         - "PGVERSION=9.3"
+      # Use Ubuntu-16.04 since postgresql-9.3 depends on openssl-1.0.0, which isn't available in 20.04
+      dist: xenial
     - rvm: ruby-head
+      env:
+        - "PGVERSION=13"
+    - rvm: truffleruby
       env:
         - "PGVERSION=13"
 
