@@ -394,6 +394,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_96 ) if PG.library_version <  90600
 	config.filter_run_excluding( :postgresql_10 ) if PG.library_version < 100000
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
+	config.filter_run_excluding( :postgresql_14 ) if PG.library_version < 140000
 	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0"
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 

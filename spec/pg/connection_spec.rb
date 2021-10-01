@@ -531,7 +531,7 @@ EOT
 		expect( new ).to eq( PG::PQSHOW_CONTEXT_NEVER )
 	end
 
-	let(:expected_trace_output) do
+	let(:expected_trace_output_pre_14) do
 		%{
 		To backend> Msg Q
 		To backend> "SELECT 1 AS one"
@@ -562,22 +562,37 @@ EOT
 		}.gsub( /^\t{2}/, '' ).lstrip
 	end
 
+	let(:expected_trace_output) do
+		%{
+		TIMESTAMP	F	20	Query	 "SELECT 1 AS one"
+		TIMESTAMP	B	28	RowDescription	 1 "one" 0 0 23 4 -1 0
+		TIMESTAMP	B	11	DataRow	 1 1 '1'
+		TIMESTAMP	B	13	CommandComplete	 "SELECT 1"
+		TIMESTAMP	B	5	ReadyForQuery	 T
+		}.gsub( /^\t{2}/, '' ).lstrip
+	end
+
 	it "trace and untrace client-server communication", :unix do
-			# be careful to explicitly close files so that the
-			# directory can be removed and we don't have to wait for
-			# the GC to run.
-			trace_file = TEST_DIRECTORY + "test_trace.out"
-			trace_io = trace_file.open( 'w', 0600 )
-			@conn.trace( trace_io )
-			trace_io.close
+		# be careful to explicitly close files so that the
+		# directory can be removed and we don't have to wait for
+		# the GC to run.
+		trace_file = TEST_DIRECTORY + "test_trace.out"
+		trace_io = trace_file.open( 'w', 0600 )
+		@conn.trace( trace_io )
+		trace_io.close
 
-			@conn.exec("SELECT 1 AS one")
-			@conn.untrace
+		@conn.exec("SELECT 1 AS one")
+		@conn.untrace
 
-			@conn.exec("SELECT 2 AS two")
+		@conn.exec("SELECT 2 AS two")
 
-			trace_data = trace_file.read
+		trace_data = trace_file.read
 
+		if PG.library_version >= 140000
+			trace_data.gsub!( /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{6}/, 'TIMESTAMP' )
+
+			expect( trace_data ).to eq( expected_trace_output )
+		else
 			# For async_exec the output will be different:
 			#  From backend> Z
 			#  From backend (#4)> 5
@@ -586,8 +601,9 @@ EOT
 			#  From backend> T
 			trace_data.sub!( /(From backend> Z\nFrom backend \(#4\)> 5\n){3}/m, '\\1\\1' )
 
-			expect( trace_data ).to eq( expected_trace_output )
+			expect( trace_data ).to eq( expected_trace_output_pre_14 )
 		end
+	end
 
 	it "allows a query to be cancelled" do
 		error = false

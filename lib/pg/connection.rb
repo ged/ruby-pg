@@ -117,6 +117,7 @@ class PG::Connection
 			CONNECT_ARGUMENT_ORDER.zip( args ) do |(k,v)|
 				iopts[ k.to_sym ] = v if v
 			end
+			iopts.delete(:tty) # ignore obsolete tty parameter
 			oopts = iopts.dup
 		end
 

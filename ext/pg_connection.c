@@ -272,7 +272,7 @@ pgconn_s_allocate( VALUE klass )
  * [+options+]
  *   backend options
  * [+tty+]
- *   (ignored in newer versions of PostgreSQL)
+ *   (ignored in all versions of PostgreSQL)
  * [+dbname+]
  *   connecting database name
  * [+user+]
@@ -728,14 +728,12 @@ pgconn_port(VALUE self)
  * call-seq:
  *    conn.tty()
  *
- * Returns the connected pgtty. (Obsolete)
+ * Obsolete function.
  */
 static VALUE
 pgconn_tty(VALUE self)
 {
-	char *tty = PQtty(pg_get_pgconn(self));
-	if (!tty) return Qnil;
-	return rb_str_new2(tty);
+	return rb_str_new2("");
 }
 
 /*
