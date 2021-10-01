@@ -38,8 +38,8 @@ jobs:
       matrix:
         include:
           - ruby: "3.0"
-            PGVERSION: 13.2-1-windows-x64
-            PGVER: "13"
+            PGVERSION: 14.0-1-windows-x64
+            PGVER: "14"
           - ruby: "2.5"
             PGVERSION: 10.16-1-windows
             PGVER: "10"

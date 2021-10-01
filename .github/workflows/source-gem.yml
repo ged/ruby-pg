@@ -31,15 +31,15 @@ jobs:
         include:
           - os: windows
             ruby: "head"
-            PGVERSION: 13.2-1-windows-x64
-            PGVER: "13"
+            PGVERSION: 14.0-1-windows-x64
+            PGVER: "14"
           - os: windows
             ruby: "2.5"
             PGVERSION: 9.3.25-1-windows-x64
             PGVER: "9.3"
           - os: ubuntu
             ruby: "head"
-            PGVER: "13"
+            PGVER: "14"
           - os: ubuntu
             ruby: "3.0"
             PGVER: "12"
@@ -51,11 +51,11 @@ jobs:
             PGVER: "13"
           - os: ubuntu
             ruby: "truffleruby-head"
-            PGVER: "13"
+            PGVER: "14"
           - os: macos
             ruby: "head"
-            PGVERSION: 13.2-1-osx
-            PGVER: "13"
+            PGVERSION: 14.0-1-osx
+            PGVER: "14"
 
     runs-on: ${{ matrix.os }}-latest
     env:
@@ -117,7 +117,7 @@ jobs:
       - name: Run specs
         continue-on-error: ${{ matrix.ruby == 'truffleruby' }}
         env:
-          PG_DEBUG: 1
+          PG_DEBUG: 0
         run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
 
       - name: Print logs if job failed
