@@ -861,6 +861,10 @@
   register_error_class( "57P04", klass );
 }
 {
+  VALUE klass = define_error_class( "IdleSessionTimeout", "57" );
+  register_error_class( "57P05", klass );
+}
+{
   VALUE klass = define_error_class( "SystemError", NULL );
   register_error_class( "58000", klass );
   register_error_class( "58", klass );
