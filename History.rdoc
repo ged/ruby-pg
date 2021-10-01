@@ -1,3 +1,70 @@
+== v1.3.0 [YYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Install Enhancements:
+- Print some install help if libpq wasn't found. #396
+  This should help to pick the necessary package without googling.
+- Update Windows fat binary gem to OpenSSL-1.1.1l and PostgreSQL-14.0.
+- Add a binary gem for Ruby 3.0.
+- Make the library path of libpq available in ruby as PG::POSTGRESQL_LIB_PATH and add it to the search paths on Windows similar to +rpath+ on Unix systems. #373
+- Fall back to pkg-config if pg_config is not found. #380
+- Add option to extconf.rb to disable nogvl-wrapping of libpq functions.
+  All methods (except PG::Connection.ping) are nonblocking now, so that GVL unlock is in theory no longer necessary.
+  However it can have some advantage in concurrency, so that GVL unlock is still enabled by default.
+  Use:
+  - gem inst pg -- --disable-gvl-unlock
+
+API Enhancements:
+- Add full compatibility to Fiber.scheduler introduced in Ruby-3.0. #397
+  - Add async_connect and async_send methods and add specific specs for Fiber.scheduler #342
+  - Add async_get_result and async_get_last_result
+  - Add async_get_copy_data
+  - Implement async_put_copy_data/async_put_copy_end
+  - Implement async_reset method using the nonblocking libpq API
+  - Add async_set_client_encoding which is compatible to scheduler
+  - Add async_cancel as a nonblocking version of conn#cancel
+  - Add async_encrypt_password
+  - Run Connection.ping in a second thread.
+  - Make discard_results scheduler friendly
+  - Do all socket waiting through the conn.socket_io object.
+  - Avoid PG.connect blocking while address resolution by automatically providing the +hostaddr+ parameter.
+- Allow specification of multiple hosts in PostgreSQL URI. #387
+- Add new method conn.backend_key - used to implement our own cancel method.
+
+Type cast enhancements:
+- Add PG::BasicTypeMapForQueries::BinaryData for encoding of bytea columns. #348
+- Reduce time to build coder maps and permit to reuse them for several type maps per PG::BasicTypeRegistry::CoderMapsBundle.new(conn) . #376
+- Make BasicTypeRegistry a class and use a global default instance of it.
+  Now a local type registry can be instanciated and given to the type map, to avoid changing shared global states.
+- Allow PG::BasicTypeMapForQueries to take a Proc as callback for undefined types.
+
+Other Enhancements:
+- Convert all PG classes implemented in C to TypedData objects. #349
+- Support ObjectSpace.memsize_of(obj) on all classes implemented in C. #393
+- Make all PG objects implemented in C memory moveable and therefore GC.compact friendly. #349
+- Update errorcodes and error classes to PostgreSQL-14.0.
+- Add better support for logical replication. #339
+- Change conn.socket_io to read+write mode and to a BasicSocket object instead of IO.
+- Use rb_io_wait() and the conn.socket_io object if available and remove Windows specific wait functions.
+  Fall back to rb_wait_for_single_fd() on ruby < 3.0, which works on Windows as well.
+
+Bugfixes:
+- Release GVL while calling PQping which is a blocking method, but it didn't release GVL so far.
+- Fix Connection#transaction to no longer block on interrupts, for instance when pressing Ctrl-C and cancel a running query. #390
+- Avoid casting of OIDs to fix compat with Redshift database. #369
+- Call conn.block before each conn.get_result call to avoid possible blocking in case of a slow network and multiple query results.
+
+Deprecated:
+- Add deprecation warning to PG::BasicTypeRegistry.register_type and siblings.
+
+Removed:
+- Remove support of ruby-2.2, 2.3 and 2.4. Minimum is ruby-2.5 now.
+- Remove support for PostgreSQL-9.2. Minimum is PostgreSQL-9.3 now.
+
+Repository:
+- Replace Hoe by Bundler for gem packaging
+- Add Github Actions CI and testing of source and binary gems.
+
+
 == v1.2.3 [2020-03-18] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
