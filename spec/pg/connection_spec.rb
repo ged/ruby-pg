@@ -263,11 +263,29 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "connects using Hash with multiple hosts", :postgresql_10 do
-		tmpconn = described_class.connect( host: "127.0.0.1,localhost", port: @port, dbname: "test" )
+	it "connects using URI with IPv6 hosts", :postgresql_10 do
+		uri = "postgres://localhost:#{@port},[::1]:#{@port},/test"
+		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "127.0.0.1,localhost" )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A(::1|127\.0\.0\.1),(::1|127\.0\.0\.1)\z/ )
+		expect( tmpconn.conninfo_hash[:host] ).to eq( "localhost,::1," )
+		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A(::1|127\.0\.0\.1),::1,\z/ )
+		tmpconn.finish
+	end
+
+	it "connects using URI with UnixSocket host", :postgresql_10, :unix_socket do
+		uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
+		tmpconn = described_class.connect( uri )
+		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+		expect( tmpconn.conninfo_hash[:host] ).to eq( @unix_socket )
+		expect( tmpconn.conninfo_hash[:hostaddr] ).to be_nil
+		tmpconn.finish
+	end
+
+	it "connects using Hash with multiple hosts", :postgresql_10 do
+		tmpconn = described_class.connect( host: "#{@unix_socket},127.0.0.1,localhost", port: @port, dbname: "test" )
+		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+		expect( tmpconn.conninfo_hash[:host] ).to eq( "#{@unix_socket},127.0.0.1,localhost" )
+		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A,(::1|127\.0\.0\.1),(::1|127\.0\.0\.1)\z/ )
 		tmpconn.finish
 	end
 
