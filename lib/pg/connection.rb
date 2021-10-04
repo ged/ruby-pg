@@ -400,18 +400,16 @@ class PG::Connection
 	alias sync_put_copy_data put_copy_data
 	def async_put_copy_data(buffer, encoder=nil)
 		until sync_put_copy_data(buffer, encoder)
-			wait_for_flush
+			flush
 		end
-		wait_for_flush
-		true
+		flush
 	end
 	alias sync_put_copy_end put_copy_end
 	def async_put_copy_end(*args)
 		until sync_put_copy_end(*args)
-			wait_for_flush
+			flush
 		end
-		wait_for_flush
-		true
+		flush
 	end
 
 	if method_defined? :encrypt_password
@@ -551,6 +549,7 @@ class PG::Connection
 			:nonblocking? => [:async_isnonblocking, :sync_isnonblocking],
 			:put_copy_data => [:async_put_copy_data, :sync_put_copy_data],
 			:put_copy_end => [:async_put_copy_end, :sync_put_copy_end],
+			:flush => [:async_flush, :sync_flush],
 		}
 		REDIRECT_METHODS = {
 			:exec => [:async_exec, :sync_exec],

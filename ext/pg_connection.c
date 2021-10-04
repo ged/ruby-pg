@@ -2256,8 +2256,7 @@ pgconn_isnonblocking(self)
  * Raises PG::Error if some other failure occurred.
  */
 static VALUE
-pgconn_flush(self)
-	VALUE self;
+pgconn_sync_flush(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int ret;
@@ -2422,11 +2421,9 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 }
 
 static VALUE
-pgconn_wait_for_flush( VALUE self ){
-	if( !pg_get_connection_safe(self)->flush_data )
-		return Qnil;
-
-	while( pgconn_flush(self) == Qfalse ){
+pgconn_async_flush(VALUE self)
+{
+	while( pgconn_sync_flush(self) == Qfalse ){
 		/* wait for the socket to become read- or write-ready */
 		int events;
 		VALUE socket_io = pgconn_socket_io(self);
@@ -2435,7 +2432,15 @@ pgconn_wait_for_flush( VALUE self ){
 		if (events & RUBY_IO_READABLE)
 			pgconn_consume_input(self);
 	}
-	return Qnil;
+	return Qtrue;
+}
+
+static VALUE
+pgconn_wait_for_flush( VALUE self ){
+	if( !pg_get_connection_safe(self)->flush_data )
+		return Qnil;
+
+	return pgconn_async_flush(self);
 }
 
 static VALUE
@@ -4360,7 +4365,8 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 1);
 	rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
 	rb_define_alias(rb_cPGconn, "nonblocking?", "isnonblocking");
-	rb_define_method(rb_cPGconn, "flush", pgconn_flush, 0);
+	rb_define_method(rb_cPGconn, "sync_flush", pgconn_sync_flush, 0);
+	rb_define_method(rb_cPGconn, "async_flush", pgconn_async_flush, 0);
 	rb_define_method(rb_cPGconn, "discard_results", pgconn_discard_results, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Cancelling Queries in Progress     ******/
@@ -4392,7 +4398,6 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "async_set_client_encoding", pgconn_async_set_client_encoding, 1);
 	rb_define_alias(rb_cPGconn, "async_client_encoding=", "async_set_client_encoding");
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
-	rb_define_private_method(rb_cPGconn, "wait_for_flush", pgconn_wait_for_flush, 0);
 	rb_define_private_method(rb_cPGconn, "flush_data=", pgconn_flush_data_set, 1);
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
