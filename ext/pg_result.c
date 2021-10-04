@@ -289,7 +289,11 @@ pg_new_result_autoclear(PGresult *result, VALUE rb_pgconn)
  * call-seq:
  *    res.check -> nil
  *
- * Raises appropriate exception if PG::Result is in a bad state.
+ * Raises appropriate exception if PG::Result is in a bad state, which is:
+ * * +PGRES_BAD_RESPONSE+
+ * * +PGRES_FATAL_ERROR+
+ * * +PGRES_NONFATAL_ERROR+
+ * * +PGRES_PIPELINE_ABORTED+
  */
 VALUE
 pg_result_check( VALUE self )

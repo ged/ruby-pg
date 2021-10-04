@@ -3119,9 +3119,12 @@ pgconn_get_last_result(VALUE self)
  * returns the last non-NULL result, or +nil+ if no
  * results are available.
  *
+ * If the last result contains a bad result_status, an
+ * appropriate exception is raised.
+ *
  * This function is similar to #get_result
  * except that it is designed to get one and only
- * one result.
+ * one result and that it checks the result state.
  */
 static VALUE
 pgconn_async_get_last_result(VALUE self)
