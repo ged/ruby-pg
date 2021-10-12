@@ -202,6 +202,7 @@ module PG::TestingHelpers
 		@port = ENV['PGPORT'].to_i
 		ENV['PGHOST'] = 'localhost'
 		@conninfo = "host=localhost port=#{@port} dbname=test"
+		@unix_socket = TEST_DIRECTORY.to_s
 	end
 
 	### Set up a PostgreSQL database instance for testing.
@@ -395,6 +396,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_10 ) if PG.library_version < 100000
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
 	config.filter_run_excluding( :postgresql_14 ) if PG.library_version < 140000
+	config.filter_run_excluding( :unix_socket ) if RUBY_PLATFORM=~/mingw|mswin/i
 	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0"
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 

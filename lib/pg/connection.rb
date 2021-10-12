@@ -65,9 +65,10 @@ class PG::Connection
 	end
 
 	# URI defined in RFC3986
-	# This regexp is modified to allow host to specify multiple comma separated components captured as <hostports>
+	# This regexp is modified to allow host to specify multiple comma separated components captured as <hostports> and to disallow comma in hostnames.
 	# Taken from: https://github.com/ruby/ruby/blob/be04006c7d2f9aeb7e9d8d09d945b3a9c7850202/lib/uri/rfc3986_parser.rb#L6
-	POSTGRESQL_URI = /\A(?<URI>(?<scheme>[A-Za-z][+\-.0-9A-Za-z]*):(?<hier-part>\/\/(?<authority>(?:(?<userinfo>(?:%\h\h|[!$&-.0-;=A-Z_a-z~])*)@)?(?<hostports>(?<host>(?<IP-literal>\[(?:(?<IPv6address>(?:\h{1,4}:){6}(?<ls32>\h{1,4}:\h{1,4}|(?<IPv4address>(?<dec-octet>[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]|\d)\.\g<dec-octet>\.\g<dec-octet>\.\g<dec-octet>))|::(?:\h{1,4}:){5}\g<ls32>|\h{1,4}?::(?:\h{1,4}:){4}\g<ls32>|(?:(?:\h{1,4}:)?\h{1,4})?::(?:\h{1,4}:){3}\g<ls32>|(?:(?:\h{1,4}:){,2}\h{1,4})?::(?:\h{1,4}:){2}\g<ls32>|(?:(?:\h{1,4}:){,3}\h{1,4})?::\h{1,4}:\g<ls32>|(?:(?:\h{1,4}:){,4}\h{1,4})?::\g<ls32>|(?:(?:\h{1,4}:){,5}\h{1,4})?::\h{1,4}|(?:(?:\h{1,4}:){,6}\h{1,4})?::)|(?<IPvFuture>v\h+\.[!$&-.0-;=A-Z_a-z~]+))\])|\g<IPv4address>|(?<reg-name>(?:%\h\h|[!$&-.0-9;=A-Z_a-z~])+))?(?::(?<port>\d*))?(?:,\g<host>(?::\g<port>)?)*))(?<path-abempty>(?:\/(?<segment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])*))*)|(?<path-absolute>\/(?:(?<segment-nz>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])+)(?:\/\g<segment>)*)?)|(?<path-rootless>\g<segment-nz>(?:\/\g<segment>)*)|(?<path-empty>))(?:\?(?<query>[^#]*))?(?:\#(?<fragment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~\/?])*))?)\z/
+	HOST_AND_PORT = /(?<hostport>(?<host>(?<IP-literal>\[(?:(?<IPv6address>(?:\h{1,4}:){6}(?<ls32>\h{1,4}:\h{1,4}|(?<IPv4address>(?<dec-octet>[1-9]\d|1\d{2}|2[0-4]\d|25[0-5]|\d)\.\g<dec-octet>\.\g<dec-octet>\.\g<dec-octet>))|::(?:\h{1,4}:){5}\g<ls32>|\h{1,4}?::(?:\h{1,4}:){4}\g<ls32>|(?:(?:\h{1,4}:)?\h{1,4})?::(?:\h{1,4}:){3}\g<ls32>|(?:(?:\h{1,4}:){,2}\h{1,4})?::(?:\h{1,4}:){2}\g<ls32>|(?:(?:\h{1,4}:){,3}\h{1,4})?::\h{1,4}:\g<ls32>|(?:(?:\h{1,4}:){,4}\h{1,4})?::\g<ls32>|(?:(?:\h{1,4}:){,5}\h{1,4})?::\h{1,4}|(?:(?:\h{1,4}:){,6}\h{1,4})?::)|(?<IPvFuture>v\h+\.[!$&-.0-;=A-Z_a-z~]+))\])|\g<IPv4address>|(?<reg-name>(?:%\h\h|[-\.!$&-+0-9;=A-Z_a-z~])+))?(?::(?<port>\d*))?)/
+	POSTGRESQL_URI = /\A(?<URI>(?<scheme>[A-Za-z][+\-.0-9A-Za-z]*):(?<hier-part>\/\/(?<authority>(?:(?<userinfo>(?:%\h\h|[!$&-.0-;=A-Z_a-z~])*)@)?(?<hostports>#{HOST_AND_PORT}(?:,\g<hostport>)*))(?<path-abempty>(?:\/(?<segment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])*))*)|(?<path-absolute>\/(?:(?<segment-nz>(?:%\h\h|[!$&-.0-;=@-Z_a-z~])+)(?:\/\g<segment>)*)?)|(?<path-rootless>\g<segment-nz>(?:\/\g<segment>)*)|(?<path-empty>))(?:\?(?<query>[^#]*))?(?:\#(?<fragment>(?:%\h\h|[!$&-.0-;=@-Z_a-z~\/?])*))?)\z/
 
 	# Parse the connection +args+ into a connection-parameter string.
 	# See PG::Connection.new for valid arguments.
@@ -96,7 +97,10 @@ class PG::Connection
 					iopts = URI.decode_www_form(uri_match['query']).to_h.transform_keys(&:to_sym)
 				end
 				# extract "host1,host2" from "host1:5432,host2:5432"
-				iopts[:host] = uri_match['hostports'].split(",").map { |hp| hp.split(":", 2)[0] }.join(",")
+				iopts[:host] = uri_match['hostports'].split(',', -1).map do |hostport|
+					hostmatch = HOST_AND_PORT.match(hostport)
+					hostmatch['IPv6address'] || hostmatch['IPv4address'] || hostmatch['reg-name']&.gsub(/%(\h\h)/){ $1.hex.chr }
+				end.join(',')
 				oopts = {}
 			when /=/
 				# Option string style
@@ -126,7 +130,7 @@ class PG::Connection
 
 		# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
 		if (host=iopts[:host]) && !iopts[:hostaddr]
-			hostaddrs = host.split(",").map do |mhost|
+			hostaddrs = host.split(",", -1).map do |mhost|
 				if !mhost.empty? && !mhost.start_with?("/") &&  # isn't UnixSocket
 						# isn't a path on Windows
 						(RUBY_PLATFORM !~ /mingw|mswin/ || mhost !~ /\A\w:[\/\\]/)
