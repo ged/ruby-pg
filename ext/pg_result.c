@@ -376,7 +376,7 @@ pg_result_clear(VALUE self)
  * call-seq:
  *    res.cleared?      -> boolean
  *
- * Returns +true+ if the backend result memory has been free'd.
+ * Returns +true+ if the backend result memory has been freed.
  */
 VALUE
 pgresult_cleared_p( VALUE self )
@@ -390,7 +390,7 @@ pgresult_cleared_p( VALUE self )
  *    res.autoclear?      -> boolean
  *
  * Returns +true+ if the underlying C struct will be cleared at the end of a callback.
- * This applies only to Result objects received by the block to PG::Cinnection#set_notice_receiver .
+ * This applies only to Result objects received by the block to PG::Connection#set_notice_receiver .
  *
  * All other Result objects are automatically cleared by the GC when the object is no longer in use or manually by PG::Result#clear .
  *
@@ -529,7 +529,7 @@ pgresult_result_status(VALUE self)
  * call-seq:
  *    res.res_status( status ) -> String
  *
- * Returns the string representation of status +status+.
+ * Returns the string representation of +status+.
  *
 */
 static VALUE
@@ -1551,7 +1551,7 @@ pgresult_stream_each_tuple(VALUE self)
  * It can be set to one of:
  * * +:string+ to use String based field names
  * * +:symbol+ to use Symbol based field names
- * * +:static_symbol+ to use pinned Symbol (can not be garbage collected) - Don't use this, it will probably removed in future.
+ * * +:static_symbol+ to use pinned Symbol (can not be garbage collected) - Don't use this, it will probably be removed in future.
  *
  * The default is retrieved from PG::Connection#field_name_type , which defaults to +:string+ .
  *
