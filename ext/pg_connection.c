@@ -213,7 +213,7 @@ static const rb_data_type_t pg_connection_type = {
 	},
 	0,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	0,
 };
 
 
