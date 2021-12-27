@@ -318,10 +318,16 @@ pg_result_check( VALUE self )
 		case PGRES_SINGLE_TUPLE:
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
+#ifdef HAVE_PQENTERPIPELINEMODE
+		case PGRES_PIPELINE_SYNC:
+#endif
 			return self;
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
 		case PGRES_NONFATAL_ERROR:
+#ifdef HAVE_PQENTERPIPELINEMODE
+		case PGRES_PIPELINE_ABORTED:
+#endif
 			error = rb_str_new2( PQresultErrorMessage(this->pgresult) );
 			break;
 		default:
@@ -518,6 +524,9 @@ static void pgresult_init_fnames(VALUE self)
  * * +PGRES_NONFATAL_ERROR+
  * * +PGRES_FATAL_ERROR+
  * * +PGRES_COPY_BOTH+
+ * * +PGRES_SINGLE_TUPLE+
+ * * +PGRES_PIPELINE_SYNC+
+ * * +PGRES_PIPELINE_ABORTED+
  */
 static VALUE
 pgresult_result_status(VALUE self)

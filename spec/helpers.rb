@@ -33,6 +33,17 @@ module PG::TestingHelpers
 						[@conn.escape_string(desc.slice(-60))]
 					example.run
 				ensure
+					if @conn.respond_to?(:exit_pipeline_mode) &&
+							@conn.pipeline_status != PG::PQ_PIPELINE_OFF
+						@conn.pipeline_sync
+						# Fetch results until two successive nil's
+						loop do
+							unless @conn.get_result
+								break unless @conn.get_result
+							end
+						end
+						@conn.exit_pipeline_mode
+					end
 					@conn.exec( 'ROLLBACK' ) unless example.metadata[:without_transaction]
 				end
 			end

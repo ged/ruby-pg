@@ -1564,6 +1564,9 @@ pgconn_describe_portal(self, stmt_name)
  * * +PGRES_NONFATAL_ERROR+
  * * +PGRES_FATAL_ERROR+
  * * +PGRES_COPY_BOTH+
+ * * +PGRES_SINGLE_TUPLE+
+ * * +PGRES_PIPELINE_SYNC+
+ * * +PGRES_PIPELINE_ABORTED+
  */
 static VALUE
 pgconn_make_empty_pgresult(VALUE self, VALUE status)
@@ -3561,6 +3564,126 @@ pgconn_ssl_attribute_names(VALUE self)
 #endif
 
 
+#ifdef HAVE_PQENTERPIPELINEMODE
+/*
+ * call-seq:
+ *    conn.pipeline_status -> Integer
+ *
+ * Returns the current pipeline mode status of the libpq connection.
+ *
+ * PQpipelineStatus can return one of the following values:
+ *
+ * * PQ_PIPELINE_ON - The libpq connection is in pipeline mode.
+ * * PQ_PIPELINE_OFF - The libpq connection is not in pipeline mode.
+ * * PQ_PIPELINE_ABORTED - The libpq connection is in pipeline mode and an error occurred while processing the current pipeline.
+ *   The aborted flag is cleared when PQgetResult returns a result of type PGRES_PIPELINE_SYNC.
+ *
+ * Available since PostgreSQL-14
+ */
+static VALUE
+pgconn_pipeline_status(VALUE self)
+{
+	int res = PQpipelineStatus(pg_get_pgconn(self));
+	return INT2FIX(res);
+}
+
+
+/*
+ * call-seq:
+ *    conn.enter_pipeline_mode -> nil
+ *
+ * Causes a connection to enter pipeline mode if it is currently idle or already in pipeline mode.
+ *
+ * Raises PG::Error and has no effect if the connection is not currently idle, i.e., it has a result ready, or it is waiting for more input from the server, etc.
+ * This function does not actually send anything to the server, it just changes the libpq connection state.
+ *
+ * Available since PostgreSQL-14
+ */
+static VALUE
+pgconn_enter_pipeline_mode(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	int res = PQenterPipelineMode(conn);
+	if( res == 1 ) {
+		return Qnil;
+	} else {
+		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+	}
+}
+
+/*
+ * call-seq:
+ *    conn.exit_pipeline_mode -> nil
+ *
+ * Causes a connection to exit pipeline mode if it is currently in pipeline mode with an empty queue and no pending results.
+ *
+ * Takes no action if not in pipeline mode.
+ * Raises PG::Error if the current statement isn't finished processing, or PQgetResult has not been called to collect results from all previously sent query.
+ *
+ * Available since PostgreSQL-14
+ */
+static VALUE
+pgconn_exit_pipeline_mode(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	int res = PQexitPipelineMode(conn);
+	if( res == 1 ) {
+		return Qnil;
+	} else {
+		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+	}
+}
+
+
+/*
+ * call-seq:
+ *    conn.pipeline_sync -> nil
+ *
+ * Marks a synchronization point in a pipeline by sending a sync message and flushing the send buffer.
+ * This serves as the delimiter of an implicit transaction and an error recovery point; see Section 34.5.1.3 of the PostgreSQL documentation.
+ *
+ * Raises PG::Error if the connection is not in pipeline mode or sending a sync message failed.
+ *
+ * Available since PostgreSQL-14
+ */
+static VALUE
+pgconn_pipeline_sync(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	int res = PQpipelineSync(conn);
+	if( res == 1 ) {
+		return Qnil;
+	} else {
+		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+	}
+}
+
+/*
+ * call-seq:
+ *    conn.pipeline_sync -> nil
+ *
+ * Sends a request for the server to flush its output buffer.
+ *
+ * The server flushes its output buffer automatically as a result of Connection#pipeline_sync being called, or on any request when not in pipeline mode.
+ * This function is useful to cause the server to flush its output buffer in pipeline mode without establishing a synchronization point.
+ * Note that the request is not itself flushed to the server automatically; use Connection#flush if necessary.
+ *
+ * Available since PostgreSQL-14
+ */
+static VALUE
+pgconn_send_flush_request(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	int res = PQsendFlushRequest(conn);
+	if( res == 1 ) {
+		return Qnil;
+	} else {
+		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+	}
+}
+
+#endif
+
 /**************************************************************************
  * LARGE OBJECT SUPPORT
  **************************************************************************/
@@ -4412,6 +4535,14 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "ssl_in_use?", pgconn_ssl_in_use, 0);
 	rb_define_method(rb_cPGconn, "ssl_attribute", pgconn_ssl_attribute, 1);
 	rb_define_method(rb_cPGconn, "ssl_attribute_names", pgconn_ssl_attribute_names, 0);
+#endif
+
+#ifdef HAVE_PQENTERPIPELINEMODE
+	rb_define_method(rb_cPGconn, "pipeline_status", pgconn_pipeline_status, 0);
+	rb_define_method(rb_cPGconn, "enter_pipeline_mode", pgconn_enter_pipeline_mode, 0);
+	rb_define_method(rb_cPGconn, "exit_pipeline_mode", pgconn_exit_pipeline_mode, 0);
+	rb_define_method(rb_cPGconn, "pipeline_sync", pgconn_pipeline_sync, 0);
+	rb_define_method(rb_cPGconn, "send_flush_request", pgconn_send_flush_request, 0);
 #endif
 
 	/******     PG::Connection INSTANCE METHODS: Large Object Support     ******/

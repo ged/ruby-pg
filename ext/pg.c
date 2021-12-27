@@ -526,6 +526,19 @@ Init_pg_ext()
 	/* Result#result_status constant - Single tuple from larger resultset. */
 	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
 
+#ifdef HAVE_PQENTERPIPELINEMODE
+	/* Result#result_status constant - The PG::Result represents a synchronization point in pipeline mode, requested by Connection#pipeline_sync.
+	 *
+	 * This status occurs only when pipeline mode has been selected. */
+	rb_define_const(rb_mPGconstants, "PGRES_PIPELINE_SYNC", INT2FIX(PGRES_PIPELINE_SYNC));
+
+	/* Result#result_status constant - The PG::Result represents a pipeline that has received an error from the server.
+	 *
+	 * Connection#get_result must be called repeatedly, and each time it will return this status code until the end of the current pipeline, at which point it will return PG::PGRES_PIPELINE_SYNC and normal processing can resume.
+	 */
+	rb_define_const(rb_mPGconstants, "PGRES_PIPELINE_ABORTED", INT2FIX(PGRES_PIPELINE_ABORTED));
+#endif
+
 	/******     Result CONSTANTS: result error field codes      ******/
 
 	/* Result#result_error_field argument constant
@@ -643,6 +656,27 @@ Init_pg_ext()
 	 * The table or domain that the constraint belongs to is reported using the fields listed above.
 	 * (For this purpose, indexes are treated as constraints, even if they weren't created with constraint syntax.) */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_CONSTRAINT_NAME", INT2FIX(PG_DIAG_CONSTRAINT_NAME));
+#endif
+
+#ifdef HAVE_PQENTERPIPELINEMODE
+	/* Connection#pipeline_status constant
+	 *
+	 * The libpq connection is in pipeline mode.
+	 */
+	rb_define_const(rb_mPGconstants, "PQ_PIPELINE_ON", INT2FIX(PQ_PIPELINE_ON));
+
+	/* Connection#pipeline_status constant
+	 *
+	 * The libpq connection is not in pipeline mode.
+	 */
+	rb_define_const(rb_mPGconstants, "PQ_PIPELINE_OFF", INT2FIX(PQ_PIPELINE_OFF));
+
+	/* Connection#pipeline_status constant
+	 *
+	 * The libpq connection is in pipeline mode and an error occurred while processing the current pipeline.
+	 * The aborted flag is cleared when PQgetResult returns a result of type PGRES_PIPELINE_SYNC.
+	 */
+	rb_define_const(rb_mPGconstants, "PQ_PIPELINE_ABORTED", INT2FIX(PQ_PIPELINE_ABORTED));
 #endif
 
 	/* Invalid OID constant */

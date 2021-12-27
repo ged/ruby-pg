@@ -1546,6 +1546,121 @@ EOT
 
 	end
 
+	context "pipeline mode", :postgresql_14 do
+
+		describe "pipeline_status" do
+			it "can enter and exit the pipeline mode" do
+				@conn.enter_pipeline_mode
+				expect( @conn.pipeline_status ).to eq( PG::PQ_PIPELINE_ON )
+				@conn.exit_pipeline_mode
+				expect( @conn.pipeline_status ).to eq( PG::PQ_PIPELINE_OFF )
+			end
+		end
+
+		describe "enter_pipeline_mode" do
+			it "does nothing if already in pipeline mode" do
+				@conn.enter_pipeline_mode
+				@conn.enter_pipeline_mode
+				expect( @conn.pipeline_status ).to eq( PG::PQ_PIPELINE_ON )
+			end
+
+			it "raises an error when called with pending results" do
+				@conn.send_query "select 1"
+				expect {
+					@conn.enter_pipeline_mode
+				}.to raise_error(PG::Error)
+				@conn.get_last_result
+			end
+		end
+
+		describe "exit_pipeline_mode" do
+			it "does nothing if not in pipeline mode" do
+				@conn.exit_pipeline_mode
+				expect( @conn.pipeline_status ).to eq( PG::PQ_PIPELINE_OFF )
+			end
+
+			it "raises an error when called with pending results" do
+				@conn.enter_pipeline_mode
+				@conn.send_query "select 1"
+				expect {
+					@conn.exit_pipeline_mode
+				}.to raise_error(PG::Error)
+				@conn.send_flush_request
+				@conn.get_last_result
+			end
+		end
+
+		describe "pipeline_sync" do
+			it "sends a sync message" do
+				@conn.enter_pipeline_mode
+				@conn.send_query "select 6"
+				@conn.pipeline_sync
+				expect( @conn.get_result.result_status ).to eq( PG::PGRES_TUPLES_OK )
+				expect( @conn.get_result ).to be_nil
+				expect( @conn.get_result.result_status ).to eq( PG::PGRES_PIPELINE_SYNC )
+				expect( @conn.get_result ).to be_nil
+				expect( @conn.get_result ).to be_nil
+				@conn.exit_pipeline_mode
+			end
+
+			it "raises an error when not in pipeline mode" do
+				expect {
+					@conn.pipeline_sync
+				}.to raise_error(PG::Error)
+			end
+		end
+
+		describe "send_flush_request" do
+			it "flushs all results" do
+				@conn.enter_pipeline_mode
+				@conn.send_query "select 1"
+				@conn.send_flush_request
+				@conn.flush
+				expect( @conn.get_result.result_status ).to eq( PG::PGRES_TUPLES_OK )
+				expect( @conn.get_result ).to be_nil
+				expect( @conn.get_result ).to be_nil
+			end
+
+			it "raises an error when called with pending results" do
+				@conn.send_query "select 1"
+				expect {
+					@conn.send_flush_request
+				}.to raise_error(PG::Error)
+			end
+		end
+
+		describe "get_last_result" do
+			it "delivers PGRES_PIPELINE_SYNC" do
+				@conn.enter_pipeline_mode
+				@conn.send_query "select 6"
+				@conn.pipeline_sync
+				expect( @conn.get_last_result.values ).to eq( [["6"]] )
+				expect( @conn.get_last_result.result_status ).to eq( PG::PGRES_PIPELINE_SYNC )
+				@conn.exit_pipeline_mode
+			end
+
+			it "raises an error for PGRES_PIPELINE_ABORT" do
+				@conn.enter_pipeline_mode
+				@conn.send_query("garbage")
+				@conn.send_query("SELECT 7")
+				@conn.pipeline_sync
+				begin
+					@conn.get_last_result
+				rescue PG::SyntaxError => err1
+				end
+				expect( err1.result.result_status ).to eq( PG::PGRES_FATAL_ERROR )
+				begin
+					@conn.get_last_result
+				rescue PG::UnableToSend => err2
+				end
+				expect( err2.result.result_status ).to eq( PG::PGRES_PIPELINE_ABORTED )
+				expect( @conn.pipeline_status ).to eq( PG::PQ_PIPELINE_ABORTED )
+				expect( @conn.get_last_result.result_status ).to eq( PG::PGRES_PIPELINE_SYNC )
+				@conn.exit_pipeline_mode
+			end
+		end
+	end
+
 	context "multinationalization support" do
 
 		describe "rubyforge #22925: m17n support" do

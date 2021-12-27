@@ -146,6 +146,7 @@ have_func 'PQsslAttribute' # since PostgreSQL-9.5
 have_func 'PQresultVerboseErrorMessage' # since PostgreSQL-9.6
 have_func 'PQencryptPasswordConn' # since PostgreSQL-10
 have_func 'PQresultMemorySize' # since PostgreSQL-12
+have_func 'PQenterPipelineMode' # since PostgreSQL-14
 have_func 'timegm'
 have_func 'rb_gc_adjust_memory_usage' # since ruby-2.4
 have_func 'rb_gc_mark_movable' # since ruby-2.7
