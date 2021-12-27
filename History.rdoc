@@ -27,6 +27,7 @@ API Enhancements:
   - Make discard_results scheduler friendly
   - Do all socket waiting through the conn.socket_io object.
   - Avoid PG.connect blocking while address resolution by automatically providing the +hostaddr+ parameter.
+- Add support for pipeline mode of PostgreSQL-14. #401
 - Allow specification of multiple hosts in PostgreSQL URI. #387
 - Add new method conn.backend_key - used to implement our own cancel method.
 
