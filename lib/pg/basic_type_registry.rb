@@ -162,7 +162,7 @@ class PG::BasicTypeRegistry
 
 	include Checker
 
-  def initialize
+	def initialize
 		# The key of these hashs maps to the `typname` column from the table pg_type.
 		@coders_by_name = []
 	end
