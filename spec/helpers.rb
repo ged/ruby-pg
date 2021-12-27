@@ -351,6 +351,9 @@ module PG::TestingHelpers
 			elsif status == PG::PGRES_POLLING_WRITING
 				select( [], [conn.socket_io], [], 5.0 ) or
 					raise "Asynchronous connection timed out!"
+
+			elsif status == PG::PGRES_POLLING_FAILED
+				break
 			end
 			status = conn.send(meth)
 		end

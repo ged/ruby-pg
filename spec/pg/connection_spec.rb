@@ -254,6 +254,19 @@ describe PG::Connection do
 		end
 	end
 
+	it "emits a suitable error_message at connection errors" do
+		expect {
+			described_class.connect(
+				:host => 'localhost',
+				:port => @port,
+				:dbname => "non-existent")
+		}.to raise_error do |error|
+			expect( error ).to be_an( PG::ConnectionBad )
+			expect( error.message ).to match( /database "non-existent" does not exist/i )
+			expect( error.message.encoding ).to eq( Encoding::BINARY )
+		end
+	end
+
 	it "connects using URI with multiple hosts", :postgresql_10 do
 		uri = "postgres://localhost:#{@port},127.0.0.1:#{@port}/test?keepalives=1"
 		tmpconn = described_class.connect( uri )
@@ -374,6 +387,18 @@ describe PG::Connection do
 			end
 			GC.start
 			IO.pipe.each(&:close)
+		end
+
+		it "provides the server generated error message" do
+			conn = described_class.connect_start(
+				:host => 'localhost',
+				:port => @port,
+				:dbname => "non-existent")
+			wait_for_polling_ok(conn)
+
+			msg = conn.error_message
+			expect( msg ).to match( /database "non-existent" does not exist/i )
+			expect( msg.encoding ).to eq( Encoding::BINARY )
 		end
 	end
 
