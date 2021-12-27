@@ -184,8 +184,11 @@ pgconn_gc_free( void *_this )
 {
 	t_pg_connection *this = (t_pg_connection *)_this;
 #if defined(_WIN32)
-	if ( RTEST(this->socket_io) )
-		rb_w32_unwrap_io_handle( this->ruby_sd );
+	if ( RTEST(this->socket_io) ) {
+		if( rb_w32_unwrap_io_handle(this->ruby_sd) ){
+			rb_warn("pg: Could not unwrap win32 socket handle by garbage collector");
+		}
+	}
 #endif
 	if (this->pgconn != NULL)
 		PQfinish( this->pgconn );
@@ -929,6 +932,9 @@ pgconn_socket_io(VALUE self)
 
 		#ifdef _WIN32
 			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
+			if( ruby_sd == -1 ){
+				rb_raise(rb_eConnectionBad, "Could not wrap win32 socket handle");
+			}
 			this->ruby_sd = ruby_sd;
 		#else
 			ruby_sd = sd;
