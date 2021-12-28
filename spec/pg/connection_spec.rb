@@ -1610,7 +1610,7 @@ EOT
 				expect {
 					@conn.exit_pipeline_mode
 				}.to raise_error(PG::Error)
-				@conn.send_flush_request
+				@conn.pipeline_sync
 				@conn.get_last_result
 			end
 		end
