@@ -45,7 +45,7 @@ context "running with sync_* methods" do
 		t.kill
 		t.join
 
-		expect( Time.now - start ).to be >= 1.0
+		expect( Time.now - start ).to be >= 0.9
 		@conn.cancel
 	end
 
