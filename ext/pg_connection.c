@@ -2193,6 +2193,7 @@ pgconn_consume_input(self)
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on error */
 	if(PQconsumeInput(conn) == 0) {
+		pgconn_close_socket_io(self);
 		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
 		rb_iv_set(error, "@connection", self);
 		rb_exc_raise(error);
@@ -2405,8 +2406,10 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 	socket_io = pgconn_socket_io(self);
 
 	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if ( PQconsumeInput(conn) == 0 )
+	if ( PQconsumeInput(conn) == 0 ) {
+		pgconn_close_socket_io(self);
 		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
+	}
 
 	if ( ptimeout ) {
 		gettimeofday(&currtime, NULL);
@@ -2435,6 +2438,7 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if ( PQconsumeInput(conn) == 0 ){
+			pgconn_close_socket_io(self);
 			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
 		}
 	}
@@ -3215,8 +3219,10 @@ pgconn_discard_results(VALUE self)
 		*/
 		while( gvl_PQisBusy(conn) ){
 			rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
-			if ( PQconsumeInput(conn) == 0 )
+			if ( PQconsumeInput(conn) == 0 ) {
+				pgconn_close_socket_io(self);
 				return Qfalse;
+			}
 		}
 
 		cur = gvl_PQgetResult(conn);
@@ -3234,8 +3240,10 @@ pgconn_discard_results(VALUE self)
 				if( st == 0 ) {
 					/* would block -> wait for readable data */
 					rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
-					if ( PQconsumeInput(conn) == 0 )
+					if ( PQconsumeInput(conn) == 0 ) {
+						pgconn_close_socket_io(self);
 						return Qfalse;
+					}
 				} else if( st > 0 ) {
 					/* some data retrieved -> discard it */
 					PQfreemem(buffer);
