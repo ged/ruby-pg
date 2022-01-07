@@ -415,14 +415,24 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "CONNECTION_MADE", INT2FIX(CONNECTION_MADE));
 	/* Waiting for a response from the server. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_AWAITING_RESPONSE", INT2FIX(CONNECTION_AWAITING_RESPONSE));
-	/* Received authentication; waiting for backend start-up to ﬁnish. */
+	/* Received authentication; waiting for backend startup. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_AUTH_OK", INT2FIX(CONNECTION_AUTH_OK));
+	/* This state is no longer used. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_SETENV", INT2FIX(CONNECTION_SETENV));
 	/* Negotiating SSL encryption. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_SSL_STARTUP", INT2FIX(CONNECTION_SSL_STARTUP));
-	/* Negotiating environment-driven parameter settings. */
-	rb_define_const(rb_mPGconstants, "CONNECTION_SETENV", INT2FIX(CONNECTION_SETENV));
 	/* Internal state - PG.connect() needed. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_NEEDED", INT2FIX(CONNECTION_NEEDED));
+	/* Checking if session is read-write. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_WRITABLE", INT2FIX(CONNECTION_CHECK_WRITABLE));
+	/* Consuming any extra messages. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_CONSUME", INT2FIX(CONNECTION_CONSUME));
+	/* Negotiating GSSAPI. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_GSS_STARTUP", INT2FIX(CONNECTION_GSS_STARTUP));
+	/* Checking target server properties. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_TARGET", INT2FIX(CONNECTION_CHECK_TARGET));
+	/* Checking if server is in standby mode. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_STANDBY", INT2FIX(CONNECTION_CHECK_STANDBY));
 
 	/******     PG::Connection CLASS CONSTANTS: Nonblocking connection polling status     ******/
 

@@ -779,7 +779,11 @@ pgconn_conninfo( VALUE self )
  * call-seq:
  *    conn.status()
  *
- * Returns status of connection : CONNECTION_OK or CONNECTION_BAD
+ * Returns the status of the connection, which is one:
+ *   PG::Constants::CONNECTION_OK
+ *   PG::Constants::CONNECTION_BAD
+ *
+ * ... and other constants of kind PG::Constants::CONNECTION_*
  */
 static VALUE
 pgconn_status(VALUE self)
