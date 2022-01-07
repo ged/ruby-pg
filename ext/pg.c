@@ -47,6 +47,7 @@
  */
 
 #include "pg.h"
+#include "pg_config.h"
 
 int pg_skip_deprecation_warning;
 VALUE rb_mPG;
@@ -423,16 +424,26 @@ Init_pg_ext()
 	rb_define_const(rb_mPGconstants, "CONNECTION_SSL_STARTUP", INT2FIX(CONNECTION_SSL_STARTUP));
 	/* Internal state - PG.connect() needed. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_NEEDED", INT2FIX(CONNECTION_NEEDED));
-	/* Checking if session is read-write. */
+#if PG_MAJORVERSION_NUM >= 10
+	/* Checking if session is read-write. Available since PostgreSQL-10. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_WRITABLE", INT2FIX(CONNECTION_CHECK_WRITABLE));
-	/* Consuming any extra messages. */
+#endif
+#if PG_MAJORVERSION_NUM >= 10
+	/* Consuming any extra messages. Available since PostgreSQL-10. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CONSUME", INT2FIX(CONNECTION_CONSUME));
-	/* Negotiating GSSAPI. */
+#endif
+#if PG_MAJORVERSION_NUM >= 12
+	/* Negotiating GSSAPI. Available since PostgreSQL-12. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_GSS_STARTUP", INT2FIX(CONNECTION_GSS_STARTUP));
-	/* Checking target server properties. */
+#endif
+#if PG_MAJORVERSION_NUM >= 13
+	/* Checking target server properties. Available since PostgreSQL-13. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_TARGET", INT2FIX(CONNECTION_CHECK_TARGET));
-	/* Checking if server is in standby mode. */
+#endif
+#if PG_MAJORVERSION_NUM >= 14
+	/* Checking if server is in standby mode. Available since PostgreSQL-14. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_STANDBY", INT2FIX(CONNECTION_CHECK_STANDBY));
+#endif
 
 	/******     PG::Connection CLASS CONSTANTS: Nonblocking connection polling status     ******/
 
