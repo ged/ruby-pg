@@ -390,6 +390,8 @@ describe PG::Connection do
 		end
 
 		it "provides the server generated error message" do
+			skip("Will be fixed in postgresql-14.2 on Windows") if RUBY_PLATFORM=~/mingw|mswin/
+
 			conn = described_class.connect_start(
 				:host => 'localhost',
 				:port => @port,
