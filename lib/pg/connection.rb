@@ -364,14 +364,44 @@ class PG::Connection
 		end
 	end
 
-	alias sync_get_result get_result
-	def async_get_result(*args)
+	# call-seq:
+	#    conn.get_result() -> PG::Result
+	#    conn.get_result() {|pg_result| block }
+	#
+	# Blocks waiting for the next result from a call to
+	# #send_query (or another asynchronous command), and returns
+	# it. Returns +nil+ if no more results are available.
+	#
+	# Note: call this function repeatedly until it returns +nil+, or else
+	# you will not be able to issue further commands.
+	#
+	# If the optional code block is given, it will be passed <i>result</i> as an argument,
+	# and the PG::Result object will  automatically be cleared when the block terminates.
+	# In this instance, <code>conn.exec</code> returns the value of the block.
+	def get_result(*args)
 		block
 		sync_get_result
 	end
+	alias async_get_result get_result
 
-	alias sync_get_copy_data get_copy_data
-	def async_get_copy_data(async=false, decoder=nil)
+	# call-seq:
+	#    conn.get_copy_data( [ nonblock = false [, decoder = nil ]] ) -> Object
+	#
+	# Return one row of data, +nil+
+	# if the copy is done, or +false+ if the call would
+	# block (only possible if _nonblock_ is true).
+	#
+	# If _decoder_ is not set or +nil+, data is returned as binary string.
+	#
+	# If _decoder_ is set to a PG::Coder derivation, the return type depends on this decoder.
+	# PG::TextDecoder::CopyRow decodes the received data fields from one row of PostgreSQL's
+	# COPY text format to an Array of Strings.
+	# Optionally the decoder can type cast the single fields to various Ruby types in one step,
+	# if PG::TextDecoder::CopyRow#type_map is set accordingly.
+	#
+	# See also #copy_data.
+	#
+	def get_copy_data(async=false, decoder=nil)
 		if async
 			return sync_get_copy_data(async, decoder)
 		else
@@ -382,56 +412,143 @@ class PG::Connection
 			return res
 		end
 	end
+	alias async_get_copy_data get_copy_data
 
-	# In async_api=false mode all send calls run directly on libpq.
-	# Blocking vs. nonblocking state can be changed in libpq.
-	alias sync_setnonblocking setnonblocking
 
 	# In async_api=true mode (default) all send calls run nonblocking.
 	# The difference is that setnonblocking(true) disables automatic handling of would-block cases.
-	def async_setnonblocking(enabled)
+	# In async_api=false mode all send calls run directly on libpq.
+	# Blocking vs. nonblocking state can be changed in libpq.
+
+	# call-seq:
+	#    conn.setnonblocking(Boolean) -> nil
+	#
+	# Sets the nonblocking status of the connection.
+	# In the blocking state, calls to #send_query
+	# will block until the message is sent to the server,
+	# but will not wait for the query results.
+	# In the nonblocking state, calls to #send_query
+	# will return an error if the socket is not ready for
+	# writing.
+	# Note: This function does not affect #exec, because
+	# that function doesn't return until the server has
+	# processed the query and returned the results.
+	#
+	# Returns +nil+.
+	def setnonblocking(enabled)
 		singleton_class.async_send_api = !enabled
 		self.flush_data = !enabled
 		sync_setnonblocking(true)
 	end
+	alias async_setnonblocking setnonblocking
 
 	# sync/async isnonblocking methods are switched by async_setnonblocking()
-	alias sync_isnonblocking isnonblocking
-	def async_isnonblocking
+
+	# call-seq:
+	#    conn.isnonblocking() -> Boolean
+	#
+	# Returns the blocking status of the database connection.
+	# Returns +true+ if the connection is set to nonblocking mode and +false+ if blocking.
+	def isnonblocking
 		false
 	end
+	alias async_isnonblocking isnonblocking
+	alias nonblocking? isnonblocking
 
-	alias sync_put_copy_data put_copy_data
-	def async_put_copy_data(buffer, encoder=nil)
+	# call-seq:
+	#    conn.put_copy_data( buffer [, encoder] ) -> Boolean
+	#
+	# Transmits _buffer_ as copy data to the server.
+	# Returns true if the data was sent, false if it was
+	# not sent (false is only possible if the connection
+	# is in nonblocking mode, and this command would block).
+	#
+	# _encoder_ can be a PG::Coder derivation (typically PG::TextEncoder::CopyRow).
+	# This encodes the data fields given as _buffer_ from an Array of Strings to
+	# PostgreSQL's COPY text format inclusive proper escaping. Optionally
+	# the encoder can type cast the fields from various Ruby types in one step,
+	# if PG::TextEncoder::CopyRow#type_map is set accordingly.
+	#
+	# Raises an exception if an error occurs.
+	#
+	# See also #copy_data.
+	#
+	def put_copy_data(buffer, encoder=nil)
 		until sync_put_copy_data(buffer, encoder)
 			flush
 		end
 		flush
 	end
-	alias sync_put_copy_end put_copy_end
-	def async_put_copy_end(*args)
+	alias async_put_copy_data put_copy_data
+
+	# call-seq:
+	#    conn.put_copy_end( [ error_message ] ) -> Boolean
+	#
+	# Sends end-of-data indication to the server.
+	#
+	# _error_message_ is an optional parameter, and if set,
+	# forces the COPY command to fail with the string
+	# _error_message_.
+	#
+	# Returns true if the end-of-data was sent, #false* if it was
+	# not sent (*false* is only possible if the connection
+	# is in nonblocking mode, and this command would block).
+	def put_copy_end(*args)
 		until sync_put_copy_end(*args)
 			flush
 		end
 		flush
 	end
+	alias async_put_copy_end put_copy_end
 
-	if method_defined? :encrypt_password
-		alias sync_encrypt_password encrypt_password
-		def async_encrypt_password( password, username, algorithm=nil )
+	if method_defined? :sync_encrypt_password
+		# call-seq:
+		#    conn.encrypt_password( password, username, algorithm=nil ) -> String
+		#
+		# This function is intended to be used by client applications that wish to send commands like <tt>ALTER USER joe PASSWORD 'pwd'</tt>.
+		# It is good practice not to send the original cleartext password in such a command, because it might be exposed in command logs, activity displays, and so on.
+		# Instead, use this function to convert the password to encrypted form before it is sent.
+		#
+		# The +password+ and +username+ arguments are the cleartext password, and the SQL name of the user it is for.
+		# +algorithm+ specifies the encryption algorithm to use to encrypt the password.
+		# Currently supported algorithms are +md5+ and +scram-sha-256+ (+on+ and +off+ are also accepted as aliases for +md5+, for compatibility with older server versions).
+		# Note that support for +scram-sha-256+ was introduced in PostgreSQL version 10, and will not work correctly with older server versions.
+		# If algorithm is omitted or +nil+, this function will query the server for the current value of the +password_encryption+ setting.
+		# That can block, and will fail if the current transaction is aborted, or if the connection is busy executing another query.
+		# If you wish to use the default algorithm for the server but want to avoid blocking, query +password_encryption+ yourself before calling #encrypt_password, and pass that value as the algorithm.
+		#
+		# Return value is the encrypted password.
+		# The caller can assume the string doesn't contain any special characters that would require escaping.
+		#
+		# Available since PostgreSQL-10.
+		# See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN].
+		def encrypt_password( password, username, algorithm=nil )
 			algorithm ||= exec("SHOW password_encryption").getvalue(0,0)
 			sync_encrypt_password(password, username, algorithm)
 		end
+		alias async_encrypt_password encrypt_password
 	end
 
-	alias sync_reset reset
-	def async_reset
+	# call-seq:
+	#   conn.reset()
+	#
+	# Resets the backend connection. This method closes the
+	# backend connection and tries to re-connect.
+	def reset
 		reset_start
 		async_connect_or_reset(:reset_poll)
 	end
+	alias async_reset reset
 
-	alias sync_cancel cancel
-	def async_cancel
+	# call-seq:
+	#    conn.cancel() -> String
+	#
+	# Requests cancellation of the command currently being
+	# processed.
+	#
+	# Returns +nil+ on success, or a string containing the
+	# error message if a failure occurs.
+	def cancel
 		be_pid = backend_pid
 		be_key = backend_key
 		cancel_request = [0x10, 1234, 5678, be_pid, be_key].pack("NnnNN")
@@ -484,6 +601,7 @@ class PG::Connection
 	rescue SystemCallError => err
 		err.to_s
 	end
+	alias async_cancel cancel
 
 	private def async_connect_or_reset(poll_meth)
 		# Now grab a reference to the underlying socket so we know when the connection is established
@@ -520,9 +638,58 @@ class PG::Connection
 	end
 
 	class << self
-		alias sync_connect new
-
-		def async_connect(*args, **kwargs)
+		# call-seq:
+		#    PG::Connection.new -> conn
+		#    PG::Connection.new(connection_hash) -> conn
+		#    PG::Connection.new(connection_string) -> conn
+		#    PG::Connection.new(host, port, options, tty, dbname, user, password) ->  conn
+		#
+		# Create a connection to the specified server.
+		#
+		# +connection_hash+ must be a ruby Hash with connection parameters.
+		# See the {list of valid parameters}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS] in the PostgreSQL documentation.
+		#
+		# There are two accepted formats for +connection_string+: plain <code>keyword = value</code> strings and URIs.
+		# See the documentation of {connection strings}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING].
+		#
+		# The positional parameter form has the same functionality except that the missing parameters will always take on default values. The parameters are:
+		# [+host+]
+		#   server hostname
+		# [+port+]
+		#   server port number
+		# [+options+]
+		#   backend options
+		# [+tty+]
+		#   (ignored in all versions of PostgreSQL)
+		# [+dbname+]
+		#   connecting database name
+		# [+user+]
+		#   login user name
+		# [+password+]
+		#   login password
+		#
+		# Examples:
+		#
+		#   # Connect using all defaults
+		#   PG::Connection.new
+		#
+		#   # As a Hash
+		#   PG::Connection.new( dbname: 'test', port: 5432 )
+		#
+		#   # As a String
+		#   PG::Connection.new( "dbname=test port=5432" )
+		#
+		#   # As an Array
+		#   PG::Connection.new( nil, 5432, nil, nil, 'test', nil, nil )
+		#
+		#   # As an URI
+		#   PG::Connection.new( "postgresql://user:pass@pgsql.example.com:5432/testdb?sslmode=require" )
+		#
+		# If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
+		# connection will have its +client_encoding+ set accordingly.
+		#
+		# Raises a PG::Error if the connection fails.
+		def new(*args, **kwargs)
 			conn = PG::Connection.connect_start(*args, **kwargs ) or
 				raise(PG::Error, "Unable to create a new connection")
 
@@ -530,9 +697,31 @@ class PG::Connection
 
 			conn.send(:async_connect_or_reset, :connect_poll)
 		end
+		alias async_connect new
+		alias connect new
+		alias open new
+		alias setdb new
+		alias setdblogin new
 
-		alias sync_ping ping
-		def async_ping(*args)
+		# call-seq:
+		#    PG::Connection.ping(connection_hash)       -> Integer
+		#    PG::Connection.ping(connection_string)     -> Integer
+		#    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Integer
+		#
+		# Check server status.
+		#
+		# See PG::Connection.new for a description of the parameters.
+		#
+		# Returns one of:
+		# [+PQPING_OK+]
+		#   server is accepting connections
+		# [+PQPING_REJECT+]
+		#   server is alive but rejecting connections
+		# [+PQPING_NO_RESPONSE+]
+		#   could not establish connection
+		# [+PQPING_NO_ATTEMPT+]
+		#   connection not attempted (bad params)
+		def ping(*args)
 			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
 				# Run PQping in a second thread to avoid blocking of the scheduler.
 				# Unfortunately there's no nonblocking way to run ping.
@@ -541,9 +730,14 @@ class PG::Connection
 				sync_ping(*args)
 			end
 		end
+		alias async_ping ping
 
 		REDIRECT_CLASS_METHODS = {
 			:new => [:async_connect, :sync_connect],
+			:connect => [:async_connect, :sync_connect],
+			:open => [:async_connect, :sync_connect],
+			:setdb => [:async_connect, :sync_connect],
+			:setdblogin => [:async_connect, :sync_connect],
 			:ping => [:async_ping, :sync_ping],
 		}
 

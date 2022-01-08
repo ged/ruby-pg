@@ -249,68 +249,13 @@ pgconn_s_allocate( VALUE klass )
 	return self;
 }
 
-
-/*
- * Document-method: new
- *
- * call-seq:
- *    PG::Connection.new -> conn
- *    PG::Connection.new(connection_hash) -> conn
- *    PG::Connection.new(connection_string) -> conn
- *    PG::Connection.new(host, port, options, tty, dbname, user, password) ->  conn
- *
- * Create a connection to the specified server.
- *
- * +connection_hash+ must be a ruby Hash with connection parameters.
- * See the {list of valid parameters}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS] in the PostgreSQL documentation.
- *
- * There are two accepted formats for +connection_string+: plain <code>keyword = value</code> strings and URIs.
- * See the documentation of {connection strings}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING].
- *
- * The positional parameter form has the same functionality except that the missing parameters will always take on default values. The parameters are:
- * [+host+]
- *   server hostname
- * [+port+]
- *   server port number
- * [+options+]
- *   backend options
- * [+tty+]
- *   (ignored in all versions of PostgreSQL)
- * [+dbname+]
- *   connecting database name
- * [+user+]
- *   login user name
- * [+password+]
- *   login password
- *
- * Examples:
- *
- *   # Connect using all defaults
- *   PG::Connection.new
- *
- *   # As a Hash
- *   PG::Connection.new( dbname: 'test', port: 5432 )
- *
- *   # As a String
- *   PG::Connection.new( "dbname=test port=5432" )
- *
- *   # As an Array
- *   PG::Connection.new( nil, 5432, nil, nil, 'test', nil, nil )
- *
- *   # As an URI
- *   PG::Connection.new( "postgresql://user:pass@pgsql.example.com:5432/testdb?sslmode=require" )
- *
- * If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
- * connection will have its +client_encoding+ set accordingly.
- *
- * Raises a PG::Error if the connection fails.
- */
 static VALUE
-pgconn_init(int argc, VALUE *argv, VALUE self)
+pgconn_s_sync_connect(int argc, VALUE *argv, VALUE klass)
 {
 	t_pg_connection *this;
 	VALUE conninfo;
 	VALUE error;
+	VALUE self = pgconn_s_allocate( klass );
 
 	this = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
@@ -383,28 +328,8 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	return rb_conn;
 }
 
-/*
- * call-seq:
- *    PG::Connection.ping(connection_hash)       -> Integer
- *    PG::Connection.ping(connection_string)     -> Integer
- *    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Integer
- *
- * Check server status.
- *
- * See PG::Connection.new for a description of the parameters.
- *
- * Returns one of:
- * [+PQPING_OK+]
- *   server is accepting connections
- * [+PQPING_REJECT+]
- *   server is alive but rejecting connections
- * [+PQPING_NO_RESPONSE+]
- *   could not establish connection
- * [+PQPING_NO_ATTEMPT+]
- *   connection not attempted (bad params)
- */
 static VALUE
-pgconn_s_ping( int argc, VALUE *argv, VALUE klass )
+pgconn_s_sync_ping( int argc, VALUE *argv, VALUE klass )
 {
 	PGPing ping;
 	VALUE conninfo;
@@ -453,30 +378,8 @@ pgconn_s_conndefaults(VALUE self)
 
 
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
-/*
- * call-seq:
- *    conn.encrypt_password( password, username, algorithm=nil ) -> String
- *
- * This function is intended to be used by client applications that wish to send commands like <tt>ALTER USER joe PASSWORD 'pwd'</tt>.
- * It is good practice not to send the original cleartext password in such a command, because it might be exposed in command logs, activity displays, and so on.
- * Instead, use this function to convert the password to encrypted form before it is sent.
- *
- * The +password+ and +username+ arguments are the cleartext password, and the SQL name of the user it is for.
- * +algorithm+ specifies the encryption algorithm to use to encrypt the password.
- * Currently supported algorithms are +md5+ and +scram-sha-256+ (+on+ and +off+ are also accepted as aliases for +md5+, for compatibility with older server versions).
- * Note that support for +scram-sha-256+ was introduced in PostgreSQL version 10, and will not work correctly with older server versions.
- * If algorithm is omitted or +nil+, this function will query the server for the current value of the +password_encryption+ setting.
- * That can block, and will fail if the current transaction is aborted, or if the connection is busy executing another query.
- * If you wish to use the default algorithm for the server but want to avoid blocking, query +password_encryption+ yourself before calling #encrypt_password, and pass that value as the algorithm.
- *
- * Return value is the encrypted password.
- * The caller can assume the string doesn't contain any special characters that would require escaping.
- *
- * Available since PostgreSQL-10.
- * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN].
- */
 static VALUE
-pgconn_encrypt_password(int argc, VALUE *argv, VALUE self)
+pgconn_sync_encrypt_password(int argc, VALUE *argv, VALUE self)
 {
 	char *encrypted = NULL;
 	VALUE rval = Qnil;
@@ -612,15 +515,8 @@ pgconn_finished_p( VALUE self )
 }
 
 
-/*
- * call-seq:
- *    conn.reset()
- *
- * Resets the backend connection. This method closes the
- * backend connection and tries to re-connect.
- */
 static VALUE
-pgconn_reset( VALUE self )
+pgconn_sync_reset( VALUE self )
 {
 	pgconn_close_socket_io( self );
 	gvl_PQreset( pg_get_pgconn(self) );
@@ -1058,7 +954,7 @@ pgconn_connection_used_password(VALUE self)
 /* :TODO: get_ssl */
 
 
-static VALUE pgconn_exec_params( int, VALUE *, VALUE );
+static VALUE pgconn_sync_exec_params( int, VALUE *, VALUE );
 
 /*
  * call-seq:
@@ -1076,7 +972,7 @@ static VALUE pgconn_exec_params( int, VALUE *, VALUE );
  *    It can therefore schedule things like garbage collection, while queries are running like in this proposal: https://bugs.ruby-lang.org/issues/14723
  */
 static VALUE
-pgconn_exec(int argc, VALUE *argv, VALUE self)
+pgconn_sync_exec(int argc, VALUE *argv, VALUE self)
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
@@ -1097,7 +993,7 @@ pgconn_exec(int argc, VALUE *argv, VALUE self)
 	pg_deprecated(0, ("forwarding exec to exec_params is deprecated"));
 
 	/* Otherwise, just call #exec_params instead for backward-compatibility */
-	return pgconn_exec_params( argc, argv, self );
+	return pgconn_sync_exec_params( argc, argv, self );
 
 }
 
@@ -1379,7 +1275,7 @@ pgconn_query_assign_typemap( VALUE self, struct query_params_data *paramsData )
  * It's not recommended to use explicit sync or async variants but #exec_params instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_exec_params( int argc, VALUE *argv, VALUE self )
+pgconn_sync_exec_params( int argc, VALUE *argv, VALUE self )
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
@@ -1399,7 +1295,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
 	 */
 	if ( NIL_P(paramsData.params) ) {
 		pg_deprecated(1, ("forwarding exec_params to exec is deprecated"));
-		return pgconn_exec( 1, argv, self );
+		return pgconn_sync_exec( 1, argv, self );
 	}
 	pgconn_query_assign_typemap( self, &paramsData );
 
@@ -1430,7 +1326,7 @@ pgconn_exec_params( int argc, VALUE *argv, VALUE self )
  * It's not recommended to use explicit sync or async variants but #prepare instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_prepare(int argc, VALUE *argv, VALUE self)
+pgconn_sync_prepare(int argc, VALUE *argv, VALUE self)
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
@@ -1479,7 +1375,7 @@ pgconn_prepare(int argc, VALUE *argv, VALUE self)
  * It's not recommended to use explicit sync or async variants but #exec_prepared instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
+pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
 	PGresult *result = NULL;
@@ -1524,7 +1420,7 @@ pgconn_exec_prepared(int argc, VALUE *argv, VALUE self)
  * It's not recommended to use explicit sync or async variants but #describe_prepared instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_describe_prepared(VALUE self, VALUE stmt_name)
+pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 {
 	PGresult *result;
 	VALUE rb_pgresult;
@@ -1552,7 +1448,7 @@ pgconn_describe_prepared(VALUE self, VALUE stmt_name)
  * It's not recommended to use explicit sync or async variants but #describe_portal instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_describe_portal(self, stmt_name)
+pgconn_sync_describe_portal(self, stmt_name)
 	VALUE self, stmt_name;
 {
 	PGresult *result;
@@ -2147,24 +2043,8 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 }
 
 
-/*
- * call-seq:
- *    conn.get_result() -> PG::Result
- *    conn.get_result() {|pg_result| block }
- *
- * Blocks waiting for the next result from a call to
- * #send_query (or another asynchronous command), and returns
- * it. Returns +nil+ if no more results are available.
- *
- * Note: call this function repeatedly until it returns +nil+, or else
- * you will not be able to issue further commands.
- *
- * If the optional code block is given, it will be passed <i>result</i> as an argument,
- * and the PG::Result object will  automatically be cleared when the block terminates.
- * In this instance, <code>conn.exec</code> returns the value of the block.
- */
 static VALUE
-pgconn_get_result(VALUE self)
+pgconn_sync_get_result(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	PGresult *result;
@@ -2210,7 +2090,7 @@ pgconn_consume_input(self)
  *    conn.is_busy() -> Boolean
  *
  * Returns +true+ if a command is busy, that is, if
- * PQgetResult would block. Otherwise returns +false+.
+ * #get_result would block. Otherwise returns +false+.
  */
 static VALUE
 pgconn_is_busy(self)
@@ -2219,24 +2099,8 @@ pgconn_is_busy(self)
 	return gvl_PQisBusy(pg_get_pgconn(self)) ? Qtrue : Qfalse;
 }
 
-/*
- * call-seq:
- *    conn.setnonblocking(Boolean) -> nil
- *
- * Sets the nonblocking status of the connection.
- * In the blocking state, calls to #send_query
- * will block until the message is sent to the server,
- * but will not wait for the query results.
- * In the nonblocking state, calls to #send_query
- * will return an error if the socket is not ready for
- * writing.
- * Note: This function does not affect #exec, because
- * that function doesn't return until the server has
- * processed the query and returned the results.
- * Returns +nil+.
- */
 static VALUE
-pgconn_setnonblocking(self, state)
+pgconn_sync_setnonblocking(self, state)
 	VALUE self, state;
 {
 	int arg;
@@ -2258,30 +2122,13 @@ pgconn_setnonblocking(self, state)
 }
 
 
-/*
- * call-seq:
- *    conn.isnonblocking() -> Boolean
- *
- * Returns +true+ if a command is busy, that is, if
- * PQgetResult would block. Otherwise returns +false+.
- */
 static VALUE
-pgconn_isnonblocking(self)
+pgconn_sync_isnonblocking(self)
 	VALUE self;
 {
 	return PQisnonblocking(pg_get_pgconn(self)) ? Qtrue : Qfalse;
 }
 
-/*
- * call-seq:
- *    conn.flush() -> Boolean
- *
- * Attempts to flush any queued output data to the server.
- * Returns +true+ if data is successfully flushed, +false+
- * if not (can only return +false+ if connection is
- * nonblocking.
- * Raises PG::Error if some other failure occurred.
- */
 static VALUE
 pgconn_sync_flush(VALUE self)
 {
@@ -2297,18 +2144,8 @@ pgconn_sync_flush(VALUE self)
 	return (ret) ? Qfalse : Qtrue;
 }
 
-/*
- * call-seq:
- *    conn.cancel() -> String
- *
- * Requests cancellation of the command currently being
- * processed.
- *
- * Returns +nil+ on success, or a string containing the
- * error message if a failure occurs.
- */
 static VALUE
-pgconn_cancel(VALUE self)
+pgconn_sync_cancel(VALUE self)
 {
 	char errbuf[256];
 	PGcancel *cancel;
@@ -2450,6 +2287,16 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 	return retval;
 }
 
+/*
+ * call-seq:
+ *    conn.flush() -> Boolean
+ *
+ * Attempts to flush any queued output data to the server.
+ * Returns +true+ if data is successfully flushed, +false+
+ * if not (can only return +false+ if connection is
+ * nonblocking.
+ * Raises PG::Error if some other failure occurred.
+ */
 static VALUE
 pgconn_async_flush(VALUE self)
 {
@@ -2538,28 +2385,8 @@ pgconn_wait_for_notify(int argc, VALUE *argv, VALUE self)
 }
 
 
-/*
- * call-seq:
- *    conn.put_copy_data( buffer [, encoder] ) -> Boolean
- *
- * Transmits _buffer_ as copy data to the server.
- * Returns true if the data was sent, false if it was
- * not sent (false is only possible if the connection
- * is in nonblocking mode, and this command would block).
- *
- * _encoder_ can be a PG::Coder derivation (typically PG::TextEncoder::CopyRow).
- * This encodes the data fields given as _buffer_ from an Array of Strings to
- * PostgreSQL's COPY text format inclusive proper escaping. Optionally
- * the encoder can type cast the fields from various Ruby types in one step,
- * if PG::TextEncoder::CopyRow#type_map is set accordingly.
- *
- * Raises an exception if an error occurs.
- *
- * See also #copy_data.
- *
- */
 static VALUE
-pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
+pgconn_sync_put_copy_data(int argc, VALUE *argv, VALUE self)
 {
 	int ret;
 	int len;
@@ -2614,22 +2441,8 @@ pgconn_put_copy_data(int argc, VALUE *argv, VALUE self)
 	return (ret) ? Qtrue : Qfalse;
 }
 
-/*
- * call-seq:
- *    conn.put_copy_end( [ error_message ] ) -> Boolean
- *
- * Sends end-of-data indication to the server.
- *
- * _error_message_ is an optional parameter, and if set,
- * forces the COPY command to fail with the string
- * _error_message_.
- *
- * Returns true if the end-of-data was sent, *false* if it was
- * not sent (*false* is only possible if the connection
- * is in nonblocking mode, and this command would block).
- */
 static VALUE
-pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
+pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 {
 	VALUE str;
 	VALUE error;
@@ -2651,27 +2464,8 @@ pgconn_put_copy_end(int argc, VALUE *argv, VALUE self)
 	return (ret) ? Qtrue : Qfalse;
 }
 
-/*
- * call-seq:
- *    conn.get_copy_data( [ nonblock = false [, decoder = nil ]] ) -> Object
- *
- * Return one row of data, +nil+
- * if the copy is done, or +false+ if the call would
- * block (only possible if _nonblock_ is true).
- *
- * If _decoder_ is not set or +nil+, data is returned as binary string.
- *
- * If _decoder_ is set to a PG::Coder derivation, the return type depends on this decoder.
- * PG::TextDecoder::CopyRow decodes the received data fields from one row of PostgreSQL's
- * COPY text format to an Array of Strings.
- * Optionally the decoder can type cast the single fields to various Ruby types in one step,
- * if PG::TextDecoder::CopyRow#type_map is set accordingly.
- *
- * See also #copy_data.
- *
- */
 static VALUE
-pgconn_get_copy_data(int argc, VALUE *argv, VALUE self )
+pgconn_sync_get_copy_data(int argc, VALUE *argv, VALUE self )
 {
 	VALUE async_in;
 	VALUE error;
@@ -2996,7 +2790,7 @@ pgconn_get_client_encoding(VALUE self)
  * It's not recommended to use explicit sync or async variants but #set_client_encoding instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_set_client_encoding(VALUE self, VALUE str)
+pgconn_sync_set_client_encoding(VALUE self, VALUE str)
 {
 	PGconn *conn = pg_get_pgconn( self );
 
@@ -3117,7 +2911,7 @@ pgconn_block( int argc, VALUE *argv, VALUE self ) {
  * It's not recommended to use explicit sync or async variants but #get_last_result instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_get_last_result(VALUE self)
+pgconn_sync_get_last_result(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	VALUE rb_pgresult = Qnil;
@@ -4059,11 +3853,11 @@ static VALUE
 pgconn_internal_encoding_set(VALUE self, VALUE enc)
 {
 	if (NIL_P(enc)) {
-		pgconn_set_client_encoding( self, rb_usascii_str_new_cstr("SQL_ASCII") );
+		pgconn_sync_set_client_encoding( self, rb_usascii_str_new_cstr("SQL_ASCII") );
 		return enc;
 	}
 	else if ( TYPE(enc) == T_STRING && strcasecmp("JOHAB", StringValueCStr(enc)) == 0 ) {
-		pgconn_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
+		pgconn_sync_set_client_encoding(self, rb_usascii_str_new_cstr("JOHAB"));
 		return enc;
 	}
 	else {
@@ -4427,10 +4221,6 @@ init_pg_connection()
 	/******     PG::Connection CLASS METHODS     ******/
 	rb_define_alloc_func( rb_cPGconn, pgconn_s_allocate );
 
-	SINGLETON_ALIAS(rb_cPGconn, "connect", "new");
-	SINGLETON_ALIAS(rb_cPGconn, "open", "new");
-	SINGLETON_ALIAS(rb_cPGconn, "setdb", "new");
-	SINGLETON_ALIAS(rb_cPGconn, "setdblogin", "new");
 	rb_define_singleton_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);
 	SINGLETON_ALIAS(rb_cPGconn, "escape", "escape_string");
 	rb_define_singleton_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
@@ -4439,14 +4229,14 @@ init_pg_connection()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
-	rb_define_singleton_method(rb_cPGconn, "ping", pgconn_s_ping, -1);
+	rb_define_singleton_method(rb_cPGconn, "sync_ping", pgconn_s_sync_ping, -1);
+	rb_define_singleton_method(rb_cPGconn, "sync_connect", pgconn_s_sync_connect, -1);
 
 	/******     PG::Connection INSTANCE METHODS: Connection Control     ******/
-	rb_define_method(rb_cPGconn, "initialize", pgconn_init, -1);
 	rb_define_method(rb_cPGconn, "connect_poll", pgconn_connect_poll, 0);
 	rb_define_method(rb_cPGconn, "finish", pgconn_finish, 0);
 	rb_define_method(rb_cPGconn, "finished?", pgconn_finished_p, 0);
-	rb_define_method(rb_cPGconn, "reset", pgconn_reset, 0);
+	rb_define_method(rb_cPGconn, "sync_reset", pgconn_sync_reset, 0);
 	rb_define_method(rb_cPGconn, "reset_start", pgconn_reset_start, 0);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
@@ -4475,12 +4265,12 @@ init_pg_connection()
 	/* rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0); */
 
 	/******     PG::Connection INSTANCE METHODS: Command Execution     ******/
-	rb_define_method(rb_cPGconn, "sync_exec", pgconn_exec, -1);
-	rb_define_method(rb_cPGconn, "sync_exec_params", pgconn_exec_params, -1);
-	rb_define_method(rb_cPGconn, "sync_prepare", pgconn_prepare, -1);
-	rb_define_method(rb_cPGconn, "sync_exec_prepared", pgconn_exec_prepared, -1);
-	rb_define_method(rb_cPGconn, "sync_describe_prepared", pgconn_describe_prepared, 1);
-	rb_define_method(rb_cPGconn, "sync_describe_portal", pgconn_describe_portal, 1);
+	rb_define_method(rb_cPGconn, "sync_exec", pgconn_sync_exec, -1);
+	rb_define_method(rb_cPGconn, "sync_exec_params", pgconn_sync_exec_params, -1);
+	rb_define_method(rb_cPGconn, "sync_prepare", pgconn_sync_prepare, -1);
+	rb_define_method(rb_cPGconn, "sync_exec_prepared", pgconn_sync_exec_prepared, -1);
+	rb_define_method(rb_cPGconn, "sync_describe_prepared", pgconn_sync_describe_prepared, 1);
+	rb_define_method(rb_cPGconn, "sync_describe_portal", pgconn_sync_describe_portal, 1);
 
 	rb_define_method(rb_cPGconn, "exec", pgconn_async_exec, -1);
 	rb_define_method(rb_cPGconn, "exec_params", pgconn_async_exec_params, -1);
@@ -4513,26 +4303,26 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "send_query_prepared", pgconn_send_query_prepared, -1);
 	rb_define_method(rb_cPGconn, "send_describe_prepared", pgconn_send_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "send_describe_portal", pgconn_send_describe_portal, 1);
-	rb_define_method(rb_cPGconn, "get_result", pgconn_get_result, 0);
+	rb_define_method(rb_cPGconn, "sync_get_result", pgconn_sync_get_result, 0);
 	rb_define_method(rb_cPGconn, "consume_input", pgconn_consume_input, 0);
 	rb_define_method(rb_cPGconn, "is_busy", pgconn_is_busy, 0);
-	rb_define_method(rb_cPGconn, "setnonblocking", pgconn_setnonblocking, 1);
-	rb_define_method(rb_cPGconn, "isnonblocking", pgconn_isnonblocking, 0);
-	rb_define_alias(rb_cPGconn, "nonblocking?", "isnonblocking");
+	rb_define_method(rb_cPGconn, "sync_setnonblocking", pgconn_sync_setnonblocking, 1);
+	rb_define_method(rb_cPGconn, "sync_isnonblocking", pgconn_sync_isnonblocking, 0);
 	rb_define_method(rb_cPGconn, "sync_flush", pgconn_sync_flush, 0);
-	rb_define_method(rb_cPGconn, "async_flush", pgconn_async_flush, 0);
+	rb_define_method(rb_cPGconn, "flush", pgconn_async_flush, 0);
+	rb_define_alias(rb_cPGconn, "async_flush", "flush");
 	rb_define_method(rb_cPGconn, "discard_results", pgconn_discard_results, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Cancelling Queries in Progress     ******/
-	rb_define_method(rb_cPGconn, "cancel", pgconn_cancel, 0);
+	rb_define_method(rb_cPGconn, "sync_cancel", pgconn_sync_cancel, 0);
 
 	/******     PG::Connection INSTANCE METHODS: NOTIFY     ******/
 	rb_define_method(rb_cPGconn, "notifies", pgconn_notifies, 0);
 
 	/******     PG::Connection INSTANCE METHODS: COPY     ******/
-	rb_define_method(rb_cPGconn, "put_copy_data", pgconn_put_copy_data, -1);
-	rb_define_method(rb_cPGconn, "put_copy_end", pgconn_put_copy_end, -1);
-	rb_define_method(rb_cPGconn, "get_copy_data", pgconn_get_copy_data, -1);
+	rb_define_method(rb_cPGconn, "sync_put_copy_data", pgconn_sync_put_copy_data, -1);
+	rb_define_method(rb_cPGconn, "sync_put_copy_end", pgconn_sync_put_copy_end, -1);
+	rb_define_method(rb_cPGconn, "sync_get_copy_data", pgconn_sync_get_copy_data, -1);
 
 	/******     PG::Connection INSTANCE METHODS: Control Functions     ******/
 	rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 1);
@@ -4548,18 +4338,20 @@ init_pg_connection()
 
 	/******     PG::Connection INSTANCE METHODS: Other    ******/
 	rb_define_method(rb_cPGconn, "get_client_encoding", pgconn_get_client_encoding, 0);
-	rb_define_method(rb_cPGconn, "sync_set_client_encoding", pgconn_set_client_encoding, 1);
-	rb_define_method(rb_cPGconn, "async_set_client_encoding", pgconn_async_set_client_encoding, 1);
-	rb_define_alias(rb_cPGconn, "async_client_encoding=", "async_set_client_encoding");
+	rb_define_method(rb_cPGconn, "sync_set_client_encoding", pgconn_sync_set_client_encoding, 1);
+	rb_define_method(rb_cPGconn, "set_client_encoding", pgconn_async_set_client_encoding, 1);
+	rb_define_alias(rb_cPGconn, "async_set_client_encoding", "set_client_encoding");
+	rb_define_alias(rb_cPGconn, "client_encoding=", "set_client_encoding");
 	rb_define_method(rb_cPGconn, "block", pgconn_block, -1);
 	rb_define_private_method(rb_cPGconn, "flush_data=", pgconn_flush_data_set, 1);
 	rb_define_method(rb_cPGconn, "wait_for_notify", pgconn_wait_for_notify, -1);
 	rb_define_alias(rb_cPGconn, "notifies_wait", "wait_for_notify");
 	rb_define_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
-	rb_define_method(rb_cPGconn, "sync_get_last_result", pgconn_get_last_result, 0);
-	rb_define_method(rb_cPGconn, "async_get_last_result", pgconn_async_get_last_result, 0);
+	rb_define_method(rb_cPGconn, "sync_get_last_result", pgconn_sync_get_last_result, 0);
+	rb_define_method(rb_cPGconn, "get_last_result", pgconn_async_get_last_result, 0);
+	rb_define_alias(rb_cPGconn, "async_get_last_result", "get_last_result");
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
-	rb_define_method(rb_cPGconn, "encrypt_password", pgconn_encrypt_password, -1);
+	rb_define_method(rb_cPGconn, "sync_encrypt_password", pgconn_sync_encrypt_password, -1);
 #endif
 
 #ifdef HAVE_PQSSLATTRIBUTE
