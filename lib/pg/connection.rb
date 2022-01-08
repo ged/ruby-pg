@@ -586,6 +586,22 @@ class PG::Connection
 			end
 		end
 
+		# Switch between sync and async libpq API.
+		#
+		#   PG::Connection.async_api = true
+		# this is the default.
+		# It sets an alias from #exec to #async_exec, #reset to #async_reset and so on.
+		#
+		#   PG::Connection.async_api = false
+		# sets an alias from #exec to #sync_exec, #reset to #sync_reset and so on.
+		#
+		# pg-1.1.0+ defaults to libpq's async API for query related blocking methods.
+		# pg-1.3.0+ defaults to libpq's async API for all possibly blocking methods.
+		#
+		# _PLEASE_ _NOTE_: This method is not part of the public API and is for debug and development use only.
+		# Do not use this method in production code.
+		# Any issues with the default setting of <tt>async_api=true</tt> should be reported to the maintainers instead.
+		#
 		def async_api=(enable)
 			self.async_send_api = enable
 			REDIRECT_METHODS.each do |ali, (async, sync)|
@@ -599,6 +615,5 @@ class PG::Connection
 		end
 	end
 
-	# pg-1.1.0+ defaults to libpq's async API for query related blocking methods
 	self.async_api = true
 end # class PG::Connection
