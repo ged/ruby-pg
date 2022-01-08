@@ -1,4 +1,4 @@
-name: Build and test binary gems
+name: Binary gems
 
 on: [push, pull_request]
 

@@ -1,4 +1,4 @@
-name: Build and test source gem
+name: Source gem
 
 on: [push, pull_request]
 
@@ -113,9 +113,10 @@ jobs:
       - run: bundle install
 
       - run: gem install --local *.gem --verbose
+        continue-on-error: ${{ matrix.ruby == 'truffleruby-head' }}
 
       - name: Run specs
-        continue-on-error: ${{ matrix.ruby == 'truffleruby' }}
+        continue-on-error: ${{ matrix.ruby == 'truffleruby-head' }}
         env:
           PG_DEBUG: 0
         run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
