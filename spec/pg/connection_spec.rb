@@ -255,6 +255,8 @@ describe PG::Connection do
 	end
 
 	it "emits a suitable error_message at connection errors" do
+		skip("Will be fixed in postgresql-14.2 on Windows") if RUBY_PLATFORM=~/mingw|mswin/
+
 		expect {
 			described_class.connect(
 				:host => 'localhost',
