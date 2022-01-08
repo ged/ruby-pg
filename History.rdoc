@@ -4,7 +4,7 @@ Install Enhancements:
 - Print some install help if libpq wasn't found. #396
   This should help to pick the necessary package without googling.
 - Update Windows fat binary gem to OpenSSL-1.1.1m and PostgreSQL-14.1.
-- Add a binary gem for Ruby 3.0.
+- Add binary Windows gems for Ruby 3.0 and 3.1.
 - Make the library path of libpq available in ruby as PG::POSTGRESQL_LIB_PATH and add it to the search paths on Windows similar to +rpath+ on Unix systems. #373
 - Fall back to pkg-config if pg_config is not found. #380
 - Add option to extconf.rb to disable nogvl-wrapping of libpq functions.
