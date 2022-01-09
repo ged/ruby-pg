@@ -63,8 +63,8 @@ module PG
 
 
 	### Convenience alias for PG::Connection.new.
-	def self::connect( *args )
-		return PG::Connection.new( *args )
+	def self::connect( *args, **kwargs )
+		return PG::Connection.new( *args, **kwargs )
 	end
 
 
