@@ -21,6 +21,13 @@ require 'socket'
 #
 # See the PG::Result class for information on working with the results of a query.
 #
+# Many methods of this class have three variants kind of:
+# 1. #exec - the base method which is an alias to #async_exec .
+#    This is the method that should be used in general.
+# 2. #async_exec - the async aware version of the method, implemented by libpq's async API.
+# 3. #sync_exec - the method version that is implemented by blocking function(s) of libpq.
+#
+# Sync and async version of the method can be switched by Connection.async_api= , however it is not recommended to change the default.
 class PG::Connection
 
 	# The order the options are passed to the ::connect method.

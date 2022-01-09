@@ -968,8 +968,8 @@ static VALUE pgconn_sync_exec_params( int, VALUE *, VALUE );
  * However #async_exec has two advantages:
  *
  * 1. #async_exec can be aborted by signals (like Ctrl-C), while #exec blocks signal processing until the query is answered.
- * 2. Ruby VM gets notified about IO blocked operations.
- *    It can therefore schedule things like garbage collection, while queries are running like in this proposal: https://bugs.ruby-lang.org/issues/14723
+ * 2. Ruby VM gets notified about IO blocked operations and can pass them through <tt>Fiber.scheduler</tt>.
+ *    So only <tt>async_*</tt> methods are compatible to event based schedulers like the async gem.
  */
 static VALUE
 pgconn_sync_exec(int argc, VALUE *argv, VALUE self)
@@ -3076,6 +3076,7 @@ pgconn_discard_results(VALUE self)
  * #exec is an alias for #async_exec which is almost identical to #sync_exec .
  * #sync_exec is implemented on the simpler synchronous command processing API of libpq, whereas
  * #async_exec is implemented on the asynchronous API and on ruby's IO mechanisms.
+ * Only #async_exec is compatible to <tt>Fiber.scheduler</tt> based asynchronous IO processing introduced in ruby-3.0.
  * Both methods ensure that other threads can process while waiting for the server to
  * complete the request, but #sync_exec blocks all signals to be processed until the query is finished.
  * This is most notably visible by a delayed reaction to Control+C.
