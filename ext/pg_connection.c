@@ -2208,17 +2208,25 @@ pgconn_notifies(VALUE self)
 }
 
 
-#if !defined(HAVE_RB_IO_WAIT)
+#if defined(HAVE_RB_IO_WAIT)
+
+/* Use our own function and constants names, to avoid conflicts with truffleruby-head on its road to ruby-3.0 compatibility. */
+#define pg_rb_io_wait rb_io_wait
+#define PG_RUBY_IO_READABLE RUBY_IO_READABLE
+#define PG_RUBY_IO_WRITABLE RUBY_IO_WRITABLE
+#define PG_RUBY_IO_PRIORITY RUBY_IO_PRIORITY
+
+#else
 /* For compat with ruby < 3.0 */
 
 typedef enum {
-    RUBY_IO_READABLE = RB_WAITFD_IN,
-    RUBY_IO_WRITABLE = RB_WAITFD_OUT,
-    RUBY_IO_PRIORITY = RB_WAITFD_PRI,
-} rb_io_event_t;
+    PG_RUBY_IO_READABLE = RB_WAITFD_IN,
+    PG_RUBY_IO_WRITABLE = RB_WAITFD_OUT,
+    PG_RUBY_IO_PRIORITY = RB_WAITFD_PRI,
+} pg_rb_io_event_t;
 
 static VALUE
-rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
+pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
 	rb_io_t *fptr;
 	struct timeval waittime;
 	int res;
@@ -2267,7 +2275,7 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
 			/* Wait for the socket to become readable before checking again */
-			ret = rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), wait_timeout);
+			ret = pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), wait_timeout);
 		} else {
 			ret = Qfalse;
 		}
@@ -2304,9 +2312,9 @@ pgconn_async_flush(VALUE self)
 		/* wait for the socket to become read- or write-ready */
 		int events;
 		VALUE socket_io = pgconn_socket_io(self);
-		events = RB_NUM2INT(rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE | RUBY_IO_WRITABLE), Qnil));
+		events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE | PG_RUBY_IO_WRITABLE), Qnil));
 
-		if (events & RUBY_IO_READABLE)
+		if (events & PG_RUBY_IO_READABLE)
 			pgconn_consume_input(self);
 	}
 	return Qtrue;
@@ -3013,10 +3021,10 @@ pgconn_discard_results(VALUE self)
 		int status;
 
 		/* pgconn_block() raises an exception in case of errors.
-		* To avoid this call rb_io_wait() and PQconsumeInput() without rb_raise().
+		* To avoid this call pg_rb_io_wait() and PQconsumeInput() without rb_raise().
 		*/
 		while( gvl_PQisBusy(conn) ){
-			rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
+			pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
 			if ( PQconsumeInput(conn) == 0 ) {
 				pgconn_close_socket_io(self);
 				return Qfalse;
@@ -3037,7 +3045,7 @@ pgconn_discard_results(VALUE self)
 				int st = gvl_PQgetCopyData(conn, &buffer, 1);
 				if( st == 0 ) {
 					/* would block -> wait for readable data */
-					rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
+					pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
 					if ( PQconsumeInput(conn) == 0 ) {
 						pgconn_close_socket_io(self);
 						return Qfalse;

@@ -113,7 +113,6 @@ jobs:
       - run: bundle install
 
       - run: gem install --local *.gem --verbose
-        continue-on-error: ${{ matrix.ruby == 'truffleruby-head' }}
 
       - name: Run specs
         continue-on-error: ${{ matrix.ruby == 'truffleruby-head' }}
