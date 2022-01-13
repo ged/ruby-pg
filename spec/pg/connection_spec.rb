@@ -305,7 +305,7 @@ describe PG::Connection do
 	end
 
 	%i[open new connect sync_connect async_connect setdb setdblogin].each do |meth|
-		it "can #{meth} a derived class" do
+		it "can call ##{meth} of a derived class" do
 			klass = Class.new(described_class) do
 				alias execute exec
 			end
