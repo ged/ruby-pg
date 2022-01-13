@@ -50,4 +50,9 @@ describe PG do
 		expect( PG::POSTGRESQL_LIB_PATH ).to include("/")
 	end
 
+	it "can #connect" do
+		c = PG.connect(@conninfo)
+		expect( c ).to be_a_kind_of( PG::Connection )
+		c.close
+	end
 end
