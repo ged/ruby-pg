@@ -697,7 +697,7 @@ class PG::Connection
 		#
 		# Raises a PG::Error if the connection fails.
 		def new(*args, **kwargs)
-			conn = PG::Connection.connect_start(*args, **kwargs ) or
+			conn = self.connect_start(*args, **kwargs ) or
 				raise(PG::Error, "Unable to create a new connection")
 
 			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD

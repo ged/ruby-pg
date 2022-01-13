@@ -304,6 +304,18 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
+	%i[open new connect sync_connect async_connect setdb setdblogin].each do |meth|
+		it "can #{meth} a derived class" do
+			klass = Class.new(described_class) do
+				alias execute exec
+			end
+			conn = klass.send(meth, @conninfo)
+			expect( conn ).to be_a_kind_of( klass )
+			expect( conn.execute("SELECT 1") ).to be_a_kind_of( PG::Result )
+			conn.close
+		end
+	end
+
 	it "can connect asynchronously" do
 		tmpconn = described_class.connect_start( @conninfo )
 		expect( tmpconn ).to be_a( described_class )
