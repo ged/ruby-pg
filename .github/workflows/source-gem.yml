@@ -110,6 +110,7 @@ jobs:
           unzip postgresql-$PGVERSION-binaries.zip && \
           echo `pwd`/pgsql/bin >> $GITHUB_PATH
 
+      - run: gem update --system
       - run: bundle install
 
       - run: gem install --local *.gem --verbose
