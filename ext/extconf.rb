@@ -155,6 +155,7 @@ have_func 'rb_io_wait' # since ruby-3.0
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'
 have_header 'inttypes.h'
+have_header('ruby/fiber/scheduler.h') if RUBY_PLATFORM=~/mingw|mswin/
 
 checking_for "C99 variable length arrays" do
 	$defs.push( "-DHAVE_VARIABLE_LENGTH_ARRAYS" ) if try_compile('void test_vla(int l){ int vla[l]; }')
