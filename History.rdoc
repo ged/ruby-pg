@@ -27,6 +27,8 @@ API Enhancements:
   - Make discard_results scheduler friendly
   - Do all socket waiting through the conn.socket_io object.
   - Avoid PG.connect blocking while address resolution by automatically providing the +hostaddr+ parameter.
+  - On Windows Fiber.scheduler support requires Ruby-3.1+.
+    It is also only partly usable since may ruby IO methods are not yet scheduler aware on Windows.
 - Add support for pipeline mode of PostgreSQL-14. #401
 - Allow specification of multiple hosts in PostgreSQL URI. #387
 - Add new method conn.backend_key - used to implement our own cancel method.
@@ -46,8 +48,9 @@ Other Enhancements:
 - Add PG::CONNECTION_* constants for conn.status of newer PostgreSQL versions.
 - Add better support for logical replication. #339
 - Change conn.socket_io to read+write mode and to a BasicSocket object instead of IO.
-- Use rb_io_wait() and the conn.socket_io object if available and remove Windows specific wait functions.
-  Fall back to rb_wait_for_single_fd() on ruby < 3.0, which works on Windows as well.
+- Use rb_io_wait() and the conn.socket_io object if available for better compatibility to Fiber.scheduler .
+  Fall back to rb_wait_for_single_fd() on ruby < 3.0.
+- On Windows use a specialized wait function as a workaround for very poor performance of rb_io_wait(). #416
 
 Bugfixes:
 - Release GVL while calling PQping which is a blocking method, but it didn't release GVL so far.
