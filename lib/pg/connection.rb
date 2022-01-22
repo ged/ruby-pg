@@ -7,7 +7,7 @@ require 'io/wait'
 require 'socket'
 
 # The PostgreSQL connection class. The interface for this class is based on
-# {libpq}[http://www.postgresql.org/docs/9.2/interactive/libpq.html], the C
+# {libpq}[http://www.postgresql.org/docs/current/libpq.html], the C
 # application programmer's interface to PostgreSQL. Some familiarity with libpq
 # is recommended, but not necessary.
 #

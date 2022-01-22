@@ -2207,8 +2207,110 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
+#if defined(_WIN32)
 
-#if defined(HAVE_RB_IO_WAIT)
+/* We use a specialized implementation of rb_io_wait() on Windows.
+ * This is because rb_io_wait() and rb_wait_for_single_fd() are very slow on Windows.
+ */
+
+#if defined(HAVE_RUBY_FIBER_SCHEDULER_H)
+#include <ruby/fiber/scheduler.h>
+#endif
+
+typedef enum {
+    PG_RUBY_IO_READABLE = RB_WAITFD_IN,
+    PG_RUBY_IO_WRITABLE = RB_WAITFD_OUT,
+    PG_RUBY_IO_PRIORITY = RB_WAITFD_PRI,
+} pg_rb_io_event_t;
+
+int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
+
+static VALUE
+pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
+	rb_io_t *fptr;
+	struct timeval ptimeout;
+
+	struct timeval aborttime={0,0}, currtime, waittime;
+	DWORD timeout_milisec = INFINITE;
+	HANDLE hEvent = WSACreateEvent();
+
+	long rb_events = NUM2UINT(events);
+	long w32_events = 0;
+	DWORD wait_ret;
+
+	GetOpenFile((io), fptr);
+	if( !NIL_P(timeout) ){
+		ptimeout.tv_sec = (time_t)(NUM2DBL(timeout));
+		ptimeout.tv_usec = (time_t)(NUM2DBL(timeout) - (double)ptimeout.tv_sec);
+
+		gettimeofday(&currtime, NULL);
+		timeradd(&currtime, &ptimeout, &aborttime);
+	}
+
+	if(rb_events & PG_RUBY_IO_READABLE) {
+		w32_events |= FD_READ | FD_ACCEPT | FD_CLOSE;
+	} else if(rb_events & PG_RUBY_IO_WRITABLE) {
+		w32_events |= FD_WRITE | FD_CONNECT;
+	} else if(rb_events & PG_RUBY_IO_PRIORITY) {
+		w32_events |= FD_OOB;
+	}
+
+	for(;;) {
+		if ( WSAEventSelect(_get_osfhandle(fptr->fd), hEvent, w32_events) == SOCKET_ERROR ) {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
+		}
+
+		if ( !NIL_P(timeout) ) {
+			gettimeofday(&currtime, NULL);
+			timersub(&aborttime, &currtime, &waittime);
+			timeout_milisec = (DWORD)( waittime.tv_sec * 1e3 + waittime.tv_usec / 1e3 );
+		}
+
+		if( NIL_P(timeout) || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
+			/* Wait for the socket to become readable before checking again */
+			wait_ret = rb_w32_wait_events( &hEvent, 1, timeout_milisec );
+		} else {
+			wait_ret = WAIT_TIMEOUT;
+		}
+
+		if ( wait_ret == WAIT_TIMEOUT ) {
+			WSACloseEvent( hEvent );
+			return UINT2NUM(0);
+		} else if ( wait_ret == WAIT_OBJECT_0 ) {
+			WSACloseEvent( hEvent );
+			/* The event we were waiting for. */
+			return UINT2NUM(rb_events);
+		} else if ( wait_ret == WAIT_OBJECT_0 + 1) {
+			/* This indicates interruption from timer thread, GC, exception
+			 * from other threads etc... */
+			rb_thread_check_ints();
+		} else if ( wait_ret == WAIT_FAILED ) {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_eConnectionBad, "Wait on socket error (WaitForMultipleObjects): %lu", GetLastError() );
+		} else {
+			WSACloseEvent( hEvent );
+			rb_raise( rb_eConnectionBad, "Wait on socket abandoned (WaitForMultipleObjects)" );
+		}
+	}
+}
+
+static VALUE
+pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
+#if defined(HAVE_RUBY_FIBER_SCHEDULER_H)
+	/* We don't support Fiber.scheduler on Windows ruby-3.0 because there is no fast way to check whether a scheduler is active.
+	 * Fortunatelly ruby-3.1 offers a C-API for it.
+	 */
+	VALUE scheduler = rb_fiber_scheduler_current();
+
+	if (!NIL_P(scheduler)) {
+		return rb_io_wait(io, events, timeout);
+	}
+#endif
+	return pg_rb_thread_io_wait(io, events, timeout);
+}
+
+#elif defined(HAVE_RB_IO_WAIT)
 
 /* Use our own function and constants names, to avoid conflicts with truffleruby-head on its road to ruby-3.0 compatibility. */
 #define pg_rb_io_wait rb_io_wait

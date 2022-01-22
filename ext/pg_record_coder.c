@@ -134,7 +134,7 @@ pg_recordcoder_type_map_get(VALUE self)
  *   tm = PG::TypeMapByColumn.new([PG::TextEncoder::Float.new]*2)
  *   # Use this type map to encode the record:
  *   PG::TextEncoder::Record.new(type_map: tm).encode([1,2])
- *   # => "(\"1.0000000000000000E+00\",\"2.0000000000000000E+00\")"
+ *   # => "(\"1.0\",\"2.0\")"
  *
  * Records can also be encoded and decoded directly to and from the database.
  * This avoids intermediate string allocations and is very fast.
