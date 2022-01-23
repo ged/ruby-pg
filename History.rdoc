@@ -1,4 +1,4 @@
-== v1.3.0 [YYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v1.3.0 [2022-01-20] Michael Granger <ged@FaerieMUD.org>
 
 Install Enhancements:
 - Print some install help if libpq wasn't found. #396
