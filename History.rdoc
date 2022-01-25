@@ -65,6 +65,7 @@ Deprecated:
 Removed:
 - Remove support of ruby-2.2, 2.3 and 2.4. Minimum is ruby-2.5 now.
 - Remove support for PostgreSQL-9.2. Minimum is PostgreSQL-9.3 now.
+- Remove constant PG::REVISION, which was broken since pg-1.1.4.
 
 Repository:
 - Replace Hoe by Bundler for gem packaging
