@@ -1030,6 +1030,22 @@ EOT
 		expect( res.values ).to eq( [["1"], ["2"]] )
 	end
 
+	it "can process #copy_data input queries with lots of data" do
+		str = "abcd" * 2000 + "\n"
+		@conn.exec( "CREATE TEMP TABLE copytable2 (col1 TEXT)" )
+		@conn.copy_data( "COPY copytable2 FROM STDOUT" ) do |res|
+			1000.times do
+				@conn.put_copy_data(str)
+			end
+		end
+		expect( @conn ).to still_be_usable
+
+		res = @conn.exec( "SELECT COUNT(*) FROM copytable2" )
+		expect( res.values ).to eq( [["1000"]] )
+		res = @conn.exec( "SELECT * FROM copytable2 LIMIT 1" )
+		expect( res.values ).to eq( [[str.chomp]] )
+	end
+
 	it "can handle client errors in #copy_data for input" do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
