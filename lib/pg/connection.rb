@@ -385,7 +385,7 @@ class PG::Connection
 	# If the optional code block is given, it will be passed <i>result</i> as an argument,
 	# and the PG::Result object will  automatically be cleared when the block terminates.
 	# In this instance, <code>conn.exec</code> returns the value of the block.
-	def get_result(*args)
+	def get_result
 		block
 		sync_get_result
 	end
