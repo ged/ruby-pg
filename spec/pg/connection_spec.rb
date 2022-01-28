@@ -516,25 +516,40 @@ EOT
 		end
 
 		it "needs to flush data after send_query" do
-			conn = described_class.new(@conninfo)
-			conn.setnonblocking(true)
+			retries = 3
+			begin
+				conn = described_class.new(@conninfo)
+				conn.setnonblocking(true)
 
-			data = "x" * 1000 * 1000 * 100
-			res = conn.send_query_params("SELECT LENGTH($1)", [data])
-			expect( res ).to be_nil
+				data = "x" * 1000 * 1000 * 100
+				res = conn.send_query_params("SELECT LENGTH($1)", [data])
+				expect( res ).to be_nil
 
-			res = conn.flush
-			expect( res ).to be_falsey
+				res = conn.flush
+				expect( res ).to be_falsey
 
-			until conn.flush()
-				IO.select(nil, [conn.socket_io], nil, 10)
+			rescue RSpec::Expectations::ExpectationNotMetError
+				if (retries-=1) >= 0
+					until conn.flush()
+						IO.select(nil, [conn.socket_io], nil, 10)
+					end
+					conn.get_last_result
+					conn.finish
+					retry
+				end
+				raise
+			ensure
+
+				until conn.flush()
+					IO.select(nil, [conn.socket_io], nil, 10)
+				end
+				expect( conn.flush ).to be_truthy
+
+				res = conn.get_last_result
+				expect( res.values ).to eq( [[data.length.to_s]] )
+
+				conn.finish
 			end
-			expect( conn.flush ).to be_truthy
-
-			res = conn.get_last_result
-			expect( res.values ).to eq( [[data.length.to_s]] )
-
-			conn.finish
 		end
 
 		it "returns immediately from get_copy_data(nonblock=true)" do
