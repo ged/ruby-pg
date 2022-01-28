@@ -2247,13 +2247,9 @@ pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
 		timeradd(&currtime, &ptimeout, &aborttime);
 	}
 
-	if(rb_events & PG_RUBY_IO_READABLE) {
-		w32_events |= FD_READ | FD_ACCEPT | FD_CLOSE;
-	} else if(rb_events & PG_RUBY_IO_WRITABLE) {
-		w32_events |= FD_WRITE | FD_CONNECT;
-	} else if(rb_events & PG_RUBY_IO_PRIORITY) {
-		w32_events |= FD_OOB;
-	}
+	if(rb_events & PG_RUBY_IO_READABLE) w32_events |= FD_READ | FD_ACCEPT | FD_CLOSE;
+	if(rb_events & PG_RUBY_IO_WRITABLE) w32_events |= FD_WRITE | FD_CONNECT;
+	if(rb_events & PG_RUBY_IO_PRIORITY) w32_events |= FD_OOB;
 
 	for(;;) {
 		if ( WSAEventSelect(_get_osfhandle(fptr->fd), hEvent, w32_events) == SOCKET_ERROR ) {
