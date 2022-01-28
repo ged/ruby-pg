@@ -1107,6 +1107,13 @@ EOT
 		expect( results ).to include( "1\n", "2\n" )
 	end
 
+	it "#copy_data raises error in nonblocking mode" do
+		@conn.setnonblocking(true)
+		expect {
+			@conn.copy_data( "COPY copytable FROM STDOUT" )
+		}.to raise_error(PG::NotInBlockingMode)
+		@conn.setnonblocking(false)
+	end
 
 	it "described_class#block shouldn't block a second thread" do
 		start = Time.now

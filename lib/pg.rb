@@ -53,6 +53,8 @@ module PG
 
 	class NotAllCopyDataRetrieved < PG::Error
 	end
+	class NotInBlockingMode < PG::Error
+	end
 
 	### Get the PG library version. If +include_buildnum+ is +true+, include the build ID.
 	def self::version_string( include_buildnum=false )

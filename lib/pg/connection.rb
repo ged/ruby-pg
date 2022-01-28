@@ -241,6 +241,7 @@ class PG::Connection
 	#   ["more", "data", "to", "copy"]
 
 	def copy_data( sql, coder=nil )
+		raise PG::NotInBlockingMode, "copy_data can not be used in nonblocking mode" if nonblocking?
 		res = exec( sql )
 
 		case res.result_status
