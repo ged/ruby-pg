@@ -12,6 +12,13 @@ describe PG do
 		expect( PG.library_version ).to be >= 90100
 	end
 
+	it "can format the pg version" do
+		expect( PG.version_string ).to be_an( String )
+		expect( PG.version_string ).to match(/PG \d+\.\d+\.\d+/)
+		expect( PG.version_string(true) ).to be_an( String )
+		expect( PG.version_string(true) ).to match(/PG \d+\.\d+\.\d+/)
+	end
+
 	it "can select which of both security libraries to initialize" do
 		# This setting does nothing here, because there is already a connection
 		# to the server, at this point in time.

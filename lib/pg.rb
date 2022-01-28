@@ -56,11 +56,11 @@ module PG
 	class NotInBlockingMode < PG::Error
 	end
 
-	### Get the PG library version. If +include_buildnum+ is +true+, include the build ID.
-	def self::version_string( include_buildnum=false )
-		vstring = "%s %s" % [ self.name, VERSION ]
-		vstring << " (build %s)" % [ REVISION[/: ([[:xdigit:]]+)/, 1] || '0' ] if include_buildnum
-		return vstring
+	# Get the PG library version.
+	#
+	# +include_buildnum+ is no longer used and any value passed will be ignored.
+	def self::version_string( include_buildnum=nil )
+		return "%s %s" % [ self.name, VERSION ]
 	end
 
 
