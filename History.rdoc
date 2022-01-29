@@ -1,3 +1,16 @@
+== v1.3.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+
+Bugfixes:
+
+- Fix wrong handling of socket writability on Windows introduced in #417.
+  This caused starvation in conn.put_copy_data.
+- Fix error in PG.version_string(true). #419
+
+Enhancements:
+
+- Raise an error when conn.copy_data is used in nonblocking mode.
+
+
 == v1.3.0 [2022-01-20] Michael Granger <ged@FaerieMUD.org>
 
 Install Enhancements:
