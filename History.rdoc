@@ -5,6 +5,7 @@ Bugfixes:
 - Fix wrong handling of socket writability on Windows introduced in #417.
   This caused starvation in conn.put_copy_data.
 - Fix error in PG.version_string(true). #419
+- Fix a regression in pg 1.3.0 where Ruby 2.x busy-looping any fractional seconds for every wait. #420
 
 Enhancements:
 
