@@ -2241,7 +2241,7 @@ pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
 	GetOpenFile((io), fptr);
 	if( !NIL_P(timeout) ){
 		ptimeout.tv_sec = (time_t)(NUM2DBL(timeout));
-		ptimeout.tv_usec = (time_t)(NUM2DBL(timeout) - (double)ptimeout.tv_sec);
+		ptimeout.tv_usec = (time_t)((NUM2DBL(timeout) - (double)ptimeout.tv_sec) * 1e6);
 
 		gettimeofday(&currtime, NULL);
 		timeradd(&currtime, &ptimeout, &aborttime);
@@ -2332,7 +2332,7 @@ pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
 	GetOpenFile((io), fptr);
 	if( !NIL_P(timeout) ){
 		waittime.tv_sec = (time_t)(NUM2DBL(timeout));
-		waittime.tv_usec = (time_t)(NUM2DBL(timeout) - (double)waittime.tv_sec);
+		waittime.tv_usec = (time_t)((NUM2DBL(timeout) - (double)waittime.tv_sec) * 1e6);
 	}
 	res = rb_wait_for_single_fd(fptr->fd, NUM2UINT(events), NIL_P(timeout) ? NULL : &waittime);
 
