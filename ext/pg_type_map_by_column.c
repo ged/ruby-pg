@@ -150,10 +150,12 @@ pg_tmbc_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, i
 
 	/* Is it a pure String conversion? Then we can directly send field_str to the user. */
 	if( dec_func == pg_text_dec_string ){
+		rb_str_modify(field_str);
 		PG_ENCODING_SET_NOCHECK( field_str, enc_idx );
 		return field_str;
 	}
 	if( dec_func == pg_bin_dec_bytea ){
+		rb_str_modify(field_str);
 		PG_ENCODING_SET_NOCHECK( field_str, rb_ascii8bit_encindex() );
 		return field_str;
 	}

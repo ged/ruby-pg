@@ -1015,9 +1015,10 @@ describe "PG::Type derivations" do
 					end
 
 					it 'should respect input character encoding' do
-						v = decoder.decode("Héllo\n".encode("iso-8859-1")).first
-						expect( v.encoding ).to eq(Encoding::ISO_8859_1)
-						expect( v ).to eq("Héllo".encode("iso-8859-1"))
+						v = decoder.decode("Héllo\n".encode("EUC-JP")).first
+						expect( v.encoding ).to eq(Encoding::EUC_JP)
+						expect( v ).to eq("Héllo".encode("EUC-JP"))
+						expect( v.length ).to eq(5)
 					end
 				end
 			end
