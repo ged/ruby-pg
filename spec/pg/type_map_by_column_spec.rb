@@ -200,6 +200,18 @@ describe PG::TypeMapByColumn do
 		end
 	end
 
+	it "get_copy_data returns string with encoding" do
+		tm1 = PG::TypeMapByColumn.new( [textdec_string, textdec_bytea] )
+		decoder = PG::TextDecoder::CopyRow.new(type_map: tm1)
+		@conn.copy_data("COPY (SELECT 'Ä', 'Ö') TO STDOUT", decoder) do
+			res = @conn.get_copy_data
+			expect( res ).to eq( ['Ä', 'Ö'.b] )
+			expect( res.map(&:encoding) ).to eq( [Encoding::UTF_8, Encoding::BINARY] )
+			expect( res.map(&:length) ).to eq( [1, 2] )
+			@conn.get_copy_data
+		end
+	end
+
 	it "forwards get_copy_data conversions to another TypeMapByColumn as #default_type_map" do
 		tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] )
 		tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil] ).with_default_type_map( tm1 )

@@ -76,6 +76,7 @@ pg_tmas_fit_to_copy_get( VALUE self )
 static VALUE
 pg_tmas_typecast_copy_get( t_typemap *p_typemap, VALUE field_str, int fieldno, int format, int enc_idx )
 {
+	rb_str_modify(field_str);
 	if( format == 0 ){
 		PG_ENCODING_SET_NOCHECK( field_str, enc_idx );
 	} else {
