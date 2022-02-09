@@ -258,10 +258,13 @@ context "with a Fiber scheduler", :scheduler do
 
 	it "can cancel a query" do
 		run_with_scheduler do |conn|
-			conn.send_query "SELECT pg_sleep(5)"
-			conn.block(0.1) # trigger transmission to the server
-			conn.cancel
+			start = Time.now
+			conn.set_notice_processor do |notice|
+				conn.cancel if notice =~ /foobar/
+			end
+			conn.send_query "do $$ BEGIN RAISE NOTICE 'foobar'; PERFORM pg_sleep(5); END; $$ LANGUAGE plpgsql;"
 			expect{ conn.get_last_result }.to raise_error(PG::QueryCanceled)
+			expect( Time.now - start ).to be < 4.9
 		end
 	end
 

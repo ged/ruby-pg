@@ -680,14 +680,13 @@ EOT
 	end
 
 	it "allows a query to be cancelled" do
-		error = false
-		@conn.send_query("SELECT pg_sleep(1000)")
-		@conn.cancel
-		tmpres = @conn.get_result
-		if(tmpres.result_status != PG::PGRES_TUPLES_OK)
-			error = true
+		start = Time.now
+		@conn.set_notice_processor do |notice|
+			@conn.cancel if notice =~ /foobar/
 		end
-		expect( error ).to eq( true )
+		@conn.send_query "do $$ BEGIN RAISE NOTICE 'foobar'; PERFORM pg_sleep(10); END; $$ LANGUAGE plpgsql;"
+		expect{ @conn.get_last_result }.to raise_error(PG::QueryCanceled)
+		expect( Time.now - start ).to be < 9.9
 	end
 
 	def interrupt_thread(exc=nil)
