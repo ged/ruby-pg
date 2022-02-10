@@ -31,7 +31,7 @@ jobs:
         include:
           - os: windows
             ruby: "head"
-            PGVERSION: 14.1-1-windows-x64
+            PGVERSION: 14.2-1-windows-x64
             PGVER: "14"
           - os: windows
             ruby: "2.5"
@@ -54,7 +54,7 @@ jobs:
             PGVER: "14"
           - os: macos
             ruby: "head"
-            PGVERSION: 14.1-1-osx
+            PGVERSION: 14.2-1-osx
             PGVER: "14"
 
     runs-on: ${{ matrix.os }}-latest

@@ -29,7 +29,7 @@ environment:
   matrix:
     - ruby_version: "head"
       RUBYDOWNLOAD: x86
-      PGVERSION: 10.16-1-windows
+      PGVERSION: 10.20-1-windows
       PGVER: 10
     - ruby_version: "25"
       PGVERSION: 9.3.25-1-windows
