@@ -1,4 +1,17 @@
-== v1.3.1 [YYYY-MM-DD] Michael Granger <ged@FaerieMUD.org>
+== v1.3.2 [2022-02-12] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Bugfixes:
+
+- Fix String objects with non-applied encoding when using COPY or record decoders. #427
+- Update Windows fat binary gem to PostgreSQL-14.2.
+
+Enhancements:
+
+- Improve extconf.rb checks to reduces the number of compiler calls.
+- Add a check for PGRES_PIPELINE_SYNC, to make sure the library version and the header files are PostgreSQL-14+. #429
+
+
+== v1.3.1 [2022-02-01] Michael Granger <ged@FaerieMUD.org>
 
 Bugfixes:
 
