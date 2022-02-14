@@ -313,7 +313,7 @@ class PG::Connection
 		exec "BEGIN"
 		res = yield(self)
 	rescue Exception
-		cancel if transaction_status != PG::PQTRANS_IDLE
+		cancel if transaction_status == PG::PQTRANS_ACTIVE
 		block
 		exec "ROLLBACK"
 		raise

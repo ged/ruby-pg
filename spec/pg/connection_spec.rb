@@ -720,26 +720,84 @@ EOT
 		@conn.cancel # Stop the query that is still running on the server
 	end
 
-	it "can stop a thread that runs a blocking transaction with async_exec" do
-		t, duration = interrupt_thread(Interrupt) do
-			@conn.transaction do |c|
-				c.async_exec( 'select pg_sleep(10)' )
+	describe "#transaction" do
+
+		it "stops a thread that runs a blocking transaction with async_exec" do
+			t, duration = interrupt_thread(Interrupt) do
+				@conn.transaction do |c|
+					c.async_exec( 'select pg_sleep(10)' )
+				end
+			end
+
+			expect( t.value ).to be_kind_of( Interrupt )
+			expect( duration ).to be < 10
+		end
+
+		it "stops a thread that runs a failing transaction with async_exec" do
+			t, duration = interrupt_thread(Interrupt) do
+				@conn.transaction do |c|
+					c.async_exec( 'select nonexist' )
+				end
+			end
+
+			expect( t.value ).to be_kind_of( PG::UndefinedColumn )
+			expect( duration ).to be < 10
+		end
+
+		it "stops a thread that runs a no query but a transacted ruby sleep" do
+			t, duration = interrupt_thread(Interrupt) do
+				@conn.transaction do
+					sleep 10
+				end
+			end
+
+			expect( t.value ).to be_kind_of( Interrupt )
+			expect( duration ).to be < 10
+		end
+
+		it "doesn't worry about an already finished connection" do
+			t, duration = interrupt_thread(Interrupt) do
+				@conn.transaction do
+					@conn.async_exec("ROLLBACK")
+				end
+			end
+
+			expect( t.value ).to be_kind_of( PG::Result )
+			expect( t.value.result_status ).to eq( PG::PGRES_COMMAND_OK )
+		end
+
+		it "automatically rolls back a transaction if an exception is raised" do
+			# abort the per-example transaction so we can test our own
+			@conn.exec( 'ROLLBACK' )
+
+			res = nil
+			@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
+
+			begin
+				expect {
+					res = @conn.transaction do
+						@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
+						raise Exception, "Oh noes! All pie is gone!"
+					end
+				}.to raise_exception( Exception, /all pie is gone/i )
+
+				res = @conn.exec( "SELECT * FROM pie" )
+				expect( res.ntuples ).to eq( 0 )
+			ensure
+				@conn.exec( "DROP TABLE pie" )
 			end
 		end
 
-		expect( t.value ).to be_kind_of( Interrupt )
-		expect( duration ).to be < 10
-	end
+		it "passes the connection to the block and returns the block result" do
+			# abort the per-example transaction so we can test our own
+			@conn.exec( 'ROLLBACK' )
 
-	it "can stop a thread that runs a no query but a transacted ruby sleep" do
-		t, duration = interrupt_thread(Interrupt) do
-			@conn.transaction do |c|
-				sleep 10
+			res = @conn.transaction do |co|
+				expect( co ).to equal( @conn )
+				"transaction result"
 			end
+			expect( res ).to eq( "transaction result" )
 		end
-
-		expect( t.value ).to be_kind_of( Interrupt )
-		expect( duration ).to be < 10
 	end
 
 	it "should work together with signal handlers", :unix do
@@ -755,42 +813,6 @@ EOT
 		@conn.async_exec("select pg_sleep(0.3)")
 		expect( signal_received ).to be_truthy
 	end
-
-
-	it "automatically rolls back a transaction started with Connection#transaction if an exception " +
-	   "is raised" do
-		# abort the per-example transaction so we can test our own
-		@conn.exec( 'ROLLBACK' )
-
-		res = nil
-		@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
-
-		begin
-			expect {
-				res = @conn.transaction do
-					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
-					raise Exception, "Oh noes! All pie is gone!"
-				end
-			}.to raise_exception( Exception, /all pie is gone/i )
-
-			res = @conn.exec( "SELECT * FROM pie" )
-			expect( res.ntuples ).to eq( 0 )
-		ensure
-			@conn.exec( "DROP TABLE pie" )
-		end
-	end
-
-	it "Connection#transaction passes the connection to the block and returns the block result" do
-		# abort the per-example transaction so we can test our own
-		@conn.exec( 'ROLLBACK' )
-
-		res = @conn.transaction do |co|
-			expect( co ).to equal( @conn )
-			"transaction result"
-		end
-		expect( res ).to eq( "transaction result" )
-	end
-
 
 	it "not read past the end of a large object" do
 		@conn.transaction do
