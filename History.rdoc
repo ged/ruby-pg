@@ -1,7 +1,9 @@
-== v1.3.2 [2022-02-12] Lars Kanis <lars@greiz-reinsdorf.de>
+== v1.3.2 [2022-02-14] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Bugfixes:
 
+- Cancel only active query after failing transaction. #430
+  This avoids an incompatibility with pgbouncer since pg-1.3.0.
 - Fix String objects with non-applied encoding when using COPY or record decoders. #427
 - Update Windows fat binary gem to PostgreSQL-14.2.
 
