@@ -35,8 +35,8 @@ jobs:
             PGVER: "14"
           - os: windows
             ruby: "2.5"
-            PGVERSION: 9.3.25-1-windows-x64
-            PGVER: "9.3"
+            PGVERSION: 9.4.26-1-windows-x64
+            PGVER: "9.4"
           - os: ubuntu
             ruby: "head"
             PGVER: "14"
