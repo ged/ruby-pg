@@ -87,7 +87,7 @@ begin
 		have_library( 'libpq', 'PQconnectdb', ['libpq-fe.h'] ) ||
 		have_library( 'ms/libpq', 'PQconnectdb', ['libpq-fe.h'] )
 
-rescue SystemExit => err
+rescue SystemExit
 	install_text = case RUBY_PLATFORM
 	when /linux/
 	<<-EOT
