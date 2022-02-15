@@ -37,12 +37,12 @@ else
 
 	if pgconfig && pgconfig != 'ignore'
 		$stderr.puts "Using config values from %s" % [ pgconfig ]
-		incdir = `"#{pgconfig}" --includedir`.chomp
-		libdir = `"#{pgconfig}" --libdir`.chomp
+		incdir = IO.popen([pgconfig, "--includedir"], &:read).chomp
+		libdir = IO.popen([pgconfig, "--libdir"], &:read).chomp
 		dir_config 'pg', incdir, libdir
 
 		# Windows traditionally stores DLLs beside executables, not in libdir
-		dlldir = RUBY_PLATFORM=~/mingw|mswin/ ? `"#{pgconfig}" --bindir`.chomp : libdir
+		dlldir = RUBY_PLATFORM=~/mingw|mswin/ ? IO.popen([pgconfig, "--bindir"], &:read).chomp : libdir
 
 	elsif checking_for "libpq per pkg-config" do
 			_cflags, ldflags, _libs = pkg_config("libpq")
