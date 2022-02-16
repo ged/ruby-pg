@@ -55,7 +55,7 @@ API Enhancements:
   - Run Connection.ping in a second thread.
   - Make discard_results scheduler friendly
   - Do all socket waiting through the conn.socket_io object.
-  - Avoid PG.connect blocking while address resolution by automatically providing the +hostaddr+ parameter.
+  - Avoid PG.connect blocking while address resolution by automatically providing the +hostaddr+ parameter and resolving in Ruby instead of libpq.
   - On Windows Fiber.scheduler support requires Ruby-3.1+.
     It is also only partly usable since may ruby IO methods are not yet scheduler aware on Windows.
 - Add support for pipeline mode of PostgreSQL-14. #401
