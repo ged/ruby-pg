@@ -156,6 +156,12 @@ describe PG::Connection do
 			expect( string ).to match( %r{^postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost\?hostaddr=\d+\.\d+\.\d+\.\d+%2C%2C(%3A%3A1|127\.0\.0\.1)} )
 		end
 
+		it "accepts an URI and adds proper hostaddr" do
+			uri = 'postgresql://user:pass@192.168.11.123'
+			string = described_class.parse_connect_args( uri )
+			expect( string ).to match( %r{\?.*hostaddr=192.168.11.123&} )
+		end
+
 		it "accepts an URI with a non-standard domain socket directory" do
 			string = described_class.parse_connect_args( 'postgresql://%2Fvar%2Flib%2Fpostgresql/dbname' )
 

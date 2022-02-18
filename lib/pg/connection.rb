@@ -105,7 +105,7 @@ class PG::Connection
 				end
 				# extract "host1,host2" from "host1:5432,host2:5432"
 				iopts[:host] = uri_match['hostports'].split(',', -1).map do |hostport|
-					hostmatch = HOST_AND_PORT.match(hostport)
+					hostmatch = /\A#{HOST_AND_PORT}\z/.match(hostport)
 					hostmatch['IPv6address'] || hostmatch['IPv4address'] || hostmatch['reg-name']&.gsub(/%(\h\h)/){ $1.hex.chr }
 				end.join(',')
 				oopts = {}
