@@ -411,7 +411,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
 	config.filter_run_excluding( :postgresql_14 ) if PG.library_version < 140000
 	config.filter_run_excluding( :unix_socket ) if RUBY_PLATFORM=~/mingw|mswin/i
-	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0"
+	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0" || !Fiber.respond_to?(:scheduler)
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 
 	### Automatically set up and tear down the database

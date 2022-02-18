@@ -116,7 +116,6 @@ jobs:
       - run: gem install --local *.gem --verbose
 
       - name: Run specs
-        continue-on-error: ${{ matrix.ruby == 'truffleruby-head' }}
         env:
           PG_DEBUG: 0
         run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
