@@ -7,6 +7,7 @@ require 'rake/clean'
 require 'rake/extensiontask'
 require 'rake/extensioncompiler'
 require 'ostruct'
+require_relative 'rakelib/task_extension'
 
 MISCDIR = BASEDIR + 'misc'
 
@@ -20,6 +21,7 @@ end
 
 class CrossLibrary < OpenStruct
 	include Rake::DSL
+	prepend TaskExtension
 
 	def initialize(for_platform, openssl_config, toolchain)
 		super()
