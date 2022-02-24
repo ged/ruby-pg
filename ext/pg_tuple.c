@@ -471,10 +471,7 @@ pg_tuple_dump(VALUE self)
 	values = rb_ary_new4(this->num_fields, &this->values[0]);
 	a = rb_ary_new3(2, field_names, values);
 
-	if (FL_TEST(self, FL_EXIVAR)) {
-		rb_copy_generic_ivar(a, self);
-		FL_SET(a, FL_EXIVAR);
-	}
+        rb_copy_generic_ivar(a, self);
 
 	return a;
 }
@@ -542,10 +539,7 @@ pg_tuple_load(VALUE self, VALUE a)
 
 	RTYPEDDATA_DATA(self) = this;
 
-	if (FL_TEST(a, FL_EXIVAR)) {
-		rb_copy_generic_ivar(self, a);
-		FL_SET(self, FL_EXIVAR);
-	}
+        rb_copy_generic_ivar(self, a);
 
 	return self;
 }
