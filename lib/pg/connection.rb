@@ -631,7 +631,11 @@ class PG::Connection
 			poll_status = send( poll_meth )
 		end
 
-		raise(PG::ConnectionBad, error_message) unless status == PG::CONNECTION_OK
+		unless status == PG::CONNECTION_OK
+			msg = error_message
+			finish
+			raise PG::ConnectionBad, msg
+		end
 
 		# Set connection to nonblocking to handle all blocking states in ruby.
 		# That way a fiber scheduler is able to handle IO requests.
