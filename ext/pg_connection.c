@@ -475,9 +475,7 @@ pgconn_connect_poll(VALUE self)
 	PostgresPollingStatusType status;
 	status = gvl_PQconnectPoll(pg_get_pgconn(self));
 
-	if ( status == PGRES_POLLING_FAILED ) {
-		pgconn_close_socket_io(self);
-	}
+	pgconn_close_socket_io(self);
 
 	return INT2FIX((int)status);
 }
@@ -556,9 +554,7 @@ pgconn_reset_poll(VALUE self)
 	PostgresPollingStatusType status;
 	status = gvl_PQresetPoll(pg_get_pgconn(self));
 
-	if ( status == PGRES_POLLING_FAILED ) {
-		pgconn_close_socket_io(self);
-	}
+	pgconn_close_socket_io(self);
 
 	return INT2FIX((int)status);
 }

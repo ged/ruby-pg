@@ -378,6 +378,33 @@ describe PG::Connection do
 			res = @conn2.query("SELECT 4")
 		end
 
+		it "can work with changing IO while connection setup" do
+			# The file_no of the socket IO can change while connecting.
+			# This can happen when alternative hosts are tried,
+			# while GSS authentication
+			# and when falling back to unencrypted in sslmode:prefer
+
+			# Consume some file descriptors and free them while the connection is established.
+			pipes = 100.times.map{ IO.pipe }
+			Thread.new do
+				pipes.reverse_each do |ios|
+					ios.each(&:close)
+					sleep 0.01
+				end
+			end
+
+			# Connect with SSL, but use a wrong client cert, so that connection is aborted.
+			# A second connection is then started with a new IO.
+			# And since the pipes above were freed in the concurrent thread above, there is a high chance that it's a lower file descriptor than before.
+			conn = PG.connect( @conninfo + " sslcert=tmp_test_specs/data/ruby-pg-ca-cert" )
+
+			# The new connection should work even when the file descriptor has changed.
+			res = conn.exec("SELECT 1")
+			expect( res.values ).to eq([["1"]])
+
+			conn.close
+		end
+
 		it "can use conn.reset_start to restart the connection" do
 			ios = IO.pipe
 			conn = described_class.connect_start( @conninfo )
