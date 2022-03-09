@@ -11,7 +11,7 @@ context "with a Fiber scheduler", :scheduler do
 		# Run examples with gated scheduler
 		sched = Helpers::TcpGateScheduler.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
 		Fiber.set_scheduler(sched)
-		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{sched.internal_port}")
+		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{sched.internal_port} sslmode=disable")
 
 		# Run examples with default scheduler
 		#Fiber.set_scheduler(Helpers::Scheduler.new)

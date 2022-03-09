@@ -4,6 +4,7 @@ require 'pathname'
 require 'rspec'
 require 'shellwords'
 require 'pg'
+require 'openssl'
 require_relative 'helpers/scheduler.rb'
 require_relative 'helpers/tcp_gate_scheduler.rb'
 
@@ -236,6 +237,22 @@ module PG::TestingHelpers
 				log_and_run @logfile, 'initdb', '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
 			end
 
+			unless (@test_pgdata+"ruby-pg-server-cert").exist?
+				trace "Enable SSL"
+				# Enable SSL in server config
+				File.open(@test_pgdata+"postgresql.conf", "a+") do |fd|
+					fd.puts <<-EOT
+ssl = on
+ssl_ca_file = 'ruby-pg-ca-cert'
+ssl_cert_file = 'ruby-pg-server-cert'
+ssl_key_file = 'ruby-pg-server-key'
+EOT
+				end
+
+				trace "Generate certificates"
+				generate_ssl_certs(@test_pgdata.to_s)
+			end
+
 			trace "Starting postgres"
 			unix_socket = ['-o', "-k #{TEST_DIRECTORY.to_s.dump}"] unless RUBY_PLATFORM=~/mingw|mswin/i
 			log_and_run @logfile, 'pg_ctl', '-w', *unix_socket,
@@ -270,6 +287,132 @@ module PG::TestingHelpers
 		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
 	end
 
+	class CertGenerator
+		attr_reader :output_dir
+
+		def initialize(output_dir='.')
+			@output_dir = output_dir
+			@serial = Time.now.to_i
+		end
+
+		def next_serial
+			@serial += 1
+		end
+
+		def create_ca_cert(name, ca_key, x509_name, valid_years: 10)
+			ca_key = OpenSSL::PKey::RSA.new File.read "#{ca_key}" unless ca_key.kind_of?(OpenSSL::PKey::RSA)
+			ca_name = OpenSSL::X509::Name.parse x509_name
+
+			ca_cert = OpenSSL::X509::Certificate.new
+			ca_cert.serial = next_serial
+			ca_cert.version = 2
+			ca_cert.not_before = Time.now
+			ca_cert.not_after = Time.now + valid_years*365*24*60*60
+
+			ca_cert.public_key = ca_key.public_key
+			ca_cert.subject = ca_name
+			ca_cert.issuer = ca_name
+
+			extension_factory = OpenSSL::X509::ExtensionFactory.new
+			extension_factory.subject_certificate = ca_cert
+			extension_factory.issuer_certificate = ca_cert
+
+			ca_cert.add_extension extension_factory.create_extension('subjectKeyIdentifier', 'hash')
+			ca_cert.add_extension extension_factory.create_extension('basicConstraints', 'CA:TRUE', true)
+			ca_cert.add_extension extension_factory.create_extension('keyUsage', 'cRLSign,keyCertSign', true)
+
+			ca_cert.sign ca_key, OpenSSL::Digest::SHA256.new
+
+			File.open "#{output_dir}/#{name}", 'w' do |io|
+				io.puts ca_cert.to_text
+				io.write ca_cert.to_pem
+			end
+			ca_cert
+		end
+
+		def create_key(name, rsa_size: 2048)
+			ca_key = OpenSSL::PKey::RSA.new rsa_size
+
+			#cipher = OpenSSL::Cipher.new 'AES-128-CBC'
+
+			File.open "#{output_dir}/#{name}", 'w', 0600 do |io|
+				io.puts ca_key.to_text
+				io.write ca_key.export # (cipher)
+			end
+			ca_key
+		end
+
+		def create_signing_request(name, x509_name, key)
+			key = OpenSSL::PKey::RSA.new File.read "#{key}" unless key.kind_of?(OpenSSL::PKey::RSA)
+			csr = OpenSSL::X509::Request.new
+			csr.version = 0
+			csr.subject = OpenSSL::X509::Name.parse x509_name
+			csr.public_key = key.public_key
+			csr.sign key, OpenSSL::Digest::SHA256.new
+
+			File.open "#{output_dir}/#{name}", 'w' do |io|
+				io.puts csr.to_text
+				io.write csr.to_pem
+			end
+			csr
+		end
+
+		def create_cert_from_csr(name, csr, ca_cert, ca_key, valid_years: 10, dns_names: nil)
+			ca_key = OpenSSL::PKey::RSA.new File.read "#{ca_key}" unless ca_key.kind_of?(OpenSSL::PKey::RSA)
+			ca_cert = OpenSSL::X509::Certificate.new File.read "#{ca_cert}" unless ca_cert.kind_of?(OpenSSL::X509::Certificate)
+			csr = OpenSSL::X509::Request.new File.read "#{csr}" unless csr.kind_of?(OpenSSL::X509::Request)
+			raise 'CSR can not be verified' unless csr.verify csr.public_key
+
+			csr_cert = OpenSSL::X509::Certificate.new
+			csr_cert.serial = next_serial
+			csr_cert.version = 2
+			csr_cert.not_before = Time.now
+			csr_cert.not_after = Time.now + valid_years*365*24*60*60
+
+			csr_cert.subject = csr.subject
+			csr_cert.public_key = csr.public_key
+			csr_cert.issuer = ca_cert.subject
+
+			extension_factory = OpenSSL::X509::ExtensionFactory.new
+			extension_factory.subject_certificate = csr_cert
+			extension_factory.issuer_certificate = ca_cert
+
+			csr_cert.add_extension extension_factory.create_extension('basicConstraints', 'CA:FALSE')
+			csr_cert.add_extension extension_factory.create_extension('keyUsage', 'keyEncipherment,dataEncipherment,digitalSignature')
+			csr_cert.add_extension extension_factory.create_extension('subjectKeyIdentifier', 'hash')
+			if dns_names
+				san = dns_names.map{|n| "DNS:#{n}" }.join(",")
+				csr_cert.add_extension extension_factory.create_extension('subjectAltName', san)
+			end
+
+			csr_cert.sign ca_key, OpenSSL::Digest::SHA256.new
+
+			open "#{output_dir}/#{name}", 'w' do |io|
+				io.puts csr_cert.to_text
+				io.write csr_cert.to_pem
+			end
+
+			csr_cert
+		end
+	end
+
+	def generate_ssl_certs(output_dir)
+		gen = CertGenerator.new(output_dir)
+
+		trace "create ca-key"
+		ca_key = gen.create_key('ruby-pg-ca-key')
+		ca_cert = gen.create_ca_cert('ruby-pg-ca-cert', ca_key, '/CN=ruby-pg root key')
+
+		trace "create server cert"
+		key = gen.create_key('ruby-pg-server-key')
+		csr = gen.create_signing_request('ruby-pg-server-csr', '/CN=localhost', key)
+		gen.create_cert_from_csr('ruby-pg-server-cert', csr, ca_cert, ca_key, dns_names: %w[localhost] )
+
+		trace "create client cert"
+		key = gen.create_key('ruby-pg-client-key')
+		csr = gen.create_signing_request('ruby-pg-client-csr', '/CN=ruby-pg client', key)
+		gen.create_cert_from_csr('ruby-pg-client-cert', csr, ca_cert, ca_key)
+	end
 
 	def check_for_lingering_connections( conn )
 		conn.exec( "SELECT * FROM pg_stat_activity" ) do |res|
