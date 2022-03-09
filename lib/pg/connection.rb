@@ -612,9 +612,6 @@ class PG::Connection
 	alias async_cancel cancel
 
 	private def async_connect_or_reset(poll_meth)
-		# Now grab a reference to the underlying socket so we know when the connection is established
-		socket = socket_io
-
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
 		poll_status = PG::PGRES_POLLING_WRITING
 		until poll_status == PG::PGRES_POLLING_OK ||
@@ -623,11 +620,11 @@ class PG::Connection
 			# If the socket needs to read, wait 'til it becomes readable to poll again
 			case poll_status
 			when PG::PGRES_POLLING_READING
-				socket.wait_readable
+				socket_io.wait_readable
 
 			# ...and the same for when the socket needs to write
 			when PG::PGRES_POLLING_WRITING
-				socket.wait_writable
+				socket_io.wait_writable
 			end
 
 			# Check to see if it's finished or failed yet

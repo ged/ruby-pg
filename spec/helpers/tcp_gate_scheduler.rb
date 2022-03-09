@@ -277,7 +277,7 @@ class TcpGateScheduler < Scheduler
 
 			# compare and store the fileno for debugging
 			if conn.observed_fd && conn.observed_fd != io.fileno
-				raise "observed fd changed: old:#{conn.observed_fd} new:#{io.fileno}"
+				puts "observed fd changed: old:#{conn.observed_fd} new:#{io.fileno}"
 			end
 			conn.observed_fd = io.fileno
 

@@ -27,10 +27,6 @@ conn = PG::Connection.connect_start( :dbname => 'test' ) or
 abort "Connection failed: %s" % [ conn.error_message ] if
 	conn.status == PG::CONNECTION_BAD
 
-# Now grab a reference to the underlying socket so we know when the
-# connection is established
-socket = conn.socket_io
-
 # Track the progress of the connection, waiting for the socket to become readable/writable
 # before polling it
 poll_status = PG::PGRES_POLLING_WRITING
@@ -41,13 +37,13 @@ until poll_status == PG::PGRES_POLLING_OK ||
 	case poll_status
 	when PG::PGRES_POLLING_READING
 		output_progress "  waiting for socket to become readable"
-		select( [socket], nil, nil, TIMEOUT ) or
+		select( [conn.socket_io], nil, nil, TIMEOUT ) or
 			raise "Asynchronous connection timed out!"
 
 	# ...and the same for when the socket needs to write
 	when PG::PGRES_POLLING_WRITING
 		output_progress "  waiting for socket to become writable"
-		select( nil, [socket], nil, TIMEOUT ) or
+		select( nil, [conn.socket_io], nil, TIMEOUT ) or
 			raise "Asynchronous connection timed out!"
 	end
 
@@ -85,7 +81,7 @@ loop do
 	# Buffer any incoming data on the socket until a full result is ready.
 	conn.consume_input
 	while conn.is_busy
-		select( [socket], nil, nil, TIMEOUT ) or
+		select( [conn.socket_io], nil, nil, TIMEOUT ) or
 			raise "Timeout waiting for query response."
 		conn.consume_input
 	end
