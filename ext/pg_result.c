@@ -1383,7 +1383,7 @@ pgresult_type_map_get(VALUE self)
 
 
 static void
-yield_hash(VALUE self, int ntuples, int nfields)
+yield_hash(VALUE self, int ntuples, int nfields, void *data)
 {
 	int tuple_num;
 	t_pg_result *this = pgresult_get_this(self);
@@ -1397,7 +1397,7 @@ yield_hash(VALUE self, int ntuples, int nfields)
 }
 
 static void
-yield_array(VALUE self, int ntuples, int nfields)
+yield_array(VALUE self, int ntuples, int nfields, void *data)
 {
 	int row;
 	t_pg_result *this = pgresult_get_this(self);
@@ -1417,7 +1417,7 @@ yield_array(VALUE self, int ntuples, int nfields)
 }
 
 static void
-yield_tuple(VALUE self, int ntuples, int nfields)
+yield_tuple(VALUE self, int ntuples, int nfields, void *data)
 {
 	int tuple_num;
 	t_pg_result *this = pgresult_get_this(self);
@@ -1436,8 +1436,9 @@ yield_tuple(VALUE self, int ntuples, int nfields)
 	}
 }
 
-static VALUE
-pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
+/* Non-static, and data pointer for use by sequel_pg */
+VALUE
+pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* data)
 {
 	t_pg_result *this;
 	int nfields;
@@ -1465,7 +1466,7 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
 				pg_result_check( self );
 		}
 
-		yielder( self, ntuples, nfields );
+		yielder( self, ntuples, nfields, data );
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
@@ -1516,7 +1517,7 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int))
 static VALUE
 pgresult_stream_each(VALUE self)
 {
-	return pgresult_stream_any(self, yield_hash);
+	return pgresult_stream_any(self, yield_hash, NULL);
 }
 
 /*
@@ -1532,7 +1533,7 @@ pgresult_stream_each(VALUE self)
 static VALUE
 pgresult_stream_each_row(VALUE self)
 {
-	return pgresult_stream_any(self, yield_array);
+	return pgresult_stream_any(self, yield_array, NULL);
 }
 
 /*
@@ -1549,7 +1550,7 @@ pgresult_stream_each_tuple(VALUE self)
 	/* allocate VALUEs that are shared between all streamed tuples */
 	ensure_init_for_tuple(self);
 
-	return pgresult_stream_any(self, yield_tuple);
+	return pgresult_stream_any(self, yield_tuple, NULL);
 }
 
 /*
