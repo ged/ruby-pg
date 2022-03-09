@@ -1229,7 +1229,7 @@ EOT
 	describe "connection information related to SSL" do
 
 		it "can retrieve connection's ssl state", :postgresql_95 do
-			expect( @conn.ssl_in_use? ).to be false
+			expect( @conn.ssl_in_use? ).to be true
 		end
 
 		it "can retrieve connection's ssl attribute_names", :postgresql_95 do
@@ -1238,6 +1238,8 @@ EOT
 
 		it "can retrieve a single ssl connection attribute", :postgresql_95 do
 			expect( @conn.ssl_attribute('dbname') ).to eq( nil )
+			expect( @conn.ssl_attribute('protocol') ).to match( /^TLSv/ )
+			expect( @conn.ssl_attribute('key_bits') ).to match( /^\d+$/ )
 		end
 
 		it "can retrieve all connection's ssl attributes", :postgresql_95 do
