@@ -2339,20 +2339,11 @@ pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
 static void *
 wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)(PGconn *))
 {
-	VALUE socket_io;
 	VALUE ret;
 	void *retval;
 	struct timeval aborttime={0,0}, currtime, waittime;
 	VALUE wait_timeout = Qnil;
 	PGconn *conn = pg_get_pgconn(self);
-
-	socket_io = pgconn_socket_io(self);
-
-	/* Check for connection errors (PQisBusy is true on connection errors) */
-	if ( PQconsumeInput(conn) == 0 ) {
-		pgconn_close_socket_io(self);
-		rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
-	}
 
 	if ( ptimeout ) {
 		gettimeofday(&currtime, NULL);
@@ -2368,6 +2359,7 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
+			VALUE socket_io = pgconn_socket_io(self);
 			/* Wait for the socket to become readable before checking again */
 			ret = pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), wait_timeout);
 		} else {
