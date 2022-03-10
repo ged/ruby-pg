@@ -3060,7 +3060,8 @@ pgconn_async_get_last_result(VALUE self)
 	for(;;) {
 		int status;
 
-		pgconn_block( 0, NULL, self ); /* wait for input (without blocking) before reading the last result */
+		/* wait for input (without blocking) before reading each result */
+		wait_socket_readable(self, NULL, get_result_readable);
 
 		cur = gvl_PQgetResult(conn);
 		if (cur == NULL)
