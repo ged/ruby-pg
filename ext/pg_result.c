@@ -1468,6 +1468,11 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* d
 
 		yielder( self, ntuples, nfields, data );
 
+		if( gvl_PQisBusy(pgconn) ){
+			/* wait for input (without blocking) before reading each result */
+			pgconn_block( 0, NULL, this->connection );
+		}
+
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
 			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");

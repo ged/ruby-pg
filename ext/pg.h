@@ -344,6 +344,7 @@ void pg_typemap_compact                                _(( void * ));
 
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));
+VALUE pgconn_block                                     _(( int, VALUE *, VALUE ));
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
 VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));

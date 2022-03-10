@@ -158,6 +158,19 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
+	it "can use stream_each_* methods" do
+		run_with_scheduler do |conn|
+			conn.send_query( "SELECT generate_series(0,999);" )
+			conn.set_single_row_mode
+
+			start_time = Time.now
+			res = conn.get_result
+			rows = res.stream_each_row.to_a
+
+			expect( rows ).to eq( (0..999).map{ [_1.to_s] } )
+		end
+	end
+
 	it "can receive COPY data" do
 		run_with_scheduler do |conn|
 			rows = []

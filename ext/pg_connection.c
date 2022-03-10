@@ -2972,7 +2972,7 @@ get_result_readable(PGconn *conn)
  * If +true+ is returned, +conn.is_busy+ will return +false+
  * and +conn.get_result+ will not block.
  */
-static VALUE
+VALUE
 pgconn_block( int argc, VALUE *argv, VALUE self ) {
 	struct timeval timeout;
 	struct timeval *ptimeout = NULL;
