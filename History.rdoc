@@ -1,3 +1,19 @@
+== v1.3.4 [2022-03-10] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Bugfixes:
+
+- Don't leak IO in case of connection errors. #439
+  Previously it was kept open until the PG::Connection was garbage collected.
+- Fix a performance regession in conn.get_result noticed in single row mode. #442
+- Fix occasional error Errno::EBADF (Bad file descriptor) while connecting. #444
+- Fix compatibility of res.stream_each* methods with Fiber.scheduler. #446
+- Remove FL_TEST and FL_SET, which are MRI-internal. #437
+
+Enhancements:
+
+- Allow pgresult_stream_any to be used by sequel_pg. #443
+
+
 == v1.3.3 [2022-02-22] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Bugfixes:
