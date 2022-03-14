@@ -1457,6 +1457,7 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* d
 
 		switch( PQresultStatus(pgresult) ){
 			case PGRES_TUPLES_OK:
+			case PGRES_COMMAND_OK:
 				if( ntuples == 0 )
 					return self;
 				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
