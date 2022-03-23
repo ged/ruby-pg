@@ -450,17 +450,18 @@ pgconn_s_encrypt_password(VALUE self, VALUE password, VALUE username)
  *   the asynchronous connection is ready
  *
  * Example:
- *   conn = PG::Connection.connect_start("dbname=mydatabase")
- *   socket = conn.socket_io
+ *   require "io/wait"
+ *
+ *   conn = PG::Connection.connect_start(dbname: 'mydatabase')
  *   status = conn.connect_poll
  *   while(status != PG::PGRES_POLLING_OK) do
  *     # do some work while waiting for the connection to complete
  *     if(status == PG::PGRES_POLLING_READING)
- *       if(not select([socket], [], [], 10.0))
+ *       unless conn.socket_io.wait_readable(10.0)
  *         raise "Asynchronous connection timed out!"
  *       end
  *     elsif(status == PG::PGRES_POLLING_WRITING)
- *       if(not select([], [socket], [], 10.0))
+ *       unless conn.socket_io.wait_writable(10.0)
  *         raise "Asynchronous connection timed out!"
  *       end
  *     end
