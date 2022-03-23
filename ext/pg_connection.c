@@ -819,13 +819,15 @@ pgconn_socket(VALUE self)
  * call-seq:
  *    conn.socket_io() -> IO
  *
- * Fetch a memorized IO object created from the Connection's underlying socket.
- * This object can be used for IO.select to wait for events while running
- * asynchronous API calls.
+ * Fetch an IO object created from the Connection's underlying socket.
+ * This object can be used per <tt>socket_io.wait_readable</tt>, <tt>socket_io.wait_writable</tt> or for <tt>IO.select</tt> to wait for events while running asynchronous API calls.
+ * <tt>IO#wait_*able</tt> is is <tt>Fiber.scheduler</tt> compatible in contrast to <tt>IO.select</tt>.
  *
- * Using this instead of #socket avoids the problem of the underlying connection
- * being closed by Ruby when an IO created using <tt>IO.for_fd(conn.socket)</tt>
- * goes out of scope. In contrast to #socket, it also works on Windows.
+ * The IO object can change while the connection is established, but is memorized afterwards.
+ * So be sure not to cache the IO object, but repeat calling <tt>conn.socket_io</tt> instead.
+ *
+ * Using this method also works on Windows in contrast to using #socket .
+ * It also avoids the problem of the underlying connection being closed by Ruby when an IO created using <tt>IO.for_fd(conn.socket)</tt> goes out of scope.
  */
 static VALUE
 pgconn_socket_io(VALUE self)
