@@ -210,6 +210,16 @@ describe PG::Result do
 			expect( @conn.get_result ).to be_nil
 		end
 
+		it "can handle commands not returning tuples" do
+			@conn.send_query( "CREATE TEMP TABLE test_single_row_mode (a int)" )
+			@conn.set_single_row_mode
+			res1 = @conn.get_result
+			res2 = res1.stream_each_tuple { raise "this shouldn't be called" }
+			expect( res2 ).to be_equal( res1 )
+			expect( @conn.get_result ).to be_nil
+			@conn.exec( "DROP TABLE test_single_row_mode" )
+		end
+
 		it "complains when not in single row mode" do
 			@conn.send_query( "SELECT generate_series(2,4)" )
 			expect{
