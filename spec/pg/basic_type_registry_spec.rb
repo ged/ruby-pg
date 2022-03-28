@@ -7,8 +7,9 @@ describe 'Basic type mapping' do
 	describe PG::BasicTypeRegistry do
 		it "can register_type" do
 			regi = PG::BasicTypeRegistry.new
-			regi.register_type(1, 'int4', PG::BinaryEncoder::Int8, PG::BinaryDecoder::Integer)
+			res = regi.register_type(1, 'int4', PG::BinaryEncoder::Int8, PG::BinaryDecoder::Integer)
 
+			expect( res ).to be( regi )
 			expect( regi.coders_for(1, :encoder)['int4'] ).to be_kind_of(PG::BinaryEncoder::Int8)
 			expect( regi.coders_for(1, :decoder)['int4'] ).to be_kind_of(PG::BinaryDecoder::Integer)
 		end
@@ -16,8 +17,9 @@ describe 'Basic type mapping' do
 		it "can alias_type" do
 			regi = PG::BasicTypeRegistry.new
 			regi.register_type(1, 'int4', PG::BinaryEncoder::Int4, PG::BinaryDecoder::Integer)
-			regi.alias_type(1, 'int8', 'int4')
+			res = regi.alias_type(1, 'int8', 'int4')
 
+			expect( res ).to be( regi )
 			expect( regi.coders_for(1, :encoder)['int8'] ).to be_kind_of(PG::BinaryEncoder::Int4)
 			expect( regi.coders_for(1, :decoder)['int8'] ).to be_kind_of(PG::BinaryDecoder::Integer)
 		end
@@ -25,8 +27,9 @@ describe 'Basic type mapping' do
 		it "can register_coder" do
 			regi = PG::BasicTypeRegistry.new
 			enco = PG::BinaryEncoder::Int8.new(name: 'test')
-			regi.register_coder(enco)
+			res = regi.register_coder(enco)
 
+			expect( res ).to be( regi )
 			expect( regi.coders_for(1, :encoder)['test'] ).to be(enco)
 			expect( regi.coders_for(1, :decoder)['test'] ).to be_nil
 		end

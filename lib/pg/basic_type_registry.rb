@@ -184,6 +184,7 @@ class PG::BasicTypeRegistry
 		name = coder.name || raise(ArgumentError, "name of #{coder.inspect} must be defined")
 		h[:encoder][name] = coder if coder.respond_to?(:encode)
 		h[:decoder][name] = coder if coder.respond_to?(:decode)
+		self
 	end
 
 	# Register the given +encoder_class+ and/or +decoder_class+ for casting a PostgreSQL type.
@@ -193,6 +194,7 @@ class PG::BasicTypeRegistry
 	def register_type(format, name, encoder_class, decoder_class)
 		register_coder(encoder_class.new(name: name, format: format)) if encoder_class
 		register_coder(decoder_class.new(name: name, format: format)) if decoder_class
+		self
 	end
 
 	# Alias the +old+ type to the +new+ type.
@@ -205,6 +207,7 @@ class PG::BasicTypeRegistry
 				@coders_by_name[format][ende].delete(new)
 			end
 		end
+		self
 	end
 
 	# Populate the registry with all builtin types of ruby-pg
