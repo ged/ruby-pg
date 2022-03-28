@@ -344,10 +344,12 @@ record_isspace(char ch)
  *   oids = conn.exec( "SELECT (NULL::complex).*" )
  *   # Build a type map (PG::TypeMapByColumn) for decoding the "complex" type
  *   dtm = PG::BasicTypeMapForResults.new(conn).build_column_map( oids )
- *   # Register a record decoder for decoding our type "complex"
- *   PG::BasicTypeRegistry.register_coder(PG::TextDecoder::Record.new(type_map: dtm, name: "complex"))
- *   # Apply the basic type registry to all results retrieved from the server
- *   conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn)
+ *   # Build a type map and populate with basic types
+ *   btr = PG::BasicTypeRegistry.new.define_default_types
+ *   # Register a new record decoder for decoding our type "complex"
+ *   btr.register_coder(PG::TextDecoder::Record.new(type_map: dtm, name: "complex"))
+ *   # Apply our basic type registry to all results retrieved from the server
+ *   conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn, registry: btr)
  *   # Now queries decode the "complex" type (and many basic types) automatically
  *   conn.exec("SELECT * FROM my_table").to_a
  *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
