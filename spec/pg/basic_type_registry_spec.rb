@@ -24,6 +24,24 @@ describe 'Basic type mapping' do
 			expect( regi.coders_for(1, :decoder)['int8'] ).to be_kind_of(PG::BinaryDecoder::Integer)
 		end
 
+		it "can register_default_types" do
+			regi = PG::BasicTypeRegistry.new
+			res = regi.register_default_types
+
+			expect( res ).to be( regi )
+			expect( regi.coders_for(0, :encoder)['float8'] ).to be_kind_of(PG::TextEncoder::Float)
+			expect( regi.coders_for(0, :decoder)['float8'] ).to be_kind_of(PG::TextDecoder::Float)
+		end
+
+		it "can define_default_types (alias to register_default_types)" do
+			regi = PG::BasicTypeRegistry.new
+			res = regi.define_default_types
+
+			expect( res ).to be( regi )
+			expect( regi.coders_for(0, :encoder)['float8'] ).to be_kind_of(PG::TextEncoder::Float)
+			expect( regi.coders_for(0, :decoder)['float8'] ).to be_kind_of(PG::TextDecoder::Float)
+		end
+
 		it "can register_coder" do
 			regi = PG::BasicTypeRegistry.new
 			enco = PG::BinaryEncoder::Int8.new(name: 'test')

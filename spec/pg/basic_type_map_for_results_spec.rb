@@ -130,7 +130,7 @@ describe 'Basic type mapping' do
 
 			[1, 0].each do |format|
 				it "should convert format #{format} timestamps per TimestampUtc" do
-					regi = PG::BasicTypeRegistry.new.define_default_types
+					regi = PG::BasicTypeRegistry.new.register_default_types
 					regi.register_type 0, 'timestamp', nil, PG::TextDecoder::TimestampUtc
 					@conn.type_map_for_results = PG::BasicTypeMapForResults.new(@conn, registry: regi)
 					res = @conn.exec_params( "SELECT CAST('2013-07-31 23:58:59+02' AS TIMESTAMP WITHOUT TIME ZONE),

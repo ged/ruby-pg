@@ -345,7 +345,7 @@ record_isspace(char ch)
  *   # Build a type map (PG::TypeMapByColumn) for decoding the "complex" type
  *   dtm = PG::BasicTypeMapForResults.new(conn).build_column_map( oids )
  *   # Build a type map and populate with basic types
- *   btr = PG::BasicTypeRegistry.new.define_default_types
+ *   btr = PG::BasicTypeRegistry.new.register_default_types
  *   # Register a new record decoder for decoding our type "complex"
  *   btr.register_coder(PG::TextDecoder::Record.new(type_map: dtm, name: "complex"))
  *   # Apply our basic type registry to all results retrieved from the server

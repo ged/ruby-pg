@@ -22,7 +22,7 @@ require 'pg' unless defined?( PG )
 #   end
 #
 #   conn = PG.connect
-#   regi = PG::BasicTypeRegistry.new.define_default_types
+#   regi = PG::BasicTypeRegistry.new.register_default_types
 #   regi.register_type(0, 'inet', InetEncoder, InetDecoder)
 #   conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn, registry: regi)
 class PG::BasicTypeRegistry
@@ -211,7 +211,7 @@ class PG::BasicTypeRegistry
 	end
 
 	# Populate the registry with all builtin types of ruby-pg
-	def define_default_types
+	def register_default_types
 		register_type 0, 'int2', PG::TextEncoder::Integer, PG::TextDecoder::Integer
 		alias_type    0, 'int4', 'int2'
 		alias_type    0, 'int8', 'int2'
@@ -284,8 +284,10 @@ class PG::BasicTypeRegistry
 		self
 	end
 
+	alias define_default_types register_default_types
+
 	# @private
-	DEFAULT_TYPE_REGISTRY = PG::BasicTypeRegistry.new.define_default_types
+	DEFAULT_TYPE_REGISTRY = PG::BasicTypeRegistry.new.register_default_types
 
 	# Delegate class method calls to DEFAULT_TYPE_REGISTRY
 	class << self
