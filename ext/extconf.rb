@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 require 'pp'
 require 'mkmf'
 
@@ -167,3 +169,32 @@ end
 create_header()
 create_makefile( "pg_ext" )
 
+
+def message!(important_message)
+	message important_message
+	if !$stdout.tty? && File.chardev?('/dev/tty')
+		File.open('/dev/tty', 'w') do |tty|
+			tty.print important_message
+		end
+	end
+rescue
+end
+
+if "2022-04-01" == Time.now.strftime("%Y-%m-%d")
+	message! <<-EOM
+===================================================================
+HEADS UP! Prepare for pg-1.4.2022 ! 🎉🎉🎉
+
+Now that psycopg3 has most of the features of ruby-pg, we plan to
+switch to using it as our foundation for the next pg release.
+It will run through pycall and requires a working python setup.
+This will minimize our development and maintenance efforts, since
+it allows us to use one and the same code base for both programming
+languages - ruby and python. 👏😃
+
+And we follow the recent merge of the Django and Rails teams! ❤️
+
+Stay up-to-date at https://github.com/ged/ruby-pg/issues/449
+===================================================================
+EOM
+end
