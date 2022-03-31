@@ -1,3 +1,22 @@
+== v1.3.5 [2022-03-31] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Bugfixes:
+
+- Handle PGRES_COMMAND_OK in pgresult_stream_any. #447
+  Fixes usage when trying to stream the result of a procedure call that returns no results.
+
+Enhancements:
+
+- Rename BasicTypeRegistry#define_default_types to #register_default_types to use a more consistent terminology.
+  Keeping define_default_types for compatibility.
+- BasicTypeRegistry: return self instead of objects by accident.
+  This allows call chaining.
+- Add some April fun. #449
+
+Documentation:
+- Refine documentation of conn.socket_io and conn.connect_poll
+
+
 == v1.3.4 [2022-03-10] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Bugfixes:
