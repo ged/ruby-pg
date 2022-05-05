@@ -607,7 +607,18 @@ pgconn_pass(VALUE self)
  * call-seq:
  *    conn.host()
  *
- * Returns the connected server name.
+ * Returns the server host name of the active connection.
+ * This can be a host name, an IP address, or a directory path if the connection is via Unix socket.
+ * (The path case can be distinguished because it will always be an absolute path, beginning with +/+ .)
+ *
+ * If the connection parameters specified both host and hostaddr, then +host+ will return the host information.
+ * If only hostaddr was specified, then that is returned.
+ * If multiple hosts were specified in the connection parameters, +host+ returns the host actually connected to.
+ *
+ * If there is an error producing the host information (perhaps if the connection has not been fully established or there was an error), it returns an empty string.
+ *
+ * If multiple hosts were specified in the connection parameters, it is not possible to rely on the result of +host+ until the connection is established.
+ * The status of the connection can be checked using the function Connection#status .
  */
 static VALUE
 pgconn_host(VALUE self)
