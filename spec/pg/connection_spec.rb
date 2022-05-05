@@ -626,6 +626,10 @@ EOT
 		expect( @conn.options ).to eq( "" )
 	end
 
+	it "can retrieve hostaddr for the established connection", :postgresql_12 do
+		expect( @conn.hostaddr ).to match( /^127\.0\.0\.1$|^::1$/ )
+	end
+
 	it "can set error verbosity" do
 		old = @conn.set_error_verbosity( PG::PQERRORS_TERSE )
 		new = @conn.set_error_verbosity( old )

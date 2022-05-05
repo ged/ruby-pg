@@ -617,6 +617,26 @@ pgconn_host(VALUE self)
 	return rb_str_new2(host);
 }
 
+/* PQhostaddr() appeared in PostgreSQL-12 together with PQresultMemorySize() */
+#if defined(HAVE_PQRESULTMEMORYSIZE)
+/*
+ * call-seq:
+ *    conn.hostaddr()
+ *
+ * Returns the server IP address of the active connection.
+ * This can be the address that a host name resolved to, or an IP address provided through the hostaddr parameter.
+ * If there is an error producing the host information (perhaps if the connection has not been fully established or there was an error), it returns an empty string.
+ *
+ */
+static VALUE
+pgconn_hostaddr(VALUE self)
+{
+	char *host = PQhostaddr(pg_get_pgconn(self));
+	if (!host) return Qnil;
+	return rb_str_new2(host);
+}
+#endif
+
 /*
  * call-seq:
  *    conn.port()
@@ -4348,6 +4368,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "user", pgconn_user, 0);
 	rb_define_method(rb_cPGconn, "pass", pgconn_pass, 0);
 	rb_define_method(rb_cPGconn, "host", pgconn_host, 0);
+#if defined(HAVE_PQRESULTMEMORYSIZE)
+	rb_define_method(rb_cPGconn, "hostaddr", pgconn_hostaddr, 0);
+#endif
 	rb_define_method(rb_cPGconn, "port", pgconn_port, 0);
 	rb_define_method(rb_cPGconn, "tty", pgconn_tty, 0);
 	rb_define_method(rb_cPGconn, "conninfo", pgconn_conninfo, 0);
