@@ -376,6 +376,35 @@ pgconn_s_conndefaults(VALUE self)
 	return array;
 }
 
+/*
+ * Document-method: PG::Connection.conninfo_parse
+ *
+ * call-seq:
+ *    PG::Connection.conninfo_parse(conninfo_string) -> Array
+ *
+ * Returns parsed connection options from the provided connection string as an array of hashes.
+ * Each hash has the same keys as PG::Connection.conndefaults() .
+ * The values from the +conninfo_string+ are stored in the +:val+ key.
+ */
+static VALUE
+pgconn_s_conninfo_parse(VALUE self, VALUE conninfo)
+{
+	char *errmsg = NULL;
+	PQconninfoOption *options = PQconninfoParse(StringValueCStr(conninfo), &errmsg);
+	if(errmsg){
+		VALUE error = rb_str_new_cstr(errmsg);
+		PQfreemem(errmsg);
+		rb_raise(rb_ePGerror, "%"PRIsVALUE, error);
+	}
+	VALUE array = pgconn_make_conninfo_array( options );
+
+	PQconninfoFree(options);
+
+	UNUSED( self );
+
+	return array;
+}
+
 
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
 static VALUE
@@ -4359,6 +4388,7 @@ init_pg_connection()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
+	rb_define_singleton_method(rb_cPGconn, "conninfo_parse", pgconn_s_conninfo_parse, 1);
 	rb_define_singleton_method(rb_cPGconn, "sync_ping", pgconn_s_sync_ping, -1);
 	rb_define_singleton_method(rb_cPGconn, "sync_connect", pgconn_s_sync_connect, -1);
 
