@@ -647,7 +647,25 @@ class PG::Connection
 		# connection will have its +client_encoding+ set accordingly.
 		#
 		# Raises a PG::Error if the connection fails.
-		def new(*args, &block)
+		def new(*args, **kwargs)
+			conn = connect_to_hosts(*args, **kwargs)
+
+			if block_given?
+				begin
+					return yield conn
+				ensure
+					conn.finish
+				end
+			end
+			conn
+		end
+		alias async_connect new
+		alias connect new
+		alias open new
+		alias setdb new
+		alias setdblogin new
+
+		private def connect_to_hosts(*args)
 			option_string = parse_connect_args(*args)
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
@@ -656,6 +674,7 @@ class PG::Connection
 			if iopts[:hostaddr]
 				# hostaddr is provided -> no need to resolve hostnames
 				ihostaddrs = iopts[:hostaddr].split(",", -1)
+
 				ihosts = iopts[:host].split(",", -1) if iopts[:host]
 				raise PG::ConnectionBad, "could not match #{ihosts.size} host names to #{ihostaddrs.size} hostaddr values" if ihosts && ihosts.size != ihostaddrs.size
 
@@ -667,7 +686,7 @@ class PG::Connection
 				ihostaddrs.each_with_index do |ihostaddr, idx|
 					oopts = iopts.merge(hostaddr: ihostaddr, port: iports[idx])
 					oopts[:host] = ihosts[idx] if ihosts
-					c = connect_internal(oopts, errors, &block)
+					c = connect_internal(oopts, errors)
 					return c if c
 				end
 			elsif iopts[:host]
@@ -694,27 +713,22 @@ class PG::Connection
 						# Try to connect to each host with separate timeout
 						addrs.each do |addr|
 							oopts = iopts.merge(hostaddr: addr, host: mhost, port: iports[idx])
-							c = connect_internal(oopts, errors, &block)
+							c = connect_internal(oopts, errors)
 							return c if c
 						end
 					else
 						# No hostname to resolve (UnixSocket)
 						oopts = iopts.merge(host: mhost, port: iports[idx])
-						c = connect_internal(oopts, errors, &block)
+						c = connect_internal(oopts, errors)
 						return c if c
 					end
 				end
 			else
 				# No host given
-				return connect_internal(iopts, &block)
+				return connect_internal(iopts)
 			end
 			raise PG::ConnectionBad, errors.join("\n")
 		end
-		alias async_connect new
-		alias connect new
-		alias open new
-		alias setdb new
-		alias setdblogin new
 
 		private def connect_internal(opts, errors=nil)
 			begin
@@ -734,14 +748,6 @@ class PG::Connection
 					# Probably an authentication error
 					#p rescue: err, status_abort: conn.instance_variable_get(:@last_status)
 					raise
-				end
-			end
-
-			if block_given?
-				begin
-					return yield conn
-				ensure
-					conn.finish
 				end
 			end
 			conn
