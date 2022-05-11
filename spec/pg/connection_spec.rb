@@ -263,50 +263,69 @@ describe PG::Connection do
 	it "emits a suitable error_message at connection errors" do
 		skip("Will be fixed in postgresql-15 on Windows") if RUBY_PLATFORM=~/mingw|mswin/
 
-		expect {
-			described_class.connect(
-				:host => 'localhost',
-				:port => @port,
-				:dbname => "non-existent")
-		}.to raise_error do |error|
+				expect {
+					described_class.connect(
+		                              :host => 'localhost',
+		                              :port => @port,
+		                              :dbname => "non-existent")
+				}.to raise_error do |error|
 			expect( error ).to be_an( PG::ConnectionBad )
 			expect( error.message ).to match( /database "non-existent" does not exist/i )
 			expect( error.message.encoding ).to eq( Encoding::BINARY )
 		end
 	end
 
-	it "connects using URI with multiple hosts", :postgresql_10 do
-		uri = "postgres://localhost:#{@port},127.0.0.1:#{@port}/test?keepalives=1"
+	it "times out after connect_timeout seconds" do
+		TCPServer.open( 'localhost', 54320 ) do |serv|
+			start_time = Time.now
+			expect {
+				described_class.connect(
+																host: 'localhost',
+																port: 54320,
+																connect_timeout: 1,
+																dbname: "test")
+			}.to raise_error do |error|
+				expect( error ).to be_an( PG::ConnectionBad )
+				expect( error.message ).to match( /connection to server at \"localhost\" \(.*\), port 54320 failed: timeout expired/ )
+			end
+
+			expect( Time.now - start_time ).to be_between(1.9, 10).inclusive
+		end
+	end
+
+	it "connects using URI with multiple hosts", :postgresql_12 do
+		uri = "postgres://localhost:#{@port+1},127.0.0.1:#{@port}/test?keepalives=1"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "localhost,127.0.0.1" )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A(::1|127\.0\.0\.1),(::1|127\.0\.0\.1)\z/ )
+		expect( tmpconn.port ).to eq( @port )
+		expect( tmpconn.host ).to eq( "127.0.0.1" )
+		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
 		tmpconn.finish
 	end
 
-	it "connects using URI with IPv6 hosts", :postgresql_10 do
+	it "connects using URI with IPv6 hosts", :postgresql_12 do
 		uri = "postgres://localhost:#{@port},[::1]:#{@port},/test"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "localhost,::1," )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A(::1|127\.0\.0\.1),::1,\z/ )
+		expect( tmpconn.host ).to eq( "localhost" )
+		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
 		tmpconn.finish
 	end
 
-	it "connects using URI with UnixSocket host", :postgresql_10, :unix_socket do
+	it "connects using URI with UnixSocket host", :postgresql_12, :unix_socket do
 		uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( @unix_socket )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to be_nil
+		expect( tmpconn.host ).to eq( @unix_socket )
+		expect( tmpconn.hostaddr ).to eq( "" )
 		tmpconn.finish
 	end
 
-	it "connects using Hash with multiple hosts", :postgresql_10 do
-		tmpconn = described_class.connect( host: "#{@unix_socket},127.0.0.1,localhost", port: @port, dbname: "test" )
+	it "connects using Hash with multiple hosts", :postgresql_12 do
+		tmpconn = described_class.connect( host: "#{@unix_socket}xx,127.0.0.1,localhost", port: @port, dbname: "test" )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "#{@unix_socket},127.0.0.1,localhost" )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A,(::1|127\.0\.0\.1),(::1|127\.0\.0\.1)\z/ )
+		expect( tmpconn.host ).to eq( "127.0.0.1" )
+		expect( tmpconn.hostaddr ).to match( /\A127\.0\.0\.1\z/ )
 		tmpconn.finish
 	end
 
