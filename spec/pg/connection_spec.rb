@@ -1241,6 +1241,26 @@ EOT
 		expect( (finish - start) ).to be_between( 0.2, 99 ).exclusive
 	end
 
+	it "can parse connection info strings kind of key=value" do
+		ar = PG::Connection.conninfo_parse("user=auser  host=somehost  port=3334 dbname=db")
+		expect( ar ).to be_kind_of( Array )
+		expect( ar.first ).to be_kind_of( Hash )
+		expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
+		expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
+	end
+
+	it "can parse connection info strings kind of URI" do
+		ar = PG::Connection.conninfo_parse("postgresql://auser@somehost:3334/db")
+		expect( ar ).to be_kind_of( Array )
+		expect( ar.first ).to be_kind_of( Hash )
+		expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
+		expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
+	end
+
+	it "can parse connection info strings with error" do
+		expect{ PG::Connection.conninfo_parse("host") }.to raise_error(PG::Error, /missing "=" after/)
+	end
+
 	it "can return the default connection options" do
 		expect( described_class.conndefaults ).to be_a( Array )
 		expect( described_class.conndefaults ).to all( be_a(Hash) )
