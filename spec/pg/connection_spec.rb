@@ -283,7 +283,7 @@ describe PG::Connection do
 		end
 	end
 
-	it "times out after connect_timeout seconds" do
+	it "times out after connect_timeout seconds", :postgresql_12 do
 		TCPServer.open( 'localhost', 54320 ) do |serv|
 			start_time = Time.now
 			expect {
