@@ -101,7 +101,7 @@ describe PG::Connection do
 			expect( optstring ).to match( /(^|\s)host='localhost'/ )
 			expect( optstring ).to match( /(^|\s)dbname='sales'/ )
 			expect( optstring ).to match( /(^|\s)options='-c geqo=off'/ )
-			expect( optstring ).to match( /(^|\s)hostaddr='(::1|127.0.0.1)'/ )
+			#expect( optstring ).to match( /(^|\s)hostaddr='(::1|127.0.0.1)'/ )
 
 			expect( optstring ).to_not match( /port=/ )
 			expect( optstring ).to_not match( /tty=/ )
@@ -124,9 +124,9 @@ describe PG::Connection do
 					'host' => 'www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost' )
 
 			expect( optstring ).to be_a( String )
-			expect( optstring ).to match( /(^|\s)dbname=original/ )
+			expect( optstring ).to match( /(^|\s)dbname='original'/ )
 			expect( optstring ).to match( /(^|\s)user='jrandom'/ )
-			expect( optstring ).to match( /(^|\s)hostaddr='\d+\.\d+\.\d+\.\d+,,(::1|127\.0\.0\.1)'/ )
+			#expect( optstring ).to match( /(^|\s)hostaddr='\d+\.\d+\.\d+\.\d+,,(::1|127\.0\.0\.1)'/ )
 		end
 
 		it "escapes single quotes and backslashes in connection parameters" do
@@ -137,56 +137,52 @@ describe PG::Connection do
 
 		let(:uri) { 'postgresql://user:pass@pgsql.example.com:222/db01?sslmode=require&hostaddr=4.3.2.1' }
 
-		it "accepts an URI" do
+		it "accepts an URI string" do
 			string = described_class.parse_connect_args( uri )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
-			expect( string ).to match( %r{\?.*sslmode=require} )
+			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' sslmode='require' fallback_application_name} )
+		end
 
+		it "accepts an URI object" do
 			string = described_class.parse_connect_args( URI.parse(uri) )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
-			expect( string ).to match( %r{\?.*sslmode=require} )
+			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' sslmode='require' fallback_application_name} )
 		end
 
 		it "accepts an URI and adds parameters from hash" do
 			string = described_class.parse_connect_args( uri + "&fallback_application_name=testapp", :connect_timeout => 2 )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
-			expect( string ).to match( %r{\?sslmode=require&} )
-			expect( string ).to match( %r{\?.*&fallback_application_name=testapp&} )
-			expect( string ).to match( %r{\?.*&connect_timeout=2$} )
+			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' fallback_application_name='testapp' sslmode='require' connect_timeout='2'} )
 		end
 
-		it "accepts an URI and adds hostaddr" do
-			uri = 'postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost'
-			string = described_class.parse_connect_args( uri )
+		#it "accepts an URI and adds hostaddr" do
+			#uri = 'postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost'
+			#string = described_class.parse_connect_args( uri )
 
-			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost\?hostaddr=\d+\.\d+\.\d+\.\d+%2C%2C(%3A%3A1|127\.0\.0\.1)} )
-		end
+			#expect( string ).to be_a( String )
+			#expect( string ).to match( %r{^postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost\?hostaddr=\d+\.\d+\.\d+\.\d+%2C%2C(%3A%3A1|127\.0\.0\.1)} )
+		#end
 
-		it "accepts an URI and adds proper hostaddr" do
-			uri = 'postgresql://user:pass@192.168.11.123'
-			string = described_class.parse_connect_args( uri )
-			expect( string ).to match( %r{\?.*hostaddr=192.168.11.123&} )
-		end
+		#it "accepts an URI and adds proper hostaddr" do
+			#uri = 'postgresql://user:pass@192.168.11.123'
+			#string = described_class.parse_connect_args( uri )
+			#expect( string ).to match( %r{\?.*hostaddr=192.168.11.123&} )
+		#end
 
 		it "accepts an URI with a non-standard domain socket directory" do
 			string = described_class.parse_connect_args( 'postgresql://%2Fvar%2Flib%2Fpostgresql/dbname' )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://%2Fvar%2Flib%2Fpostgresql/dbname} )
+			expect( string ).to match( %r{^dbname='dbname' host='/var/lib/postgresql'} )
 
 			string = described_class.
 				parse_connect_args( 'postgresql:///dbname', :host => '/var/lib/postgresql' )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql:///dbname\?} )
-			expect( string ).to match( %r{\?.*host=%2Fvar%2Flib%2Fpostgresql} )
+			expect( string ).to match( %r{^dbname='dbname' host='/var/lib/postgresql'} )
 		end
 
 		it "connects with defaults if no connection parameters are given" do
@@ -199,12 +195,11 @@ describe PG::Connection do
 			string = described_class.parse_connect_args( conninfo_with_colon_in_password )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{(^|\s)user=a} )
-			expect( string ).to match( %r{(^|\s)password=a:a} )
-			expect( string ).to match( %r{(^|\s)host=localhost} )
-			expect( string ).to match( %r{(^|\s)port=555} )
-			expect( string ).to match( %r{(^|\s)dbname=test} )
-			expect( string ).to match( %r{(^|\s)hostaddr='(::1|127\.0\.0\.1)'} )
+			expect( string ).to match( %r{(^|\s)user='a'} )
+			expect( string ).to match( %r{(^|\s)password='a:a'} )
+			expect( string ).to match( %r{(^|\s)host='localhost'} )
+			expect( string ).to match( %r{(^|\s)port='555'} )
+			expect( string ).to match( %r{(^|\s)dbname='test'} )
 		end
 
 		it "sets the fallback_application_name on new connections" do
