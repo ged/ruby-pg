@@ -56,9 +56,8 @@ class PG::Connection
 	# * URI object
 	# * positional arguments
 	#
-	# The method adds the option "hostaddr" and "fallback_application_name" if they aren't already set.
-	# The URI and the options string is passed through and "hostaddr" as well as "fallback_application_name"
-	# are added to the end.
+	# The method adds the option "fallback_application_name" if it isn't already set.
+	# It returns a connection string with "key=value" pairs.
 	def self.parse_connect_args( *args )
 		hash_arg = args.last.is_a?( Hash ) ? args.pop.transform_keys(&:to_sym) : {}
 		iopts = {}
