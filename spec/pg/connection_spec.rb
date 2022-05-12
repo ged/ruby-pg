@@ -14,24 +14,24 @@ describe PG::Connection do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
 	end
 
-	describe "PG::Connection#connect_string_to_hash" do
+	describe "PG::Connection#conninfo_parse" do
 		it "encode and decode Hash to connection string to Hash" do
 			hash = {
 				:host => 'pgsql.example.com',
 				:dbname => 'db01',
 				'sslmode' => 'require',
-				'somekey' => '',
+				'service' => '',
 				'password' => "\\ \t\n\"'",
 			}
 			optstring = described_class.connect_hash_to_string(hash)
-			res = described_class.connect_string_to_hash(optstring)
+			res = described_class.conninfo_parse(optstring).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
 			expect( res ).to eq( hash.transform_keys(&:to_sym) )
 		end
 
 		it "decode option string to Hash" do
 			optstring = "host=overwritten host=c:\\\\pipe password = \\\\\\'\"  "
-			res = described_class.connect_string_to_hash(optstring)
+			res = described_class.conninfo_parse(optstring).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
 			expect( res ).to eq({
 				host: 'c:\pipe',
@@ -39,12 +39,25 @@ describe PG::Connection do
 			})
 		end
 
-		it "raises error when decoding invalid option string" do
-			optstring = "host='abc"
-			expect{ described_class.connect_string_to_hash(optstring) }.to raise_error(ArgumentError, /unterminated quoted string/)
+		it "can parse connection info strings kind of key=value" do
+			ar = PG::Connection.conninfo_parse("user=auser  host=somehost  port=3334 dbname=db")
+			expect( ar ).to be_kind_of( Array )
+			expect( ar.first ).to be_kind_of( Hash )
+			expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
+			expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
+		end
 
-			optstring = "host"
-			expect{ described_class.connect_string_to_hash(optstring) }.to raise_error(ArgumentError, /missing = after/)
+		it "can parse connection info strings kind of URI" do
+			ar = PG::Connection.conninfo_parse("postgresql://auser@somehost:3334/db")
+			expect( ar ).to be_kind_of( Array )
+			expect( ar.first ).to be_kind_of( Hash )
+			expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
+			expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
+		end
+
+		it "can parse connection info strings with error" do
+			expect{ PG::Connection.conninfo_parse("host='abc") }.to raise_error(PG::Error, /unterminated quoted string/)
+			expect{ PG::Connection.conninfo_parse("host") }.to raise_error(PG::Error, /missing "=" after/)
 		end
 	end
 
@@ -1258,26 +1271,6 @@ EOT
 
 		expect( res ).to be_falsey
 		expect( (finish - start) ).to be_between( 0.2, 99 ).exclusive
-	end
-
-	it "can parse connection info strings kind of key=value" do
-		ar = PG::Connection.conninfo_parse("user=auser  host=somehost  port=3334 dbname=db")
-		expect( ar ).to be_kind_of( Array )
-		expect( ar.first ).to be_kind_of( Hash )
-		expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
-		expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
-	end
-
-	it "can parse connection info strings kind of URI" do
-		ar = PG::Connection.conninfo_parse("postgresql://auser@somehost:3334/db")
-		expect( ar ).to be_kind_of( Array )
-		expect( ar.first ).to be_kind_of( Hash )
-		expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
-		expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
-	end
-
-	it "can parse connection info strings with error" do
-		expect{ PG::Connection.conninfo_parse("host") }.to raise_error(PG::Error, /missing "=" after/)
 	end
 
 	it "can return the default connection options" do
