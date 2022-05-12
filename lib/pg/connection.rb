@@ -577,7 +577,7 @@ class PG::Connection
 
 			# Check to see if it's finished or failed yet
 			poll_status = send( poll_meth )
-			p status, PG::Constants.constants.grep(/CONNECTION_/).find{|c| PG::Constants.const_get(c) == status}
+#			p status, PG::Constants.constants.grep(/CONNECTION_/).find{|c| PG::Constants.const_get(c) == status}
 			@last_status = status unless [PG::CONNECTION_BAD, PG::CONNECTION_OK].include?(status)
 		end
 
