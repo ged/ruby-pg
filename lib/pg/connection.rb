@@ -281,7 +281,7 @@ class PG::Connection
 				end
 				while get_result
 				end
-				raise
+				raise err
 			else
 				res = get_last_result
 				if !res || res.result_status != PGRES_COMMAND_OK
