@@ -59,14 +59,14 @@ module PG
 	# Get the PG library version.
 	#
 	# +include_buildnum+ is no longer used and any value passed will be ignored.
-	def self::version_string( include_buildnum=nil )
-		return "%s %s" % [ self.name, VERSION ]
+	def self.version_string( include_buildnum=nil )
+		"%s %s" % [ self.name, VERSION ]
 	end
 
 
 	### Convenience alias for PG::Connection.new.
-	def self::connect( *args, **kwargs )
-		return PG::Connection.new( *args, **kwargs )
+	def self.connect( *args, **kwargs, &block )
+		Connection.new( *args, **kwargs, &block )
 	end
 
 

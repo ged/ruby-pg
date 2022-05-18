@@ -315,10 +315,10 @@ describe PG::Connection do
 			klass = Class.new(described_class) do
 				alias execute exec
 			end
-			conn = klass.send(meth, @conninfo)
-			expect( conn ).to be_a_kind_of( klass )
-			expect( conn.execute("SELECT 1") ).to be_a_kind_of( PG::Result )
-			conn.close
+			klass.send(meth, @conninfo) do |conn|
+				expect( conn ).to be_a_kind_of( klass )
+				expect( conn.execute("SELECT 1") ).to be_a_kind_of( PG::Result )
+			end
 		end
 	end
 
@@ -1436,7 +1436,8 @@ EOT
 		# Close the two pipe file descriptors, so that the file descriptor of
 		# newly established connection is probably distinct from the previous one.
 		ios.each(&:close)
-		conn.reset
+		res = conn.reset
+		expect( res ).to eq( conn )
 
 		# The new connection should work even when the file descriptor has changed.
 		expect( conn.exec("SELECT 1").values ).to eq([["1"]])

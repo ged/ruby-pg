@@ -62,4 +62,14 @@ describe PG do
 		expect( c ).to be_a_kind_of( PG::Connection )
 		c.close
 	end
+
+	it "can #connect with block" do
+		bres = PG.connect(@conninfo) do |c|
+			res = c.exec "SELECT 5"
+			expect( res.values ).to eq( [["5"]] )
+			55
+		end
+
+		expect( bres ).to eq( 55 )
+	end
 end

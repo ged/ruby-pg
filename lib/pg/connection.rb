@@ -549,6 +549,7 @@ class PG::Connection
 	def reset
 		reset_start
 		async_connect_or_reset(:reset_poll)
+		self
 	end
 	alias async_reset reset
 
@@ -646,8 +647,6 @@ class PG::Connection
 		sync_setnonblocking(true)
 		self.flush_data = true
 		set_default_encoding
-
-		self
 	end
 
 	class << self
@@ -709,6 +708,15 @@ class PG::Connection
 			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
 
 			conn.send(:async_connect_or_reset, :connect_poll)
+
+			if block_given?
+				begin
+					return yield conn
+				ensure
+					conn.finish
+				end
+			end
+			conn
 		end
 		alias async_connect new
 		alias connect new
