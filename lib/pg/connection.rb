@@ -273,11 +273,15 @@ class PG::Connection
 				yield res
 			rescue Exception => err
 				cancel
-				while get_copy_data
+				begin
+					while get_copy_data
+					end
+				rescue PG::Error
+					# Ignore error in cleanup to avoid losing original exception
 				end
 				while get_result
 				end
-				raise
+				raise err
 			else
 				res = get_last_result
 				if !res || res.result_status != PGRES_COMMAND_OK

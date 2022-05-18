@@ -1069,6 +1069,17 @@ EOT
 		expect( @conn ).to still_be_usable
 	end
 
+	it "can handle client errors after all data is consumed in #copy_data for output" do
+		expect {
+			@conn.copy_data( "COPY (SELECT 1) TO STDOUT" ) do |res|
+				while @conn.get_copy_data
+				end
+				raise "boom"
+			end
+		}.to raise_error(RuntimeError, "boom")
+		expect( @conn ).to still_be_usable
+	end
+
 	it "can handle server errors in #copy_data for output" do
 		@conn.exec "ROLLBACK"
 		@conn.transaction do
