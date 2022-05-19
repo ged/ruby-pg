@@ -283,7 +283,7 @@ describe PG::Connection do
 		end
 	end
 
-	it "times out after connect_timeout seconds", :postgresql_12 do
+	it "times out after connect_timeout seconds" do
 		TCPServer.open( 'localhost', 54320 ) do |serv|
 			start_time = Time.now
 			expect {
@@ -294,7 +294,11 @@ describe PG::Connection do
 																dbname: "test")
 			}.to raise_error do |error|
 				expect( error ).to be_an( PG::ConnectionBad )
-				expect( error.message ).to match( /connection to server at \"localhost\" \(.*\), port 54320 failed: timeout expired/ )
+				expect( error.message ).to match( /timeout expired/ )
+				if PG.library_version >= 120000
+					expect( error.message ).to match( /\"localhost\"/ )
+					expect( error.message ).to match( /port 54320/ )
+				end
 			end
 
 			expect( Time.now - start_time ).to be_between(1.9, 10).inclusive
