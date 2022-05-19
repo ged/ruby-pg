@@ -555,11 +555,22 @@ class PG::Connection
 				# If the socket needs to read, wait 'til it becomes readable to poll again
 				case poll_status
 				when PG::PGRES_POLLING_READING
-					socket_io.wait_readable(timeout)
+					if defined?(IO::READABLE) # ruby-3.0+
+						socket_io.wait(IO::READABLE | IO::PRIORITY, timeout)
+					else
+						IO.select([socket_io], nil, [socket_io], timeout)
+					end
 
 				# ...and the same for when the socket needs to write
 				when PG::PGRES_POLLING_WRITING
-					socket_io.wait_writable(timeout)
+					if defined?(IO::WRITABLE) # ruby-3.0+
+						# Use wait instead of wait_readable, since connection errors are delivered as
+						# exceptional/priority events on Windows.
+						socket_io.wait(IO::WRITABLE | IO::PRIORITY, timeout)
+					else
+						# io#wait on ruby-2.x doesn't wait for priority, so fallback to IO.select
+						IO.select(nil, [socket_io], [socket_io], timeout)
+					end
 				end
 			end
 			# connection to server at "localhost" (127.0.0.1), port 5433 failed: timeout expired (PG::ConnectionBad)
