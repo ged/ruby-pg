@@ -738,7 +738,7 @@ class PG::Connection
 
 				conn.send(:async_connect_or_reset, :connect_poll)
 			rescue PG::ConnectionBad => err
-				if errors && ![PG::CONNECTION_AWAITING_RESPONSE].include?(conn.instance_variable_get(:@last_status))
+				if errors && !(conn && [PG::CONNECTION_AWAITING_RESPONSE].include?(conn.instance_variable_get(:@last_status)))
 					# Seems to be no authentication error -> try next host
 					errors << err
 					#p rescue: err, status_repeat: conn.instance_variable_get(:@last_status)
