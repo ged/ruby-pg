@@ -701,8 +701,8 @@ class PG::Connection
 		# connection will have its +client_encoding+ set accordingly.
 		#
 		# Raises a PG::Error if the connection fails.
-		def new(*args, **kwargs)
-			conn = self.connect_start(*args, **kwargs ) or
+		def new(*args)
+			conn = self.connect_start(*args) or
 				raise(PG::Error, "Unable to create a new connection")
 
 			raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
