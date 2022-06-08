@@ -101,7 +101,6 @@ describe PG::Connection do
 			expect( optstring ).to match( /(^|\s)host='localhost'/ )
 			expect( optstring ).to match( /(^|\s)dbname='sales'/ )
 			expect( optstring ).to match( /(^|\s)options='-c geqo=off'/ )
-			#expect( optstring ).to match( /(^|\s)hostaddr='(::1|127.0.0.1)'/ )
 
 			expect( optstring ).to_not match( /port=/ )
 			expect( optstring ).to_not match( /tty=/ )
@@ -126,7 +125,6 @@ describe PG::Connection do
 			expect( optstring ).to be_a( String )
 			expect( optstring ).to match( /(^|\s)dbname='original'/ )
 			expect( optstring ).to match( /(^|\s)user='jrandom'/ )
-			#expect( optstring ).to match( /(^|\s)hostaddr='\d+\.\d+\.\d+\.\d+,,(::1|127\.0\.0\.1)'/ )
 		end
 
 		it "escapes single quotes and backslashes in connection parameters" do
@@ -157,20 +155,6 @@ describe PG::Connection do
 			expect( string ).to be_a( String )
 			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' fallback_application_name='testapp' sslmode='require' connect_timeout='2'} )
 		end
-
-		#it "accepts an URI and adds hostaddr" do
-			#uri = 'postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost'
-			#string = described_class.parse_connect_args( uri )
-
-			#expect( string ).to be_a( String )
-			#expect( string ).to match( %r{^postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost\?hostaddr=\d+\.\d+\.\d+\.\d+%2C%2C(%3A%3A1|127\.0\.0\.1)} )
-		#end
-
-		#it "accepts an URI and adds proper hostaddr" do
-			#uri = 'postgresql://user:pass@192.168.11.123'
-			#string = described_class.parse_connect_args( uri )
-			#expect( string ).to match( %r{\?.*hostaddr=192.168.11.123&} )
-		#end
 
 		it "accepts an URI with a non-standard domain socket directory" do
 			string = described_class.parse_connect_args( 'postgresql://%2Fvar%2Flib%2Fpostgresql/dbname' )
@@ -315,13 +299,21 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "connects using URI with IPv6 hosts", :postgresql_12 do
+	it "connects using URI with IPv6 hosts", :postgresql_12, :ipv6 do
 		uri = "postgres://localhost:#{@port},[::1]:#{@port},/test"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		expect( tmpconn.host ).to eq( "localhost" )
 		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
 		tmpconn.finish
+	end
+
+	it "tries to connect to localhost with IPv6 and IPv4", :ipv6 do
+		uri = "postgres://localhost:#{@port+1}/test"
+		expect(described_class).to receive(:parse_connect_args).once.ordered.with(uri).and_call_original
+		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "::1")).and_call_original
+		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "127.0.0.1")).and_call_original
+		expect{ described_class.connect( uri ) }.to raise_error(PG::ConnectionBad)
 	end
 
 	it "connects using URI with UnixSocket host", :postgresql_12, :unix_socket do
