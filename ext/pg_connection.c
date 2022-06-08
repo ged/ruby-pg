@@ -687,6 +687,9 @@ pgconn_conninfo( VALUE self )
  *   PG::Constants::CONNECTION_BAD
  *
  * ... and other constants of kind PG::Constants::CONNECTION_*
+ *
+ * Example:
+ *   PG.constants.grep(/CONNECTION_/).find{|c| PG.const_get(c) == conn.status} # => :CONNECTION_OK
  */
 static VALUE
 pgconn_status(VALUE self)
