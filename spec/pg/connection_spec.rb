@@ -2143,34 +2143,6 @@ EOT
 		end
 	end
 
-	context "OS thread support" do
-		it "Connection#exec shouldn't block a second thread" do
-			t = Thread.new do
-				@conn.exec( "select pg_sleep(1)" )
-			end
-
-			sleep 0.1
-			expect( t ).to be_alive()
-			t.kill
-			@conn.cancel
-		end
-
-		it "Connection.new shouldn't block a second thread" do
-			serv = nil
-			t = Thread.new do
-				serv = TCPServer.new( '127.0.0.1', 54320 )
-				expect {
-					described_class.connect( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-				}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
-			end
-
-			sleep 0.5
-			expect( t ).to be_alive()
-			serv.close
-			t.join
-		end
-	end
-
 	describe "type casting" do
 		it "should raise an error on invalid param mapping" do
 			expect{
