@@ -308,14 +308,6 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
-	it "tries to connect to localhost with IPv6 and IPv4", :ipv6 do
-		uri = "postgres://localhost:#{@port+1}/test"
-		expect(described_class).to receive(:parse_connect_args).once.ordered.with(uri).and_call_original
-		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "::1")).and_call_original
-		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "127.0.0.1")).and_call_original
-		expect{ described_class.connect( uri ) }.to raise_error(PG::ConnectionBad)
-	end
-
 	it "connects using URI with UnixSocket host", :postgresql_12, :unix_socket do
 		uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
 		tmpconn = described_class.connect( uri )
@@ -749,82 +741,7 @@ EOT
 		expect( Time.now - start ).to be < 9.9
 	end
 
-	def interrupt_thread(exc=nil)
-		start = Time.now
-		t = Thread.new do
-			begin
-				yield
-			rescue Exception => err
-				err
-			end
-		end
-		sleep 0.1
-
-		if exc
-			t.raise exc, "Stop the query by #{exc}"
-		else
-			t.kill
-		end
-		t.join
-
-		[t, Time.now - start]
-	end
-
-	it "can stop a thread that runs a blocking query with async_exec" do
-		t, duration = interrupt_thread do
-			@conn.async_exec( 'select pg_sleep(10)' )
-		end
-
-		expect( t.value ).to be_nil
-		expect( duration ).to be < 10
-		@conn.cancel # Stop the query that is still running on the server
-	end
-
 	describe "#transaction" do
-
-		it "stops a thread that runs a blocking transaction with async_exec" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do |c|
-					c.async_exec( 'select pg_sleep(10)' )
-				end
-			end
-
-			expect( t.value ).to be_kind_of( Interrupt )
-			expect( duration ).to be < 10
-		end
-
-		it "stops a thread that runs a failing transaction with async_exec" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do |c|
-					c.async_exec( 'select nonexist' )
-				end
-			end
-
-			expect( t.value ).to be_kind_of( PG::UndefinedColumn )
-			expect( duration ).to be < 10
-		end
-
-		it "stops a thread that runs a no query but a transacted ruby sleep" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do
-					sleep 10
-				end
-			end
-
-			expect( t.value ).to be_kind_of( Interrupt )
-			expect( duration ).to be < 10
-		end
-
-		it "doesn't worry about an already finished connection" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do
-					@conn.async_exec("ROLLBACK")
-				end
-			end
-
-			expect( t.value ).to be_kind_of( PG::Result )
-			expect( t.value.result_status ).to eq( PG::PGRES_COMMAND_OK )
-		end
 
 		it "automatically rolls back a transaction if an exception is raised" do
 			# abort the per-example transaction so we can test our own
@@ -858,20 +775,6 @@ EOT
 			end
 			expect( res ).to eq( "transaction result" )
 		end
-	end
-
-	it "should work together with signal handlers", :unix do
-		signal_received = false
-		trap 'USR2' do
-			signal_received = true
-		end
-
-		Thread.new do
-			sleep 0.1
-			Process.kill("USR2", Process.pid)
-		end
-		@conn.async_exec("select pg_sleep(0.3)")
-		expect( signal_received ).to be_truthy
 	end
 
 	it "not read past the end of a large object" do
@@ -927,7 +830,7 @@ EOT
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 0.1
-				conn.async_exec( 'NOTIFY woo' )
+				conn.exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
 			end
@@ -947,7 +850,7 @@ EOT
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 0.1
-				conn.async_exec( 'NOTIFY woo' )
+				conn.exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
 			end
@@ -1213,8 +1116,8 @@ EOT
 		expect( @conn ).to still_be_usable
 	end
 
-	it "correctly finishes COPY queries passed to #async_exec" do
-		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
+	it "correctly finishes COPY queries passed to #exec" do
+		@conn.exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
 
 		results = []
 		begin
@@ -2243,7 +2146,7 @@ EOT
 	context "OS thread support" do
 		it "Connection#exec shouldn't block a second thread" do
 			t = Thread.new do
-				@conn.async_exec( "select pg_sleep(1)" )
+				@conn.exec( "select pg_sleep(1)" )
 			end
 
 			sleep 0.1
@@ -2257,7 +2160,7 @@ EOT
 			t = Thread.new do
 				serv = TCPServer.new( '127.0.0.1', 54320 )
 				expect {
-					described_class.async_connect( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+					described_class.connect( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
 				}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
 			end
 
