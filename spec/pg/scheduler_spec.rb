@@ -7,56 +7,6 @@ $scheduler_timeout = false
 
 context "with a Fiber scheduler", :scheduler do
 
-	def setup
-		# Run examples with gated scheduler
-		sched = Helpers::TcpGateScheduler.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
-		Fiber.set_scheduler(sched)
-		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{sched.internal_port} sslmode=disable")
-
-		# Run examples with default scheduler
-		#Fiber.set_scheduler(Helpers::Scheduler.new)
-		#@conninfo_gate = @conninfo
-
-		# Run examples without scheduler
-		#def Fiber.schedule; yield; end
-		#@conninfo_gate = @conninfo
-	end
-
-	def teardown
-		Fiber.set_scheduler(nil)
-	end
-
-	def stop_scheduler
-		if Fiber.scheduler && Fiber.scheduler.respond_to?(:finish)
-			Fiber.scheduler.finish
-		end
-	end
-
-	def thread_with_timeout(timeout)
-		th = Thread.new do
-			yield
-		end
-		unless th.join(timeout)
-			th.kill
-			$scheduler_timeout = true
-			raise("scheduler timeout in:\n#{th.backtrace.join("\n")}")
-		end
-	end
-
-	def run_with_scheduler(timeout=10)
-		thread_with_timeout(timeout) do
-			setup
-			Fiber.schedule do
-				conn = PG.connect(@conninfo_gate)
-
-				yield conn
-
-				conn.finish
-				stop_scheduler
-			end
-		end
-	end
-
 	it "connects to a server" do
 		run_with_scheduler do |conn|
 			res = conn.exec_params("SELECT 7", [])

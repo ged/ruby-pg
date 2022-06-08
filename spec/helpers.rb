@@ -7,6 +7,7 @@ require 'pg'
 require 'openssl'
 require_relative 'helpers/scheduler.rb'
 require_relative 'helpers/tcp_gate_scheduler.rb'
+require_relative 'helpers/tcp_gate_switcher.rb'
 
 DEFAULT_TEST_DIR_STR = File.join(Dir.pwd, "tmp_test_specs")
 TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
@@ -526,6 +527,83 @@ EOT
 			if readable.any?
 				conn.consume_input
 			end
+		end
+	end
+
+	def scheduler_setup
+		# Run examples with gated scheduler
+		sched = Helpers::TcpGateScheduler.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
+		Fiber.set_scheduler(sched)
+		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{sched.internal_port} sslmode=disable")
+
+		# Run examples with default scheduler
+		#Fiber.set_scheduler(Helpers::Scheduler.new)
+		#@conninfo_gate = @conninfo
+
+		# Run examples without scheduler
+		#def Fiber.schedule; yield; end
+		#@conninfo_gate = @conninfo
+	end
+
+	def scheduler_teardown
+		Fiber.set_scheduler(nil)
+	end
+
+	def scheduler_stop
+		if Fiber.scheduler && Fiber.scheduler.respond_to?(:finish)
+			Fiber.scheduler.finish
+		end
+	end
+
+	def thread_with_timeout(timeout)
+		th = Thread.new do
+			yield
+		end
+		unless th.join(timeout)
+			th.kill
+			$scheduler_timeout = true
+			raise("scheduler timeout in:\n#{th.backtrace.join("\n")}")
+		end
+	end
+
+	def run_with_scheduler(timeout=10)
+		thread_with_timeout(timeout) do
+			scheduler_setup
+			Fiber.schedule do
+				conn = PG.connect(@conninfo_gate)
+
+				yield conn
+
+				conn.finish
+				scheduler_stop
+			end
+		end
+		scheduler_teardown
+	end
+
+	def gate_setup
+		# Run examples with gate
+		gate = Helpers::TcpGateSwitcher.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
+		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{gate.internal_port} sslmode=disable")
+
+		# Run examples without gate
+		#@conninfo_gate = @conninfo
+		gate
+	end
+
+	def gate_stop(gate)
+		gate&.finish
+	end
+
+	def run_with_gate(timeout=10)
+		thread_with_timeout(timeout) do
+			gate = gate_setup
+			conn = PG.connect(@conninfo_gate)
+
+			yield conn, gate
+
+			conn.finish
+			gate_stop(gate)
 		end
 	end
 end

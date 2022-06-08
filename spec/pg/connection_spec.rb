@@ -517,87 +517,55 @@ describe PG::Connection do
 		end
 
 		it "rejects to send lots of COPY data" do
-			skip("takes around an hour to succeed on Windows") if RUBY_PLATFORM=~/mingw|mswin/
+			unless RUBY_PLATFORM =~ /i386-mingw|x86_64-darwin|x86_64-linux/
+				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
+			end
 
-			conn = described_class.new(@conninfo)
-			conn.setnonblocking(true)
+			run_with_gate(60) do |conn, gate|
+				conn.setnonblocking(true)
 
-			res = nil
-			begin
-				Timeout.timeout(60) do
-					conn.exec <<-EOSQL
-						CREATE TEMP TABLE copytable (col1 TEXT);
+				res = nil
+				conn.exec <<-EOSQL
+					CREATE TEMP TABLE copytable (col1 TEXT);
+				EOSQL
 
-						CREATE OR REPLACE FUNCTION delay_input() RETURNS trigger AS $x$
-								BEGIN
-									PERFORM pg_sleep(1);
-									RETURN NEW;
-								END;
-						$x$ LANGUAGE plpgsql;
+				conn.exec( "COPY copytable FROM STDOUT CSV" )
+				gate.stop
 
-						CREATE TRIGGER delay_input BEFORE INSERT ON copytable
-								FOR EACH ROW EXECUTE PROCEDURE delay_input();
-					EOSQL
-
-					conn.exec( "COPY copytable FROM STDOUT CSV" )
-
-					data = "x" * 1000 * 1000
-					data << "\n"
-					20000.times do
-						res = conn.put_copy_data(data)
-						break if res == false
-					end
+				data = "x" * 1000 * 1000
+				data << "\n"
+				20000.times do |idx|
+					res = conn.put_copy_data(data)
+					break if res == false
 				end
 				expect( res ).to be_falsey
-			rescue Timeout::Error
-				skip <<-EOT
-Unfortunately this test is not reliable.
 
-It is timing dependent, since it assumes that the ruby process
-sends data faster than the PostgreSQL server can process it.
-This assumption is wrong in some environments.
-EOT
-			ensure
+				gate.start
 				conn.cancel
 				conn.discard_results
-				conn.finish
 			end
 		end
 
 		it "needs to flush data after send_query" do
-			retries = 3
-			begin
-				conn = described_class.new(@conninfo)
+			run_with_gate(60) do |conn, gate|
 				conn.setnonblocking(true)
 
-				data = "x" * 1000 * 1000 * 100
+				gate.stop
+				data = "x" * 1000 * 1000 * 30
 				res = conn.send_query_params("SELECT LENGTH($1)", [data])
 				expect( res ).to be_nil
 
 				res = conn.flush
 				expect( res ).to be_falsey
 
-			rescue RSpec::Expectations::ExpectationNotMetError
-				if (retries-=1) >= 0
-					until conn.flush()
-						IO.select(nil, [conn.socket_io], nil, 10)
-					end
-					conn.get_last_result
-					conn.finish
-					retry
-				end
-				raise
-			ensure
-
-				until conn.flush()
-					IO.select(nil, [conn.socket_io], nil, 10)
+				gate.start
+				until conn.flush
+					IO.select(nil, [conn.socket_io], [conn.socket_io], 10)
 				end
 				expect( conn.flush ).to be_truthy
 
 				res = conn.get_last_result
 				expect( res.values ).to eq( [[data.length.to_s]] )
-
-				conn.finish
 			end
 		end
 
