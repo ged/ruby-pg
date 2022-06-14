@@ -24,6 +24,7 @@ static VALUE pgconn_set_default_encoding( VALUE self );
 static VALUE pgconn_wait_for_flush( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
 static const rb_data_type_t pg_connection_type;
+static VALUE pgconn_async_flush(VALUE self);
 
 /*
  * Global functions
@@ -2425,6 +2426,11 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
+			/* before we wait for data, make sure everything has been sent */
+			pgconn_async_flush(self);
+			if ((retval=is_readable(conn)))
+				return retval;
+
 			VALUE socket_io = pgconn_socket_io(self);
 			/* Wait for the socket to become readable before checking again */
 			ret = pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), wait_timeout);
