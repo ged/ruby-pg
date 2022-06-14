@@ -162,7 +162,7 @@ class PG::Connection
 	#   ["more", "data", "to", "copy"]
 
 	def copy_data( sql, coder=nil )
-		raise PG::NotInBlockingMode, "copy_data can not be used in nonblocking mode" if nonblocking?
+		raise PG::NotInBlockingMode.new("copy_data can not be used in nonblocking mode", connection: self) if nonblocking?
 		res = exec( sql )
 
 		case res.result_status
@@ -210,7 +210,7 @@ class PG::Connection
 					end
 					while get_result
 					end
-					raise PG::NotAllCopyDataRetrieved, "Not all COPY data retrieved"
+					raise PG::NotAllCopyDataRetrieved.new("Not all COPY data retrieved", connection: self)
 				end
 				res
 			ensure
@@ -583,7 +583,7 @@ class PG::Connection
 				else
 					connhost = "at \"#{host}\", port #{port}"
 				end
-				raise PG::ConnectionBad, "connection to server #{connhost} failed: timeout expired"
+				raise PG::ConnectionBad.new("connection to server #{connhost} failed: timeout expired", connection: self)
 			end
 
 			# Check to see if it's finished or failed yet
@@ -594,7 +594,7 @@ class PG::Connection
 		unless status == PG::CONNECTION_OK
 			msg = error_message
 			finish
-			raise PG::ConnectionBad, msg
+			raise PG::ConnectionBad.new(msg, connection: self)
 		end
 
 		# Set connection to nonblocking to handle all blocking states in ruby.
@@ -744,7 +744,7 @@ class PG::Connection
 				conn = self.connect_start(opts) or
 											raise(PG::Error, "Unable to create a new connection")
 
-				raise(PG::ConnectionBad, conn.error_message) if conn.status == PG::CONNECTION_BAD
+				raise PG::ConnectionBad.new(conn.error_message, connection: self) if conn.status == PG::CONNECTION_BAD
 
 				conn.send(:async_connect_or_reset, :connect_poll)
 			rescue PG::ConnectionBad => err

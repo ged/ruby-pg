@@ -264,6 +264,7 @@ describe PG::Connection do
 			expect( error ).to be_an( PG::ConnectionBad )
 			expect( error.message ).to match( /database "non-existent" does not exist/i )
 			expect( error.message.encoding ).to eq( Encoding::BINARY )
+			expect( error.connection ).to be_a_kind_of(PG::Connection)
 		end
 	end
 
@@ -613,13 +614,13 @@ EOT
 					while @conn.get_copy_data
 					end
 				end
-			end.to raise_error(PG::QueryCanceled)
+			end.to raise_error(PG::QueryCanceled){|err| expect(err).to have_attributes(connection: @conn) }
 		end
 	end
 
 	it "raises proper error when sending fails" do
 		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		expect{ conn.exec 'SELECT 1' }.to raise_error(PG::UnableToSend, /no connection/)
+		expect{ conn.exec 'SELECT 1' }.to raise_error(PG::UnableToSend, /no connection/){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
 	it "doesn't leave stale server connections after finish" do
@@ -737,7 +738,7 @@ EOT
 			@conn.cancel if notice =~ /foobar/
 		end
 		@conn.send_query "do $$ BEGIN RAISE NOTICE 'foobar'; PERFORM pg_sleep(10); END; $$ LANGUAGE plpgsql;"
-		expect{ @conn.get_last_result }.to raise_error(PG::QueryCanceled)
+		expect{ @conn.get_last_result }.to raise_error(PG::QueryCanceled){|err| expect(err).to have_attributes(connection: @conn) }
 		expect( Time.now - start ).to be < 9.9
 	end
 
@@ -1017,7 +1018,7 @@ EOT
 				@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
 					@conn.get_copy_data
 				end
-			}.to raise_error(PG::NotAllCopyDataRetrieved, /Not all/)
+			}.to raise_error(PG::NotAllCopyDataRetrieved, /Not all/){|err| expect(err).to have_attributes(connection: @conn) }
 			expect( @conn ).to still_be_usable
 		end
 
@@ -1050,7 +1051,7 @@ EOT
 						while @conn.get_copy_data
 						end
 					end
-				}.to raise_error(PG::Error, /test-error/)
+				}.to raise_error(PG::Error, /test-error/){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 			expect( @conn ).to still_be_usable
 		end
@@ -1109,7 +1110,7 @@ EOT
 					@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 						@conn.put_copy_data "xyz\n"
 					end
-				}.to raise_error(PG::Error, /invalid input syntax for .*integer/)
+				}.to raise_error(PG::Error, /invalid input syntax for .*integer/){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 			expect( @conn ).to still_be_usable
 		end
@@ -1122,7 +1123,7 @@ EOT
 					@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 						@conn.exec "SELECT 1"
 					end
-				}.to raise_error(PG::Error, /no COPY in progress/)
+				}.to raise_error(PG::Error, /no COPY in progress/){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 			expect( @conn ).to still_be_usable
 		end
@@ -1134,7 +1135,7 @@ EOT
 					@conn.copy_data( "COPY (VALUES(1), (2)) TO STDOUT" ) do |res|
 						@conn.exec "SELECT 3"
 					end
-				}.to raise_error(PG::Error, /no COPY in progress/)
+				}.to raise_error(PG::Error, /no COPY in progress/){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 			expect( @conn ).to still_be_usable
 		end
@@ -1151,7 +1152,7 @@ EOT
 			@conn.setnonblocking(true)
 			expect {
 				@conn.copy_data( "COPY copytable FROM STDOUT" )
-			}.to raise_error(PG::NotInBlockingMode)
+			}.to raise_error(PG::NotInBlockingMode){|err| expect(err).to have_attributes(connection: @conn) }
 			@conn.setnonblocking(false)
 		end
 	end
@@ -1367,11 +1368,18 @@ EOT
 		expect( result ).to eq( { 'one' => '47' } )
 	end
 
+	it "carries the connection in case of connection errors" do
+		conn = PG.connect(@conninfo)
+		expect {
+			conn.exec("select pg_terminate_backend(pg_backend_pid());")
+		}.to raise_error(PG::Error, /connection has been closed|terminating connection/i){|err| expect(err).to have_attributes(connection: conn) }
+	end
+
 	it "raises a rescue-able error if #finish is called twice", :without_transaction do
 		conn = PG.connect( @conninfo )
 
 		conn.finish
-		expect { conn.finish }.to raise_error( PG::ConnectionBad, /connection is closed/i )
+		expect { conn.finish }.to raise_error( PG::ConnectionBad, /connection is closed/i ){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
 	it "can use conn.reset to restart the connection" do
@@ -1394,7 +1402,7 @@ EOT
 		io = conn.socket_io
 		conn.finish
 		expect( io ).to be_closed()
-		expect { conn.socket_io }.to raise_error( PG::ConnectionBad, /connection is closed/i )
+		expect { conn.socket_io }.to raise_error( PG::ConnectionBad, /connection is closed/i ){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
 	it "closes the IO fetched from #socket_io when the connection is reset", :without_transaction do
@@ -1413,8 +1421,8 @@ EOT
 			sleep 0.1
 		end
 		serv.close
-		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
-		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /can't get socket descriptor|connection not open/)
+		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/){|err| expect(err).to have_attributes(connection: conn) }
+		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /can't get socket descriptor|connection not open/){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
 	it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
@@ -1582,7 +1590,7 @@ EOT
 		it "raises an error when called at the wrong time" do
 			expect {
 				@conn.set_single_row_mode
-			}.to raise_error(PG::Error)
+			}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 		end
 
 		it "should work in single row mode" do
@@ -1631,7 +1639,7 @@ EOT
 					res.check
 					first_result ||= res
 				end
-			end.to raise_error(PG::Error)
+			end.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 			expect( first_result.kind_of?(PG::Result) ).to be_truthy
 			expect( first_result.result_status ).to eq( PG::PGRES_SINGLE_TUPLE )
 		end
@@ -1660,7 +1668,7 @@ EOT
 				@conn.send_query "select 1"
 				expect {
 					@conn.enter_pipeline_mode
-				}.to raise_error(PG::Error)
+				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 				@conn.get_last_result
 			end
 		end
@@ -1676,7 +1684,7 @@ EOT
 				@conn.send_query "select 1"
 				expect {
 					@conn.exit_pipeline_mode
-				}.to raise_error(PG::Error)
+				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 				@conn.pipeline_sync
 				@conn.get_last_result
 			end
@@ -1698,7 +1706,7 @@ EOT
 			it "raises an error when not in pipeline mode" do
 				expect {
 					@conn.pipeline_sync
-				}.to raise_error(PG::Error)
+				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 		end
 
@@ -1717,7 +1725,7 @@ EOT
 				@conn.send_query "select 1"
 				expect {
 					@conn.send_flush_request
-				}.to raise_error(PG::Error)
+				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 		end
 
@@ -1862,7 +1870,7 @@ EOT
 			end
 
 			it "raises appropriate error if set_client_encoding is called with invalid arguments" do
-				expect { @conn.set_client_encoding( "invalid" ) }.to raise_error(PG::Error, /invalid value/)
+				expect { @conn.set_client_encoding( "invalid" ) }.to raise_error(PG::Error, /invalid value/){|err| expect(err).to have_attributes(connection: @conn) }
 				expect { @conn.set_client_encoding( :invalid ) }.to raise_error(TypeError)
 				expect { @conn.set_client_encoding( nil ) }.to raise_error(TypeError)
 			end
@@ -2174,7 +2182,7 @@ EOT
 			if @conn.server_version < 100000
 				expect{
 					@conn.exec_params( "SELECT $1", [5] )
-				}.to raise_error(PG::IndeterminateDatatype)
+				}.to raise_error(PG::IndeterminateDatatype){|err| expect(err).to have_attributes(connection: @conn) }
 			else
 				# PostgreSQL-10 maps to TEXT type (OID 25)
 				expect( @conn.exec_params( "SELECT $1", [5] ).ftype(0)).to eq(25)

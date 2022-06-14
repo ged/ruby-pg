@@ -31,6 +31,26 @@ static VALUE pgconn_async_flush(VALUE self);
  */
 
 /*
+ * Convenience function to raise connection errors
+ */
+#ifdef __GNUC__
+__attribute__((format(printf, 3, 4)))
+#endif
+static void
+pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...)
+{
+	VALUE msg, error;
+	va_list ap;
+
+	va_start(ap, format);
+	msg = rb_vsprintf(format, ap);
+	va_end(ap);
+	error = rb_exc_new_str(klass, msg);
+	rb_iv_set(error, "@connection", self);
+	rb_exc_raise(error);
+}
+
+/*
  * Fetch the PG::Connection object data pointer.
  */
 t_pg_connection *
@@ -53,7 +73,7 @@ pg_get_connection_safe( VALUE self )
 	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
 	if ( !this->pgconn )
-		rb_raise( rb_eConnectionBad, "connection is closed" );
+		pg_raise_conn_error( rb_eConnectionBad, self, "connection is closed");
 
 	return this;
 }
@@ -71,8 +91,9 @@ pg_get_pgconn( VALUE self )
 	t_pg_connection *this;
 	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
-	if ( !this->pgconn )
-		rb_raise( rb_eConnectionBad, "connection is closed" );
+	if ( !this->pgconn ){
+		pg_raise_conn_error( rb_eConnectionBad, self, "connection is closed");
+	}
 
 	return this->pgconn;
 }
@@ -90,9 +111,8 @@ pgconn_close_socket_io( VALUE self )
 
 	if ( RTEST(socket_io) ) {
 #if defined(_WIN32)
-		if( rb_w32_unwrap_io_handle(this->ruby_sd) ){
-			rb_raise(rb_eConnectionBad, "Could not unwrap win32 socket handle");
-		}
+		if( rb_w32_unwrap_io_handle(this->ruby_sd) )
+			pg_raise_conn_error( rb_eConnectionBad, self, "Could not unwrap win32 socket handle");
 #endif
 		rb_funcall( socket_io, rb_intern("close"), 0 );
 	}
@@ -255,7 +275,6 @@ pgconn_s_sync_connect(int argc, VALUE *argv, VALUE klass)
 {
 	t_pg_connection *this;
 	VALUE conninfo;
-	VALUE error;
 	VALUE self = pgconn_s_allocate( klass );
 
 	this = pg_get_connection( self );
@@ -263,13 +282,10 @@ pgconn_s_sync_connect(int argc, VALUE *argv, VALUE klass)
 	this->pgconn = gvl_PQconnectdb(StringValueCStr(conninfo));
 
 	if(this->pgconn == NULL)
-		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate structure");
+		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate PGconn structure");
 
-	if (PQstatus(this->pgconn) == CONNECTION_BAD) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if (PQstatus(this->pgconn) == CONNECTION_BAD)
+		pg_raise_conn_error( rb_eConnectionBad, self, "%s", PQerrorMessage(this->pgconn));
 
 	pgconn_set_default_encoding( self );
 
@@ -302,7 +318,6 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 {
 	VALUE rb_conn;
 	VALUE conninfo;
-	VALUE error;
 	t_pg_connection *this;
 
 	/*
@@ -315,13 +330,10 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	this->pgconn = gvl_PQconnectStart( StringValueCStr(conninfo) );
 
 	if( this->pgconn == NULL )
-		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate structure");
+		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate PGconn structure");
 
-	if ( PQstatus(this->pgconn) == CONNECTION_BAD ) {
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", rb_conn);
-		rb_exc_raise(error);
-	}
+	if ( PQstatus(this->pgconn) == CONNECTION_BAD )
+		pg_raise_conn_error( rb_eConnectionBad, rb_conn, "%s", PQerrorMessage(this->pgconn));
 
 	if ( rb_block_given_p() ) {
 		return rb_ensure( rb_yield, rb_conn, pgconn_finish, rb_conn );
@@ -426,7 +438,7 @@ pgconn_sync_encrypt_password(int argc, VALUE *argv, VALUE self)
 		rval = rb_str_new2( encrypted );
 		PQfreemem( encrypted );
 	} else {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 	}
 
 	return rval;
@@ -567,7 +579,7 @@ pgconn_reset_start(VALUE self)
 {
 	pgconn_close_socket_io( self );
 	if(gvl_PQresetStart(pg_get_pgconn(self)) == 0)
-		rb_raise(rb_eUnableToSend, "reset has failed");
+		pg_raise_conn_error( rb_eUnableToSend, self, "reset has failed");
 	return Qnil;
 }
 
@@ -875,7 +887,8 @@ pgconn_socket(VALUE self)
 	pg_deprecated(4, ("conn.socket is deprecated and should be replaced by conn.socket_io"));
 
 	if( (sd = PQsocket(pg_get_pgconn(self))) < 0)
-		rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQsocket() can't get socket descriptor");
+
 	return INT2NUM(sd);
 }
 
@@ -903,14 +916,15 @@ pgconn_socket_io(VALUE self)
 	VALUE socket_io = this->socket_io;
 
 	if ( !RTEST(socket_io) ) {
-		if( (sd = PQsocket(this->pgconn)) < 0)
-			rb_raise(rb_eConnectionBad, "PQsocket() can't get socket descriptor");
+		if( (sd = PQsocket(this->pgconn)) < 0){
+			pg_raise_conn_error( rb_eConnectionBad, self, "PQsocket() can't get socket descriptor");
+		}
 
 		#ifdef _WIN32
 			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
-			if( ruby_sd == -1 ){
-				rb_raise(rb_eConnectionBad, "Could not wrap win32 socket handle");
-			}
+			if( ruby_sd == -1 )
+				pg_raise_conn_error( rb_eConnectionBad, self, "Could not wrap win32 socket handle");
+
 			this->ruby_sd = ruby_sd;
 		#else
 			ruby_sd = sd;
@@ -975,7 +989,7 @@ pgconn_backend_key(VALUE self)
 
 	cancel = (struct pg_cancel*)PQgetCancel(conn);
 	if(cancel == NULL)
-		rb_raise(rb_ePGerror,"Invalid connection!");
+		pg_raise_conn_error( rb_ePGerror, self, "Invalid connection!");
 
 	if( cancel->be_pid != PQbackendPID(conn) )
 		rb_raise(rb_ePGerror,"Unexpected binary struct layout - please file a bug report at ruby-pg!");
@@ -1604,9 +1618,9 @@ pgconn_s_escape(VALUE self, VALUE string)
 	if( !singleton ) {
 		size = PQescapeStringConn(pg_get_pgconn(self), RSTRING_PTR(result),
 			RSTRING_PTR(string), RSTRING_LEN(string), &error);
-		if(error) {
-			rb_raise(rb_ePGerror, "%s", PQerrorMessage(pg_get_pgconn(self)));
-		}
+		if(error)
+			pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(pg_get_pgconn(self)));
+
 	} else {
 		size = PQescapeString(RSTRING_PTR(result), RSTRING_PTR(string), RSTRING_LEN(string));
 	}
@@ -1702,7 +1716,6 @@ pgconn_escape_literal(VALUE self, VALUE string)
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
 	char *escaped = NULL;
-	VALUE error;
 	VALUE result = Qnil;
 	int enc_idx = this->enc_idx;
 
@@ -1713,12 +1726,8 @@ pgconn_escape_literal(VALUE self, VALUE string)
 
 	escaped = PQescapeLiteral(this->pgconn, RSTRING_PTR(string), RSTRING_LEN(string));
 	if (escaped == NULL)
-	{
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-		return Qnil;
-	}
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
+
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	PG_ENCODING_SET_NOCHECK(result, enc_idx);
@@ -1741,7 +1750,6 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
 	char *escaped = NULL;
-	VALUE error;
 	VALUE result = Qnil;
 	int enc_idx = this->enc_idx;
 
@@ -1752,12 +1760,8 @@ pgconn_escape_identifier(VALUE self, VALUE string)
 
 	escaped = PQescapeIdentifier(this->pgconn, RSTRING_PTR(string), RSTRING_LEN(string));
 	if (escaped == NULL)
-	{
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-		return Qnil;
-	}
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
+
 	result = rb_str_new2(escaped);
 	PQfreemem(escaped);
 	PG_ENCODING_SET_NOCHECK(result, enc_idx);
@@ -1805,14 +1809,9 @@ static VALUE
 pgconn_set_single_row_mode(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	VALUE error;
 
 	if( PQsetSingleRowMode(conn) == 0 )
-	{
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 
 	return self;
 }
@@ -1836,15 +1835,12 @@ static VALUE
 pgconn_send_query(int argc, VALUE *argv, VALUE self)
 {
 	t_pg_connection *this = pg_get_connection_safe( self );
-	VALUE error;
 
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
-		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx)) == 0) {
-			error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
-			rb_iv_set(error, "@connection", self);
-			rb_exc_raise(error);
-		}
+		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx)) == 0)
+			pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+
 		pgconn_wait_for_flush( self );
 		return Qnil;
 	}
@@ -1901,7 +1897,6 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE command, in_res_fmt;
-	VALUE error;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -1918,11 +1913,9 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 
 	free_query_params( &paramsData );
 
-	if(result == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(result == 0)
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+
 	pgconn_wait_for_flush( self );
 	return Qnil;
 }
@@ -1954,7 +1947,6 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	int result;
 	VALUE name, command, in_paramtypes;
 	VALUE param;
-	VALUE error;
 	int i = 0;
 	int nParams = 0;
 	Oid *paramTypes = NULL;
@@ -1983,9 +1975,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	xfree(paramTypes);
 
 	if(result == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
 	}
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2029,7 +2019,6 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE name, in_res_fmt;
-	VALUE error;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -2051,11 +2040,9 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 
 	free_query_params( &paramsData );
 
-	if(result == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(result == 0)
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+
 	pgconn_wait_for_flush( self );
 	return Qnil;
 }
@@ -2070,14 +2057,11 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	VALUE error;
 	t_pg_connection *this = pg_get_connection_safe( self );
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(gvl_PQsendDescribePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0)
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+
 	pgconn_wait_for_flush( self );
 	return Qnil;
 }
@@ -2093,14 +2077,11 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_send_describe_portal(VALUE self, VALUE portal)
 {
-	VALUE error;
 	t_pg_connection *this = pg_get_connection_safe( self );
 	/* returns 0 on failure */
-	if(gvl_PQsendDescribePortal(this->pgconn, pg_cstr_enc(portal, this->enc_idx)) == 0) {
-		error = rb_exc_new2(rb_eUnableToSend, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(gvl_PQsendDescribePortal(this->pgconn, pg_cstr_enc(portal, this->enc_idx)) == 0)
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+
 	pgconn_wait_for_flush( self );
 	return Qnil;
 }
@@ -2133,18 +2114,15 @@ pgconn_sync_get_result(VALUE self)
  * or *notifies* to see if the state has changed.
  */
 static VALUE
-pgconn_consume_input(self)
-	VALUE self;
+pgconn_consume_input(VALUE self)
 {
-	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	/* returns 0 on error */
 	if(PQconsumeInput(conn) == 0) {
 		pgconn_close_socket_io(self);
-		error = rb_exc_new2(rb_eConnectionBad, PQerrorMessage(conn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
+		pg_raise_conn_error( rb_eConnectionBad, self, "%s", PQerrorMessage(conn));
 	}
+
 	return Qnil;
 }
 
@@ -2165,7 +2143,6 @@ static VALUE
 pgconn_sync_setnonblocking(VALUE self, VALUE state)
 {
 	int arg;
-	VALUE error;
 	PGconn *conn = pg_get_pgconn(self);
 	if(state == Qtrue)
 		arg = 1;
@@ -2174,11 +2151,9 @@ pgconn_sync_setnonblocking(VALUE self, VALUE state)
 	else
 		rb_raise(rb_eArgError, "Boolean value expected");
 
-	if(PQsetnonblocking(conn, arg) == -1) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(PQsetnonblocking(conn, arg) == -1)
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
 	return Qnil;
 }
 
@@ -2193,14 +2168,10 @@ static VALUE
 pgconn_sync_flush(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	int ret;
-	VALUE error;
-	ret = PQflush(conn);
-	if(ret == -1) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(conn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	int ret = PQflush(conn);
+	if(ret == -1)
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
 	return (ret) ? Qfalse : Qtrue;
 }
 
@@ -2214,7 +2185,7 @@ pgconn_sync_cancel(VALUE self)
 
 	cancel = PQgetCancel(pg_get_pgconn(self));
 	if(cancel == NULL)
-		rb_raise(rb_ePGerror,"Invalid connection!");
+		pg_raise_conn_error( rb_ePGerror, self, "Invalid connection!");
 
 	ret = gvl_PQcancel(cancel, errbuf, sizeof(errbuf));
 	if(ret == 1)
@@ -2443,7 +2414,7 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 		/* Check for connection errors (PQisBusy is true on connection errors) */
 		if ( PQconsumeInput(conn) == 0 ){
 			pgconn_close_socket_io(self);
-			rb_raise( rb_eConnectionBad, "PQconsumeInput() %s", PQerrorMessage(conn) );
+			pg_raise_conn_error(rb_eConnectionBad, self, "PQconsumeInput() %s", PQerrorMessage(conn));
 		}
 	}
 
@@ -2593,11 +2564,9 @@ pgconn_sync_put_copy_data(int argc, VALUE *argv, VALUE self)
 	Check_Type(buffer, T_STRING);
 
 	ret = gvl_PQputCopyData(this->pgconn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
-	if(ret == -1) {
-		VALUE error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(ret == -1)
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
+
 	RB_GC_GUARD(intermediate);
 	RB_GC_GUARD(buffer);
 
@@ -2608,7 +2577,6 @@ static VALUE
 pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 {
 	VALUE str;
-	VALUE error;
 	int ret;
 	const char *error_message = NULL;
 	t_pg_connection *this = pg_get_connection_safe( self );
@@ -2619,11 +2587,9 @@ pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 		error_message = pg_cstr_enc(str, this->enc_idx);
 
 	ret = gvl_PQputCopyEnd(this->pgconn, error_message);
-	if(ret == -1) {
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
-	}
+	if(ret == -1)
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
+
 	return (ret) ? Qtrue : Qfalse;
 }
 
@@ -2631,7 +2597,6 @@ static VALUE
 pgconn_sync_get_copy_data(int argc, VALUE *argv, VALUE self )
 {
 	VALUE async_in;
-	VALUE error;
 	VALUE result;
 	int ret;
 	char *buffer;
@@ -2651,10 +2616,8 @@ pgconn_sync_get_copy_data(int argc, VALUE *argv, VALUE self )
 	}
 
 	ret = gvl_PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
-	if(ret == -2) { /* error */
-		error = rb_exc_new2(rb_ePGerror, PQerrorMessage(this->pgconn));
-		rb_iv_set(error, "@connection", self);
-		rb_exc_raise(error);
+	if(ret == -2){ /* error */
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
 	}
 	if(ret == -1) { /* No data left */
 		return Qnil;
@@ -2959,9 +2922,9 @@ pgconn_sync_set_client_encoding(VALUE self, VALUE str)
 
 	Check_Type(str, T_STRING);
 
-	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 ) {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
-	}
+	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
 	pgconn_set_internal_encoding_index( self );
 
 	return Qnil;
@@ -3594,11 +3557,10 @@ pgconn_enter_pipeline_mode(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int res = PQenterPipelineMode(conn);
-	if( res == 1 ) {
-		return Qnil;
-	} else {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
-	}
+	if( res != 1 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
+	return Qnil;
 }
 
 /*
@@ -3617,11 +3579,10 @@ pgconn_exit_pipeline_mode(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int res = PQexitPipelineMode(conn);
-	if( res == 1 ) {
-		return Qnil;
-	} else {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
-	}
+	if( res != 1 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
+	return Qnil;
 }
 
 
@@ -3641,11 +3602,10 @@ pgconn_pipeline_sync(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int res = PQpipelineSync(conn);
-	if( res == 1 ) {
-		return Qnil;
-	} else {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
-	}
+	if( res != 1 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
+	return Qnil;
 }
 
 /*
@@ -3665,11 +3625,10 @@ pgconn_send_flush_request(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int res = PQsendFlushRequest(conn);
-	if( res == 1 ) {
-		return Qnil;
-	} else {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
-	}
+	if( res != 1 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
+	return Qnil;
 }
 
 #endif
@@ -3700,7 +3659,7 @@ pgconn_locreat(int argc, VALUE *argv, VALUE self)
 
 	lo_oid = lo_creat(conn, mode);
 	if (lo_oid == 0)
-		rb_raise(rb_ePGerror, "lo_creat failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_creat failed");
 
 	return UINT2NUM(lo_oid);
 }
@@ -3721,7 +3680,7 @@ pgconn_locreate(VALUE self, VALUE in_lo_oid)
 
 	ret = lo_create(conn, lo_oid);
 	if (ret == InvalidOid)
-		rb_raise(rb_ePGerror, "lo_create failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_create failed");
 
 	return UINT2NUM(ret);
 }
@@ -3745,7 +3704,7 @@ pgconn_loimport(VALUE self, VALUE filename)
 
 	lo_oid = lo_import(conn, StringValueCStr(filename));
 	if (lo_oid == 0) {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 	}
 	return UINT2NUM(lo_oid);
 }
@@ -3766,7 +3725,7 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 	oid = NUM2UINT(lo_oid);
 
 	if (lo_export(conn, oid, StringValueCStr(filename)) < 0) {
-		rb_raise(rb_ePGerror, "%s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 	}
 	return Qnil;
 }
@@ -3797,7 +3756,7 @@ pgconn_loopen(int argc, VALUE *argv, VALUE self)
 		mode = NUM2INT(nmode);
 
 	if((fd = lo_open(conn, lo_oid, mode)) < 0) {
-		rb_raise(rb_ePGerror, "can't open large object: %s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "can't open large object: %s", PQerrorMessage(conn));
 	}
 	return INT2FIX(fd);
 }
@@ -3819,11 +3778,11 @@ pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 	Check_Type(buffer, T_STRING);
 
 	if( RSTRING_LEN(buffer) < 0) {
-		rb_raise(rb_ePGerror, "write buffer zero string");
+		pg_raise_conn_error( rb_ePGerror, self, "write buffer zero string");
 	}
 	if((n = lo_write(conn, fd, StringValuePtr(buffer),
 				RSTRING_LEN(buffer))) < 0) {
-		rb_raise(rb_ePGerror, "lo_write failed: %s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "lo_write failed: %s", PQerrorMessage(conn));
 	}
 
 	return INT2FIX(n);
@@ -3846,16 +3805,12 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 	VALUE str;
 	char *buffer;
 
-  buffer = ALLOC_N(char, len);
-	if(buffer == NULL)
-		rb_raise(rb_eNoMemError, "ALLOC failed!");
+	if (len < 0)
+		pg_raise_conn_error( rb_ePGerror, self, "negative length %d given", len);
 
-	if (len < 0){
-		rb_raise(rb_ePGerror,"nagative length %d given", len);
-	}
-
+	buffer = ALLOC_N(char, len);
 	if((ret = lo_read(conn, lo_desc, buffer, len)) < 0)
-		rb_raise(rb_ePGerror, "lo_read failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_read failed");
 
 	if(ret == 0) {
 		xfree(buffer);
@@ -3885,7 +3840,7 @@ pgconn_lolseek(VALUE self, VALUE in_lo_desc, VALUE offset, VALUE whence)
 	int ret;
 
 	if((ret = lo_lseek(conn, lo_desc, NUM2INT(offset), NUM2INT(whence))) < 0) {
-		rb_raise(rb_ePGerror, "lo_lseek failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_lseek failed");
 	}
 
 	return INT2FIX(ret);
@@ -3905,7 +3860,7 @@ pgconn_lotell(VALUE self, VALUE in_lo_desc)
 	int lo_desc = NUM2INT(in_lo_desc);
 
 	if((position = lo_tell(conn, lo_desc)) < 0)
-		rb_raise(rb_ePGerror,"lo_tell failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_tell failed");
 
 	return INT2FIX(position);
 }
@@ -3924,7 +3879,7 @@ pgconn_lotruncate(VALUE self, VALUE in_lo_desc, VALUE in_len)
 	size_t len = NUM2INT(in_len);
 
 	if(lo_truncate(conn,lo_desc,len) < 0)
-		rb_raise(rb_ePGerror,"lo_truncate failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_truncate failed");
 
 	return Qnil;
 }
@@ -3942,7 +3897,7 @@ pgconn_loclose(VALUE self, VALUE in_lo_desc)
 	int lo_desc = NUM2INT(in_lo_desc);
 
 	if(lo_close(conn,lo_desc) < 0)
-		rb_raise(rb_ePGerror,"lo_close failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_close failed");
 
 	return Qnil;
 }
@@ -3960,7 +3915,7 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 	Oid oid = NUM2UINT(in_oid);
 
 	if(lo_unlink(conn,oid) < 0)
-		rb_raise(rb_ePGerror,"lo_unlink failed");
+		pg_raise_conn_error( rb_ePGerror, self, "lo_unlink failed");
 
 	return Qnil;
 }
