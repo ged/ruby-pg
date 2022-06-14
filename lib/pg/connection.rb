@@ -407,10 +407,10 @@ class PG::Connection
 	# See also #copy_data.
 	#
 	def put_copy_data(buffer, encoder=nil)
-		until sync_put_copy_data(buffer, encoder)
-			flush
+		until res=sync_put_copy_data(buffer, encoder)
+			res = flush
 		end
-		flush
+		res
 	end
 	alias async_put_copy_data put_copy_data
 

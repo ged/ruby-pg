@@ -984,6 +984,19 @@ EOT
 		expect( results ).to include( "1\n", "2\n" )
 	end
 
+	it "#get_result should send remaining data before waiting" do
+		str = "abcd" * 2000 + "\n"
+		@conn.exec( "CREATE TEMP TABLE copytable2 (col1 TEXT)" )
+		@conn.exec( "COPY copytable2 FROM STDOUT" )
+
+		1000.times do
+			@conn.sync_put_copy_data(str)
+		end
+		@conn.sync_put_copy_end
+		res = @conn.get_last_result
+		expect( res.result_status ).to eq( PG::PGRES_COMMAND_OK )
+	end
+
 	describe "#copy_data" do
 		it "can process #copy_data output queries" do
 			rows = []
