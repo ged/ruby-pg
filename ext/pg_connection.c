@@ -2156,15 +2156,13 @@ pgconn_consume_input(self)
  * #get_result would block. Otherwise returns +false+.
  */
 static VALUE
-pgconn_is_busy(self)
-	VALUE self;
+pgconn_is_busy(VALUE self)
 {
 	return gvl_PQisBusy(pg_get_pgconn(self)) ? Qtrue : Qfalse;
 }
 
 static VALUE
-pgconn_sync_setnonblocking(self, state)
-	VALUE self, state;
+pgconn_sync_setnonblocking(VALUE self, VALUE state)
 {
 	int arg;
 	VALUE error;
@@ -2186,8 +2184,7 @@ pgconn_sync_setnonblocking(self, state)
 
 
 static VALUE
-pgconn_sync_isnonblocking(self)
-	VALUE self;
+pgconn_sync_isnonblocking(VALUE self)
 {
 	return PQisnonblocking(pg_get_pgconn(self)) ? Qtrue : Qfalse;
 }
