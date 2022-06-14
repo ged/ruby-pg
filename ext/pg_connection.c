@@ -376,6 +376,35 @@ pgconn_s_conndefaults(VALUE self)
 	return array;
 }
 
+/*
+ * Document-method: PG::Connection.conninfo_parse
+ *
+ * call-seq:
+ *    PG::Connection.conninfo_parse(conninfo_string) -> Array
+ *
+ * Returns parsed connection options from the provided connection string as an array of hashes.
+ * Each hash has the same keys as PG::Connection.conndefaults() .
+ * The values from the +conninfo_string+ are stored in the +:val+ key.
+ */
+static VALUE
+pgconn_s_conninfo_parse(VALUE self, VALUE conninfo)
+{
+	char *errmsg = NULL;
+	PQconninfoOption *options = PQconninfoParse(StringValueCStr(conninfo), &errmsg);
+	if(errmsg){
+		VALUE error = rb_str_new_cstr(errmsg);
+		PQfreemem(errmsg);
+		rb_raise(rb_ePGerror, "%"PRIsVALUE, error);
+	}
+	VALUE array = pgconn_make_conninfo_array( options );
+
+	PQconninfoFree(options);
+
+	UNUSED( self );
+
+	return array;
+}
+
 
 #ifdef HAVE_PQENCRYPTPASSWORDCONN
 static VALUE
@@ -607,7 +636,18 @@ pgconn_pass(VALUE self)
  * call-seq:
  *    conn.host()
  *
- * Returns the connected server name.
+ * Returns the server host name of the active connection.
+ * This can be a host name, an IP address, or a directory path if the connection is via Unix socket.
+ * (The path case can be distinguished because it will always be an absolute path, beginning with +/+ .)
+ *
+ * If the connection parameters specified both host and hostaddr, then +host+ will return the host information.
+ * If only hostaddr was specified, then that is returned.
+ * If multiple hosts were specified in the connection parameters, +host+ returns the host actually connected to.
+ *
+ * If there is an error producing the host information (perhaps if the connection has not been fully established or there was an error), it returns an empty string.
+ *
+ * If multiple hosts were specified in the connection parameters, it is not possible to rely on the result of +host+ until the connection is established.
+ * The status of the connection can be checked using the function Connection#status .
  */
 static VALUE
 pgconn_host(VALUE self)
@@ -616,6 +656,26 @@ pgconn_host(VALUE self)
 	if (!host) return Qnil;
 	return rb_str_new2(host);
 }
+
+/* PQhostaddr() appeared in PostgreSQL-12 together with PQresultMemorySize() */
+#if defined(HAVE_PQRESULTMEMORYSIZE)
+/*
+ * call-seq:
+ *    conn.hostaddr()
+ *
+ * Returns the server IP address of the active connection.
+ * This can be the address that a host name resolved to, or an IP address provided through the hostaddr parameter.
+ * If there is an error producing the host information (perhaps if the connection has not been fully established or there was an error), it returns an empty string.
+ *
+ */
+static VALUE
+pgconn_hostaddr(VALUE self)
+{
+	char *host = PQhostaddr(pg_get_pgconn(self));
+	if (!host) return Qnil;
+	return rb_str_new2(host);
+}
+#endif
 
 /*
  * call-seq:
@@ -4331,6 +4391,7 @@ init_pg_connection()
 	rb_define_singleton_method(rb_cPGconn, "quote_ident", pgconn_s_quote_ident, 1);
 	rb_define_singleton_method(rb_cPGconn, "connect_start", pgconn_s_connect_start, -1);
 	rb_define_singleton_method(rb_cPGconn, "conndefaults", pgconn_s_conndefaults, 0);
+	rb_define_singleton_method(rb_cPGconn, "conninfo_parse", pgconn_s_conninfo_parse, 1);
 	rb_define_singleton_method(rb_cPGconn, "sync_ping", pgconn_s_sync_ping, -1);
 	rb_define_singleton_method(rb_cPGconn, "sync_connect", pgconn_s_sync_connect, -1);
 
@@ -4348,6 +4409,9 @@ init_pg_connection()
 	rb_define_method(rb_cPGconn, "user", pgconn_user, 0);
 	rb_define_method(rb_cPGconn, "pass", pgconn_pass, 0);
 	rb_define_method(rb_cPGconn, "host", pgconn_host, 0);
+#if defined(HAVE_PQRESULTMEMORYSIZE)
+	rb_define_method(rb_cPGconn, "hostaddr", pgconn_hostaddr, 0);
+#endif
 	rb_define_method(rb_cPGconn, "port", pgconn_port, 0);
 	rb_define_method(rb_cPGconn, "tty", pgconn_tty, 0);
 	rb_define_method(rb_cPGconn, "conninfo", pgconn_conninfo, 0);

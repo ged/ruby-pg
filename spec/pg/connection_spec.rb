@@ -14,24 +14,24 @@ describe PG::Connection do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
 	end
 
-	describe "PG::Connection#connect_string_to_hash" do
+	describe "PG::Connection#conninfo_parse" do
 		it "encode and decode Hash to connection string to Hash" do
 			hash = {
 				:host => 'pgsql.example.com',
 				:dbname => 'db01',
 				'sslmode' => 'require',
-				'somekey' => '',
+				'service' => '',
 				'password' => "\\ \t\n\"'",
 			}
 			optstring = described_class.connect_hash_to_string(hash)
-			res = described_class.connect_string_to_hash(optstring)
+			res = described_class.conninfo_parse(optstring).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
 			expect( res ).to eq( hash.transform_keys(&:to_sym) )
 		end
 
 		it "decode option string to Hash" do
 			optstring = "host=overwritten host=c:\\\\pipe password = \\\\\\'\"  "
-			res = described_class.connect_string_to_hash(optstring)
+			res = described_class.conninfo_parse(optstring).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
 			expect( res ).to eq({
 				host: 'c:\pipe',
@@ -39,12 +39,25 @@ describe PG::Connection do
 			})
 		end
 
-		it "raises error when decoding invalid option string" do
-			optstring = "host='abc"
-			expect{ described_class.connect_string_to_hash(optstring) }.to raise_error(ArgumentError, /unterminated quoted string/)
+		it "can parse connection info strings kind of key=value" do
+			ar = PG::Connection.conninfo_parse("user=auser  host=somehost  port=3334 dbname=db")
+			expect( ar ).to be_kind_of( Array )
+			expect( ar.first ).to be_kind_of( Hash )
+			expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
+			expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
+		end
 
-			optstring = "host"
-			expect{ described_class.connect_string_to_hash(optstring) }.to raise_error(ArgumentError, /missing = after/)
+		it "can parse connection info strings kind of URI" do
+			ar = PG::Connection.conninfo_parse("postgresql://auser@somehost:3334/db")
+			expect( ar ).to be_kind_of( Array )
+			expect( ar.first ).to be_kind_of( Hash )
+			expect( ar.map{|a| a[:keyword] } ).to include( "dbname", "user", "password", "port" )
+			expect( ar.map{|a| a[:val] } ).to include( "auser", "somehost", "3334", "db" )
+		end
+
+		it "can parse connection info strings with error" do
+			expect{ PG::Connection.conninfo_parse("host='abc") }.to raise_error(PG::Error, /unterminated quoted string/)
+			expect{ PG::Connection.conninfo_parse("host") }.to raise_error(PG::Error, /missing "=" after/)
 		end
 	end
 
@@ -88,7 +101,6 @@ describe PG::Connection do
 			expect( optstring ).to match( /(^|\s)host='localhost'/ )
 			expect( optstring ).to match( /(^|\s)dbname='sales'/ )
 			expect( optstring ).to match( /(^|\s)options='-c geqo=off'/ )
-			expect( optstring ).to match( /(^|\s)hostaddr='(::1|127.0.0.1)'/ )
 
 			expect( optstring ).to_not match( /port=/ )
 			expect( optstring ).to_not match( /tty=/ )
@@ -111,9 +123,8 @@ describe PG::Connection do
 					'host' => 'www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost' )
 
 			expect( optstring ).to be_a( String )
-			expect( optstring ).to match( /(^|\s)dbname=original/ )
+			expect( optstring ).to match( /(^|\s)dbname='original'/ )
 			expect( optstring ).to match( /(^|\s)user='jrandom'/ )
-			expect( optstring ).to match( /(^|\s)hostaddr='\d+\.\d+\.\d+\.\d+,,(::1|127\.0\.0\.1)'/ )
 		end
 
 		it "escapes single quotes and backslashes in connection parameters" do
@@ -124,56 +135,38 @@ describe PG::Connection do
 
 		let(:uri) { 'postgresql://user:pass@pgsql.example.com:222/db01?sslmode=require&hostaddr=4.3.2.1' }
 
-		it "accepts an URI" do
+		it "accepts an URI string" do
 			string = described_class.parse_connect_args( uri )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
-			expect( string ).to match( %r{\?.*sslmode=require} )
+			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' sslmode='require' fallback_application_name} )
+		end
 
+		it "accepts an URI object" do
 			string = described_class.parse_connect_args( URI.parse(uri) )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
-			expect( string ).to match( %r{\?.*sslmode=require} )
+			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' sslmode='require' fallback_application_name} )
 		end
 
 		it "accepts an URI and adds parameters from hash" do
 			string = described_class.parse_connect_args( uri + "&fallback_application_name=testapp", :connect_timeout => 2 )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://user:pass@pgsql.example.com:222/db01\?} )
-			expect( string ).to match( %r{\?sslmode=require&} )
-			expect( string ).to match( %r{\?.*&fallback_application_name=testapp&} )
-			expect( string ).to match( %r{\?.*&connect_timeout=2$} )
-		end
-
-		it "accepts an URI and adds hostaddr" do
-			uri = 'postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost'
-			string = described_class.parse_connect_args( uri )
-
-			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://www.ruby-lang.org,nonexisting-domaiiin.xyz,localhost\?hostaddr=\d+\.\d+\.\d+\.\d+%2C%2C(%3A%3A1|127\.0\.0\.1)} )
-		end
-
-		it "accepts an URI and adds proper hostaddr" do
-			uri = 'postgresql://user:pass@192.168.11.123'
-			string = described_class.parse_connect_args( uri )
-			expect( string ).to match( %r{\?.*hostaddr=192.168.11.123&} )
+			expect( string ).to match( %r{^user='user' password='pass' dbname='db01' host='pgsql.example.com' hostaddr='4.3.2.1' port='222' fallback_application_name='testapp' sslmode='require' connect_timeout='2'} )
 		end
 
 		it "accepts an URI with a non-standard domain socket directory" do
 			string = described_class.parse_connect_args( 'postgresql://%2Fvar%2Flib%2Fpostgresql/dbname' )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql://%2Fvar%2Flib%2Fpostgresql/dbname} )
+			expect( string ).to match( %r{^dbname='dbname' host='/var/lib/postgresql'} )
 
 			string = described_class.
 				parse_connect_args( 'postgresql:///dbname', :host => '/var/lib/postgresql' )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{^postgresql:///dbname\?} )
-			expect( string ).to match( %r{\?.*host=%2Fvar%2Flib%2Fpostgresql} )
+			expect( string ).to match( %r{^dbname='dbname' host='/var/lib/postgresql'} )
 		end
 
 		it "connects with defaults if no connection parameters are given" do
@@ -186,12 +179,11 @@ describe PG::Connection do
 			string = described_class.parse_connect_args( conninfo_with_colon_in_password )
 
 			expect( string ).to be_a( String )
-			expect( string ).to match( %r{(^|\s)user=a} )
-			expect( string ).to match( %r{(^|\s)password=a:a} )
-			expect( string ).to match( %r{(^|\s)host=localhost} )
-			expect( string ).to match( %r{(^|\s)port=555} )
-			expect( string ).to match( %r{(^|\s)dbname=test} )
-			expect( string ).to match( %r{(^|\s)hostaddr='(::1|127\.0\.0\.1)'} )
+			expect( string ).to match( %r{(^|\s)user='a'} )
+			expect( string ).to match( %r{(^|\s)password='a:a'} )
+			expect( string ).to match( %r{(^|\s)host='localhost'} )
+			expect( string ).to match( %r{(^|\s)port='555'} )
+			expect( string ).to match( %r{(^|\s)dbname='test'} )
 		end
 
 		it "sets the fallback_application_name on new connections" do
@@ -263,50 +255,73 @@ describe PG::Connection do
 	it "emits a suitable error_message at connection errors" do
 		skip("Will be fixed in postgresql-15 on Windows") if RUBY_PLATFORM=~/mingw|mswin/
 
-		expect {
-			described_class.connect(
-				:host => 'localhost',
-				:port => @port,
-				:dbname => "non-existent")
-		}.to raise_error do |error|
+				expect {
+					described_class.connect(
+		                              :host => 'localhost',
+		                              :port => @port,
+		                              :dbname => "non-existent")
+				}.to raise_error do |error|
 			expect( error ).to be_an( PG::ConnectionBad )
 			expect( error.message ).to match( /database "non-existent" does not exist/i )
 			expect( error.message.encoding ).to eq( Encoding::BINARY )
 		end
 	end
 
-	it "connects using URI with multiple hosts", :postgresql_10 do
-		uri = "postgres://localhost:#{@port},127.0.0.1:#{@port}/test?keepalives=1"
+	it "times out after connect_timeout seconds" do
+		TCPServer.open( 'localhost', 54320 ) do |serv|
+			start_time = Time.now
+			expect {
+				described_class.connect(
+																host: 'localhost',
+																port: 54320,
+																connect_timeout: 1,
+																dbname: "test")
+			}.to raise_error do |error|
+				expect( error ).to be_an( PG::ConnectionBad )
+				expect( error.message ).to match( /timeout expired/ )
+				if PG.library_version >= 120000
+					expect( error.message ).to match( /\"localhost\"/ )
+					expect( error.message ).to match( /port 54320/ )
+				end
+			end
+
+			expect( Time.now - start_time ).to be_between(1.9, 10).inclusive
+		end
+	end
+
+	it "connects using URI with multiple hosts", :postgresql_12 do
+		uri = "postgres://localhost:#{@port+1},127.0.0.1:#{@port}/test?keepalives=1"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "localhost,127.0.0.1" )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A(::1|127\.0\.0\.1),(::1|127\.0\.0\.1)\z/ )
+		expect( tmpconn.port ).to eq( @port )
+		expect( tmpconn.host ).to eq( "127.0.0.1" )
+		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
 		tmpconn.finish
 	end
 
-	it "connects using URI with IPv6 hosts", :postgresql_10 do
+	it "connects using URI with IPv6 hosts", :postgresql_12, :ipv6 do
 		uri = "postgres://localhost:#{@port},[::1]:#{@port},/test"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "localhost,::1," )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A(::1|127\.0\.0\.1),::1,\z/ )
+		expect( tmpconn.host ).to eq( "localhost" )
+		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
 		tmpconn.finish
 	end
 
-	it "connects using URI with UnixSocket host", :postgresql_10, :unix_socket do
+	it "connects using URI with UnixSocket host", :postgresql_12, :unix_socket do
 		uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( @unix_socket )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to be_nil
+		expect( tmpconn.host ).to eq( @unix_socket )
+		expect( tmpconn.hostaddr ).to eq( "" )
 		tmpconn.finish
 	end
 
-	it "connects using Hash with multiple hosts", :postgresql_10 do
-		tmpconn = described_class.connect( host: "#{@unix_socket},127.0.0.1,localhost", port: @port, dbname: "test" )
+	it "connects using Hash with multiple hosts", :postgresql_12 do
+		tmpconn = described_class.connect( host: "#{@unix_socket}xx,127.0.0.1,localhost", port: @port, dbname: "test" )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.conninfo_hash[:host] ).to eq( "#{@unix_socket},127.0.0.1,localhost" )
-		expect( tmpconn.conninfo_hash[:hostaddr] ).to match( /\A,(::1|127\.0\.0\.1),(::1|127\.0\.0\.1)\z/ )
+		expect( tmpconn.host ).to eq( "127.0.0.1" )
+		expect( tmpconn.hostaddr ).to match( /\A127\.0\.0\.1\z/ )
 		tmpconn.finish
 	end
 
@@ -626,6 +641,10 @@ EOT
 		expect( @conn.options ).to eq( "" )
 	end
 
+	it "can retrieve hostaddr for the established connection", :postgresql_12 do
+		expect( @conn.hostaddr ).to match( /^127\.0\.0\.1$|^::1$/ )
+	end
+
 	it "can set error verbosity" do
 		old = @conn.set_error_verbosity( PG::PQERRORS_TERSE )
 		new = @conn.set_error_verbosity( old )
@@ -722,82 +741,7 @@ EOT
 		expect( Time.now - start ).to be < 9.9
 	end
 
-	def interrupt_thread(exc=nil)
-		start = Time.now
-		t = Thread.new do
-			begin
-				yield
-			rescue Exception => err
-				err
-			end
-		end
-		sleep 0.1
-
-		if exc
-			t.raise exc, "Stop the query by #{exc}"
-		else
-			t.kill
-		end
-		t.join
-
-		[t, Time.now - start]
-	end
-
-	it "can stop a thread that runs a blocking query with async_exec" do
-		t, duration = interrupt_thread do
-			@conn.async_exec( 'select pg_sleep(10)' )
-		end
-
-		expect( t.value ).to be_nil
-		expect( duration ).to be < 10
-		@conn.cancel # Stop the query that is still running on the server
-	end
-
 	describe "#transaction" do
-
-		it "stops a thread that runs a blocking transaction with async_exec" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do |c|
-					c.async_exec( 'select pg_sleep(10)' )
-				end
-			end
-
-			expect( t.value ).to be_kind_of( Interrupt )
-			expect( duration ).to be < 10
-		end
-
-		it "stops a thread that runs a failing transaction with async_exec" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do |c|
-					c.async_exec( 'select nonexist' )
-				end
-			end
-
-			expect( t.value ).to be_kind_of( PG::UndefinedColumn )
-			expect( duration ).to be < 10
-		end
-
-		it "stops a thread that runs a no query but a transacted ruby sleep" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do
-					sleep 10
-				end
-			end
-
-			expect( t.value ).to be_kind_of( Interrupt )
-			expect( duration ).to be < 10
-		end
-
-		it "doesn't worry about an already finished connection" do
-			t, duration = interrupt_thread(Interrupt) do
-				@conn.transaction do
-					@conn.async_exec("ROLLBACK")
-				end
-			end
-
-			expect( t.value ).to be_kind_of( PG::Result )
-			expect( t.value.result_status ).to eq( PG::PGRES_COMMAND_OK )
-		end
 
 		it "automatically rolls back a transaction if an exception is raised" do
 			# abort the per-example transaction so we can test our own
@@ -831,20 +775,6 @@ EOT
 			end
 			expect( res ).to eq( "transaction result" )
 		end
-	end
-
-	it "should work together with signal handlers", :unix do
-		signal_received = false
-		trap 'USR2' do
-			signal_received = true
-		end
-
-		Thread.new do
-			sleep 0.1
-			Process.kill("USR2", Process.pid)
-		end
-		@conn.async_exec("select pg_sleep(0.3)")
-		expect( signal_received ).to be_truthy
 	end
 
 	it "not read past the end of a large object" do
@@ -900,7 +830,7 @@ EOT
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 0.1
-				conn.async_exec( 'NOTIFY woo' )
+				conn.exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
 			end
@@ -920,7 +850,7 @@ EOT
 			begin
 				conn = described_class.connect( @conninfo )
 				sleep 0.1
-				conn.async_exec( 'NOTIFY woo' )
+				conn.exec( 'NOTIFY woo' )
 			ensure
 				conn.finish
 			end
@@ -1186,8 +1116,8 @@ EOT
 		expect( @conn ).to still_be_usable
 	end
 
-	it "correctly finishes COPY queries passed to #async_exec" do
-		@conn.async_exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
+	it "correctly finishes COPY queries passed to #exec" do
+		@conn.exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
 
 		results = []
 		begin
@@ -2210,34 +2140,6 @@ EOT
 			expect( notification[:extra] ).to eq( '世界線航跡蔵' )
 			expect( notification[:extra].encoding ).to eq( Encoding::UTF_8 )
 			expect( notification[:be_pid] ).to be > 0
-		end
-	end
-
-	context "OS thread support" do
-		it "Connection#exec shouldn't block a second thread" do
-			t = Thread.new do
-				@conn.async_exec( "select pg_sleep(1)" )
-			end
-
-			sleep 0.1
-			expect( t ).to be_alive()
-			t.kill
-			@conn.cancel
-		end
-
-		it "Connection.new shouldn't block a second thread" do
-			serv = nil
-			t = Thread.new do
-				serv = TCPServer.new( '127.0.0.1', 54320 )
-				expect {
-					described_class.async_connect( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-				}.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/)
-			end
-
-			sleep 0.5
-			expect( t ).to be_alive()
-			serv.close
-			t.join
 		end
 	end
 

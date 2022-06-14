@@ -556,6 +556,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :unix_socket ) if RUBY_PLATFORM=~/mingw|mswin/i
 	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0" || !Fiber.respond_to?(:scheduler)
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
+	config.filter_run_excluding( :ipv6 ) if Addrinfo.getaddrinfo("localhost", nil, nil, :STREAM).size < 2
 
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|
