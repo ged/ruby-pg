@@ -2393,8 +2393,8 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
  *
  * Attempts to flush any queued output data to the server.
  * Returns +true+ if data is successfully flushed, +false+
- * if not (can only return +false+ if connection is
- * nonblocking.
+ * if not. It can only return +false+ if connection is
+ * in nonblocking mode.
  * Raises PG::Error if some other failure occurred.
  */
 static VALUE
