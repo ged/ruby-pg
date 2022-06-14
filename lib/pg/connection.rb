@@ -588,7 +588,6 @@ class PG::Connection
 
 			# Check to see if it's finished or failed yet
 			poll_status = send( poll_meth )
-#			p status, PG::Constants.constants.grep(/CONNECTION_/).find{|c| PG::Constants.const_get(c) == status}
 			@last_status = status unless [PG::CONNECTION_BAD, PG::CONNECTION_OK].include?(status)
 		end
 
@@ -752,11 +751,9 @@ class PG::Connection
 				if errors && !(conn && [PG::CONNECTION_AWAITING_RESPONSE].include?(conn.instance_variable_get(:@last_status)))
 					# Seems to be no authentication error -> try next host
 					errors << err
-					#p rescue: err, status_repeat: conn.instance_variable_get(:@last_status)
 					return nil
 				else
 					# Probably an authentication error
-					#p rescue: err, status_abort: conn.instance_variable_get(:@last_status)
 					raise
 				end
 			end
