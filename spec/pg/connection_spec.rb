@@ -967,155 +967,6 @@ EOT
 		expect( rval ).to include( '5678', '1234' )
 	end
 
-	it "can process #copy_data output queries" do
-		rows = []
-		res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
-			expect( res.result_status ).to eq( PG::PGRES_COPY_OUT )
-			expect( res.nfields ).to eq( 1 )
-			while row=@conn.get_copy_data
-				rows << row
-			end
-		end
-		expect( rows ).to eq( ["1\n", "2\n"] )
-		expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
-		expect( @conn ).to still_be_usable
-	end
-
-	it "can handle incomplete #copy_data output queries" do
-		expect {
-			@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
-				@conn.get_copy_data
-			end
-		}.to raise_error(PG::NotAllCopyDataRetrieved, /Not all/)
-		expect( @conn ).to still_be_usable
-	end
-
-	it "can handle client errors in #copy_data for output" do
-		expect {
-			@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do
-				raise "boom"
-			end
-		}.to raise_error(RuntimeError, "boom")
-		expect( @conn ).to still_be_usable
-	end
-
-	it "can handle client errors after all data is consumed in #copy_data for output" do
-		expect {
-			@conn.copy_data( "COPY (SELECT 1) TO STDOUT" ) do |res|
-				while @conn.get_copy_data
-				end
-				raise "boom"
-			end
-		}.to raise_error(RuntimeError, "boom")
-		expect( @conn ).to still_be_usable
-	end
-
-	it "can handle server errors in #copy_data for output" do
-		@conn.exec "ROLLBACK"
-		@conn.transaction do
-			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
-			expect {
-				@conn.copy_data( "COPY (SELECT errfunc()) TO STDOUT" ) do |res|
-					while @conn.get_copy_data
-					end
-				end
-			}.to raise_error(PG::Error, /test-error/)
-		end
-		expect( @conn ).to still_be_usable
-	end
-
-	it "can process #copy_data input queries" do
-		@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
-		res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
-			expect( res.result_status ).to eq( PG::PGRES_COPY_IN )
-			expect( res.nfields ).to eq( 1 )
-			@conn.put_copy_data "1\n"
-			@conn.put_copy_data "2\n"
-		end
-		expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
-
-		expect( @conn ).to still_be_usable
-
-		res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
-		expect( res.values ).to eq( [["1"], ["2"]] )
-	end
-
-	it "can process #copy_data input queries with lots of data" do
-		str = "abcd" * 2000 + "\n"
-		@conn.exec( "CREATE TEMP TABLE copytable2 (col1 TEXT)" )
-		@conn.copy_data( "COPY copytable2 FROM STDOUT" ) do |res|
-			1000.times do
-				@conn.put_copy_data(str)
-			end
-		end
-		expect( @conn ).to still_be_usable
-
-		res = @conn.exec( "SELECT COUNT(*) FROM copytable2" )
-		expect( res.values ).to eq( [["1000"]] )
-		res = @conn.exec( "SELECT * FROM copytable2 LIMIT 1" )
-		expect( res.values ).to eq( [[str.chomp]] )
-	end
-
-	it "can handle client errors in #copy_data for input" do
-		@conn.exec "ROLLBACK"
-		@conn.transaction do
-			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
-			expect {
-				@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
-					raise "boom"
-				end
-			}.to raise_error(RuntimeError, "boom")
-		end
-
-		expect( @conn ).to still_be_usable
-	end
-
-	it "can handle server errors in #copy_data for input" do
-		@conn.exec "ROLLBACK"
-		@conn.transaction do
-			@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
-			expect {
-				@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
-					@conn.put_copy_data "xyz\n"
-				end
-			}.to raise_error(PG::Error, /invalid input syntax for .*integer/)
-		end
-		expect( @conn ).to still_be_usable
-	end
-
-	it "gracefully handle SQL statements while in #copy_data for input" do
-		@conn.exec "ROLLBACK"
-		@conn.transaction do
-			@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
-			expect {
-				@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
-					@conn.exec "SELECT 1"
-				end
-			}.to raise_error(PG::Error, /no COPY in progress/)
-		end
-		expect( @conn ).to still_be_usable
-	end
-
-	it "gracefully handle SQL statements while in #copy_data for output" do
-		@conn.exec "ROLLBACK"
-		@conn.transaction do
-			expect {
-				@conn.copy_data( "COPY (VALUES(1), (2)) TO STDOUT" ) do |res|
-					@conn.exec "SELECT 3"
-				end
-			}.to raise_error(PG::Error, /no COPY in progress/)
-		end
-		expect( @conn ).to still_be_usable
-	end
-
-	it "should raise an error for non copy statements in #copy_data" do
-		expect {
-			@conn.copy_data( "SELECT 1" ){}
-		}.to raise_error(ArgumentError, /no COPY/)
-
-		expect( @conn ).to still_be_usable
-	end
-
 	it "correctly finishes COPY queries passed to #exec" do
 		@conn.exec( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" )
 
@@ -1133,12 +984,163 @@ EOT
 		expect( results ).to include( "1\n", "2\n" )
 	end
 
-	it "#copy_data raises error in nonblocking mode" do
-		@conn.setnonblocking(true)
-		expect {
-			@conn.copy_data( "COPY copytable FROM STDOUT" )
-		}.to raise_error(PG::NotInBlockingMode)
-		@conn.setnonblocking(false)
+	describe "#copy_data" do
+		it "can process #copy_data output queries" do
+			rows = []
+			res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+				expect( res.result_status ).to eq( PG::PGRES_COPY_OUT )
+				expect( res.nfields ).to eq( 1 )
+				while row=@conn.get_copy_data
+					rows << row
+				end
+			end
+			expect( rows ).to eq( ["1\n", "2\n"] )
+			expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can handle incomplete #copy_data output queries" do
+			expect {
+				@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
+					@conn.get_copy_data
+				end
+			}.to raise_error(PG::NotAllCopyDataRetrieved, /Not all/)
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can handle client errors in #copy_data for output" do
+			expect {
+				@conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do
+					raise "boom"
+				end
+			}.to raise_error(RuntimeError, "boom")
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can handle client errors after all data is consumed in #copy_data for output" do
+			expect {
+				@conn.copy_data( "COPY (SELECT 1) TO STDOUT" ) do |res|
+					while @conn.get_copy_data
+					end
+					raise "boom"
+				end
+			}.to raise_error(RuntimeError, "boom")
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can handle server errors in #copy_data for output" do
+			@conn.exec "ROLLBACK"
+			@conn.transaction do
+				@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
+				expect {
+					@conn.copy_data( "COPY (SELECT errfunc()) TO STDOUT" ) do |res|
+						while @conn.get_copy_data
+						end
+					end
+				}.to raise_error(PG::Error, /test-error/)
+			end
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can process #copy_data input queries" do
+			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+			res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+				expect( res.result_status ).to eq( PG::PGRES_COPY_IN )
+				expect( res.nfields ).to eq( 1 )
+				@conn.put_copy_data "1\n"
+				@conn.put_copy_data "2\n"
+			end
+			expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
+
+			expect( @conn ).to still_be_usable
+
+			res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
+			expect( res.values ).to eq( [["1"], ["2"]] )
+		end
+
+		it "can process #copy_data input queries with lots of data" do
+			str = "abcd" * 2000 + "\n"
+			@conn.exec( "CREATE TEMP TABLE copytable2 (col1 TEXT)" )
+			@conn.copy_data( "COPY copytable2 FROM STDOUT" ) do |res|
+				1000.times do
+					@conn.put_copy_data(str)
+				end
+			end
+			expect( @conn ).to still_be_usable
+
+			res = @conn.exec( "SELECT COUNT(*) FROM copytable2" )
+			expect( res.values ).to eq( [["1000"]] )
+			res = @conn.exec( "SELECT * FROM copytable2 LIMIT 1" )
+			expect( res.values ).to eq( [[str.chomp]] )
+		end
+
+		it "can handle client errors in #copy_data for input" do
+			@conn.exec "ROLLBACK"
+			@conn.transaction do
+				@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+				expect {
+					@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+						raise "boom"
+					end
+				}.to raise_error(RuntimeError, "boom")
+			end
+
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can handle server errors in #copy_data for input" do
+			@conn.exec "ROLLBACK"
+			@conn.transaction do
+				@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
+				expect {
+					@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+						@conn.put_copy_data "xyz\n"
+					end
+				}.to raise_error(PG::Error, /invalid input syntax for .*integer/)
+			end
+			expect( @conn ).to still_be_usable
+		end
+
+		it "gracefully handle SQL statements while in #copy_data for input" do
+			@conn.exec "ROLLBACK"
+			@conn.transaction do
+				@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
+				expect {
+					@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+						@conn.exec "SELECT 1"
+					end
+				}.to raise_error(PG::Error, /no COPY in progress/)
+			end
+			expect( @conn ).to still_be_usable
+		end
+
+		it "gracefully handle SQL statements while in #copy_data for output" do
+			@conn.exec "ROLLBACK"
+			@conn.transaction do
+				expect {
+					@conn.copy_data( "COPY (VALUES(1), (2)) TO STDOUT" ) do |res|
+						@conn.exec "SELECT 3"
+					end
+				}.to raise_error(PG::Error, /no COPY in progress/)
+			end
+			expect( @conn ).to still_be_usable
+		end
+
+		it "should raise an error for non copy statements in #copy_data" do
+			expect {
+				@conn.copy_data( "SELECT 1" ){}
+			}.to raise_error(ArgumentError, /no COPY/)
+
+			expect( @conn ).to still_be_usable
+		end
+
+		it "#copy_data raises error in nonblocking mode" do
+			@conn.setnonblocking(true)
+			expect {
+				@conn.copy_data( "COPY copytable FROM STDOUT" )
+			}.to raise_error(PG::NotInBlockingMode)
+			@conn.setnonblocking(false)
+		end
 	end
 
 	it "described_class#block shouldn't block a second thread" do
