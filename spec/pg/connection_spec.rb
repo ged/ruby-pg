@@ -825,11 +825,10 @@ EOT
 			# abort the per-example transaction so we can test our own
 			@conn.exec( 'ROLLBACK' )
 
-			res = nil
 			@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
 
 			begin
-				res = @conn.transaction do
+				@conn.transaction do
 					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
 					# a prior version would neither commit nor rollback when the block included an early break/return
 					break
