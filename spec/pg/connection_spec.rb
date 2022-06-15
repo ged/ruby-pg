@@ -821,6 +821,33 @@ EOT
 			end
 		end
 
+		it "commits even if the block includes an early break/return" do
+			# abort the per-example transaction so we can test our own
+			@conn.exec( 'ROLLBACK' )
+
+			res = nil
+			@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
+
+			begin
+				res = @conn.transaction do
+					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
+					# a prior version would neither commit nor rollback when the block included an early break/return
+					break
+				end
+
+				# if the previous transaction committed, the result should be visible from another conn/transaction
+				@conn2 = PG.connect(@conninfo)
+				begin
+					res = @conn2.exec( "SELECT * FROM pie" )
+					expect( res.ntuples ).to eq( 3 )
+				ensure
+					@conn2.close
+				end
+			ensure
+				@conn.exec( "DROP TABLE pie" )
+			end
+		end
+
 		it "passes the connection to the block and returns the block result" do
 			# abort the per-example transaction so we can test our own
 			@conn.exec( 'ROLLBACK' )
