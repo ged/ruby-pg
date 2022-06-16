@@ -1,3 +1,26 @@
+== v1.4.0 [YYYY-MM-DD] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Added:
+
+- Add PG::Connection#hostaddr, present since PostgreSQL-12. #453
+- Add PG::Connection.conninfo_parse to wrap PQconninfoParse. #453
+
+Bugfixes:
+
+- Try IPv6 and IPv4 addresses, if DNS resolves to both. #452
+- Re-add block-call semantics to PG::Connection.new accidently removed in pg-1.3.0. #454
+- Handle client error after all data consumed in #copy_data for output. #455
+- Avoid spurious keyword argument warning on Ruby 2.7. #456
+- Change connection setup to respect connect_timeout parameter. #459
+- Fix indefinite hang in case of connection error on Windows #458
+- Set connection attribute of PG::Error in various places where it was missing. #461
+- Fix transaction leak on early break/return. #463
+
+Enhancements:
+
+- Don't flush at each put_copy_data call, but flush at get_result. #462
+
+
 == v1.3.5 [2022-03-31] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Bugfixes:
