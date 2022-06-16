@@ -51,11 +51,15 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 		CPYENC = PG::TextEncoder::CopyRow.new type_map: TM3
 		RECENC = PG::TextEncoder::Record.new type_map: TM3
 
-		# Use GC.verify_compaction_references instead of GC.compact .
-		# This has the advantage that all movable objects are actually moved.
-		# The downside is that it doubles the heap space of the Ruby process.
-		# Therefore we call it only once and do several tests afterwards.
-		GC.verify_compaction_references(toward: :empty, double_heap: true)
+		begin
+			# Use GC.verify_compaction_references instead of GC.compact .
+			# This has the advantage that all movable objects are actually moved.
+			# The downside is that it doubles the heap space of the Ruby process.
+			# Therefore we call it only once and do several tests afterwards.
+			GC.verify_compaction_references(toward: :empty, double_heap: true)
+		rescue NotImplementedError, NoMethodError => err
+			skip("GC.compact skipped: #{err}")
+		end
 	end
 
 	it "should compact PG::TypeMapByClass #328" do
