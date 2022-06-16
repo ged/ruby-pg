@@ -747,13 +747,11 @@ EOT
 		it "automatically rolls back a transaction if an exception is raised" do
 			# abort the per-example transaction so we can test our own
 			@conn.exec( 'ROLLBACK' )
-
-			res = nil
 			@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
 
 			begin
 				expect {
-					res = @conn.transaction do
+					@conn.transaction do
 						@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
 						raise Exception, "Oh noes! All pie is gone!"
 					end
@@ -769,7 +767,6 @@ EOT
 		it "commits even if the block includes an early break/return" do
 			# abort the per-example transaction so we can test our own
 			@conn.exec( 'ROLLBACK' )
-
 			@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
 
 			begin

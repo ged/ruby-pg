@@ -237,7 +237,7 @@ class PG::Connection
 	def transaction
 		rollback = false
 		exec "BEGIN"
-		res = yield(self)
+		yield(self)
 	rescue Exception
 		rollback = true
 		cancel if transaction_status == PG::PQTRANS_ACTIVE
@@ -245,10 +245,7 @@ class PG::Connection
 		exec "ROLLBACK"
 		raise
 	ensure
-		unless rollback
-			exec "COMMIT"
-			res
-		end
+		exec "COMMIT" unless rollback
 	end
 
 	### Returns an array of Hashes with connection defaults. See ::conndefaults
