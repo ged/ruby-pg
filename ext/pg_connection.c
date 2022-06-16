@@ -402,6 +402,7 @@ pgconn_s_conndefaults(VALUE self)
 static VALUE
 pgconn_s_conninfo_parse(VALUE self, VALUE conninfo)
 {
+	VALUE array;
 	char *errmsg = NULL;
 	PQconninfoOption *options = PQconninfoParse(StringValueCStr(conninfo), &errmsg);
 	if(errmsg){
@@ -409,7 +410,7 @@ pgconn_s_conninfo_parse(VALUE self, VALUE conninfo)
 		PQfreemem(errmsg);
 		rb_raise(rb_ePGerror, "%"PRIsVALUE, error);
 	}
-	VALUE array = pgconn_make_conninfo_array( options );
+	array = pgconn_make_conninfo_array( options );
 
 	PQconninfoFree(options);
 
@@ -2394,12 +2395,14 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 
 		/* Is the given timeout valid? */
 		if( !ptimeout || (waittime.tv_sec >= 0 && waittime.tv_usec >= 0) ){
+			VALUE socket_io;
+
 			/* before we wait for data, make sure everything has been sent */
 			pgconn_async_flush(self);
 			if ((retval=is_readable(conn)))
 				return retval;
 
-			VALUE socket_io = pgconn_socket_io(self);
+			socket_io = pgconn_socket_io(self);
 			/* Wait for the socket to become readable before checking again */
 			ret = pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), wait_timeout);
 		} else {
