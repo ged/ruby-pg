@@ -15,6 +15,7 @@ Bugfixes:
 - Fix indefinite hang in case of connection error on Windows #458
 - Set connection attribute of PG::Error in various places where it was missing. #461
 - Fix transaction leak on early break/return. #463
+- Update Windows fat binary gem to OpenSSL-1.1.1o and PostgreSQL-14.4.
 
 Enhancements:
 
