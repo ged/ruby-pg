@@ -1,4 +1,4 @@
-== v1.4.0 [YYYY-MM-DD] Lars Kanis <lars@greiz-reinsdorf.de>
+== v1.4.0 [2022-06-20] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
 
