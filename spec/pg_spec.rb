@@ -53,6 +53,10 @@ describe PG do
 		        ])
 	end
 
+	it "can be used to raise errors without text" do
+		expect{ raise PG::InvalidTextRepresentation }.to raise_error(PG::InvalidTextRepresentation)
+	end
+
 	it "tells about the libpq library path" do
 		expect( PG::POSTGRESQL_LIB_PATH ).to include("/")
 	end
