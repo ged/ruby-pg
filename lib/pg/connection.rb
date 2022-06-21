@@ -657,8 +657,8 @@ class PG::Connection
 		# connection will have its +client_encoding+ set accordingly.
 		#
 		# Raises a PG::Error if the connection fails.
-		def new(*args, **kwargs)
-			conn = connect_to_hosts(*args, **kwargs)
+		def new(*args)
+			conn = connect_to_hosts(*args)
 
 			if block_given?
 				begin
