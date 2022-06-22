@@ -241,6 +241,17 @@ describe PG::Result do
 				@conn.get_result.stream_each_row.to_a
 			}.to raise_error(PG::DivisionByZero)
 		end
+
+		it "raises an error if result number of rows change" do
+			@conn.send_query( "SELECT 1" )
+			@conn.set_single_row_mode
+			expect{
+				@conn.get_result.stream_each_row do
+					@conn.discard_results
+					@conn.send_query("SELECT 2,3");
+				end
+			}.to raise_error(PG::InvalidChangeOfResultFields, /from 1 to 2 /)
+		end
 	end
 
 	it "inserts nil AS NULL and return NULL as nil" do
