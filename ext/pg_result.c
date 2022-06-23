@@ -1476,10 +1476,10 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* d
 
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
-			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another result retrieval");
+			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another query");
 
 		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields must not change in single row mode");
+			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode from %d to %d - this is a sign for intersection with another query", nfields, PQnfields(pgresult));
 
 		this->pgresult = pgresult;
 	}
