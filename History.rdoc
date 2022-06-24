@@ -1,3 +1,11 @@
+== v1.4.1 [2022-06-24] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Bugfixes:
+
+- Fix another ruby-2.7 keyword warning. #465
+- Allow PG::Error to be created without arguments. #466
+
+
 == v1.4.0 [2022-06-20] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
