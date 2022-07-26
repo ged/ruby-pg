@@ -609,12 +609,12 @@ EOT
 
 	def with_env_vars(**kwargs)
 		kwargs = kwargs.map{|k,v| [k.to_s, v && v.to_s] }.to_h
-		old_values = ENV.slice(*kwargs.keys)
-		ENV.merge!(kwargs)
+		old_values = ENV.to_h.slice(*kwargs.keys)
+		ENV.update(kwargs)
 		begin
 			yield
 		ensure
-			ENV.merge!(old_values)
+			ENV.update(old_values)
 		end
 	end
 end
