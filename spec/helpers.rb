@@ -606,6 +606,17 @@ EOT
 			gate_stop(gate)
 		end
 	end
+
+	def with_env_vars(**kwargs)
+		kwargs = kwargs.map{|k,v| [k.to_s, v && v.to_s] }.to_h
+		old_values = ENV.slice(*kwargs.keys)
+		ENV.merge!(kwargs)
+		begin
+			yield
+		ensure
+			ENV.merge!(old_values)
+		end
+	end
 end
 
 

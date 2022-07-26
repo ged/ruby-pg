@@ -318,6 +318,15 @@ describe PG::Connection do
 		tmpconn.finish
 	end
 
+	it "connects with envirinment variables" do
+		tmpconn = with_env_vars(PGHOST: "localhost", PGPORT: @port, PGDATABASE: "test") do
+			described_class.connect
+		end
+		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+		expect( tmpconn.host ).to eq( "localhost" )
+		tmpconn.finish
+	end
+
 	it "connects using Hash with multiple hosts", :postgresql_12 do
 		tmpconn = described_class.connect( host: "#{@unix_socket}xx,127.0.0.1,localhost", port: @port, dbname: "test" )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
