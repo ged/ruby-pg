@@ -59,6 +59,19 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
+	it "connects using without host but envirinment variables", :postgresql_12, :unix_socket do
+		run_with_scheduler do
+			vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
+
+			tmpconn = with_env_vars(PGHOST: "scheduler-localhost", PGPORT: vars[:port], PGDATABASE: vars[:dbname], PGSSLMODE: vars[:sslmode]) do
+				PG.connect
+			end
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.host ).to eq( "scheduler-localhost" )
+			tmpconn.finish
+		end
+	end
+
 	it "can connect with DNS lookup", :scheduler_address_resolve do
 		run_with_scheduler do
 			conninfo = @conninfo_gate.gsub(/(^| )host=\w+/, " host=scheduler-localhost")
