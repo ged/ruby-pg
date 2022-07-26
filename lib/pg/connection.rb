@@ -699,7 +699,7 @@ class PG::Connection
 					c = connect_internal(oopts, errors)
 					return c if c
 				end
-			elsif iopts[:host]
+			elsif iopts[:host] && !iopts[:host].empty?
 				# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
 				ihosts = iopts[:host].split(",", -1)
 
