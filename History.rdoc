@@ -3,6 +3,7 @@
 Bugfixes:
 
 - Properly handle empty host parameter when connecting. #471
+- Update Windows fat binary gem to OpenSSL-1.1.1q.
 
 
 == v1.4.1 [2022-06-24] Lars Kanis <lars@greiz-reinsdorf.de>
