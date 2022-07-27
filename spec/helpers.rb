@@ -214,7 +214,8 @@ module PG::TestingHelpers
 		ENV['PGPORT'] ||= "54321"
 		@port = ENV['PGPORT'].to_i
 		ENV['PGHOST'] = 'localhost'
-		@conninfo = "host=localhost port=#{@port} dbname=test"
+		td = TEST_DIRECTORY + 'data'
+		@conninfo = "host=localhost port=#{@port} dbname=test sslrootcert=#{td + 'ruby-pg-ca-cert'} sslcert=#{td + 'ruby-pg-client-cert'} sslkey=#{td + 'ruby-pg-client-key'}"
 		@unix_socket = TEST_DIRECTORY.to_s
 	end
 
