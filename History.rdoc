@@ -1,3 +1,10 @@
+== v1.4.2 [2022-07-27] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Bugfixes:
+
+- Properly handle empty host parameter when connecting. #471
+
+
 == v1.4.1 [2022-06-24] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Bugfixes:
