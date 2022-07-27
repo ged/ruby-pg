@@ -319,7 +319,7 @@ describe PG::Connection do
 	end
 
 	it "connects with environment variables" do
-		skip("Is broken before postgresql-10 on Windows") if RUBY_PLATFORM=~/mingw|mswin/ && PG.library_version < 100000
+		skip("Is broken before postgresql-12 on Windows") if RUBY_PLATFORM=~/mingw|mswin/ && PG.library_version < 120000
 
 		tmpconn = with_env_vars(PGHOST: "localhost", PGPORT: @port, PGDATABASE: "test") do
 			described_class.connect
