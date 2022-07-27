@@ -607,9 +607,12 @@ EOT
 		end
 	end
 
+	# Define environment variables for the time of the given block
+	#
+	# All environment variables are restored to the original value or undefined after the block.
 	def with_env_vars(**kwargs)
 		kwargs = kwargs.map{|k,v| [k.to_s, v && v.to_s] }.to_h
-		old_values = ENV.to_h.slice(*kwargs.keys)
+		old_values = kwargs.map{|k,_| [k, ENV[k]] }.to_h
 		ENV.update(kwargs)
 		begin
 			yield
