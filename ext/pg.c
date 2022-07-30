@@ -128,26 +128,6 @@ static struct st_table *enc_pg2ruby;
 
 
 /*
- * Look up the JOHAB encoding, creating it as a dummy encoding if it's not
- * already defined.
- */
-static rb_encoding *
-pg_find_or_create_johab(void)
-{
-	static const char * const aliases[] = { "JOHAB", "Windows-1361", "CP1361" };
-	int enc_index;
-	size_t i;
-
-	for (i = 0; i < sizeof(aliases)/sizeof(aliases[0]); ++i) {
-		enc_index = rb_enc_find_index(aliases[i]);
-		if (enc_index > 0) return rb_enc_from_index(enc_index);
-	}
-
-	enc_index = rb_define_dummy_encoding(aliases[0]);
-	return rb_enc_from_index(enc_index);
-}
-
-/*
  * Return the given PostgreSQL encoding ID as an rb_encoding.
  *
  * - returns NULL if the client encoding is 'SQL_ASCII'.
@@ -186,10 +166,6 @@ pg_get_pg_encname_as_rb_encoding( const char *pg_encname )
 		if ( strcmp(pg_encname, pg_enc_pg2ruby_mapping[i][0]) == 0 )
 			return rb_enc_find( pg_enc_pg2ruby_mapping[i][1] );
 	}
-
-	/* JOHAB isn't a builtin encoding, so make up a dummy encoding if it's seen */
-	if ( strncmp(pg_encname, "JOHAB", 5) == 0 )
-		return pg_find_or_create_johab();
 
 	/* Fallthrough to ASCII-8BIT */
 	return rb_ascii8bit_encoding();
