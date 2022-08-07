@@ -1807,10 +1807,10 @@ describe PG::Connection do
 				expect( @conn.internal_encoding ).to eq( Encoding::ASCII_8BIT )
 			end
 
-			it "the connection should use JOHAB dummy encoding when it's set to JOHAB" do
+			it "the connection should use the BINARY encoding when it's set to JOHAB" do
 				@conn.set_client_encoding "JOHAB"
 				val = @conn.exec("SELECT chr(x'3391'::int)").values[0][0]
-				expect( val.encoding.name ).to eq( "JOHAB" )
+				expect( val.encoding ).to eq( Encoding::BINARY )
 				expect( val.unpack("H*")[0] ).to eq( "dc65" )
 			end
 
@@ -1875,20 +1875,6 @@ describe PG::Connection do
 				expect { @conn.set_client_encoding( "invalid" ) }.to raise_error(PG::Error, /invalid value/){|err| expect(err).to have_attributes(connection: @conn) }
 				expect { @conn.set_client_encoding( :invalid ) }.to raise_error(TypeError)
 				expect { @conn.set_client_encoding( nil ) }.to raise_error(TypeError)
-			end
-
-			it "can use an encoding with high index for client encoding" do
-				# Allocate a lot of encoding indices, so that MRI's ENCODING_INLINE_MAX is exceeded
-				unless Encoding.name_list.include?("pgtest-0")
-					256.times do |eidx|
-						Encoding::UTF_8.replicate("pgtest-#{eidx}")
-					end
-				end
-
-				# Now allocate the JOHAB encoding with an unusual high index
-				@conn.set_client_encoding "JOHAB"
-				val = @conn.exec("SELECT chr(x'3391'::int)").values[0][0]
-				expect( val.encoding.name ).to eq( "JOHAB" )
 			end
 
 		end
