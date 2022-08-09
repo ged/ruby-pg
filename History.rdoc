@@ -1,3 +1,9 @@
+== v1.4.3 [2022-08-09] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Avoid memory bloat possible in put_copy_data in pg-1.4.0 to 1.4.2. #473
+- Use Encoding::BINARY for JOHAB, removing some useless code. #472
+
+
 == v1.4.2 [2022-07-27] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Bugfixes:
