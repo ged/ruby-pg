@@ -266,6 +266,7 @@ pgconn_s_allocate( VALUE klass )
 	this->encoder_for_put_copy_data = Qnil;
 	this->decoder_for_get_copy_data = Qnil;
 	this->trace_stream = Qnil;
+	rb_ivar_set(self, rb_intern("@calls_to_put_copy_data"), INT2FIX(0));
 
 	return self;
 }
