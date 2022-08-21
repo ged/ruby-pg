@@ -764,6 +764,10 @@ class PG::Connection
 					# Seems to be no authentication error -> try next host
 					errors << err
 					return nil
+        elsif err.to_s =~ /.*session is read-only.*/
+          # Probably a host in a multi host connection string is read only
+          errors << err
+          return nil
 				else
 					# Probably an authentication error
 					raise
