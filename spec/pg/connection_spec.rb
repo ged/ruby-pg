@@ -208,6 +208,15 @@ describe PG::Connection do
 				$0 = old_0
 			end
 		end
+
+		let(:uri2) { 'postgres://127.0.0.1:5432,127.0.0.2:5432/db01?target_session_attrs=read-write&sslmode=require&user=user'}
+
+		it "accepts an URI string with two hosts" do
+			string = described_class.parse_connect_args( uri2 )
+
+			expect( string ).to be_a( String )
+			expect( string ).to match( %r{^user='user' dbname='db01' host='127.0.0.1,127.0.0.2' port='5432,5432' sslmode='require' target_session_attrs='read-write' fallback_application_name} )
+		end
 	end
 
 	it "connects successfully with connection string" do
