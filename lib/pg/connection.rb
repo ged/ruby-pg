@@ -59,13 +59,11 @@ class PG::Connection
 	# The method adds the option "fallback_application_name" if it isn't already set.
 	# It returns a connection string with "key=value" pairs.
 	def self.parse_connect_args( *args )
-		pp args
 		hash_arg = args.last.is_a?( Hash ) ? args.pop.transform_keys(&:to_sym) : {}
 		iopts = {}
 		conn_string = nil
 
 		if args.length == 1
-			pp args.first
 			case args.first
 			when URI, /=/, /:\/\//
 				# Option or URL string style
@@ -93,7 +91,6 @@ class PG::Connection
 			iopts[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
 		end
 
-		puts "Connecting to #{conn_string}"
 		return conn_string || connect_hash_to_string(iopts)
 	end
 
@@ -122,7 +119,7 @@ class PG::Connection
 	# of blocking mode of operation, #copy_data is preferred to raw calls
 	# of #put_copy_data, #get_copy_data and #put_copy_end.
 	#
-	# _coder_ can be a PG::Coder derivatiyaml deployment manifest cloudfoundry manifest.ymlon
+	# _coder_ can be a PG::Coder derivation
 	# (typically PG::TextEncoder::CopyRow or PG::TextDecoder::CopyRow).
 	# This enables encoding of data fields given to #put_copy_data
 	# or decoding of fields received by #get_copy_data.
