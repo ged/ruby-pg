@@ -289,6 +289,97 @@ EOT
 		log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
 	end
 
+	# Copy of the above functions for a second DB in read only mode
+	def define_testing_ro_conninfo
+		@port_ro = ENV['PGPORT'].to_i + 10
+		td = TEST_DIRECTORY + 'data2'
+		@conninfo_ro = "host=localhost port=#{@port_ro} dbname=test sslrootcert=#{td + 'ruby-pg-ca-cert'} sslcert=#{td + 'ruby-pg-client-cert'} sslkey=#{td + 'ruby-pg-client-key'}"
+		@unix_socket_ro = TEST_DIRECTORY.to_s
+	end
+
+	### Set up a PostgreSQL database instance for testing.
+	def setup_testing_ro_db( description )
+		trace "Setting up test database for #{description}"
+		@test_ro_pgdata = TEST_DIRECTORY + 'data2'
+		@test_ro_pgdata.mkpath
+
+		define_testing_ro_conninfo
+
+		@logfile_ro = TEST_DIRECTORY + 'ro_setup.log'
+		trace "Command output logged to #{@logfile_ro}"
+
+		begin
+			unless (@test_ro_pgdata+"postgresql.conf").exist?
+				FileUtils.rm_rf( @test_ro_pgdata, :verbose => $DEBUG )
+				trace "Running initdb"
+				log_and_run @logfile_ro, 'initdb', '-E', 'UTF8', '--no-locale', '-D', @test_ro_pgdata.to_s
+			end
+
+			unless (@test_ro_pgdata+"ruby-pg-server-cert").exist?
+				trace "Enable SSL"
+				# Enable SSL in server config
+				File.open(@test_ro_pgdata+"postgresql.conf", "a+") do |fd|
+					fd.puts <<-EOT
+ssl = on
+ssl_ca_file = 'ruby-pg-ca-cert'
+ssl_cert_file = 'ruby-pg-server-cert'
+ssl_key_file = 'ruby-pg-server-key'
+EOT
+				end
+
+				trace "Generate certificates"
+				generate_ssl_certs(@test_ro_pgdata.to_s)
+			end
+
+			# Make sure we set our special port in the postgresql.conf file for future launches to work
+			if File.open(@test_ro_pgdata+"postgresql.conf").grep(/^port.*=.+/).empty?
+				trace "Setting the postgresql port"
+				File.open(@test_ro_pgdata+"postgresql.conf", "a+") { |fd| fd.puts "\nport = #{@port_ro}" }
+			end
+
+			trace "Starting postgres"
+			unix_socket = ['-o', "-k #{TEST_DIRECTORY.to_s.dump}"] unless RUBY_PLATFORM=~/mingw|mswin/i
+			log_and_run @logfile_ro, 'pg_ctl', '-w', *unix_socket,
+				'-D', @test_ro_pgdata.to_s, 'start'
+			sleep 2
+
+			trace "For cleanup, the DB needs to be read-write"
+			log_and_run @logfile_ro, 'psql', '-p', @port_ro.to_s, '-e', '-c', 'ALTER SYSTEM SET default_transaction_read_only TO off', 'postgres'
+			log_and_run @logfile_ro, 'psql', '-p', @port_ro.to_s, '-e', '-c', 'SELECT pg_reload_conf();', 'postgres'
+
+			trace "Creating the test DB"
+			log_and_run @logfile_ro, 'psql', '-p', @port_ro.to_s, '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
+			log_and_run @logfile_ro, 'createdb', '-p', @port_ro.to_s, '-e', 'test'
+
+			trace "Moving the DB to read only"
+			log_and_run @logfile_ro, 'psql', '-p', @port_ro.to_s, '-e', '-c', 'ALTER SYSTEM SET default_transaction_read_only TO on', 'postgres'
+			log_and_run @logfile_ro, 'psql', '-p', @port_ro.to_s, '-e', '-c', 'SELECT pg_reload_conf();', 'postgres'
+
+		rescue => err
+			$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
+			$stderr.puts "See #{@logfile_ro} for details."
+			$stderr.puts err.backtrace if $DEBUG
+			fail
+		end
+	end
+
+	def connect_testing_ro_db
+		define_testing_ro_conninfo
+		conn = PG.connect( @conninfo_ro )
+		conn.set_notice_processor do |message|
+			$stderr.puts( description + ':' + message ) if $DEBUG
+		end
+
+		return conn
+	end
+
+	def teardown_testing_ro_db
+		trace "Tearing down test ro database"
+
+		log_and_run @logfile_ro, 'pg_ctl', '-D', @test_ro_pgdata.to_s, 'stop'
+	end
+
+
 	class CertGenerator
 		attr_reader :output_dir
 
@@ -654,8 +745,10 @@ RSpec.configure do |config|
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|
 		PG::TestingHelpers.setup_testing_db("the spec suite")
+		PG::TestingHelpers.setup_testing_ro_db("the spec suite read only")
 	end
 	config.after(:suite) do
 		PG::TestingHelpers.teardown_testing_db
+		PG::TestingHelpers.teardown_testing_ro_db
 	end
 end

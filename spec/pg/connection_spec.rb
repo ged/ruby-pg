@@ -381,6 +381,26 @@ describe PG::Connection do
 		expect( conn ).to be_finished()
 	end
 
+	it "select the write capable host using URI with multiple hosts when only one is read-write", :postgresql_12 do
+		uri = "postgres://localhost:#{@port + 10},127.0.0.1:#{@port}/test?keepalives=1&target_session_attrs=read-write"
+		tmpconn = described_class.connect( uri )
+		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+		expect( tmpconn.port ).to eq( @port )
+		expect( tmpconn.host ).to eq( "127.0.0.1" )
+		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
+		tmpconn.finish
+	end
+
+	it "select the ro host using URI with multiple hosts when target_session_attributes is not set to any", :postgresql_12 do
+		uri = "postgres://127.0.0.1:#{@port + 10},127.0.0.1:#{@port}/test?keepalives=1&target_session_attrs=any"
+		tmpconn = described_class.connect( uri )
+		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+		expect( tmpconn.port ).to eq( @port + 10 )
+		expect( tmpconn.host ).to eq( "127.0.0.1" )
+		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
+		tmpconn.finish
+	end
+
 	context "with async established connection" do
 		before :each do
 			@conn2 = described_class.connect_start( @conninfo )
