@@ -689,7 +689,7 @@ class PG::Connection
 
 		private def connect_to_hosts(*args)
 			# If we have just one entry, and the entry is a postgres URI, pass it as is to connect_internal
-			if (args.length == 1) && (args[0] =~ %r{postgres://.+})
+			if (args.length == 1) && (args[0].is_a?(String) || arg[0].is_a?(URI)) && (args[0].to_s =~ %r{postgres://.+})
 				return connect_internal(args[0])
 			else
 				option_string = parse_connect_args(*args)
