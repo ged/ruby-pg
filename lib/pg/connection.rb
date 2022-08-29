@@ -687,70 +687,68 @@ class PG::Connection
 		alias setdblogin new
 
 		private def connect_to_hosts(*args)
-			# If we have just one entry, and the entry is a postgres URI, pass it as is to connect_internal
-			if (args.length == 1) && (args[0].is_a?(String) || args[0].is_a?(URI)) && (args[0].to_s =~ %r{postgres://.+})
-				return connect_internal(args[0])
-			else
-				option_string = parse_connect_args(*args)
-				iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
-				iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
+			option_string = parse_connect_args(*args)
+			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
+			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
-				errors = []
-				if iopts[:hostaddr]
-					# hostaddr is provided -> no need to resolve hostnames
-					ihostaddrs = iopts[:hostaddr].split(",", -1)
+			errors = []
+			if iopts[:hostaddr]
+				# hostaddr is provided -> no need to resolve hostnames
+				ihostaddrs = iopts[:hostaddr].split(",", -1)
 
-					ihosts = iopts[:host].split(",", -1) if iopts[:host]
-					raise PG::ConnectionBad, "could not match #{ihosts.size} host names to #{ihostaddrs.size} hostaddr values" if ihosts && ihosts.size != ihostaddrs.size
+				ihosts = iopts[:host].split(",", -1) if iopts[:host]
+				raise PG::ConnectionBad, "could not match #{ihosts.size} host names to #{ihostaddrs.size} hostaddr values" if ihosts && ihosts.size != ihostaddrs.size
 
-					iports = iopts[:port].split(",", -1)
-					iports = iports * ihostaddrs.size if iports.size == 1
-					raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihostaddrs.size} hosts" if iports.size != ihostaddrs.size
+				iports = iopts[:port].split(",", -1)
+				iports = iports * ihostaddrs.size if iports.size == 1
+				raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihostaddrs.size} hosts" if iports.size != ihostaddrs.size
 
-					# Try to connect to each hostaddr with separate timeout
-					ihostaddrs.each_with_index do |ihostaddr, idx|
-						oopts = iopts.merge(hostaddr: ihostaddr, port: iports[idx])
-						oopts[:host] = ihosts[idx] if ihosts
-						c = connect_internal(oopts, errors)
-						return c if c
-					end
-				else iopts[:host] && !iopts[:host].empty?
-					# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
-					ihosts = iopts[:host].split(",", -1)
+				# Try to connect to each hostaddr with separate timeout
+				ihostaddrs.each_with_index do |ihostaddr, idx|
+					oopts = iopts.merge(hostaddr: ihostaddr, port: iports[idx])
+					oopts[:host] = ihosts[idx] if ihosts
+					c = connect_internal(oopts, errors)
+					return c if c
+				end
+			elsif iopts[:host] && !iopts[:host].empty?
+				# Resolve DNS in Ruby to avoid blocking state while connecting, when it ...
+				ihosts = iopts[:host].split(",", -1)
 
-					iports = iopts[:port].split(",", -1)
-					iports = iports * ihosts.size if iports.size == 1
-					raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihosts.size} hosts" if iports.size != ihosts.size
+				iports = iopts[:port].split(",", -1)
+				iports = iports * ihosts.size if iports.size == 1
+				raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihosts.size} hosts" if iports.size != ihosts.size
 
-					ihosts.each_with_index do |mhost, idx|
-						unless host_is_named_pipe?(mhost)
-							addrs = if Fiber.respond_to?(:scheduler) &&
-										Fiber.scheduler &&
-										RUBY_VERSION < '3.1.'
+				ihosts.each_with_index do |mhost, idx|
+					unless host_is_named_pipe?(mhost)
+						addrs = if Fiber.respond_to?(:scheduler) &&
+									Fiber.scheduler &&
+									RUBY_VERSION < '3.1.'
 
-								# Use a second thread to avoid blocking of the scheduler.
-								# `TCPSocket.gethostbyname` isn't fiber aware before ruby-3.1.
-								Thread.new{ Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue [''] }.value
-							else
-								Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue ['']
-							end
-
-							# Try to connect to each host with separate timeout
-							addrs.each do |addr|
-								oopts = iopts.merge(hostaddr: addr, host: mhost, port: iports[idx])
-								c = connect_internal(oopts, errors)
-								return c if c
-							end
+							# Use a second thread to avoid blocking of the scheduler.
+							# `TCPSocket.gethostbyname` isn't fiber aware before ruby-3.1.
+							Thread.new{ Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue [''] }.value
 						else
-							# No hostname to resolve (UnixSocket)
-							oopts = iopts.merge(host: mhost, port: iports[idx])
+							Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue ['']
+						end
+
+						# Try to connect to each host with separate timeout
+						addrs.each do |addr|
+							oopts = iopts.merge(hostaddr: addr, host: mhost, port: iports[idx])
 							c = connect_internal(oopts, errors)
 							return c if c
 						end
+					else
+						# No hostname to resolve (UnixSocket)
+						oopts = iopts.merge(host: mhost, port: iports[idx])
+						c = connect_internal(oopts, errors)
+						return c if c
 					end
 				end
-				raise PG::ConnectionBad, errors.join("\n")
+			else
+				# No host given
+				return connect_internal(iopts)
 			end
+			raise PG::ConnectionBad, errors.join("\n")
 		end
 
 		private def connect_internal(opts, errors=nil)
