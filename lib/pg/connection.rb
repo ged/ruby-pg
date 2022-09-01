@@ -604,6 +604,8 @@ class PG::Connection
 		end
 
 		unless status == PG::CONNECTION_OK
+			# Mark if we got here because we were in read only mode but requested read-write
+			@read_only_mode = parameter_status('in_hot_standby') == "on" || parameter_status('detault_transaction_read_only') == "on"
 			msg = error_message
 			finish
 			raise PG::ConnectionBad.new(msg, connection: self)
@@ -762,6 +764,10 @@ class PG::Connection
 			rescue PG::ConnectionBad => err
 				if errors && !(conn && [PG::CONNECTION_AWAITING_RESPONSE].include?(conn.instance_variable_get(:@last_status)))
 					# Seems to be no authentication error -> try next host
+					errors << err
+					return nil
+				elsif conn && conn.instance_variable_get(:@read_only_mode)
+					# Seems like a read only connection when requesing a writable one
 					errors << err
 					return nil
 				else
