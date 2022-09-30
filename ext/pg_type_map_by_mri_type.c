@@ -286,7 +286,7 @@ pg_tmbmt_coders( VALUE self )
 }
 
 void
-init_pg_type_map_by_mri_type()
+init_pg_type_map_by_mri_type(void)
 {
 	/*
 	 * Document-class: PG::TypeMapByMriType < PG::TypeMap

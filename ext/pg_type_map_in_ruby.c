@@ -299,7 +299,7 @@ pg_tmir_s_allocate( VALUE klass )
 
 
 void
-init_pg_type_map_in_ruby()
+init_pg_type_map_in_ruby(void)
 {
 	s_id_fit_to_result = rb_intern("fit_to_result");
 	s_id_fit_to_query = rb_intern("fit_to_query");

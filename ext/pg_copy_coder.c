@@ -592,7 +592,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 
 
 void
-init_pg_copycoder()
+init_pg_copycoder(void)
 {
 	/* Document-class: PG::CopyCoder < PG::Coder
 	 *

@@ -176,7 +176,7 @@ pg_typemap_with_default_type_map(VALUE self, VALUE typemap)
 }
 
 void
-init_pg_type_map()
+init_pg_type_map(void)
 {
 	s_id_fit_to_query = rb_intern("fit_to_query");
 	s_id_fit_to_result = rb_intern("fit_to_result");

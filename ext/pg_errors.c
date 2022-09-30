@@ -70,7 +70,7 @@ lookup_error_class(const char *sqlstate)
 }
 
 void
-init_pg_errors()
+init_pg_errors(void)
 {
 	rb_hErrors = rb_hash_new();
 	rb_define_const( rb_mPG, "ERROR_CLASSES", rb_hErrors );

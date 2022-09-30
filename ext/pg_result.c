@@ -1617,7 +1617,7 @@ pgresult_field_name_type_get(VALUE self)
 }
 
 void
-init_pg_result()
+init_pg_result(void)
 {
 	sym_string = ID2SYM(rb_intern("string"));
 	sym_symbol = ID2SYM(rb_intern("symbol"));

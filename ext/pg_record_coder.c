@@ -494,7 +494,7 @@ pg_text_dec_record(t_pg_coder *conv, char *input_line, int len, int _tuple, int 
 
 
 void
-init_pg_recordcoder()
+init_pg_recordcoder(void)
 {
 	/* Document-class: PG::RecordCoder < PG::Coder
 	 *

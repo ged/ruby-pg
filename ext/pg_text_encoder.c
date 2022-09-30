@@ -775,7 +775,7 @@ pg_text_enc_to_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedi
 
 
 void
-init_pg_text_encoder()
+init_pg_text_encoder(void)
 {
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");

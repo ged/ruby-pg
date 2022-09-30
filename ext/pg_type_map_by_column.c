@@ -243,7 +243,7 @@ pg_tmbc_s_allocate( VALUE klass )
 }
 
 VALUE
-pg_tmbc_allocate()
+pg_tmbc_allocate(void)
 {
 	return pg_tmbc_s_allocate(rb_cTypeMapByColumn);
 }
@@ -320,7 +320,7 @@ pg_tmbc_coders(VALUE self)
 }
 
 void
-init_pg_type_map_by_column()
+init_pg_type_map_by_column(void)
 {
 	s_id_decode = rb_intern("decode");
 	s_id_encode = rb_intern("encode");

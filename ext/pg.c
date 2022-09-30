@@ -352,7 +352,7 @@ pg_s_init_ssl(VALUE self, VALUE do_ssl)
  **************************************************************************/
 
 void
-Init_pg_ext()
+Init_pg_ext(void)
 {
 	if( RTEST(rb_eval_string("ENV['PG_SKIP_DEPRECATION_WARNING']")) ){
 		/* Set all bits to disable all deprecation warnings. */

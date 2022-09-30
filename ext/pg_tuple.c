@@ -545,7 +545,7 @@ pg_tuple_load(VALUE self, VALUE a)
 }
 
 void
-init_pg_tuple()
+init_pg_tuple(void)
 {
 	rb_cPG_Tuple = rb_define_class_under( rb_mPG, "Tuple", rb_cObject );
 	rb_define_alloc_func( rb_cPG_Tuple, pg_tuple_s_allocate );

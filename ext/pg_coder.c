@@ -537,7 +537,7 @@ pg_coder_dec_func(t_pg_coder *this, int binary)
 
 
 void
-init_pg_coder()
+init_pg_coder(void)
 {
 	s_id_encode = rb_intern("encode");
 	s_id_decode = rb_intern("decode");

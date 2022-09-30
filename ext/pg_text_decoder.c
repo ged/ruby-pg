@@ -923,7 +923,7 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 }
 
 void
-init_pg_text_decoder()
+init_pg_text_decoder(void)
 {
 	rb_require("ipaddr");
 	s_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));

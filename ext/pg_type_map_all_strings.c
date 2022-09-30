@@ -105,7 +105,7 @@ pg_tmas_s_allocate( VALUE klass )
 
 
 void
-init_pg_type_map_all_strings()
+init_pg_type_map_all_strings(void)
 {
 	/*
 	 * Document-class: PG::TypeMapAllStrings < PG::TypeMap

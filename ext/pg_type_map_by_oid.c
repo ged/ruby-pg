@@ -356,7 +356,7 @@ pg_tmbo_build_column_map( VALUE self, VALUE result )
 
 
 void
-init_pg_type_map_by_oid()
+init_pg_type_map_by_oid(void)
 {
 	s_id_decode = rb_intern("decode");
 

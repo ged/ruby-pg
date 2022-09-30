@@ -247,7 +247,7 @@ pg_tmbk_coders( VALUE self )
 }
 
 void
-init_pg_type_map_by_class()
+init_pg_type_map_by_class(void)
 {
 	/*
 	 * Document-class: PG::TypeMapByClass < PG::TypeMap

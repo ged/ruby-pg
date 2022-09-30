@@ -139,7 +139,7 @@ pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 }
 
 void
-init_pg_binary_encoder()
+init_pg_binary_encoder(void)
 {
 	/* This module encapsulates all encoder classes with binary output format */
 	rb_mPG_BinaryEncoder = rb_define_module_under( rb_mPG, "BinaryEncoder" );

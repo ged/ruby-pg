@@ -1527,8 +1527,7 @@ pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
  * It's not recommended to use explicit sync or async variants but #describe_portal instead, unless you have a good reason to do so.
  */
 static VALUE
-pgconn_sync_describe_portal(self, stmt_name)
-	VALUE self, stmt_name;
+pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
 {
 	PGresult *result;
 	VALUE rb_pgresult;
@@ -4326,7 +4325,7 @@ pgconn_field_name_type_get(VALUE self)
  * Document-class: PG::Connection
  */
 void
-init_pg_connection()
+init_pg_connection(void)
 {
 	s_id_encode = rb_intern("encode");
 	s_id_autoclose_set = rb_intern("autoclose=");

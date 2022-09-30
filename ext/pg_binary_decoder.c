@@ -205,7 +205,7 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
  */
 
 void
-init_pg_binary_decoder()
+init_pg_binary_decoder(void)
 {
 	/* This module encapsulates all decoder classes with binary input format */
 	rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" );
