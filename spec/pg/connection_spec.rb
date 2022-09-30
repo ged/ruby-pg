@@ -1667,7 +1667,7 @@ describe PG::Connection do
 			end
 
 			it "raises an error when called with pending results" do
-				@conn.send_query "select 1"
+				@conn.send_query_params "select 1", []
 				expect {
 					@conn.enter_pipeline_mode
 				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
@@ -1683,7 +1683,7 @@ describe PG::Connection do
 
 			it "raises an error when called with pending results" do
 				@conn.enter_pipeline_mode
-				@conn.send_query "select 1"
+				@conn.send_query_params "select 1", []
 				expect {
 					@conn.exit_pipeline_mode
 				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
@@ -1695,7 +1695,7 @@ describe PG::Connection do
 		describe "pipeline_sync" do
 			it "sends a sync message" do
 				@conn.enter_pipeline_mode
-				@conn.send_query "select 6"
+				@conn.send_query_params "select 6", []
 				@conn.pipeline_sync
 				expect( @conn.get_result.result_status ).to eq( PG::PGRES_TUPLES_OK )
 				expect( @conn.get_result ).to be_nil
@@ -1715,7 +1715,7 @@ describe PG::Connection do
 		describe "send_flush_request" do
 			it "flushs all results" do
 				@conn.enter_pipeline_mode
-				@conn.send_query "select 1"
+				@conn.send_query_params "select 1", []
 				@conn.send_flush_request
 				@conn.flush
 				expect( @conn.get_result.result_status ).to eq( PG::PGRES_TUPLES_OK )
@@ -1724,7 +1724,7 @@ describe PG::Connection do
 			end
 
 			it "raises an error when called with pending results" do
-				@conn.send_query "select 1"
+				@conn.send_query_params "select 1", []
 				expect {
 					@conn.send_flush_request
 				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
@@ -1734,7 +1734,7 @@ describe PG::Connection do
 		describe "get_last_result" do
 			it "delivers PGRES_PIPELINE_SYNC" do
 				@conn.enter_pipeline_mode
-				@conn.send_query "select 6"
+				@conn.send_query_params "select 6", []
 				@conn.pipeline_sync
 				expect( @conn.get_last_result.values ).to eq( [["6"]] )
 				expect( @conn.get_last_result.result_status ).to eq( PG::PGRES_PIPELINE_SYNC )
@@ -1743,8 +1743,8 @@ describe PG::Connection do
 
 			it "raises an error for PGRES_PIPELINE_ABORT" do
 				@conn.enter_pipeline_mode
-				@conn.send_query("garbage")
-				@conn.send_query("SELECT 7")
+				@conn.send_query_params("garbage", [])
+				@conn.send_query_params("SELECT 7", [])
 				@conn.pipeline_sync
 				begin
 					@conn.get_last_result
