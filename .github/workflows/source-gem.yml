@@ -61,6 +61,7 @@ jobs:
     env:
       PGVERSION: ${{ matrix.PGVERSION }}
       PGVER: ${{ matrix.PGVER }}
+      MAKE: make -j2 V=1
 
     steps:
       - uses: actions/checkout@v2
