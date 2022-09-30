@@ -57,6 +57,7 @@
 #endif
 
 /* PostgreSQL headers */
+#include "pg_config.h"
 #include "libpq-fe.h"
 #include "libpq/libpq-fs.h"              /* large-object interface */
 #include "pg_config_manual.h"

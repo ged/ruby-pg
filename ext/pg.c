@@ -47,7 +47,6 @@
  */
 
 #include "pg.h"
-#include "pg_config.h"
 
 int pg_skip_deprecation_warning;
 VALUE rb_mPG;
