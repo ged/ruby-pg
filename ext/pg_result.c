@@ -1382,7 +1382,7 @@ pgresult_type_map_get(VALUE self)
 }
 
 
-static void
+static int
 yield_hash(VALUE self, int ntuples, int nfields, void *data)
 {
 	int tuple_num;
@@ -1393,10 +1393,10 @@ yield_hash(VALUE self, int ntuples, int nfields, void *data)
 		rb_yield(pgresult_aref(self, INT2NUM(tuple_num)));
 	}
 
-	pgresult_clear( this );
+	return 1; /* clear the result */
 }
 
-static void
+static int
 yield_array(VALUE self, int ntuples, int nfields, void *data)
 {
 	int row;
@@ -1413,10 +1413,10 @@ yield_array(VALUE self, int ntuples, int nfields, void *data)
 		rb_yield( rb_ary_new4( nfields, row_values ));
 	}
 
-	pgresult_clear( this );
+	return 1; /* clear the result */
 }
 
-static void
+static int
 yield_tuple(VALUE self, int ntuples, int nfields, void *data)
 {
 	int tuple_num;
@@ -1434,11 +1434,12 @@ yield_tuple(VALUE self, int ntuples, int nfields, void *data)
 		VALUE tuple = pgresult_tuple(copy, INT2FIX(tuple_num));
 		rb_yield( tuple );
 	}
+	return 0; /* don't clear the result */
 }
 
 /* Non-static, and data pointer for use by sequel_pg */
 VALUE
-pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* data)
+pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* data)
 {
 	t_pg_result *this;
 	int nfields;
@@ -1467,7 +1468,9 @@ pgresult_stream_any(VALUE self, void (*yielder)(VALUE, int, int, void*), void* d
 				pg_result_check( self );
 		}
 
-		yielder( self, ntuples, nfields, data );
+		if( yielder( self, ntuples, nfields, data ) ){
+			pgresult_clear( this );
+		}
 
 		if( gvl_PQisBusy(pgconn) ){
 			/* wait for input (without blocking) before reading each result */
