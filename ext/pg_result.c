@@ -1386,7 +1386,6 @@ static int
 yield_hash(VALUE self, int ntuples, int nfields, void *data)
 {
 	int tuple_num;
-	t_pg_result *this = pgresult_get_this(self);
 	UNUSED(nfields);
 
 	for(tuple_num = 0; tuple_num < ntuples; tuple_num++) {
