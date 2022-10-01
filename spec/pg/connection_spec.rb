@@ -405,7 +405,7 @@ describe PG::Connection do
 			res = @conn2.query("SELECT 4")
 		end
 
-		it "can work with changing IO while connection setup" do
+		it "can work with changing IO while connection setup", :postgresql_95 do
 			# The file_no of the socket IO can change while connecting.
 			# This can happen when alternative hosts are tried,
 			# while GSS authentication
@@ -424,6 +424,7 @@ describe PG::Connection do
 			# A second connection is then started with a new IO.
 			# And since the pipes above were freed in the concurrent thread above, there is a high chance that it's a lower file descriptor than before.
 			conn = PG.connect( @conninfo + " sslcert=tmp_test_specs/data/ruby-pg-ca-cert" )
+			expect( conn.ssl_in_use? ).to be_falsey
 
 			# The new connection should work even when the file descriptor has changed.
 			res = conn.exec("SELECT 1")
