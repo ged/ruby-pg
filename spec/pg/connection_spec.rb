@@ -264,7 +264,6 @@ describe PG::Connection do
 			expect( error ).to be_an( PG::ConnectionBad )
 			expect( error.message ).to match( /database "non-existent" does not exist/i )
 			expect( error.message.encoding ).to eq( Encoding::BINARY )
-			expect( error.connection ).to be_a_kind_of(PG::Connection)
 		end
 	end
 

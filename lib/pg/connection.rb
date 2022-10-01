@@ -756,7 +756,7 @@ class PG::Connection
 				conn = self.connect_start(opts) or
 											raise(PG::Error, "Unable to create a new connection")
 
-				raise PG::ConnectionBad.new(conn.error_message, connection: self) if conn.status == PG::CONNECTION_BAD
+				raise PG::ConnectionBad, conn.error_message if conn.status == PG::CONNECTION_BAD
 
 				conn.send(:async_connect_or_reset, :connect_poll)
 			rescue PG::ConnectionBad => err
