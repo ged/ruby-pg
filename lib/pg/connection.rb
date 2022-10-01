@@ -600,7 +600,6 @@ class PG::Connection
 
 			# Check to see if it's finished or failed yet
 			poll_status = send( poll_meth )
-			@last_status = status unless [PG::CONNECTION_BAD, PG::CONNECTION_OK].include?(status)
 		end
 
 		unless status == PG::CONNECTION_OK
@@ -760,13 +759,13 @@ class PG::Connection
 
 				conn.send(:async_connect_or_reset, :connect_poll)
 			rescue PG::ConnectionBad => err
-				if errors && !(conn && [PG::CONNECTION_AWAITING_RESPONSE].include?(conn.instance_variable_get(:@last_status)))
+				if errors && /authenticat/ !~ err.message
 					# Seems to be no authentication error -> try next host
 					errors << err
 					return nil
 				else
 					# Probably an authentication error
-					raise
+					raise err
 				end
 			end
 			conn

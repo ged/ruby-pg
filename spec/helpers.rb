@@ -27,6 +27,21 @@ module PG::TestingHelpers
 				@conninfo = $pg_server.conninfo
 				@unix_socket = $pg_server.unix_socket
 				@conn = $pg_server.connect
+
+				# Find a local port that is not in use
+				@port_down = @port + 10
+				loop do
+					@port_down = @port_down + 1
+					begin
+						TCPSocket.new("::1", @port_down)
+					rescue SystemCallError
+						begin
+							TCPSocket.new("127.0.0.1", @port_down)
+						rescue SystemCallError
+							break
+						end
+					end
+				end
 			end
 
 			mod.around( :each ) do |example|
@@ -253,6 +268,16 @@ ssl_cert_file = 'ruby-pg-server-cert'
 ssl_key_file = 'ruby-pg-server-key'
 #{postgresql_conf}
 EOT
+					end
+
+					# Enable MD5 authentication in hba config
+					hba_content = File.read(@test_pgdata+"pg_hba.conf")
+					File.open(@test_pgdata+"pg_hba.conf", "w") do |fd|
+						fd.puts <<-EOT
+# TYPE  DATABASE     USER              ADDRESS             METHOD
+host    all          testusermd5       ::1/128             md5
+EOT
+						fd.puts hba_content
 					end
 
 					trace "Generate certificates"
