@@ -31,7 +31,7 @@ jobs:
         include:
           - os: windows
             ruby: "head"
-            PGVERSION: 14.5-1-windows-x64
+            PGVERSION: 15.0-rc1-windows-x64
             PGVER: "14"
           - os: windows
             ruby: "2.5"

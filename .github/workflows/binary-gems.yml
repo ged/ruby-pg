@@ -45,7 +45,7 @@ jobs:
         include:
           - ruby: "3.1"
             platform: "x64-mingw-ucrt"
-            PGVERSION: 14.2-1-windows-x64
+            PGVERSION: 15.0-rc1-windows-x64
           - ruby: "2.5"
             platform: "x64-mingw32"
             PGVERSION: 10.20-1-windows
