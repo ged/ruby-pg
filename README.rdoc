@@ -171,12 +171,31 @@ The following type maps are prefilled with type mappings from the PG::BasicTypeR
 To report bugs, suggest features, or check out the source with Git,
 {check out the project page}[https://github.com/ged/ruby-pg].
 
-After checking out the source, run:
+After checking out the source, install all dependencies:
 
-    $ rake newb
+    $ bundle install
 
-This task will install any missing dependencies, run the tests/specs, and
-generate the API documentation.
+Cleanup extension files, packaging files, test databases:
+
+    $ rake clean
+
+Compile extension:
+
+    $ rake compile
+
+Run tests/specs with PostgreSQL tools like `initdb` in the path:
+
+    $ PATH=$PATH:/usr/lib/postgresql/14/bin rake test
+
+Or run a specific test with the line number:
+
+    $ PATH=$PATH:/usr/lib/postgresql/14/bin rspec -Ilib -fd spec/pg/connection_spec.rb:455
+
+Generate the API documentation:
+
+    $ rake docs
+
+Make sure, that all bugs and new features are verified by tests.
 
 The current maintainers are Michael Granger <ged@FaerieMUD.org> and
 Lars Kanis <lars@greiz-reinsdorf.de>.
@@ -184,7 +203,7 @@ Lars Kanis <lars@greiz-reinsdorf.de>.
 
 == Copying
 
-Copyright (c) 1997-2019 by the authors.
+Copyright (c) 1997-2022 by the authors.
 
 * Jeff Davis <ruby-pg@j-davis.com>
 * Guy Decoux (ts) <decoux@moulon.inra.fr>
