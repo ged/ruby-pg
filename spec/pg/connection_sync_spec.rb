@@ -31,6 +31,8 @@ context "running with sync_* methods" do
 
 		expect( Time.now - start ).to be < 0.9
 		@conn.cancel
+	ensure
+		PG::Connection.async_api = false
 	end
 
 	it "disables async methods by #async_api" do
