@@ -83,4 +83,4 @@ jobs:
       - run: bundle install
       - run: gem install --local pg-*${{ matrix.platform }}.gem --verbose
       - name: Run specs
-        run: ruby -rpg -S rspec spec/**/*_spec.rb
+        run: ruby -rpg -S rspec -fd spec/**/*_spec.rb
