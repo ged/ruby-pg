@@ -8,11 +8,10 @@ require 'pg'
 
 describe PG::Connection do
 
-	it "tries to connect to localhost with IPv6 and IPv4", :ipv6 do
+	it "tries to connect to localhost with IPv6 and IPv4", :ipv6, :postgresql_10 do
 		uri = "postgres://localhost:#{@port+1}/test"
 		expect(described_class).to receive(:parse_connect_args).once.ordered.with(uri, any_args).and_call_original
-		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "::1")).and_call_original
-		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "127.0.0.1")).and_call_original
+		expect(described_class).to receive(:parse_connect_args).once.ordered.with(hash_including(hostaddr: "::1,127.0.0.1")).and_call_original
 		expect{ described_class.connect( uri ) }.to raise_error(PG::ConnectionBad)
 	end
 
