@@ -320,7 +320,14 @@ describe PG::Connection do
 		@conn.exec("CREATE USER testusermd5 PASSWORD 'secret'")
 
 		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=wrong"
-		expect { PG.connect(uri) }.to raise_error(/authenti.*testusermd5/i)
+		error_match = if RUBY_PLATFORM=~/mingw|mswin/
+			# It's a long standing issue of libpq, that the error text is not correctly returned when both client and server are running on Windows.
+			# Instead a "Connection refused" is retured.
+			/authenti.*testusermd5|Connection refused|server closed the connection unexpectedly/i
+		else
+			/authenti.*testusermd5/i
+		end
+		expect { PG.connect(uri) }.to raise_error(error_match)
 
 		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=secret"
 		PG.connect(uri) do |conn|
