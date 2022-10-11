@@ -93,6 +93,27 @@ class PG::Connection
 		return connect_hash_to_string(iopts)
 	end
 
+	# Return a String representation of the object suitable for debugging.
+	def inspect
+		str = self.to_s
+		str[-1,0] = if finished?
+			" finished"
+		else
+			stats = []
+			stats << " status=#{ PG.constants.grep(/CONNECTION_/).find{|c| PG.const_get(c) == status} }" if status != CONNECTION_OK
+			stats << " transaction_status=#{ PG.constants.grep(/PQTRANS_/).find{|c| PG.const_get(c) == transaction_status} }" if transaction_status != PG::PQTRANS_IDLE
+			stats << " nonblocking=#{ isnonblocking }" if isnonblocking
+			stats << " pipeline_status=#{ PG.constants.grep(/PQ_PIPELINE_/).find{|c| PG.const_get(c) == pipeline_status} }" if respond_to?(:pipeline_status) && pipeline_status != PG::PQ_PIPELINE_OFF
+			stats << " client_encoding=#{ get_client_encoding }" if get_client_encoding != "UTF8"
+			stats << " type_map_for_results=#{ type_map_for_results.to_s }" unless type_map_for_results.is_a?(PG::TypeMapAllStrings)
+			stats << " type_map_for_queries=#{ type_map_for_queries.to_s }" unless type_map_for_queries.is_a?(PG::TypeMapAllStrings)
+			stats << " encoder_for_put_copy_data=#{ encoder_for_put_copy_data.to_s }" if encoder_for_put_copy_data
+			stats << " decoder_for_get_copy_data=#{ decoder_for_get_copy_data.to_s }" if decoder_for_get_copy_data
+			" host=#{host} port=#{port} user=#{user}#{stats.join}"
+		end
+		return str
+	end
+
 	#  call-seq:
 	#     conn.copy_data( sql [, coder] ) {|sql_result| ... } -> PG::Result
 	#
