@@ -714,7 +714,6 @@ class PG::Connection
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
-			errors = []
 			if iopts[:hostaddr]
 				# hostaddr is provided -> no need to resolve hostnames
 
