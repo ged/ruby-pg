@@ -7,7 +7,7 @@ context "running with sync_* methods" do
 	before :all do
 		@conn.finish
 		PG::Connection.async_api = false
-		@conn = connect_testing_db
+		@conn = $pg_server.connect
 	end
 
 	after :all do

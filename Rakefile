@@ -16,14 +16,14 @@ LIBDIR  = BASEDIR + 'lib'
 EXTDIR  = BASEDIR + 'ext'
 PKGDIR  = BASEDIR + 'pkg'
 TMPDIR  = BASEDIR + 'tmp'
-TESTDIR = BASEDIR + "tmp_test_specs"
+TESTDIR = BASEDIR + "tmp_test_*"
 
 DLEXT   = RbConfig::CONFIG['DLEXT']
 EXT     = LIBDIR + "pg_ext.#{DLEXT}"
 
 GEMSPEC = 'pg.gemspec'
 
-CLOBBER.include( TESTDIR.to_s )
+CLEAN.include( TESTDIR.to_s )
 CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 CLEAN.include "lib/*/libpq.dll"
 CLEAN.include "lib/pg_ext.*"

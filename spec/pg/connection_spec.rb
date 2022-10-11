@@ -289,8 +289,61 @@ describe PG::Connection do
 		end
 	end
 
+	context "with multiple PostgreSQL servers", :without_transaction do
+		before :all do
+			@port_ro = @port + 1
+			@dbms = PG::TestingHelpers::PostgresServer.new("read-only",
+				port: @port_ro,
+				postgresql_conf: "default_transaction_read_only=on"
+			)
+		end
+
+		after :all do
+			@dbms&.teardown
+		end
+
+		it "honors target_session_attrs requirements", :postgresql_10 do
+			uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=read-write"
+			PG.connect(uri) do |conn|
+				expect( conn.port ).to eq( @port )
+			end
+
+			uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=any"
+			PG.connect(uri) do |conn|
+				expect( conn.port ).to eq( @port_ro )
+			end
+		end
+	end
+
+	it "stops hosts iteration on authentication errors", :without_transaction, :ipv6, :postgresql_10 do
+		@conn.exec("DROP USER IF EXISTS testusermd5")
+		@conn.exec("CREATE USER testusermd5 PASSWORD 'secret'")
+
+		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=wrong"
+		error_match = if RUBY_PLATFORM=~/mingw|mswin/
+			# It's a long standing issue of libpq, that the error text is not correctly returned when both client and server are running on Windows.
+			# Instead a "Connection refused" is retured.
+			/authenti.*testusermd5|Connection refused|server closed the connection unexpectedly/i
+		else
+			/authenti.*testusermd5/i
+		end
+		expect { PG.connect(uri) }.to raise_error(error_match)
+
+		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=secret"
+		PG.connect(uri) do |conn|
+			expect( conn.host ).to eq( "::1" )
+			expect( conn.port ).to eq( @port )
+		end
+
+		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port_down},#{@port} dbname=postgres user=testusermd5 password=wrong"
+		PG.connect(uri) do |conn|
+			expect( conn.host ).to eq( "127.0.0.1" )
+			expect( conn.port ).to eq( @port )
+		end
+	end
+
 	it "connects using URI with multiple hosts", :postgresql_12 do
-		uri = "postgres://localhost:#{@port+1},127.0.0.1:#{@port}/test?keepalives=1"
+		uri = "postgres://localhost:#{@port_down},127.0.0.1:#{@port}/test?keepalives=1"
 		tmpconn = described_class.connect( uri )
 		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
 		expect( tmpconn.port ).to eq( @port )

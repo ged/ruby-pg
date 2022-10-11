@@ -77,7 +77,7 @@ context "with a Fiber scheduler", :scheduler do
 			conninfo = @conninfo_gate.gsub(/(^| )host=\w+/, " host=scheduler-localhost")
 			conn = PG.connect(conninfo)
 			opt = conn.conninfo.find { |info| info[:keyword] == 'host' }
-			expect( opt[:val] ).to eq( 'scheduler-localhost' )
+			expect( opt[:val] ).to start_with( 'scheduler-localhost' )
 			conn.finish
 		end
 	end
