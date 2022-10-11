@@ -14,6 +14,63 @@ describe PG::Connection do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
 	end
 
+	describe "#inspect", :without_transaction do
+		it "should print host, port and user of a fresh connection, but not more" do
+			expect( @conn.inspect ).to match(/<PG::Connection:[0-9a-fx]+ host=localhost port=#{@port} user=\w*>/)
+		end
+
+		it "should tell about finished connection" do
+			conn = PG.connect(@conninfo)
+			conn.finish
+			expect( conn.inspect ).to match(/<PG::Connection:[0-9a-fx]+ finished>/)
+		end
+
+		it "should tell about connection status" do
+			conn = PG::Connection.connect_start(@conninfo)
+			expect( conn.inspect ).to match(/ status=CONNECTION_STARTED/)
+		end
+
+		it "should tell about pipeline mode", :postgresql_14 do
+			@conn.enter_pipeline_mode
+			expect( @conn.inspect ).to match(/ pipeline_status=PQ_PIPELINE_ON/)
+		end
+
+		it "should tell about transaction_status" do
+			@conn.send_query "select 8"
+			expect( @conn.inspect ).to match(/ transaction_status=PQTRANS_ACTIVE/)
+		end
+
+		it "should tell about nonblocking mode" do
+			@conn.setnonblocking true
+			expect( @conn.inspect ).to match(/ nonblocking=true/)
+		end
+
+		it "should tell about non UTF8 client encoding" do
+			@conn.set_client_encoding "ISO-8859-1"
+			expect( @conn.inspect ).to match(/ client_encoding=LATIN1/)
+		end
+
+		it "should tell about non default type_map_for_results" do
+			@conn.type_map_for_results = PG::TypeMapByColumn.new([])
+			expect( @conn.inspect ).to match(/ type_map_for_results=#<PG::TypeMapByColumn:[0-9a-fx]+>/)
+		end
+
+		it "should tell about non default type_map_for_queries" do
+			@conn.type_map_for_queries = PG::TypeMapByColumn.new([])
+			expect( @conn.inspect ).to match(/ type_map_for_queries=#<PG::TypeMapByColumn:[0-9a-fx]+>/)
+		end
+
+		it "should tell about encoder_for_put_copy_data" do
+			@conn.encoder_for_put_copy_data = PG::TextEncoder::CopyRow.new
+			expect( @conn.inspect ).to match(/ encoder_for_put_copy_data=#<PG::TextEncoder::CopyRow:[0-9a-fx]+>/)
+		end
+
+		it "should tell about decoder_for_get_copy_data" do
+			@conn.decoder_for_get_copy_data = PG::TextDecoder::CopyRow.new
+			expect( @conn.inspect ).to match(/ decoder_for_get_copy_data=#<PG::TextDecoder::CopyRow:[0-9a-fx]+>/)
+		end
+	end
+
 	describe "PG::Connection#conninfo_parse" do
 		it "encode and decode Hash to connection string to Hash" do
 			hash = {

@@ -46,6 +46,7 @@ module PG::TestingHelpers
 
 			mod.around( :each ) do |example|
 				begin
+					@conn.set_client_encoding "UTF8"
 					@conn.set_default_encoding
 					@conn.exec( 'BEGIN' ) unless example.metadata[:without_transaction]
 					desc = example.source_location.join(':')
@@ -64,6 +65,11 @@ module PG::TestingHelpers
 						end
 						@conn.exit_pipeline_mode
 					end
+					@conn.setnonblocking false
+					@conn.type_map_for_results = PG::TypeMapAllStrings.new
+					@conn.type_map_for_queries = PG::TypeMapAllStrings.new
+					@conn.encoder_for_put_copy_data = nil
+					@conn.decoder_for_get_copy_data = nil
 					@conn.exec( 'ROLLBACK' ) unless example.metadata[:without_transaction]
 				end
 			end
