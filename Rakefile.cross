@@ -32,7 +32,7 @@ class CrossLibrary < OpenStruct
 
 		# Cross-compilation constants
 		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.1.1q'
-		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '14.4'
+		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '14.5'
 
 		# Check if symlinks work in the current working directory.
 		# This fails, if rake-compiler-dock is running on a Windows box.
