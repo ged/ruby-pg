@@ -702,7 +702,10 @@ static VALUE
 pgconn_port(VALUE self)
 {
 	char* port = PQport(pg_get_pgconn(self));
-	return INT2NUM(atoi(port));
+	if (!port || port[0] == '\0')
+		return INT2NUM(DEF_PGPORT);
+	else
+		return INT2NUM(atoi(port));
 }
 
 /*
