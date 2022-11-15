@@ -723,6 +723,7 @@ class PG::Connection
 				# This requires PostgreSQL-10+, so no DNS resolving is done on earlier versions.
 				ihosts = iopts[:host].split(",", -1)
 				iports = iopts[:port].split(",", -1)
+				iports = [nil] if iports.size == 0
 				iports = iports * ihosts.size if iports.size == 1
 				raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihosts.size} hosts" if iports.size != ihosts.size
 
