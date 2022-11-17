@@ -731,6 +731,31 @@ describe PG::Connection do
 		expect( @conn.options ).to eq( "" )
 	end
 
+	it "connects without port and then retrieves the default port" do
+		gate = Helpers::TcpGateSwitcher.new(
+				external_host: 'localhost',
+				external_port: ENV['PGPORT'].to_i,
+				internal_host: "127.0.0.1",
+				internal_port: PG::DEF_PGPORT,
+				debug: ENV['PG_DEBUG']=='1')
+
+		PG.connect(host: "localhost",
+				port: "",
+				dbname: "test") do |conn|
+			expect( conn.port ).to eq( PG::DEF_PGPORT )
+		end
+
+		PG.connect(hostaddr: "127.0.0.1",
+				port: nil,
+				dbname: "test") do |conn|
+			expect( conn.port ).to eq( PG::DEF_PGPORT )
+		end
+
+		gate.finish
+	rescue Errno::EADDRINUSE => err
+		skip err.to_s
+	end
+
 	it "can retrieve hostaddr for the established connection", :postgresql_12 do
 		expect( @conn.hostaddr ).to match( /^127\.0\.0\.1$|^::1$/ )
 	end
