@@ -31,15 +31,15 @@ jobs:
         include:
           - os: windows
             ruby: "head"
-            PGVERSION: 15.0-rc1-windows-x64
-            PGVER: "14"
+            PGVERSION: 15.1-1-windows-x64
+            PGVER: "15"
           - os: windows
             ruby: "2.5"
             PGVERSION: 9.4.26-1-windows-x64
             PGVER: "9.4"
           - os: ubuntu
             ruby: "head"
-            PGVER: "14"
+            PGVER: "15"
           - os: ubuntu
             ruby: "3.1"
             PGVER: "12"
@@ -51,11 +51,11 @@ jobs:
             PGVER: "13"
           - os: ubuntu
             ruby: "truffleruby-head"
-            PGVER: "14"
+            PGVER: "15"
           - os: macos
             ruby: "head"
-            PGVERSION: 13.8-1-osx
-            PGVER: "13"
+            PGVERSION: 15.1-1-osx
+            PGVER: "15"
 
     runs-on: ${{ matrix.os }}-latest
     env:
