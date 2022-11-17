@@ -1,3 +1,12 @@
+== v1.4.5 [2022-11-17] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Return the libpq default port when blank in conninfo. #492
+- Add PG::DEF_PGPORT constant and use it in specs. #492
+- Fix name resolution when empty or `nil` port is given.
+- Update error codes to PostgreSQL-15.
+- Update Windows fat binary gem to PostgreSQL-15.1 AND OpenSSL-1.1.1s.
+
+
 == v1.4.4 [2022-10-11] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Revert to let libpq do the host iteration while connecting. #485
