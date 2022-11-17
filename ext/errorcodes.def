@@ -367,6 +367,10 @@
   register_error_class( "2203F", klass );
 }
 {
+  VALUE klass = define_error_class( "SqlJsonItemCannotBeCastToTargetType", "22" );
+  register_error_class( "2203G", klass );
+}
+{
   VALUE klass = define_error_class( "IntegrityConstraintViolation", NULL );
   register_error_class( "23000", klass );
   register_error_class( "23", klass );
