@@ -1509,7 +1509,7 @@ describe PG::Connection do
 		conn = PG.connect(@conninfo)
 		expect {
 			conn.exec("select pg_terminate_backend(pg_backend_pid());")
-		}.to raise_error(PG::Error, /connection has been closed|terminating connection/i){|err| expect(err).to have_attributes(connection: conn) }
+		}.to raise_error(PG::Error, /connection has been closed|terminating connection|server closed the connection unexpectedly/i){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
 	it "raises a rescue-able error if #finish is called twice", :without_transaction do
