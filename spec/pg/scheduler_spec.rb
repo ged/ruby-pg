@@ -126,7 +126,6 @@ context "with a Fiber scheduler", :scheduler do
 			conn.send_query( "SELECT generate_series(0,999);" )
 			conn.set_single_row_mode
 
-			start_time = Time.now
 			res = conn.get_result
 			rows = res.stream_each_row.to_a
 

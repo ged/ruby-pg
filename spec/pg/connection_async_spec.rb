@@ -82,7 +82,7 @@ describe PG::Connection do
 		end
 
 		it "doesn't worry about an already finished connection" do
-			t, duration = interrupt_thread(Interrupt) do
+			t, _ = interrupt_thread(Interrupt) do
 				@conn.transaction do
 					@conn.exec("ROLLBACK")
 				end
