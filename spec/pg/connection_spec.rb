@@ -736,19 +736,19 @@ describe PG::Connection do
 				external_host: 'localhost',
 				external_port: ENV['PGPORT'].to_i,
 				internal_host: "127.0.0.1",
-				internal_port: 5432,
+				internal_port: PG::DEF_PGPORT,
 				debug: ENV['PG_DEBUG']=='1')
 
 		PG.connect(host: "localhost",
 				port: "",
 				dbname: "test") do |conn|
-			expect( conn.port ).to eq( 5432 )
+			expect( conn.port ).to eq( PG::DEF_PGPORT )
 		end
 
 		PG.connect(hostaddr: "127.0.0.1",
 				port: nil,
 				dbname: "test") do |conn|
-			expect( conn.port ).to eq( 5432 )
+			expect( conn.port ).to eq( PG::DEF_PGPORT )
 		end
 
 		gate.finish

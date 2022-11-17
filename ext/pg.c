@@ -679,6 +679,9 @@ Init_pg_ext(void)
 	rb_define_const(rb_mPGconstants, "INVALID_OID", INT2FIX(InvalidOid));
 	rb_define_const(rb_mPGconstants, "InvalidOid", INT2FIX(InvalidOid));
 
+	/* PostgreSQL compiled in default port */
+	rb_define_const(rb_mPGconstants, "DEF_PGPORT", INT2FIX(DEF_PGPORT));
+
 	/* Add the constants to the toplevel namespace */
 	rb_include_module( rb_mPG, rb_mPGconstants );
 
