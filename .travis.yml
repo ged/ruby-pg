@@ -38,8 +38,8 @@ before_install:
   # Download and install postgresql version to test against in /opt (for non-cross compile only)
   - echo "deb http://apt.postgresql.org/pub/repos/apt/ ${TRAVIS_DIST}-pgdg main $PGVERSION" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
   - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-  - sudo apt -y update
-  - sudo apt -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION*
+  - sudo apt-get -y update
+  - sudo apt-get -y --allow-downgrades install postgresql-$PGVERSION libpq5=$PGVERSION* libpq-dev=$PGVERSION*
   - export PATH=/usr/lib/postgresql/$PGVERSION/bin:$PATH
 
 script:
