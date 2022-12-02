@@ -44,6 +44,7 @@ jobs:
             ruby: "3.1"
             PGVER: "12"
           - os: ubuntu
+            os_ver: "20.04"
             ruby: "2.5"
             PGVER: "9.3"
           - os: ubuntu
@@ -57,7 +58,7 @@ jobs:
             PGVERSION: 15.1-1-osx
             PGVER: "15"
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}-${{ matrix.os_ver || 'latest' }}
     env:
       PGVERSION: ${{ matrix.PGVERSION }}
       PGVER: ${{ matrix.PGVER }}
@@ -98,7 +99,7 @@ jobs:
       - name: Download PostgreSQL Ubuntu
         if: matrix.os == 'ubuntu'
         run: |
-          echo "deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main $PGVER" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
+          echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVER" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get -y update
           sudo apt-get -y --allow-downgrades install postgresql-$PGVER libpq5=$PGVER* libpq-dev=$PGVER*
