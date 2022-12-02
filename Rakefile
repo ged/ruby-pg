@@ -74,10 +74,9 @@ task :test => :spec
 require 'rdoc/task'
 
 RDoc::Task.new( 'docs' ) do |rdoc|
-	rdoc.main = "README.rdoc"
-	rdoc.rdoc_files.include( "*.rdoc", "lib/**/*.rb", 'ext/**/*.{c,h}' )
+	rdoc.options = $gem_spec.rdoc_options
+	rdoc.rdoc_files = $gem_spec.extra_rdoc_files
 	rdoc.generator = :fivefish
-	rdoc.title = "PG: The Ruby PostgreSQL Driver"
 	rdoc.rdoc_dir = 'doc'
 end
 
