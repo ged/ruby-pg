@@ -31,7 +31,7 @@ class CrossLibrary < OpenStruct
 		self.host_platform              = toolchain
 
 		# Cross-compilation constants
-		self.openssl_version            = ENV['OPENSSL_VERSION'] || '1.1.1s'
+		self.openssl_version            = ENV['OPENSSL_VERSION'] || '3.0.7'
 		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '15.1'
 
 		# Check if symlinks work in the current working directory.
@@ -127,7 +127,7 @@ class CrossLibrary < OpenStruct
 		file openssl_makefile => static_openssl_builddir do |t|
 			chdir( static_openssl_builddir ) do
 				cmd = cmd_prelude.dup
-				cmd << "./Configure" << openssl_config
+				cmd << "./Configure" << "-static" << openssl_config
 
 				run( *cmd )
 			end
@@ -146,14 +146,10 @@ class CrossLibrary < OpenStruct
 		end
 
 		desc "compile static #{libssl}"
-		file libssl => "compile_static_openssl:#{for_platform}" do |t|
-			rm t.name.gsub(/\.a$/, ".dll.a")
-		end
+		file libssl => "compile_static_openssl:#{for_platform}"
 
 		desc "compile static #{libcrypto}"
-		file libcrypto => "compile_static_openssl:#{for_platform}" do |t|
-			rm t.name.gsub(/\.a$/, ".dll.a")
-		end
+		file libcrypto => "compile_static_openssl:#{for_platform}"
 
 
 
@@ -196,7 +192,7 @@ class CrossLibrary < OpenStruct
 				cmd << "CFLAGS=-L#{static_openssl_builddir}"
 				cmd << "LDFLAGS=-L#{static_openssl_builddir}"
 				cmd << "LDFLAGS_SL=-L#{static_openssl_builddir}"
-				cmd << "LIBS=-lwsock32 -lgdi32 -lws2_32"
+				cmd << "LIBS=-lwsock32 -lgdi32 -lws2_32 -lcrypt32"
 				cmd << "CPPFLAGS=-I#{static_openssl_builddir}/include"
 
 				run( *cmd )
