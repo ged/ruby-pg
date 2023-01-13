@@ -113,7 +113,7 @@ jobs:
           sudo unzip postgresql-$PGVERSION-binaries.zip -d /Library/PostgreSQL/$PGVER && \
           echo /Library/PostgreSQL/$PGVER/bin >> $GITHUB_PATH
 
-      - run: gem update --system
+      - run: gem update --system 3.3.26
       - run: bundle install
 
       - run: gem install --local *.gem --verbose
