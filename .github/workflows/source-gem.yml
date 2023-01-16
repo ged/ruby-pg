@@ -7,17 +7,17 @@ jobs:
     name: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.1"
+          ruby-version: "3.2"
 
       - name: Build source gem
         run: gem build pg.gemspec
 
       - name: Upload source gem
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: source-gem
           path: "*.gem"
@@ -41,7 +41,7 @@ jobs:
             ruby: "head"
             PGVER: "15"
           - os: ubuntu
-            ruby: "3.1"
+            ruby: "3.2"
             PGVER: "12"
           - os: ubuntu
             os_ver: "20.04"
@@ -65,14 +65,14 @@ jobs:
       MAKE: make -j2 V=1
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
 
       - name: Download gem from build job
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: source-gem
 
