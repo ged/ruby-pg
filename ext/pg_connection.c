@@ -2446,8 +2446,9 @@ pgconn_async_flush(VALUE self)
 		VALUE socket_io = pgconn_socket_io(self);
 		events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE | PG_RUBY_IO_WRITABLE), Qnil));
 
-		if (events & PG_RUBY_IO_READABLE)
+		if (events & PG_RUBY_IO_READABLE){
 			pgconn_consume_input(self);
+		}
 	}
 	return Qtrue;
 }
@@ -3155,10 +3156,21 @@ pgconn_discard_results(VALUE self)
 		* To avoid this call pg_rb_io_wait() and PQconsumeInput() without rb_raise().
 		*/
 		while( gvl_PQisBusy(conn) ){
-			pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
-			if ( PQconsumeInput(conn) == 0 ) {
-				pgconn_close_socket_io(self);
-				return Qfalse;
+			int events;
+
+			switch( PQflush(conn) ) {
+				case 1:
+					events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE | PG_RUBY_IO_WRITABLE), Qnil));
+					if (events & PG_RUBY_IO_READABLE){
+						if ( PQconsumeInput(conn) == 0 ) goto error;
+					}
+					break;
+				case 0:
+					pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
+					if ( PQconsumeInput(conn) == 0 ) goto error;
+					break;
+				default:
+					goto error;
 			}
 		}
 
@@ -3168,7 +3180,9 @@ pgconn_discard_results(VALUE self)
 		status = PQresultStatus(cur);
 		PQclear(cur);
 		if (status == PGRES_COPY_IN){
-			gvl_PQputCopyEnd(conn, "COPY terminated by new PQexec");
+			while( gvl_PQputCopyEnd(conn, "COPY terminated by new query or discard_results") == 0 ){
+				pgconn_async_flush(self);
+			}
 		}
 		if (status == PGRES_COPY_OUT){
 			for(;;) {
@@ -3177,10 +3191,7 @@ pgconn_discard_results(VALUE self)
 				if( st == 0 ) {
 					/* would block -> wait for readable data */
 					pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
-					if ( PQconsumeInput(conn) == 0 ) {
-						pgconn_close_socket_io(self);
-						return Qfalse;
-					}
+					if ( PQconsumeInput(conn) == 0 ) goto error;
 				} else if( st > 0 ) {
 					/* some data retrieved -> discard it */
 					PQfreemem(buffer);
@@ -3193,6 +3204,10 @@ pgconn_discard_results(VALUE self)
 	}
 
 	return Qtrue;
+
+error:
+	pgconn_close_socket_io(self);
+	return Qfalse;
 }
 
 /*
