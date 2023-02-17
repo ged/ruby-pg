@@ -642,7 +642,7 @@ describe PG::Connection do
 				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
 			end
 
-			run_with_gate(60) do |conn, gate|
+			run_with_gate(200) do |conn, gate|
 				conn.setnonblocking(true)
 
 				res = nil
@@ -668,7 +668,7 @@ describe PG::Connection do
 		end
 
 		it "needs to flush data after send_query" do
-			run_with_gate(60) do |conn, gate|
+			run_with_gate(200) do |conn, gate|
 				conn.setnonblocking(true)
 
 				gate.stop
