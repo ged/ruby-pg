@@ -1,6 +1,11 @@
 name: Binary gems
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 3" # At 05:00 on Wednesday # https://crontab.guru/#0_5_*_*_3
 
 jobs:
   job_build_x64:
