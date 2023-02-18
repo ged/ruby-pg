@@ -3126,8 +3126,14 @@ pgconn_async_get_last_result(VALUE self)
  *    conn.discard_results()
  *
  * Silently discard any prior query result that application didn't eat.
- * This is done prior of Connection#exec and sibling methods and can
- * be called explicitly when using the async API.
+ * This is internally used prior to Connection#exec and sibling methods.
+ * It doesn't raise an exception on connection errors, but returns +false+ instead.
+ *
+ * Returns:
+ * * +nil+  when the connection is already idle
+ * * +true+  when some results have been discarded
+ * * +false+  when a failure occured and the connection was closed
+ *
  */
 static VALUE
 pgconn_discard_results(VALUE self)
