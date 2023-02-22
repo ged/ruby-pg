@@ -3643,6 +3643,14 @@ pgconn_send_flush_request(VALUE self)
  * LARGE OBJECT SUPPORT
  **************************************************************************/
 
+#define BLOCKING_BEGIN(conn) do { \
+	int old_nonblocking = PQisnonblocking(conn); \
+	PQsetnonblocking(conn, 0);
+
+#define BLOCKING_END(th) \
+	PQsetnonblocking(conn, old_nonblocking); \
+} while(0);
+
 /*
  * call-seq:
  *    conn.lo_creat( [mode] ) -> Integer
@@ -3663,7 +3671,10 @@ pgconn_locreat(int argc, VALUE *argv, VALUE self)
 	else
 		mode = NUM2INT(nmode);
 
-	lo_oid = lo_creat(conn, mode);
+	BLOCKING_BEGIN(conn)
+		lo_oid = lo_creat(conn, mode);
+	BLOCKING_END(conn)
+
 	if (lo_oid == 0)
 		pg_raise_conn_error( rb_ePGerror, self, "lo_creat failed");
 
@@ -3708,7 +3719,10 @@ pgconn_loimport(VALUE self, VALUE filename)
 
 	Check_Type(filename, T_STRING);
 
-	lo_oid = lo_import(conn, StringValueCStr(filename));
+	BLOCKING_BEGIN(conn)
+		lo_oid = lo_import(conn, StringValueCStr(filename));
+	BLOCKING_END(conn)
+
 	if (lo_oid == 0) {
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 	}
@@ -3726,11 +3740,16 @@ pgconn_loexport(VALUE self, VALUE lo_oid, VALUE filename)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	Oid oid;
+	int ret;
 	Check_Type(filename, T_STRING);
 
 	oid = NUM2UINT(lo_oid);
 
-	if (lo_export(conn, oid, StringValueCStr(filename)) < 0) {
+	BLOCKING_BEGIN(conn)
+		ret = lo_export(conn, oid, StringValueCStr(filename));
+	BLOCKING_END(conn)
+
+	if (ret < 0) {
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 	}
 	return Qnil;
@@ -3761,7 +3780,11 @@ pgconn_loopen(int argc, VALUE *argv, VALUE self)
 	else
 		mode = NUM2INT(nmode);
 
-	if((fd = lo_open(conn, lo_oid, mode)) < 0) {
+	BLOCKING_BEGIN(conn)
+		fd = lo_open(conn, lo_oid, mode);
+	BLOCKING_END(conn)
+
+	if(fd < 0) {
 		pg_raise_conn_error( rb_ePGerror, self, "can't open large object: %s", PQerrorMessage(conn));
 	}
 	return INT2FIX(fd);
@@ -3786,8 +3809,12 @@ pgconn_lowrite(VALUE self, VALUE in_lo_desc, VALUE buffer)
 	if( RSTRING_LEN(buffer) < 0) {
 		pg_raise_conn_error( rb_ePGerror, self, "write buffer zero string");
 	}
-	if((n = lo_write(conn, fd, StringValuePtr(buffer),
-				RSTRING_LEN(buffer))) < 0) {
+	BLOCKING_BEGIN(conn)
+		n = lo_write(conn, fd, StringValuePtr(buffer),
+				RSTRING_LEN(buffer));
+	BLOCKING_END(conn)
+
+	if(n < 0) {
 		pg_raise_conn_error( rb_ePGerror, self, "lo_write failed: %s", PQerrorMessage(conn));
 	}
 
@@ -3815,7 +3842,12 @@ pgconn_loread(VALUE self, VALUE in_lo_desc, VALUE in_len)
 		pg_raise_conn_error( rb_ePGerror, self, "negative length %d given", len);
 
 	buffer = ALLOC_N(char, len);
-	if((ret = lo_read(conn, lo_desc, buffer, len)) < 0)
+
+	BLOCKING_BEGIN(conn)
+		ret = lo_read(conn, lo_desc, buffer, len);
+	BLOCKING_END(conn)
+
+	if(ret < 0)
 		pg_raise_conn_error( rb_ePGerror, self, "lo_read failed");
 
 	if(ret == 0) {
@@ -3845,7 +3877,11 @@ pgconn_lolseek(VALUE self, VALUE in_lo_desc, VALUE offset, VALUE whence)
 	int lo_desc = NUM2INT(in_lo_desc);
 	int ret;
 
-	if((ret = lo_lseek(conn, lo_desc, NUM2INT(offset), NUM2INT(whence))) < 0) {
+	BLOCKING_BEGIN(conn)
+		ret = lo_lseek(conn, lo_desc, NUM2INT(offset), NUM2INT(whence));
+	BLOCKING_END(conn)
+
+	if(ret < 0) {
 		pg_raise_conn_error( rb_ePGerror, self, "lo_lseek failed");
 	}
 
@@ -3865,7 +3901,11 @@ pgconn_lotell(VALUE self, VALUE in_lo_desc)
 	PGconn *conn = pg_get_pgconn(self);
 	int lo_desc = NUM2INT(in_lo_desc);
 
-	if((position = lo_tell(conn, lo_desc)) < 0)
+	BLOCKING_BEGIN(conn)
+		position = lo_tell(conn, lo_desc);
+	BLOCKING_END(conn)
+
+	if(position < 0)
 		pg_raise_conn_error( rb_ePGerror, self, "lo_tell failed");
 
 	return INT2FIX(position);
@@ -3883,8 +3923,13 @@ pgconn_lotruncate(VALUE self, VALUE in_lo_desc, VALUE in_len)
 	PGconn *conn = pg_get_pgconn(self);
 	int lo_desc = NUM2INT(in_lo_desc);
 	size_t len = NUM2INT(in_len);
+	int ret;
 
-	if(lo_truncate(conn,lo_desc,len) < 0)
+	BLOCKING_BEGIN(conn)
+		ret = lo_truncate(conn,lo_desc,len);
+	BLOCKING_END(conn)
+
+	if(ret < 0)
 		pg_raise_conn_error( rb_ePGerror, self, "lo_truncate failed");
 
 	return Qnil;
@@ -3901,8 +3946,13 @@ pgconn_loclose(VALUE self, VALUE in_lo_desc)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	int lo_desc = NUM2INT(in_lo_desc);
+	int ret;
 
-	if(lo_close(conn,lo_desc) < 0)
+	BLOCKING_BEGIN(conn)
+		ret = lo_close(conn,lo_desc);
+	BLOCKING_END(conn)
+
+	if(ret < 0)
 		pg_raise_conn_error( rb_ePGerror, self, "lo_close failed");
 
 	return Qnil;
@@ -3919,8 +3969,13 @@ pgconn_lounlink(VALUE self, VALUE in_oid)
 {
 	PGconn *conn = pg_get_pgconn(self);
 	Oid oid = NUM2UINT(in_oid);
+	int ret;
 
-	if(lo_unlink(conn,oid) < 0)
+	BLOCKING_BEGIN(conn)
+		ret = lo_unlink(conn,oid);
+	BLOCKING_END(conn)
+
+	if(ret < 0)
 		pg_raise_conn_error( rb_ePGerror, self, "lo_unlink failed");
 
 	return Qnil;
