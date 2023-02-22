@@ -1,20 +1,19 @@
-= pg
+# pg
 
 home :: https://github.com/ged/ruby-pg
 docs :: http://deveiate.org/code/pg
-clog :: link:/History.rdoc
+clog :: link:/History.md
 
-{<img src="https://badges.gitter.im/Join%20Chat.svg" alt="Join the chat at https://gitter.im/ged/ruby-pg">}[https://gitter.im/ged/ruby-pg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge]
+[![Join the chat at https://gitter.im/ged/ruby-pg](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ged/ruby-pg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-== Description
+## Description
 
-Pg is the Ruby interface to the {PostgreSQL RDBMS}[http://www.postgresql.org/].
-
-It works with {PostgreSQL 9.3 and later}[http://www.postgresql.org/support/versioning/].
+Pg is the Ruby interface to the [PostgreSQL RDBMS](http://www.postgresql.org/).
+It works with [PostgreSQL 9.3 and later](http://www.postgresql.org/support/versioning/).
 
 A small example usage:
-
+```ruby
   #!/usr/bin/env ruby
 
   require 'pg'
@@ -28,14 +27,16 @@ A small example usage:
         row.values_at('pid', 'usename', 'query')
     end
   end
+```
 
-== Build Status
+## Build Status
 
-{<img src="https://github.com/ged/ruby-pg/actions/workflows/source-gem.yml/badge.svg?branch=master" alt="Build Status Github Actions" />}[https://github.com/ged/ruby-pg/actions/workflows/source-gem.yml]
-{<img src="https://ci.appveyor.com/api/projects/status/gjx5axouf3b1wicp?svg=true" alt="Build Status Appveyor" />}[https://ci.appveyor.com/project/ged/ruby-pg-9j8l3]
-{<img src="https://app.travis-ci.com/larskanis/ruby-pg.svg?branch=master" alt="Build Status" />}[https://app.travis-ci.com/larskanis/ruby-pg]
+[![Build Status Github Actions](https://github.com/ged/ruby-pg/actions/workflows/source-gem.yml/badge.svg?branch=master)](https://github.com/ged/ruby-pg/actions/workflows/source-gem.yml)
+[![Binary gems](https://github.com/ged/ruby-pg/actions/workflows/binary-gems.yml/badge.svg?branch=master)](https://github.com/ged/ruby-pg/actions/workflows/binary-gems.yml)
+[![Build Status Appveyor](https://ci.appveyor.com/api/projects/status/gjx5axouf3b1wicp?svg=true)](https://ci.appveyor.com/project/ged/ruby-pg-9j8l3)
 
-== Requirements
+
+## Requirements
 
 * Ruby 2.4 or newer
 * PostgreSQL 9.3.x or later (with headers, -dev packages, etc).
@@ -44,18 +45,19 @@ It usually works with earlier versions of Ruby/PostgreSQL as well, but those are
 not regularly tested.
 
 
-== Versioning
+## Versioning
 
-We tag and release gems according to the {Semantic Versioning}[http://semver.org/] principle.
+We tag and release gems according to the [Semantic Versioning](http://semver.org/) principle.
 
-As a result of this policy, you can (and should) specify a dependency on this gem using the {Pessimistic Version Constraint}[http://guides.rubygems.org/patterns/#pessimistic-version-constraint] with two digits of precision.
+As a result of this policy, you can (and should) specify a dependency on this gem using the [Pessimistic Version Constraint](http://guides.rubygems.org/patterns/#pessimistic-version-constraint) with two digits of precision.
 
 For example:
 
+```ruby
   spec.add_dependency 'pg', '~> 1.0'
+```
 
-
-== How To Install
+## How To Install
 
 Install via RubyGems:
 
@@ -73,16 +75,16 @@ If you're installing via Bundler, you can provide compile hints like so:
 See README-OS_X.rdoc for more information about installing under MacOS X, and
 README-Windows.rdoc for Windows build/installation instructions.
 
-There's also {a Google+ group}[http://goo.gl/TFy1U] and a
-{mailing list}[http://groups.google.com/group/ruby-pg] if you get stuck, or just
+There's also [a Google+ group](http://goo.gl/TFy1U) and a
+[mailing list](http://groups.google.com/group/ruby-pg) if you get stuck, or just
 want to chat about something.
 
 If you want to install as a signed gem, the public certs of the gem signers
-can be found in {the `certs` directory}[https://github.com/ged/ruby-pg/tree/master/certs]
+can be found in [the `certs` directory](https://github.com/ged/ruby-pg/tree/master/certs)
 of the repository.
 
 
-== Type Casts
+## Type Casts
 
 Pg can optionally type cast result values and query parameters in Ruby or
 native C code. This can speed up data transfers to and from the database,
@@ -90,7 +92,7 @@ because String allocations are reduced and conversions in (slower) Ruby code
 can be omitted.
 
 Very basic type casting can be enabled by:
-
+```ruby
     conn.type_map_for_results = PG::BasicTypeMapForResults.new conn
     # ... this works for result value mapping:
     conn.exec("select 1, now(), '{2,3}'::int[]").values
@@ -100,11 +102,12 @@ Very basic type casting can be enabled by:
     # ... and this for param value mapping:
     conn.exec_params("SELECT $1::text, $2::text, $3::text", [1, 1.23, [2,3]]).values
         # => [["1", "1.2300000000000000E+00", "{2,3}"]]
+```
 
 But Pg's type casting is highly customizable. That's why it's divided into
 2 layers:
 
-=== Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
+### Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
 
 This is the lower layer, containing encoding classes that convert Ruby
 objects for transmission to the DBMS and decoding classes to convert
@@ -119,30 +122,32 @@ PG::Coder objects can be used to set up a PG::TypeMap or alternatively
 to convert single values to/from their string representation.
 
 The following PostgreSQL column types are supported by ruby-pg (TE = Text Encoder, TD = Text Decoder, BE = Binary Encoder, BD = Binary Decoder):
-* Integer: {TE}[rdoc-ref:PG::TextEncoder::Integer], {TD}[rdoc-ref:PG::TextDecoder::Integer], {BD}[rdoc-ref:PG::BinaryDecoder::Integer] 💡 No links? Switch to {here}[https://deveiate.org/code/pg/README_rdoc.html#label-Type+Casts] 💡
-  * BE: {Int2}[rdoc-ref:PG::BinaryEncoder::Int2], {Int4}[rdoc-ref:PG::BinaryEncoder::Int4], {Int8}[rdoc-ref:PG::BinaryEncoder::Int8]
-* Float: {TE}[rdoc-ref:PG::TextEncoder::Float], {TD}[rdoc-ref:PG::TextDecoder::Float], {BD}[rdoc-ref:PG::BinaryDecoder::Float]
-* Numeric: {TE}[rdoc-ref:PG::TextEncoder::Numeric], {TD}[rdoc-ref:PG::TextDecoder::Numeric]
-* Boolean: {TE}[rdoc-ref:PG::TextEncoder::Boolean], {TD}[rdoc-ref:PG::TextDecoder::Boolean], {BE}[rdoc-ref:PG::BinaryEncoder::Boolean], {BD}[rdoc-ref:PG::BinaryDecoder::Boolean]
-* String: {TE}[rdoc-ref:PG::TextEncoder::String], {TD}[rdoc-ref:PG::TextDecoder::String], {BE}[rdoc-ref:PG::BinaryEncoder::String], {BD}[rdoc-ref:PG::BinaryDecoder::String]
-* Bytea: {TE}[rdoc-ref:PG::TextEncoder::Bytea], {TD}[rdoc-ref:PG::TextDecoder::Bytea], {BE}[rdoc-ref:PG::BinaryEncoder::Bytea], {BD}[rdoc-ref:PG::BinaryDecoder::Bytea]
-* Base64: {TE}[rdoc-ref:PG::TextEncoder::ToBase64], {TD}[rdoc-ref:PG::TextDecoder::FromBase64], {BE}[rdoc-ref:PG::BinaryEncoder::FromBase64], {BD}[rdoc-ref:PG::BinaryDecoder::ToBase64]
+
+* Integer: [TE](rdoc-ref:PG::TextEncoder::Integer), [TD](rdoc-ref:PG::TextDecoder::Integer), [BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 No links? Switch to [here](https://deveiate.org/code/pg/README_md.html#label-Type+Casts) 💡
+  * BE: [Int2](rdoc-ref:PG::BinaryEncoder::Int2), [Int4](rdoc-ref:PG::BinaryEncoder::Int4), [Int8](rdoc-ref:PG::BinaryEncoder::Int8)
+* Float: [TE](rdoc-ref:PG::TextEncoder::Float), [TD](rdoc-ref:PG::TextDecoder::Float), [BD](rdoc-ref:PG::BinaryDecoder::Float)
+* Numeric: [TE](rdoc-ref:PG::TextEncoder::Numeric), [TD](rdoc-ref:PG::TextDecoder::Numeric)
+* Boolean: [TE](rdoc-ref:PG::TextEncoder::Boolean), [TD](rdoc-ref:PG::TextDecoder::Boolean), [BE](rdoc-ref:PG::BinaryEncoder::Boolean), [BD](rdoc-ref:PG::BinaryDecoder::Boolean)
+* String: [TE](rdoc-ref:PG::TextEncoder::String), [TD](rdoc-ref:PG::TextDecoder::String), [BE](rdoc-ref:PG::BinaryEncoder::String), [BD](rdoc-ref:PG::BinaryDecoder::String)
+* Bytea: [TE](rdoc-ref:PG::TextEncoder::Bytea), [TD](rdoc-ref:PG::TextDecoder::Bytea), [BE](rdoc-ref:PG::BinaryEncoder::Bytea), [BD](rdoc-ref:PG::BinaryDecoder::Bytea)
+* Base64: [TE](rdoc-ref:PG::TextEncoder::ToBase64), [TD](rdoc-ref:PG::TextDecoder::FromBase64), [BE](rdoc-ref:PG::BinaryEncoder::FromBase64), [BD](rdoc-ref:PG::BinaryDecoder::ToBase64)
 * Timestamp:
-  * TE: {local}[rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone], {UTC}[rdoc-ref:PG::TextEncoder::TimestampUtc], {with-TZ}[rdoc-ref:PG::TextEncoder::TimestampWithTimeZone]
-  * TD: {local}[rdoc-ref:PG::TextDecoder::TimestampLocal], {UTC}[rdoc-ref:PG::TextDecoder::TimestampUtc], {UTC-to-local}[rdoc-ref:PG::TextDecoder::TimestampUtcToLocal]
-  * BD: {local}[rdoc-ref:PG::BinaryDecoder::TimestampLocal], {UTC}[rdoc-ref:PG::BinaryDecoder::TimestampUtc], {UTC-to-local}[rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal]
-* Date: {TE}[rdoc-ref:PG::TextEncoder::Date], {TD}[rdoc-ref:PG::TextDecoder::Date]
-* JSON and JSONB: {TE}[rdoc-ref:PG::TextEncoder::JSON], {TD}[rdoc-ref:PG::TextDecoder::JSON]
-* Inet: {TE}[rdoc-ref:PG::TextEncoder::Inet], {TD}[rdoc-ref:PG::TextDecoder::Inet]
-* Array: {TE}[rdoc-ref:PG::TextEncoder::Array], {TD}[rdoc-ref:PG::TextDecoder::Array]
-* Composite Type (also called "Row" or "Record"): {TE}[rdoc-ref:PG::TextEncoder::Record], {TD}[rdoc-ref:PG::TextDecoder::Record]
+  * TE: [local](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone), [UTC](rdoc-ref:PG::TextEncoder::TimestampUtc), [with-TZ](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
+  * TD: [local](rdoc-ref:PG::TextDecoder::TimestampLocal), [UTC](rdoc-ref:PG::TextDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
+  * BD: [local](rdoc-ref:PG::BinaryDecoder::TimestampLocal), [UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
+* Date: [TE](rdoc-ref:PG::TextEncoder::Date), [TD](rdoc-ref:PG::TextDecoder::Date)
+* JSON and JSONB: [TE](rdoc-ref:PG::TextEncoder::JSON), [TD](rdoc-ref:PG::TextDecoder::JSON)
+* Inet: [TE](rdoc-ref:PG::TextEncoder::Inet), [TD](rdoc-ref:PG::TextDecoder::Inet)
+* Array: [TE](rdoc-ref:PG::TextEncoder::Array), [TD](rdoc-ref:PG::TextDecoder::Array)
+* Composite Type (also called "Row" or "Record"): [TE](rdoc-ref:PG::TextEncoder::Record), [TD](rdoc-ref:PG::TextDecoder::Record)
 
 The following text formats can also be encoded although they are not used as column type:
-* COPY input and output data: {TE}[rdoc-ref:PG::TextEncoder::CopyRow], {TD}[rdoc-ref:PG::TextDecoder::CopyRow]
-* Literal for insertion into SQL string: {TE}[rdoc-ref:PG::TextEncoder::QuotedLiteral]
-* SQL-Identifier: {TE}[rdoc-ref:PG::TextEncoder::Identifier], {TD}[rdoc-ref:PG::TextDecoder::Identifier]
 
-=== PG::TypeMap and derivations (ext/pg_type_map*.c, lib/pg/type_map*.rb)
+* COPY input and output data: [TE](rdoc-ref:PG::TextEncoder::CopyRow), [TD](rdoc-ref:PG::TextDecoder::CopyRow)
+* Literal for insertion into SQL string: [TE](rdoc-ref:PG::TextEncoder::QuotedLiteral)
+* SQL-Identifier: [TE](rdoc-ref:PG::TextEncoder::Identifier), [TD](rdoc-ref:PG::TextDecoder::Identifier)
+
+### PG::TypeMap and derivations (ext/pg_type_map*.c, lib/pg/type_map*.rb)
 
 A TypeMap defines which value will be converted by which encoder/decoder.
 There are different type map strategies, implemented by several derivations
@@ -154,6 +159,7 @@ result set. Type maps can also be used for COPY in and out data streaming.
 See PG::Connection#copy_data .
 
 The following base type maps are available:
+
 * PG::TypeMapAllStrings - encodes and decodes all values to and from strings (default)
 * PG::TypeMapByClass - selects encoder based on the class of the value to be sent
 * PG::TypeMapByColumn - selects encoder and decoder by column order
@@ -161,15 +167,16 @@ The following base type maps are available:
 * PG::TypeMapInRuby - define a custom type map in ruby
 
 The following type maps are prefilled with type mappings from the PG::BasicTypeRegistry :
+
 * PG::BasicTypeMapForResults - a PG::TypeMapByOid prefilled with decoders for common PostgreSQL column types
 * PG::BasicTypeMapBasedOnResult - a PG::TypeMapByOid prefilled with encoders for common PostgreSQL column types
 * PG::BasicTypeMapForQueries - a PG::TypeMapByClass prefilled with encoders for common Ruby value classes
 
 
-== Contributing
+## Contributing
 
 To report bugs, suggest features, or check out the source with Git,
-{check out the project page}[https://github.com/ged/ruby-pg].
+[check out the project page](https://github.com/ged/ruby-pg).
 
 After checking out the source, install all dependencies:
 
@@ -201,7 +208,7 @@ The current maintainers are Michael Granger <ged@FaerieMUD.org> and
 Lars Kanis <lars@greiz-reinsdorf.de>.
 
 
-== Copying
+## Copying
 
 Copyright (c) 1997-2022 by the authors.
 
@@ -224,7 +231,7 @@ under the terms of the PostgreSQL license, included in the file POSTGRES.
 Portions copyright LAIKA, Inc.
 
 
-== Acknowledgments
+## Acknowledgments
 
 See Contributors.rdoc for the many additional fine people that have contributed
 to this library over the years.

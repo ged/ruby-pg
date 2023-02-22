@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/ged/ruby-pg"
-  spec.metadata["changelog_uri"] = "https://github.com/ged/ruby-pg/blob/master/History.rdoc"
+  spec.metadata["changelog_uri"] = "https://github.com/ged/ruby-pg/blob/master/History.md"
   spec.metadata["documentation_uri"] = "http://deveiate.org/code/pg"
 
   # Specify which files should be added to the gem when it is released.
@@ -28,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.extensions    = ["ext/extconf.rb"]
   spec.require_paths = ["lib"]
   spec.cert_chain    = ["certs/ged.pem"]
-  spec.rdoc_options  = ["--main", "README.rdoc",
+  spec.rdoc_options  = ["--main", "README.md",
                         "--title", "PG: The Ruby PostgreSQL Driver"]
-  spec.extra_rdoc_files = `git ls-files -z *.rdoc lib/*.rb lib/*/*.rb ext/*.c ext/*.h`.split("\x0")
+  spec.extra_rdoc_files = `git ls-files -z *.rdoc *.md lib/*.rb lib/*/*.rb ext/*.c ext/*.h`.split("\x0")
 end
