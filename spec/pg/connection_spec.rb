@@ -915,14 +915,47 @@ describe PG::Connection do
 		end
 	end
 
-	it "not read past the end of a large object" do
-		@conn.transaction do
-			oid = @conn.lo_create( 0 )
-			fd = @conn.lo_open( oid, PG::INV_READ|PG::INV_WRITE )
-			@conn.lo_write( fd, "foobar" )
-			expect( @conn.lo_read( fd, 10 ) ).to be_nil()
-			@conn.lo_lseek( fd, 0, PG::SEEK_SET )
-			expect( @conn.lo_read( fd, 10 ) ).to eq( 'foobar' )
+	describe "large objects" do
+
+		it "not read past the end of a large object" do
+			@conn.transaction do
+				oid = @conn.lo_create( 0 )
+				fd = @conn.lo_open( oid, PG::INV_READ|PG::INV_WRITE )
+				expect( @conn.lo_write( fd, "foobar" ) ).to eq( 6 )
+				expect( @conn.lo_read( fd, 10 ) ).to be_nil()
+				expect( @conn.lo_lseek( fd, 0, PG::SEEK_SET ) ).to eq( 0 )
+				expect( @conn.lo_read( fd, 10 ) ).to eq( 'foobar' )
+				expect( @conn.lo_close( fd ) ).to be_nil
+				expect( @conn.lo_unlink( oid ) ).to be_nil
+			end
+		end
+
+		it "large object can handle big data", :unix_socket do
+			# Using lo_write with > 300000 bytes on a UnixSocket connection in nonblocking mode results in the following error:
+			#   PG::UnableToSend: unexpected response from server; first received character was "V"
+			# This is because the lo_write call doesn't wait for the response of the server function, but sends the next command early, so that results overlap.
+			# Switching to blocking mode as part of lo_* calls fixes this issue and is tested here.
+
+			uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
+			conn = described_class.connect( uri )
+
+			bytes = Random.urandom(512000)
+			oid = conn.lo_creat
+			conn.transaction do
+				fd = conn.lo_open( oid, PG::INV_WRITE )
+				conn.lo_write( fd, bytes )
+				expect( conn.lo_close( fd ) ).to be_nil
+			end
+
+			conn.transaction do
+				fd = conn.lo_open( oid, PG::INV_READ )
+				bytes2 = conn.lo_read( fd, bytes.bytesize )
+				expect( bytes2 ).to eq( bytes )
+				expect( conn.lo_close( fd ) ).to be_nil
+			end
+			expect( conn.lo_unlink( oid ) ).to be_nil
+		ensure
+			conn&.finish
 		end
 	end
 
