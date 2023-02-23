@@ -173,6 +173,38 @@ The following type maps are prefilled with type mappings from the PG::BasicTypeR
 * PG::BasicTypeMapForQueries - a PG::TypeMapByClass prefilled with encoders for common Ruby value classes
 
 
+## Thread support
+
+PG is thread safe in such a way that different threads can use different PG::Connection objects concurrently.
+However it is not safe to access any Pg objects simultaneously from more than one thread.
+So make sure to open a new database server connection for every new thread or use a wrapper library like ActiveRecord that manages connections in a thread safe way.
+
+If messages like the following are printed to stderr, you're probably using one connection from several threads:
+
+    message type 0x31 arrived from server while idle
+    message type 0x32 arrived from server while idle
+    message type 0x54 arrived from server while idle
+    message type 0x43 arrived from server while idle
+    message type 0x5a arrived from server while idle
+
+
+## Fiber IO scheduler support
+
+Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0.
+On Windows support for `Fiber.scheduler` is available on Ruby-3.1 or newer.
+All possibly blocking IO operations are routed through the `Fiber.scheduler` if one is registered for the running thread.
+That is why pg internally uses the asynchronous libpq interface even for synchronous/blocking method calls.
+It also uses Ruby's DNS resolution instead of libpq's builtin functions.
+
+Internally Pg always uses the nonblocking connection mode of libpq.
+It then behaves like running in blocking mode but ensures, that all blocking IO is handled in Ruby through a possibly registered `Fiber.scheduler`.
+When `PG::Connection.setnonblocking(true)` is called then the nonblocking state stays enabled, but the additional handling of blocking states is disabled, so that the calling program has to handle blocking states on its own.
+
+An exception to this rule are the methods for large objects like `PG::Connection#lo_create` and authentication methods using external libraries (like GSSAPI authentication).
+They are not compatible with `Fiber.scheduler`, so that blocking states are not passed to the registered IO scheduler.
+That means the operation will work properly, but IO waiting states can not be used to switch to another Fiber doing IO.
+
+
 ## Contributing
 
 To report bugs, suggest features, or check out the source with Git,
