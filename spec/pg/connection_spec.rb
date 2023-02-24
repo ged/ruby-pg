@@ -1166,6 +1166,7 @@ describe PG::Connection do
 		@conn.sync_put_copy_end
 		res = @conn.get_last_result
 		expect( res.result_status ).to eq( PG::PGRES_COMMAND_OK )
+		@conn.exec( "DROP TABLE IF EXISTS copytable2" )
 	end
 
 	describe "#copy_data" do
@@ -1240,6 +1241,7 @@ describe PG::Connection do
 
 			res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
 			expect( res.values ).to eq( [["1"], ["2"]] )
+			@conn.exec( "DROP TABLE IF EXISTS copytable" )
 		end
 
 		it "can process #copy_data input queries with lots of data" do
@@ -1256,6 +1258,7 @@ describe PG::Connection do
 			expect( res.values ).to eq( [["1000"]] )
 			res = @conn.exec( "SELECT * FROM copytable2 LIMIT 1" )
 			expect( res.values ).to eq( [[str.chomp]] )
+			@conn.exec( "DROP TABLE IF EXISTS copytable2" )
 		end
 
 		it "can handle client errors in #copy_data for input" do
@@ -1270,6 +1273,7 @@ describe PG::Connection do
 			end
 
 			expect( @conn ).to still_be_usable
+			@conn.exec( "DROP TABLE IF EXISTS copytable" )
 		end
 
 		it "can handle server errors in #copy_data for input" do
@@ -1283,30 +1287,43 @@ describe PG::Connection do
 				}.to raise_error(PG::Error, /invalid input syntax for .*integer/){|err| expect(err).to have_attributes(connection: @conn) }
 			end
 			expect( @conn ).to still_be_usable
+			@conn.exec( "DROP TABLE IF EXISTS copytable" )
 		end
 
-		it "gracefully handle SQL statements while in #copy_data for input" do
+		it "doesn't lose client error when #copy_data can not be finished" do
 			@conn.exec "ROLLBACK"
 			@conn.transaction do
 				@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
 				expect {
 					@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
-						@conn.exec "SELECT 1"
+						@conn.discard_results # end copy state so that put_copy_end fails in copy_data
+						raise "boom"
 					end
-				}.to raise_error(PG::Error, /no COPY in progress/){|err| expect(err).to have_attributes(connection: @conn) }
+				}.to raise_error(RuntimeError, "boom")
 			end
 			expect( @conn ).to still_be_usable
+			@conn.exec( "DROP TABLE IF EXISTS copytable" )
+		end
+
+		it "gracefully handle SQL statements while in #copy_data for input" do
+			@conn.exec "ROLLBACK"
+			@conn.exec( "CREATE TEMP TABLE copytable (col1 INT)" )
+			expect {
+				@conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
+					@conn.exec "SELECT 1"
+				end
+			}.to raise_error(PG::LostCopyState, /another SQL query/){|err| expect(err).to have_attributes(connection: @conn) }
+			expect( @conn ).to still_be_usable
+			@conn.exec( "DROP TABLE copytable" )
 		end
 
 		it "gracefully handle SQL statements while in #copy_data for output" do
 			@conn.exec "ROLLBACK"
-			@conn.transaction do
-				expect {
-					@conn.copy_data( "COPY (VALUES(1), (2)) TO STDOUT" ) do |res|
-						@conn.exec "SELECT 3"
-					end
-				}.to raise_error(PG::Error, /no COPY in progress/){|err| expect(err).to have_attributes(connection: @conn) }
-			end
+			expect {
+				@conn.copy_data( "COPY (VALUES(1), (2)) TO STDOUT" ) do |res|
+					@conn.exec "SELECT 3"
+				end
+			}.to raise_error(PG::LostCopyState, /another SQL query/){|err| expect(err).to have_attributes(connection: @conn) }
 			expect( @conn ).to still_be_usable
 		end
 
