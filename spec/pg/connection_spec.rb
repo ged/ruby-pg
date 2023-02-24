@@ -1510,12 +1510,37 @@ describe PG::Connection do
 		expect( conn.connect_poll ).to eq( PG::PGRES_POLLING_FAILED )
 	end
 
-	it "discards previous results at #discard_results" do
-		@conn.send_query( "select 1" )
-		@conn.discard_results
-		@conn.send_query( "select 41 as one" )
-		res = @conn.get_last_result
-		expect( res.to_a ).to eq( [{ 'one' => '41' }] )
+	describe "#discard_results" do
+
+		it "discards previous results" do
+			@conn.send_query( "select 1" )
+			expect( @conn.discard_results ).to eq( true )
+			@conn.send_query( "select 41 as one" )
+			res = @conn.get_last_result
+			expect( res.to_a ).to eq( [{ 'one' => '41' }] )
+		end
+
+		it "returns nil when in idle state", :without_transaction do
+			expect( @conn.discard_results ).to eq( nil )
+
+			@conn.transaction do
+				expect( @conn.discard_results ).to eq( nil )
+			end
+
+			@conn.transaction do
+				@conn.send_query( "WRONG COMMAND" )
+				@conn.get_result
+				@conn.get_result
+
+				expect( @conn.discard_results ).to be_nil
+			end
+		end
+
+		it "returns false on connection failures" do
+			conn = PG.connect(@conninfo)
+			conn.send_query("select pg_terminate_backend(pg_backend_pid());")
+			expect( conn.discard_results ).to eq( false )
+		end
 	end
 
 	it "discards previous results (if any) before waiting on #exec" do

@@ -3142,8 +3142,12 @@ pgconn_discard_results(VALUE self)
 	PGconn *conn = pg_get_pgconn(self);
 	VALUE socket_io;
 
-	if( PQtransactionStatus(conn) == PQTRANS_IDLE ) {
-		return Qnil;
+	switch( PQtransactionStatus(conn) ) {
+		case PQTRANS_IDLE:
+		case PQTRANS_INTRANS:
+		case PQTRANS_INERROR:
+			return Qnil;
+		default:;
 	}
 
 	socket_io = pgconn_socket_io(self);
