@@ -32,10 +32,10 @@ class TcpGateSwitcher
 			@debug = debug
 			@wait = nil
 
-			Thread.new do
+			@th1 = Thread.new do
 				read
 			end
-			Thread.new do
+			@th2 = Thread.new do
 				write
 			end
 		end
@@ -117,8 +117,8 @@ class TcpGateSwitcher
 		# Make sure all data is transferred and both connections are closed.
 		def finish
 			puts "finish transfers #{write_fds} and #{read_fds}"
-			write
-			read
+			@th1.join
+			@th2.join
 		end
 
 		def start
@@ -143,12 +143,13 @@ class TcpGateSwitcher
 		@debug = debug
 		puts "TcpGate server listening: #{@server_io.inspect}"
 
-		run
+		@th = run
 	end
 
 	def finish
 		@finish = true
 		TCPSocket.new('localhost', internal_port).close
+		@th.join
 	end
 
 	def internal_port
