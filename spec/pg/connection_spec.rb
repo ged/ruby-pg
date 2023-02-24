@@ -641,6 +641,9 @@ describe PG::Connection do
 			unless RUBY_PLATFORM =~ /i386-mingw|x86_64-darwin|x86_64-linux/
 				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
 			end
+			if RUBY_ENGINE == "truffleruby"
+				skip "TcpGateSwitcher transfers wrong data on Truffleruby"
+			end
 
 			run_with_gate(60) do |conn, gate|
 				conn.setnonblocking(true)
@@ -668,6 +671,10 @@ describe PG::Connection do
 		end
 
 		it "needs to flush data after send_query" do
+			if RUBY_ENGINE == "truffleruby"
+				skip "TcpGateSwitcher transfers wrong data on Truffleruby"
+			end
+
 			run_with_gate(60) do |conn, gate|
 				conn.setnonblocking(true)
 
