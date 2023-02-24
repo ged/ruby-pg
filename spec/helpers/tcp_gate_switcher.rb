@@ -7,15 +7,15 @@
 # The TCP communication in a C extension can be verified in a (mostly) timing insensitive way.
 # If a call does IO but doesn't handle non-blocking state, the test will block and can be caught by an external timeout.
 #
-#   PG.connect
-#    port:5444                    TcpGateSwitcher                      DB
-#  -------------      ----------------------------------------      --------
-#  |    non-   |      | TCPServer                  TCPSocket |      |      |
-#  |  blocking |----->|  port 5444                  port 5432|----->|Server|
-#  |   specs   |      |                                      |      | port |
-#  '------|----'      |,--> stop_read :     <-send data--    |      | 5432 |
-#         '---------------> stop_write:     --send data->    |      '------'
-#                     '--------------------------------------'
+#
+#   PG.connect                    TcpGateSwitcher
+#    port:5444        .--------------------------------------.
+#        .--start/stop---------------> T                     |         DB
+#  .-----|-----.      |                | /                   |      .------.
+#  |    non-   |      |                |/                    |      |Server|
+#  |  blocking |      | TCPServer      /           TCPSocket |      | port |
+#  |   specs   |------->port 5444-----/   ---------port 5432------->| 5432 |
+#  '-----------'      '--------------------------------------'      '------'
 
 module Helpers
 class TcpGateSwitcher
@@ -175,7 +175,7 @@ class TcpGateSwitcher
 					puts "accept new int:#{conn.internal_io.inspect} from #{conn.internal_io.remote_address.inspect} server fd:#{@server_io.fileno}"
 					@connections << conn
 
-					# Handle the reading and writing in a separate thread
+					# Unblock read and write transfer
 					conn.start
 				end
 
