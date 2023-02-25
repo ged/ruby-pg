@@ -113,7 +113,7 @@ Binary Encoder、BD = Binary Decoder）。
 * Integer:
   [TE](rdoc-ref:PG::TextEncoder::Integer)、[TD](rdoc-ref:PG::TextDecoder::Integer)、[BD](rdoc-ref:PG::BinaryDecoder::Integer)
   💡
-  リンクがないでしょうか。[こちら](https://deveiate.org/code/pg/README_rdoc.html#label-Type+Casts)を代わりに見てください
+  リンクがないでしょうか。[こちら](https://deveiate.org/code/pg/README_ja_md.html#label-E5-9E-8B-E5-A4-89-E6-8F-9B)を代わりに見てください
   💡
   * BE:
     [Int2](rdoc-ref:PG::BinaryEncoder::Int2)、[Int4](rdoc-ref:PG::BinaryEncoder::Int4)、[Int8](rdoc-ref:PG::BinaryEncoder::Int8)
