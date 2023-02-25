@@ -103,3 +103,13 @@ file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
 end
+
+desc "Translate readme"
+task :translate do
+  cd "translation" do
+    # po4a's lexer might change, so record its version for reference
+    sh "po4a --version > .po4a-version"
+
+    sh "po4a po4a.cfg"
+  end
+end
