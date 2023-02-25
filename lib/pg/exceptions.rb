@@ -14,5 +14,12 @@ module PG
 		end
 	end
 
+	class NotAllCopyDataRetrieved < PG::Error
+	end
+	class LostCopyState < PG::Error
+	end
+	class NotInBlockingMode < PG::Error
+	end
+
 end # module PG
 

@@ -196,11 +196,19 @@ class PG::Connection
 				yield res
 			rescue Exception => err
 				errmsg = "%s while copy data: %s" % [ err.class.name, err.message ]
-				put_copy_end( errmsg )
-				get_result
-				raise
+				begin
+					put_copy_end( errmsg )
+				rescue PG::Error
+					# Ignore error in cleanup to avoid losing original exception
+				end
+				discard_results
+				raise err
 			else
-				put_copy_end
+				begin
+					put_copy_end
+				rescue PG::Error => err
+					raise PG::LostCopyState.new("#{err} (probably by executing another SQL query while running a COPY command)", connection: self)
+				end
 				get_last_result
 			ensure
 				self.encoder_for_put_copy_data = old_coder if coder
@@ -213,24 +221,17 @@ class PG::Connection
 					self.decoder_for_get_copy_data = coder
 				end
 				yield res
-			rescue Exception => err
+			rescue Exception
 				cancel
-				begin
-					while get_copy_data
-					end
-				rescue PG::Error
-					# Ignore error in cleanup to avoid losing original exception
-				end
-				while get_result
-				end
-				raise err
+				discard_results
+				raise
 			else
 				res = get_last_result
-				if !res || res.result_status != PGRES_COMMAND_OK
-					while get_copy_data
-					end
-					while get_result
-					end
+				if !res
+					discard_results
+					raise PG::LostCopyState.new("Lost COPY state (probably by executing another SQL query while running a COPY command)", connection: self)
+				elsif res.result_status != PGRES_COMMAND_OK
+					discard_results
 					raise PG::NotAllCopyDataRetrieved.new("Not all COPY data retrieved", connection: self)
 				end
 				res

@@ -50,12 +50,6 @@ module PG
 		end
 	end
 
-
-	class NotAllCopyDataRetrieved < PG::Error
-	end
-	class NotInBlockingMode < PG::Error
-	end
-
 	# Get the PG library version.
 	#
 	# +include_buildnum+ is no longer used and any value passed will be ignored.
