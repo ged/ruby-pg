@@ -1,3 +1,18 @@
+## v1.4.6 [2023-02-26] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Add japanese README file. [#502](https://github.com/ged/ruby-pg/pull/502)
+- Improve `discard_results` to not block under memory pressure. [#500](https://github.com/ged/ruby-pg/pull/500)
+- Use a dedicated error class `PG::LostCopyState` for errors due to another query within `copy_data` and mention that it's probably due to another query.
+  Previously the "no COPY in progress" `PG::Error` was less specific. [#499](https://github.com/ged/ruby-pg/pull/499)
+- Make sure an error in `put_copy_end` of `copy_data`  doesn't lose the original exception.
+- Disable nonblocking mode while large object calls. [#498](https://github.com/ged/ruby-pg/pull/498)
+  Since pg-1.3.0 libpq's "lo_*" calls failed when a bigger amount of data was transferred.
+  This specifically forced the `active_storage-postgresql` gem to use pg-1.2.3.
+- Add rdoc options to gemspec, so that "gem install" generates complete offline documentation.
+- Add binary Windows gems for Ruby 3.2.
+- Update Windows fat binary gem to PostgreSQL-15.2 and OpenSSL-3.0.8.
+
+
 ## v1.4.5 [2022-11-17] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Return the libpq default port when blank in conninfo. [#492](https://github.com/ged/ruby-pg/pull/492)
