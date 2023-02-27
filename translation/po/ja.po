@@ -348,7 +348,7 @@ msgid ""
 "TextDecoder::Integer), [BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 No links? "
 "Switch to [here](https://deveiate.org/code/pg/README_md.html#label-Type"
 "+Casts) 💡"
-msgstr "Integer: [TE](rdoc-ref:PG::TextEncoder::Integer)、[TD](rdoc-ref:PG::TextDecoder::Integer)、[BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 リンクがないでしょうか。[こちら](https://deveiate.org/code/pg/README_rdoc.html#label-Type+Casts)を代わりに見てください 💡"
+msgstr "Integer: [TE](rdoc-ref:PG::TextEncoder::Integer)、[TD](rdoc-ref:PG::TextDecoder::Integer)、[BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 リンクがないでしょうか。[こちら](https://deveiate.org/code/pg/README_ja_md.html#label-E5-9E-8B-E5-A4-89-E6-8F-9B)を代わりに見てください 💡"
 
 #. type: Bullet: '  * '
 #: ../README.md:143
