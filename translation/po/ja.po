@@ -115,8 +115,8 @@ msgstr "要件"
 
 #. type: Bullet: '* '
 #: ../README.md:43
-msgid "Ruby 2.4 or newer"
-msgstr "Ruby 2.4かそれより新しいバージョン"
+msgid "Ruby 2.5 or newer"
+msgstr "Ruby 2.5かそれより新しいバージョン"
 
 #. type: Bullet: '* '
 #: ../README.md:43
