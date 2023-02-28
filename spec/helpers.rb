@@ -252,6 +252,7 @@ module PG::TestingHelpers
 			@test_dir = TEST_DIRECTORY + "tmp_test_#{@name}"
 			@test_pgdata = @test_dir + 'data'
 			@test_pgdata.mkpath
+			@pg_bin_dir = nil
 
 			@logfile = @test_dir + 'setup.log'
 			trace "Command output logged to #{@logfile}"
@@ -260,7 +261,7 @@ module PG::TestingHelpers
 				unless (@test_pgdata+"postgresql.conf").exist?
 					FileUtils.rm_rf( @test_pgdata, :verbose => $DEBUG )
 					trace "Running initdb"
-					log_and_run @logfile, 'initdb', '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
+					log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @test_pgdata.to_s
 				end
 
 				unless (@test_pgdata+"ruby-pg-server-cert").exist?
@@ -293,7 +294,7 @@ EOT
 				trace "Starting postgres"
 				sopt = "-p #{@port}"
 				sopt += " -k #{@test_dir.to_s.dump}" unless RUBY_PLATFORM=~/mingw|mswin/i
-				log_and_run @logfile, 'pg_ctl', '-w', '-o', sopt,
+				log_and_run @logfile, pg_bin_path('pg_ctl'), '-w', '-o', sopt,
 					'-D', @test_pgdata.to_s, 'start'
 				sleep 2
 
@@ -328,8 +329,8 @@ EOT
 
 		def create_test_db
 			trace "Creating the test DB"
-			log_and_run @logfile, 'psql', '-p', @port.to_s, '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
-			log_and_run @logfile, 'createdb', '-p', @port.to_s, '-e', 'test'
+			log_and_run @logfile, pg_bin_path('psql'), '-p', @port.to_s, '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
+			log_and_run @logfile, pg_bin_path('createdb'), '-p', @port.to_s, '-e', 'test'
 		end
 
 		def connect
@@ -344,7 +345,16 @@ EOT
 		def teardown
 			trace "Tearing down test database for #{@name}"
 
-			log_and_run @logfile, 'pg_ctl', '-D', @test_pgdata.to_s, 'stop'
+			log_and_run @logfile, pg_bin_path('pg_ctl'), '-D', @test_pgdata.to_s, 'stop'
+		end
+
+		def pg_bin_path(cmd)
+			@pg_bin_dir ||= begin
+				`pg_config --bindir`.strip
+			rescue
+				nil
+			end
+			[@pg_bin_dir&.empty? ? nil : @pg_bin_dir, cmd].compact.join("/")
 		end
 	end
 

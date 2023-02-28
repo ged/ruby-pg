@@ -214,7 +214,8 @@ After checking out the source, install all dependencies:
 
     $ bundle install
 
-Cleanup extension files, packaging files, test databases:
+Cleanup extension files, packaging files, test databases.
+Run this to change between PostgreSQL versions:
 
     $ rake clean
 
@@ -222,13 +223,13 @@ Compile extension:
 
     $ rake compile
 
-Run tests/specs with PostgreSQL tools like `initdb` in the path:
+Run tests/specs on the PostgreSQL version that `pg_config --bindir` points to:
 
-    $ PATH=$PATH:/usr/lib/postgresql/14/bin rake test
+    $ rake test
 
-Or run a specific test with the line number:
+Or run a specific test per file and line number on a specific PostgreSQL version:
 
-    $ PATH=$PATH:/usr/lib/postgresql/14/bin rspec -Ilib -fd spec/pg/connection_spec.rb:455
+    $ PATH=/usr/lib/postgresql/14/bin:$PATH rspec -Ilib -fd spec/pg/connection_spec.rb:455
 
 Generate the API documentation:
 
