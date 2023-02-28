@@ -207,8 +207,7 @@ PgはRuby-3.0で導入された`Fiber.scheduler`に完全に対応していま�
 
     $ bundle install
 
-Cleanup extension files, packaging files, test databases.  Run this to
-change between PostgreSQL versions:
+拡張ファイル、パッケージファイル、テストデータベースを一掃するには、このコマンドを走らせてください。PostgreSQLのバージョンも切り替わります。
 
     $ rake clean
 
@@ -216,13 +215,11 @@ change between PostgreSQL versions:
 
     $ rake compile
 
-Run tests/specs on the PostgreSQL version that `pg_config --bindir` points
-to:
+`pg_config --bindir`が指すPostgreSQLのバージョンでテストやスペックを走らせるには次のようにします。
 
     $ rake test
 
-Or run a specific test per file and line number on a specific PostgreSQL
-version:
+あるいは特定のPostgreSQLのバージョンで、ファイル中の行番号を使って特定のテストを走らせるには次のようにします。
 
     $ PATH=/usr/lib/postgresql/14/bin:$PATH rspec -Ilib -fd spec/pg/connection_spec.rb:455
 

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Pg 1.4.5\n"
 "POT-Creation-Date: 2023-02-28 21:16+0900\n"
-"PO-Revision-Date: 2023-02-25 14:28+0900\n"
+"PO-Revision-Date: 2023-02-28 21:24+0900\n"
 "Last-Translator: gemmaro <gemmaro.dev@gmail.com>\n"
 "Language-Team: none\n"
 "Language: ja\n"
@@ -821,14 +821,10 @@ msgstr "    $ bundle install\n"
 
 #. type: Plain text
 #: ../README.md:219
-#, fuzzy
-#| msgid "Cleanup extension files, packaging files, test databases:"
 msgid ""
 "Cleanup extension files, packaging files, test databases.  Run this to "
 "change between PostgreSQL versions:"
-msgstr ""
-"拡張ファイル、パッケージファイル、テストデータベースを一掃するには次のように"
-"します。"
+msgstr "拡張ファイル、パッケージファイル、テストデータベースを一掃するには、このコマンドを走らせてください。PostgreSQLのバージョンも切り替わります。"
 
 #. type: Plain text
 #: ../README.md:221
@@ -849,37 +845,29 @@ msgstr "    $ rake compile\n"
 
 #. type: Plain text
 #: ../README.md:227
-#, fuzzy
-#| msgid "Run tests/specs with PostgreSQL tools like `initdb` in the path:"
 msgid ""
 "Run tests/specs on the PostgreSQL version that `pg_config --bindir` points "
 "to:"
-msgstr ""
-"パスにある`initdb`といったPostgreSQLのツールを使ってテストやスペックを走らせ"
-"るには次のようにします。"
+msgstr "`pg_config --bindir`が指すPostgreSQLのバージョンでテストやスペックを走らせるには次のようにします。"
 
 #. type: Plain text
 #: ../README.md:229
-#, fuzzy, no-wrap
-#| msgid "    $ rake docs\n"
+#, no-wrap
 msgid "    $ rake test\n"
-msgstr "    $ rake docs\n"
+msgstr "    $ rake test\n"
 
 #. type: Plain text
 #: ../README.md:231
-#, fuzzy
-#| msgid "Or run a specific test with the line number:"
 msgid ""
 "Or run a specific test per file and line number on a specific PostgreSQL "
 "version:"
-msgstr "あるいは行番号を使って特定のテストを走らせるには次のようにします。"
+msgstr "あるいは特定のPostgreSQLのバージョンで、ファイル中の行番号を使って特定のテストを走らせるには次のようにします。"
 
 #. type: Plain text
 #: ../README.md:233
-#, fuzzy, no-wrap
-#| msgid "    $ PATH=$PATH:/usr/lib/postgresql/14/bin rspec -Ilib -fd spec/pg/connection_spec.rb:455\n"
+#, no-wrap
 msgid "    $ PATH=/usr/lib/postgresql/14/bin:$PATH rspec -Ilib -fd spec/pg/connection_spec.rb:455\n"
-msgstr "    $ PATH=$PATH:/usr/lib/postgresql/14/bin rspec -Ilib -fd spec/pg/connection_spec.rb:455\n"
+msgstr "    $ PATH=/usr/lib/postgresql/14/bin:$PATH rspec -Ilib -fd spec/pg/connection_spec.rb:455\n"
 
 #. type: Plain text
 #: ../README.md:235
@@ -1011,15 +999,3 @@ msgid ""
 msgstr ""
 "ruby-listとruby-devメーリングリストの方々に感謝します。またPostgreSQLを開発さ"
 "れた方々へも謝意を表します。"
-
-#~ msgid ""
-#~ "home :: https://github.com/ged/ruby-pg docs :: http://deveiate.org/code/"
-#~ "pg clog :: link:/History.md"
-#~ msgstr ""
-#~ "home :: https://github.com/ged/ruby-pg\n"
-#~ "docs :: http://deveiate.org/code/pg\n"
-#~ "clog :: link:/History.md"
-
-#, no-wrap
-#~ msgid "    $ PATH=$PATH:/usr/lib/postgresql/14/bin rake test\n"
-#~ msgstr "    $ PATH=$PATH:/usr/lib/postgresql/14/bin rake test\n"
