@@ -759,7 +759,7 @@ describe PG::Connection do
 		end
 
 		gate.finish
-	rescue Errno::EADDRINUSE => err
+	rescue Errno::EADDRINUSE, Errno::EACCES => err
 		skip err.to_s
 	end
 
