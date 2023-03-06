@@ -4,7 +4,6 @@
 require_relative '../helpers'
 
 require 'pg'
-require 'objspace'
 
 
 describe PG::Result do

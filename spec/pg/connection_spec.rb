@@ -5,7 +5,6 @@ require_relative '../helpers'
 
 require 'timeout'
 require 'socket'
-require 'objspace'
 require 'pg'
 
 describe PG::Connection do

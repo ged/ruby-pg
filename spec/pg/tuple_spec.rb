@@ -3,7 +3,6 @@
 
 require_relative '../helpers'
 require 'pg'
-require 'objspace'
 
 describe PG::Tuple do
 	let!(:typemap) { PG::BasicTypeMapForResults.new(@conn) }
@@ -298,7 +297,7 @@ describe PG::Tuple do
 	end
 
 	it "should give account about memory usage" do
-		expect( ObjectSpace.memsize_of(tuple0) ).to be > 40
+		expect( ObjectSpace.memsize_of(tuple0) ).to be > DATA_OBJ_MEMSIZE
 		expect( ObjectSpace.memsize_of(tuple_empty) ).to be > 0
 	end
 
