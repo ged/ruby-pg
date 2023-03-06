@@ -354,6 +354,8 @@ EOT
 			rescue
 				nil
 			end
+			# Avoid execution of MSYS2 bash wrapper on Windows while PostgreSQL's restart with restricted privileges:
+			cmd += ".exe" if RUBY_PLATFORM=~/mingw|mswin/
 			[@pg_bin_dir&.empty? ? nil : @pg_bin_dir, cmd].compact.join("/")
 		end
 	end
