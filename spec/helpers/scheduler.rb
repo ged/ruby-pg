@@ -196,6 +196,13 @@ class Scheduler
 		@waiting.delete(Fiber.current) if duration
 	end
 
+	def io_select(...)
+		# Emulate the operation using a non-blocking thread:
+		Thread.new do
+			IO.select(...)
+		end.value
+	end
+
 	# Used for Kernel#sleep and Thread::Mutex#sleep
 	def kernel_sleep(duration = nil)
 		# $stderr.puts [__method__, duration, Fiber.current].inspect
