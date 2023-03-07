@@ -182,10 +182,12 @@ class Scheduler
 
 		unless (events & IO::READABLE).zero?
 			@readable[io] = fiber
+			readable = true
 		end
 
 		unless (events & IO::WRITABLE).zero?
 			@writable[io] = fiber
+			writable = true
 		end
 
 		if duration
@@ -195,7 +197,9 @@ class Scheduler
 		Fiber.yield
 	ensure
 		# Remove from @waiting in the case event occured before the timeout expired:
-		@waiting.delete(Fiber.current) if duration
+		@waiting.delete(fiber) if duration
+		@readable.delete(io) if readable
+		@writable.delete(io) if writable
 	end
 
 	def io_select(...)
