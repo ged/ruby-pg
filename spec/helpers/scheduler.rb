@@ -176,18 +176,20 @@ class Scheduler
 	end
 
 	def io_wait(io, events, duration)
-		#$stderr.puts [__method__, io, events, duration, Fiber.current].inspect
+		# $stderr.puts [__method__, io, events, duration, Fiber.current].inspect
+
+		fiber = Fiber.current
 
 		unless (events & IO::READABLE).zero?
-			@readable[io] = Fiber.current
+			@readable[io] = fiber
 		end
 
 		unless (events & IO::WRITABLE).zero?
-			@writable[io] = Fiber.current
+			@writable[io] = fiber
 		end
 
 		if duration
-			@waiting[Fiber.current] = current_time + duration
+			@waiting[fiber] = current_time + duration
 		end
 
 		Fiber.yield
