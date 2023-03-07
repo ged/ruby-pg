@@ -202,10 +202,10 @@ class Scheduler
 		@writable.delete(io) if writable
 	end
 
-	def io_select(...)
+	def io_select(*arguments)
 		# Emulate the operation using a non-blocking thread:
 		Thread.new do
-			IO.select(...)
+			IO.select(*arguments)
 		end.value
 	end
 
