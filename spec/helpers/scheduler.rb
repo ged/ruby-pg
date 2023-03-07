@@ -25,7 +25,7 @@ class Scheduler
 		@closed = false
 
 		@lock = Thread::Mutex.new
-		@blocking = 0
+		@blocking = Hash.new.compare_by_identity
 		@ready = []
 
 		@urgent = IO.pipe
@@ -39,21 +39,28 @@ class Scheduler
 		_fiber, timeout = @waiting.min_by{|key, value| value}
 
 		if timeout
-			[0, timeout - current_time].max
+			offset = timeout - current_time
+
+			if offset < 0
+				return 0
+			else
+				return offset
+			end
 		end
 	end
 
 	def run
-		#$stderr.puts [__method__, Fiber.current].inspect
+		# $stderr.puts [__method__, Fiber.current].inspect
 
-		while @readable.any? or @writable.any? or @waiting.any? or @blocking.positive?
+		while @readable.any? or @writable.any? or @waiting.any? or @blocking.any?
 			# Can only handle file descriptors up to 1024...
 			readable, writable = IO.select(@readable.keys + [@urgent.first], @writable.keys, [], next_timeout)
 
-			puts "readable: #{readable}" if readable&.any?
-			puts "writable: #{writable}" if writable&.any?
+			# puts "readable: #{readable}" if readable&.any?
+			# puts "writable: #{writable}" if writable&.any?
 
 			selected = {}
+
 			readable&.each do |io|
 				if fiber = @readable.delete(io)
 					@writable.delete(io) if @writable[io] == fiber
@@ -191,20 +198,22 @@ class Scheduler
 	def block(blocker, timeout = nil)
 		# $stderr.puts [__method__, blocker, timeout].inspect
 
+		fiber = Fiber.current
+
 		if timeout
-			@waiting[Fiber.current] = current_time + timeout
+			@waiting[fiber] = current_time + timeout
 			begin
 				Fiber.yield
 			ensure
 				# Remove from @waiting in the case #unblock was called before the timeout expired:
-				@waiting.delete(Fiber.current)
+				@waiting.delete(fiber)
 			end
 		else
-			@blocking += 1
+			@blocking[fiber] = true
 			begin
 				Fiber.yield
 			ensure
-				@blocking -= 1
+				@blocking.delete(fiber)
 			end
 		end
 	end
