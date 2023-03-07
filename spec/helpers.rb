@@ -600,10 +600,6 @@ EOT
 		#@conninfo_gate = @conninfo
 	end
 
-	def scheduler_teardown
-		Fiber.set_scheduler(nil)
-	end
-
 	def scheduler_stop
 		if Fiber.scheduler && Fiber.scheduler.respond_to?(:finish)
 			Fiber.scheduler.finish
@@ -624,16 +620,16 @@ EOT
 	def run_with_scheduler(timeout=10)
 		thread_with_timeout(timeout) do
 			scheduler_setup
+
 			Fiber.schedule do
 				conn = PG.connect(@conninfo_gate)
 
 				yield conn
-
-				conn.finish
+			ensure
+				conn.finish if conn
 				scheduler_stop
 			end
 		end
-		scheduler_teardown
 	end
 
 	def gate_setup
