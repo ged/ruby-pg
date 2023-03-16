@@ -338,7 +338,7 @@ pg_tmbo_max_rows_for_online_lookup_get( VALUE self )
  *    typemap.build_column_map( result )
  *
  * This builds a PG::TypeMapByColumn that fits to the given PG::Result object
- * based on it's type OIDs.
+ * based on it's type OIDs and binary/text format.
  *
  */
 static VALUE
