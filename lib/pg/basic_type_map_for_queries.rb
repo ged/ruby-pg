@@ -47,6 +47,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	# Options:
 	# * +registry+: Custom type registry, nil for default global registry
 	# * +if_undefined+: Optional +Proc+ object which is called, if no type for an parameter class is not defined in the registry.
+	#   The +Proc+ object is called with the name and format of the missing type.
+	#   Its return value is not used.
 	def initialize(connection_or_coder_maps, registry: nil, if_undefined: nil)
 		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 		@array_encoders_by_klass = array_encoders_by_klass
