@@ -1,14 +1,16 @@
-# translation template for Pg.
-# Copyright (C) 1997-2022 Pg authors.
-# This file is distributed under the same license as the Pg.
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR Pg authors
+# This file is distributed under the same license as the Pg package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Pg 1.4.5\n"
-"POT-Creation-Date: 2023-02-23 22:20+0900\n"
-"PO-Revision-Date: 2023-02-25 14:02+0900\n"
-"Last-Translator: none\n"
-"Language-Team: none\n"
+"Project-Id-Version: Pg 1.4.6\n"
+"POT-Creation-Date: 2023-02-28 21:17+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -20,12 +22,22 @@ msgstr ""
 msgid "pg"
 msgstr ""
 
-#. type: Plain text
+#. type: Bullet: '* '
 #: ../README.md:6
 #, markdown-text
-msgid ""
-"home :: https://github.com/ged/ruby-pg docs :: http://deveiate.org/code/pg "
-"clog :: link:/History.md"
+msgid "home :: https://github.com/ged/ruby-pg"
+msgstr ""
+
+#. type: Bullet: '* '
+#: ../README.md:6
+#, markdown-text
+msgid "docs :: http://deveiate.org/code/pg"
+msgstr ""
+
+#. type: Bullet: '* '
+#: ../README.md:6
+#, markdown-text
+msgid "clog :: link:/History.md"
 msgstr ""
 
 #. type: Plain text
@@ -694,75 +706,81 @@ msgid "    $ bundle install\n"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:218
+#: ../README.md:219
 #, markdown-text
-msgid "Cleanup extension files, packaging files, test databases:"
+msgid ""
+"Cleanup extension files, packaging files, test databases.  Run this to "
+"change between PostgreSQL versions:"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:220
+#: ../README.md:221
 #, markdown-text, no-wrap
 msgid "    $ rake clean\n"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:222
+#: ../README.md:223
 #, markdown-text
 msgid "Compile extension:"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:224
+#: ../README.md:225
 #, markdown-text, no-wrap
 msgid "    $ rake compile\n"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:226
+#: ../README.md:227
 #, markdown-text
-msgid "Run tests/specs with PostgreSQL tools like `initdb` in the path:"
+msgid ""
+"Run tests/specs on the PostgreSQL version that `pg_config --bindir` points "
+"to:"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:228
+#: ../README.md:229
 #, markdown-text, no-wrap
-msgid "    $ PATH=$PATH:/usr/lib/postgresql/14/bin rake test\n"
+msgid "    $ rake test\n"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:230
+#: ../README.md:231
 #, markdown-text
-msgid "Or run a specific test with the line number:"
+msgid ""
+"Or run a specific test per file and line number on a specific PostgreSQL "
+"version:"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:232
+#: ../README.md:233
 #, markdown-text, no-wrap
 msgid ""
-"    $ PATH=$PATH:/usr/lib/postgresql/14/bin rspec -Ilib -fd "
+"    $ PATH=/usr/lib/postgresql/14/bin:$PATH rspec -Ilib -fd "
 "spec/pg/connection_spec.rb:455\n"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:234
+#: ../README.md:235
 #, markdown-text
 msgid "Generate the API documentation:"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:236
+#: ../README.md:237
 #, markdown-text, no-wrap
 msgid "    $ rake docs\n"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:238
+#: ../README.md:239
 #, markdown-text
 msgid "Make sure, that all bugs and new features are verified by tests."
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:241
+#: ../README.md:242
 #, markdown-text
 msgid ""
 "The current maintainers are Michael Granger <ged@FaerieMUD.org> and Lars "
@@ -770,67 +788,67 @@ msgid ""
 msgstr ""
 
 #. type: Title ##
-#: ../README.md:243
+#: ../README.md:244
 #, markdown-text, no-wrap
 msgid "Copying"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:246
+#: ../README.md:247
 #, markdown-text
 msgid "Copyright (c) 1997-2022 by the authors."
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Jeff Davis <ruby-pg@j-davis.com>"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Guy Decoux (ts) <decoux@moulon.inra.fr>"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Michael Granger <ged@FaerieMUD.org>"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Lars Kanis <lars@greiz-reinsdorf.de>"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Dave Lee"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Eiji Matsumoto <usagi@ruby.club.or.jp>"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Yukihiro Matsumoto <matz@ruby-lang.org>"
 msgstr ""
 
 #. type: Bullet: '* '
-#: ../README.md:255
+#: ../README.md:256
 #, markdown-text
 msgid "Noboru Saitou <noborus@netlab.jp>"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:259
+#: ../README.md:260
 #, markdown-text
 msgid ""
 "You may redistribute this software under the same terms as Ruby itself; see "
@@ -839,7 +857,7 @@ msgid ""
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:262
+#: ../README.md:263
 #, markdown-text
 msgid ""
 "Portions of the code are from the PostgreSQL project, and are distributed "
@@ -847,19 +865,19 @@ msgid ""
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:264
+#: ../README.md:265
 #, markdown-text
 msgid "Portions copyright LAIKA, Inc."
 msgstr ""
 
 #. type: Title ##
-#: ../README.md:266
+#: ../README.md:267
 #, markdown-text, no-wrap
 msgid "Acknowledgments"
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:270
+#: ../README.md:271
 #, markdown-text
 msgid ""
 "See Contributors.rdoc for the many additional fine people that have "
@@ -867,7 +885,7 @@ msgid ""
 msgstr ""
 
 #. type: Plain text
-#: ../README.md:272
+#: ../README.md:273
 #, markdown-text
 msgid ""
 "We are thankful to the people at the ruby-list and ruby-dev mailing lists.  "
