@@ -687,6 +687,21 @@ pgresult_nfields(VALUE self)
 
 /*
  * call-seq:
+ *    res.binary_tuples() -> Integer
+ *
+ * Returns 1 if the PGresult contains binary data and 0 if it contains text data.
+ *
+ * This function is deprecated (except for its use in connection with COPY), because it is possible for a single PGresult to contain text data in some columns and binary data in others.
+ * Result#fformat is preferred. binary_tuples returns 1 only if all columns of the result are binary (format 1).
+ */
+static VALUE
+pgresult_binary_tuples(VALUE self)
+{
+	return INT2NUM(PQbinaryTuples(pgresult_get(self)));
+}
+
+/*
+ * call-seq:
  *    res.fname( index ) -> String or Symbol
  *
  * Returns the name of the column corresponding to _index_.
@@ -1648,6 +1663,7 @@ init_pg_result(void)
 	rb_define_alias(rb_cPGresult, "num_tuples", "ntuples");
 	rb_define_method(rb_cPGresult, "nfields", pgresult_nfields, 0);
 	rb_define_alias(rb_cPGresult, "num_fields", "nfields");
+	rb_define_method(rb_cPGresult, "binary_tuples", pgresult_binary_tuples, 0);
 	rb_define_method(rb_cPGresult, "fname", pgresult_fname, 1);
 	rb_define_method(rb_cPGresult, "fnumber", pgresult_fnumber, 1);
 	rb_define_method(rb_cPGresult, "ftable", pgresult_ftable, 1);

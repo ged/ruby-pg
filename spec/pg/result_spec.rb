@@ -433,6 +433,19 @@ describe PG::Result do
 		expect( res.values ).to eq( [ ["bar"], ["bar2"] ] )
 	end
 
+	it "can retrieve number of fields" do
+		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
+		expect(res.nfields).to eq(2)
+		expect(res.num_fields).to eq(2)
+	end
+
+	it "can retrieve fields format (text/binary)" do
+		res = @conn.exec_params('SELECT 1 AS a, 2 AS "B"', [], 0)
+		expect(res.binary_tuples).to eq(0)
+		res = @conn.exec_params('SELECT 1 AS a, 2 AS "B"', [], 1)
+		expect(res.binary_tuples).to eq(1)
+	end
+
 	it "can retrieve field names" do
 		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
 		expect(res.fields).to eq(["a", "B"])
