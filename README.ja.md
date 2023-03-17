@@ -1,7 +1,8 @@
 # pg
 
 * home :: https://github.com/ged/ruby-pg
-* docs :: http://deveiate.org/code/pg
+* docs :: http://deveiate.org/code/pg (English) ,
+          https://deveiate.org/code/pg/README_ja_md.html (Japanese)
 * clog :: link:/History.md
 
 [![https://gitter.im/ged/ruby-pg
