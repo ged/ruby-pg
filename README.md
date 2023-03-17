@@ -135,6 +135,7 @@ The following PostgreSQL column types are supported by ruby-pg (TE = Text Encode
 * Timestamp:
     * TE: [local](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone), [UTC](rdoc-ref:PG::TextEncoder::TimestampUtc), [with-TZ](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
     * TD: [local](rdoc-ref:PG::TextDecoder::TimestampLocal), [UTC](rdoc-ref:PG::TextDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
+    * BE: [local](rdoc-ref:PG::BinaryEncoder::TimestampLocal), [UTC](rdoc-ref:PG::BinaryEncoder::TimestampUtc)
     * BD: [local](rdoc-ref:PG::BinaryDecoder::TimestampLocal), [UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
 * Date: [TE](rdoc-ref:PG::TextEncoder::Date), [TD](rdoc-ref:PG::TextDecoder::Date)
 * JSON and JSONB: [TE](rdoc-ref:PG::TextEncoder::JSON), [TD](rdoc-ref:PG::TextDecoder::JSON)

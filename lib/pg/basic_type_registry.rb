@@ -278,8 +278,8 @@ class PG::BasicTypeRegistry
 		register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
 		register_type 1, 'float4', nil, PG::BinaryDecoder::Float
 		register_type 1, 'float8', nil, PG::BinaryDecoder::Float
-		register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtc
-		register_type 1, 'timestamptz', nil, PG::BinaryDecoder::TimestampUtcToLocal
+		register_type 1, 'timestamp', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtc
+		register_type 1, 'timestamptz', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtcToLocal
 
 		self
 	end

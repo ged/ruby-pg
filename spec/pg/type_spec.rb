@@ -28,6 +28,8 @@ describe "PG::Type derivations" do
 	let!(:binaryenc_int4) { PG::BinaryEncoder::Int4.new }
 	let!(:binaryenc_int8) { PG::BinaryEncoder::Int8.new }
 	let!(:binarydec_integer) { PG::BinaryDecoder::Integer.new }
+	let!(:binaryenc_timestamputc) { PG::BinaryEncoder::TimestampUtc.new }
+	let!(:binaryenc_timestamplocal) { PG::BinaryEncoder::TimestampLocal.new }
 
 	let!(:intenc_incrementer) do
 		Class.new(PG::SimpleEncoder) do
@@ -381,7 +383,7 @@ describe "PG::Type derivations" do
 				expect( textenc_bytea.encode("\x00\x01\x02\x03\xef".b) ).to eq( "\\x00010203ef" )
 			end
 
-			context 'timestamps' do
+			context 'text timestamps' do
 				it 'encodes timestamps without timezone' do
 					expect( textenc_timestamp.encode(Time.new(2016,1,2, 23, 23, 59.123456, 3*60*60)) ).
 						to match( /^2016-01-02 23:23:59.12345\d+$/ )
@@ -399,6 +401,21 @@ describe "PG::Type derivations" do
 						to match( /^2016-01-02 23:23:59.12345\d+ \-04:00$/ )
 					expect( textenc_timestamptz.encode(Time.new(2016,8,02, 23, 23, 59.123456, 10*60*60)) ).
 						to match( /^2016-08-02 23:23:59.12345\d+ \+10:00$/ )
+				end
+			end
+
+			context 'binary timestamps' do
+				it 'encodes timestamps as UTC' do
+					expect( binaryenc_timestamputc.encode(Time.utc(2000,1,1)) ).
+						to eq( "\x00" * 8 )
+					expect( binaryenc_timestamputc.encode(Time.utc(2000,1,1).localtime) ).
+						to eq( "\x00" * 8 )
+				end
+				it 'encodes timestamps as local time' do
+					expect( binaryenc_timestamplocal.encode(Time.new(2000,1,1)) ).
+						to eq( "\x00" * 8 )
+					expect( binaryenc_timestamplocal.encode(Time.new(2000,1,1).utc) ).
+						to eq( "\x00" * 8 )
 				end
 			end
 
