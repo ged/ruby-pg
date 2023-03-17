@@ -27,16 +27,16 @@ describe 'Basic type mapping' do
 
 		context "with usage of result oids for bind params encoder selection" do
 			it "can type cast query params" do
-				@conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[])" )
+				@conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[], by BYTEA)" )
 
 				# Retrieve table OIDs per empty result.
 				res = @conn.exec( "SELECT * FROM copytable LIMIT 0" )
 				tm = basic_type_mapping.build_column_map( res )
 
-				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3)", ['a', 123, [5,4,3]], 0, tm )
-				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3)", ['b', 234, [2,3]], 0, tm )
+				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3, $4)", ['a', 123, [5,4,3], "\0\xFF'"], 0, tm )
+				@conn.exec_params( "INSERT INTO copytable VALUES ($1, $2, $3, $4)", ['b', 234, [2,3], "\"\n\r"], 0, tm )
 				res = @conn.exec( "SELECT * FROM copytable" )
-				expect( res.values ).to eq( [['a', '123', '{5,4,3}'], ['b', '234', '{2,3}']] )
+				expect( res.values ).to eq( [['a', '123', '{5,4,3}', '\x00ff27'], ['b', '234', '{2,3}', '\x220a0d']] )
 			end
 
 			it "can do JSON conversions", :postgresql_94 do

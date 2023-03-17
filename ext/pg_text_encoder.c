@@ -383,8 +383,12 @@ static const char hextab[] = {
  *
  * The binary String is converted to hexadecimal representation for transmission
  * in text format. For query bind parameters it is recommended to use
- * PG::BinaryEncoder::Bytea instead, in order to decrease network traffic and
- * CPU usage.
+ * PG::BinaryEncoder::Bytea or the hash form <tt>{value: binary_string, format: 1}</tt> instead,
+ * in order to decrease network traffic and CPU usage.
+ * See PG::Connection#exec_params for using the hash form.
+ *
+ * This encoder is particular useful when PG::TextEncoder::CopyRow is used with the COPY command.
+ * In this case there's no way to change the format of a single column to binary, so that the data have to be converted to bytea hex representation.
  *
  */
 static int

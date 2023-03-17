@@ -232,9 +232,7 @@ class PG::BasicTypeRegistry
 		# alias_type 'uuid',     'text'
 		#
 		# register_type 'money', OID::Money.new
-		# There is no PG::TextEncoder::Bytea, because it's simple and more efficient to send bytea-data
-		# in binary format, either with PG::BinaryEncoder::Bytea or in Hash param format.
-		register_type 0, 'bytea', nil, PG::TextDecoder::Bytea
+		register_type 0, 'bytea', PG::TextEncoder::Bytea, PG::TextDecoder::Bytea
 		register_type 0, 'bool', PG::TextEncoder::Boolean, PG::TextDecoder::Boolean
 		# register_type 'bit', OID::Bit.new
 		# register_type 'varbit', OID::Bit.new
