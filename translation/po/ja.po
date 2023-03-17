@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Pg 1.4.5\n"
-"POT-Creation-Date: 2023-02-28 21:16+0900\n"
+"POT-Creation-Date: 2023-03-17 10:13+0100\n"
 "PO-Revision-Date: 2023-02-28 21:24+0900\n"
 "Last-Translator: gemmaro <gemmaro.dev@gmail.com>\n"
 "Language-Team: none\n"
@@ -387,14 +387,14 @@ msgstr ""
 #: ../README.md:143
 msgid ""
 "Integer: [TE](rdoc-ref:PG::TextEncoder::Integer), [TD](rdoc-ref:PG::"
-"TextDecoder::Integer), [BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 No links? "
-"Switch to [here](https://deveiate.org/code/pg/README_md.html#label-Type"
-"+Casts) 💡"
+"TextDecoder::Integer), [BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 No "
+"links? Switch to [here](https://deveiate.org/code/pg/README_md.html#label-"
+"Type+Casts) 💡"
 msgstr ""
 "Integer: [TE](rdoc-ref:PG::TextEncoder::Integer)、[TD](rdoc-ref:PG::"
-"TextDecoder::Integer)、[BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 リンクがな"
-"いでしょうか。[こちら](https://deveiate.org/code/pg/README_ja_md.html#label-"
-"E5-9E-8B-E5-A4-89-E6-8F-9B)を代わりに見てください 💡"
+"TextDecoder::Integer)、[BD](rdoc-ref:PG::BinaryDecoder::Integer) 💡 リンクが"
+"ないでしょうか。[こちら](https://deveiate.org/code/pg/README_ja_md."
+"html#label-E5-9E-8B-E5-A4-89-E6-8F-9B)を代わりに見てください 💡"
 
 #. type: Bullet: '  * '
 #: ../README.md:143
@@ -472,7 +472,7 @@ msgstr ""
 msgid "Timestamp:"
 msgstr "Timestamp:"
 
-#. type: Bullet: '  * '
+#. type: Bullet: '    * '
 #: ../README.md:143
 msgid ""
 "TE: [local](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone), [UTC](rdoc-"
@@ -483,7 +483,7 @@ msgstr ""
 "(rdoc-ref:PG::TextEncoder::TimestampUtc)、[タイムゾーン付き](rdoc-ref:PG::"
 "TextEncoder::TimestampWithTimeZone)"
 
-#. type: Bullet: '  * '
+#. type: Bullet: '    * '
 #: ../README.md:143
 msgid ""
 "TD: [local](rdoc-ref:PG::TextDecoder::TimestampLocal), [UTC](rdoc-ref:PG::"
@@ -494,7 +494,7 @@ msgstr ""
 "TextDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::TextDecoder::"
 "TimestampUtcToLocal)"
 
-#. type: Bullet: '  * '
+#. type: Bullet: '    * '
 #: ../README.md:143
 msgid ""
 "BD: [local](rdoc-ref:PG::BinaryDecoder::TimestampLocal), [UTC](rdoc-ref:PG::"
@@ -824,7 +824,9 @@ msgstr "    $ bundle install\n"
 msgid ""
 "Cleanup extension files, packaging files, test databases.  Run this to "
 "change between PostgreSQL versions:"
-msgstr "拡張ファイル、パッケージファイル、テストデータベースを一掃するには、このコマンドを走らせてください。PostgreSQLのバージョンも切り替わります。"
+msgstr ""
+"拡張ファイル、パッケージファイル、テストデータベースを一掃するには、このコマ"
+"ンドを走らせてください。PostgreSQLのバージョンも切り替わります。"
 
 #. type: Plain text
 #: ../README.md:221
@@ -848,7 +850,9 @@ msgstr "    $ rake compile\n"
 msgid ""
 "Run tests/specs on the PostgreSQL version that `pg_config --bindir` points "
 "to:"
-msgstr "`pg_config --bindir`が指すPostgreSQLのバージョンでテストやスペックを走らせるには次のようにします。"
+msgstr ""
+"`pg_config --bindir`が指すPostgreSQLのバージョンでテストやスペックを走らせる"
+"には次のようにします。"
 
 #. type: Plain text
 #: ../README.md:229
@@ -861,7 +865,9 @@ msgstr "    $ rake test\n"
 msgid ""
 "Or run a specific test per file and line number on a specific PostgreSQL "
 "version:"
-msgstr "あるいは特定のPostgreSQLのバージョンで、ファイル中の行番号を使って特定のテストを走らせるには次のようにします。"
+msgstr ""
+"あるいは特定のPostgreSQLのバージョンで、ファイル中の行番号を使って特定のテス"
+"トを走らせるには次のようにします。"
 
 #. type: Plain text
 #: ../README.md:233

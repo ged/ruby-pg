@@ -132,9 +132,9 @@ The following PostgreSQL column types are supported by ruby-pg (TE = Text Encode
 * Bytea: [TE](rdoc-ref:PG::TextEncoder::Bytea), [TD](rdoc-ref:PG::TextDecoder::Bytea), [BE](rdoc-ref:PG::BinaryEncoder::Bytea), [BD](rdoc-ref:PG::BinaryDecoder::Bytea)
 * Base64: [TE](rdoc-ref:PG::TextEncoder::ToBase64), [TD](rdoc-ref:PG::TextDecoder::FromBase64), [BE](rdoc-ref:PG::BinaryEncoder::FromBase64), [BD](rdoc-ref:PG::BinaryDecoder::ToBase64)
 * Timestamp:
-  * TE: [local](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone), [UTC](rdoc-ref:PG::TextEncoder::TimestampUtc), [with-TZ](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
-  * TD: [local](rdoc-ref:PG::TextDecoder::TimestampLocal), [UTC](rdoc-ref:PG::TextDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
-  * BD: [local](rdoc-ref:PG::BinaryDecoder::TimestampLocal), [UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
+    * TE: [local](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone), [UTC](rdoc-ref:PG::TextEncoder::TimestampUtc), [with-TZ](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
+    * TD: [local](rdoc-ref:PG::TextDecoder::TimestampLocal), [UTC](rdoc-ref:PG::TextDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
+    * BD: [local](rdoc-ref:PG::BinaryDecoder::TimestampLocal), [UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc), [UTC-to-local](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
 * Date: [TE](rdoc-ref:PG::TextEncoder::Date), [TD](rdoc-ref:PG::TextDecoder::Date)
 * JSON and JSONB: [TE](rdoc-ref:PG::TextEncoder::JSON), [TD](rdoc-ref:PG::TextDecoder::JSON)
 * Inet: [TE](rdoc-ref:PG::TextEncoder::Inet), [TD](rdoc-ref:PG::TextDecoder::Inet)

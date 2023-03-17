@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Pg 1.4.6\n"
-"POT-Creation-Date: 2023-02-28 21:17+0900\n"
+"POT-Creation-Date: 2023-03-17 10:13+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -403,7 +403,7 @@ msgstr ""
 msgid "Timestamp:"
 msgstr ""
 
-#. type: Bullet: '  * '
+#. type: Bullet: '    * '
 #: ../README.md:143
 #, markdown-text
 msgid ""
@@ -412,7 +412,7 @@ msgid ""
 "[with-TZ](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)"
 msgstr ""
 
-#. type: Bullet: '  * '
+#. type: Bullet: '    * '
 #: ../README.md:143
 #, markdown-text
 msgid ""
@@ -421,7 +421,7 @@ msgid ""
 "[UTC-to-local](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)"
 msgstr ""
 
-#. type: Bullet: '  * '
+#. type: Bullet: '    * '
 #: ../README.md:143
 #, markdown-text
 msgid ""
