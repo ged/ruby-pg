@@ -241,7 +241,7 @@ describe PG::Result do
 			}.to raise_error(PG::DivisionByZero)
 		end
 
-		it "raises an error if result number of rows change" do
+		it "raises an error if result number of fields change" do
 			@conn.send_query( "SELECT 1" )
 			@conn.set_single_row_mode
 			expect{
@@ -250,6 +250,18 @@ describe PG::Result do
 					@conn.send_query("SELECT 2,3");
 				end
 			}.to raise_error(PG::InvalidChangeOfResultFields, /from 1 to 2 /)
+		end
+
+		it "raises an error if there is a timeout during streaming" do
+			@conn.exec( "SET local statement_timeout = 20" )
+
+			@conn.send_query( "SELECT 1, true UNION ALL SELECT 2, (pg_sleep(0.1) IS NULL)" )
+			@conn.set_single_row_mode
+			expect{
+				@conn.get_result.stream_each_row do |row|
+					# No-op
+				end
+			}.to raise_error(PG::InvalidChangeOfResultFields, /canceled or timed out/)
 		end
 	end
 

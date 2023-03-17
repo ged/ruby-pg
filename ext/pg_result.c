@@ -1480,6 +1480,9 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 		if( pgresult == NULL )
 			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another query");
 
+		if( nfields != PQnfields(pgresult) && PQnfields(pgresult) == 0 )
+			rb_raise(rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode to 0 - this is a sign that the query was canceled or timed out");
+
 		if( nfields != PQnfields(pgresult) )
 			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode from %d to %d - this is a sign for intersection with another query", nfields, PQnfields(pgresult));
 
