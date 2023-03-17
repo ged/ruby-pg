@@ -114,6 +114,8 @@ class PG::Connection
 		return str
 	end
 
+	BinarySignature = "PGCOPY\n\377\r\n\0".b
+
 	#  call-seq:
 	#     conn.copy_data( sql [, coder] ) {|sql_result| ... } -> PG::Result
 	#
@@ -189,10 +191,16 @@ class PG::Connection
 		case res.result_status
 		when PGRES_COPY_IN
 			begin
+				if res.binary_tuples == 1
+					# Binary file header (11 byte signature, 32 bit flags and 32 bit extension length)
+					put_copy_data(BinarySignature + ("\x00" * 8))
+				end
+
 				if coder
 					old_coder = self.encoder_for_put_copy_data
 					self.encoder_for_put_copy_data = coder
 				end
+
 				yield res
 			rescue Exception => err
 				errmsg = "%s while copy data: %s" % [ err.class.name, err.message ]
@@ -205,6 +213,12 @@ class PG::Connection
 				raise err
 			else
 				begin
+					self.encoder_for_put_copy_data = old_coder if coder
+
+					if res.binary_tuples == 1
+						put_copy_data("\xFF\xFF") # Binary file trailer 16 bit "-1"
+					end
+
 					put_copy_end
 				rescue PG::Error => err
 					raise PG::LostCopyState.new("#{err} (probably by executing another SQL query while running a COPY command)", connection: self)
@@ -226,6 +240,13 @@ class PG::Connection
 				discard_results
 				raise
 			else
+				if res.binary_tuples == 1
+					# there are two end markers in binary mode: file trailer and the final nil
+					if get_copy_data
+						discard_results
+						raise PG::NotAllCopyDataRetrieved.new("Not all binary COPY data retrieved", connection: self)
+					end
+				end
 				res = get_last_result
 				if !res
 					discard_results

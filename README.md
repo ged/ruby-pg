@@ -143,9 +143,9 @@ The following PostgreSQL column types are supported by ruby-pg (TE = Text Encode
 * Array: [TE](rdoc-ref:PG::TextEncoder::Array), [TD](rdoc-ref:PG::TextDecoder::Array)
 * Composite Type (also called "Row" or "Record"): [TE](rdoc-ref:PG::TextEncoder::Record), [TD](rdoc-ref:PG::TextDecoder::Record)
 
-The following text formats can also be encoded although they are not used as column type:
+The following text and binary formats can also be encoded although they are not used as column type:
 
-* COPY input and output data: [TE](rdoc-ref:PG::TextEncoder::CopyRow), [TD](rdoc-ref:PG::TextDecoder::CopyRow)
+* COPY input and output data: [TE](rdoc-ref:PG::TextEncoder::CopyRow), [TD](rdoc-ref:PG::TextDecoder::CopyRow), [BE](rdoc-ref:PG::BinaryEncoder::CopyRow), [BD](rdoc-ref:PG::BinaryDecoder::CopyRow)
 * Literal for insertion into SQL string: [TE](rdoc-ref:PG::TextEncoder::QuotedLiteral)
 * SQL-Identifier: [TE](rdoc-ref:PG::TextEncoder::Identifier), [TD](rdoc-ref:PG::TextDecoder::Identifier)
 
