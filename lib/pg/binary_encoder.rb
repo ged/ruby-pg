@@ -5,13 +5,13 @@ module PG
 	module BinaryEncoder
 		# Convenience classes for timezone options
 		class TimestampUtc < Timestamp
-			def initialize(params={})
-				super(params.merge(flags: PG::Coder::TIMESTAMP_DB_UTC))
+			def initialize(**kwargs)
+				super(flags: PG::Coder::TIMESTAMP_DB_UTC, **kwargs)
 			end
 		end
 		class TimestampLocal < Timestamp
-			def initialize(params={})
-				super(params.merge(flags: PG::Coder::TIMESTAMP_DB_LOCAL))
+			def initialize(**kwargs)
+				super(flags: PG::Coder::TIMESTAMP_DB_LOCAL, **kwargs)
 			end
 		end
 	end

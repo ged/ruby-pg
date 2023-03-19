@@ -6,22 +6,21 @@ module PG
 	class Coder
 
 		module BinaryFormatting
-			Params = { format: 1 }
-			def initialize( params={} )
-				super(Params.merge(params))
+			def initialize( **kwargs )
+				super(format: 1, **kwargs)
 			end
 		end
 
 
 		# Create a new coder object based on the attribute Hash.
-		def initialize(params={})
-			params.each do |key, val|
+		def initialize(**kwargs)
+			kwargs.each do |key, val|
 				send("#{key}=", val)
 			end
 		end
 
 		def dup
-			self.class.new(to_h)
+			self.class.new(**to_h)
 		end
 
 		# Returns coder attributes as Hash.
@@ -43,7 +42,7 @@ module PG
 		end
 
 		def marshal_load(str)
-			initialize Marshal.load(str)
+			initialize **Marshal.load(str)
 		end
 
 		def inspect
@@ -70,11 +69,11 @@ module PG
 
 	class CompositeCoder < Coder
 		def to_h
-			super.merge!({
+			{ **super,
 				elements_type: elements_type,
 				needs_quotation: needs_quotation?,
 				delimiter: delimiter,
-			})
+			}
 		end
 
 		def inspect
@@ -86,19 +85,19 @@ module PG
 
 	class CopyCoder < Coder
 		def to_h
-			super.merge!({
+			{ **super,
 				type_map: type_map,
 				delimiter: delimiter,
 				null_string: null_string,
-			})
+			}
 		end
 	end
 
 	class RecordCoder < Coder
 		def to_h
-			super.merge!({
+			{ **super,
 				type_map: type_map,
-			})
+			}
 		end
 	end
 end # module PG
