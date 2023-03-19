@@ -87,8 +87,10 @@ pg_copycoder_decoder_allocate( VALUE klass )
  *    coder.delimiter = String
  *
  * Specifies the character that separates columns within each row (line) of the file.
- * The default is a tab character in text format, a comma in CSV format.
- * This must be a single one-byte character. This option is ignored when using binary format.
+ * The default is a tab character in text format.
+ * This must be a single one-byte character.
+ *
+ * This option is ignored when using binary format.
  */
 static VALUE
 pg_copycoder_delimiter_set(VALUE self, VALUE delimiter)
@@ -115,10 +117,11 @@ pg_copycoder_delimiter_get(VALUE self)
 }
 
 /*
- * Specifies the string that represents a null value. The default is \\N (backslash-N)
- * in text format, and an unquoted empty string in CSV format. You might prefer an
- * empty string even in text format for cases where you don't want to distinguish nulls
- * from empty strings. This option is ignored when using binary format.
+ * Specifies the string that represents a null value.
+ * The default is \\N (backslash-N) in text format.
+ * You might prefer an empty string even in text format for cases where you don't want to distinguish nulls from empty strings.
+ *
+ * This option is ignored when using binary format.
  */
 static VALUE
 pg_copycoder_null_string_set(VALUE self, VALUE null_string)
