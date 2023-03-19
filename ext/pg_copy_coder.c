@@ -873,6 +873,7 @@ length_error:
 void
 init_pg_copycoder(void)
 {
+	VALUE coder;
 	/* Document-class: PG::CopyCoder < PG::Coder
 	 *
 	 * This is the base class for all type cast classes for COPY data,
@@ -895,19 +896,19 @@ init_pg_copycoder(void)
 	/* Make RDoc aware of the encoder classes... */
 	/* rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "CopyRow", rb_cPG_CopyEncoder ); */
-	pg_define_coder( "CopyRow", pg_text_enc_copy_row, rb_cPG_CopyEncoder, rb_mPG_TextEncoder );
+	coder = pg_define_coder( "CopyRow", pg_text_enc_copy_row, rb_cPG_CopyEncoder, rb_mPG_TextEncoder );
+	rb_include_module( coder, rb_mPG_BinaryFormatting );
 	/* rb_mPG_BinaryEncoder = rb_define_module_under( rb_mPG, "BinaryEncoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "CopyRow", rb_cPG_CopyEncoder ); */
 	pg_define_coder( "CopyRow", pg_bin_enc_copy_row, rb_cPG_CopyEncoder, rb_mPG_BinaryEncoder );
-	rb_include_module( rb_cPG_CopyEncoder, rb_mPG_BinaryFormatting );
 
 	/* rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "CopyRow", rb_cPG_CopyDecoder ); */
-	pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
+	coder = pg_define_coder( "CopyRow", pg_text_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_TextDecoder );
+	/* Although CopyRow is a text decoder, data can contain zero bytes and are not zero terminated.
+	 * They are handled like binaries. So format is set to 1 (binary). */
+	rb_include_module( coder, rb_mPG_BinaryFormatting );
 	/* rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" ); */
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "CopyRow", rb_cPG_CopyDecoder ); */
 	pg_define_coder( "CopyRow", pg_bin_dec_copy_row, rb_cPG_CopyDecoder, rb_mPG_BinaryDecoder );
-	/* Although CopyRow is a text decoder, data can contain zero bytes and are not zero terminated.
-	 * They are handled like binaries. So format is set to 1 (binary). */
-	rb_include_module( rb_cPG_CopyDecoder, rb_mPG_BinaryFormatting );
 }

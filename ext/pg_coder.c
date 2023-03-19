@@ -455,7 +455,7 @@ static const rb_data_type_t pg_coder_cfunc_type = {
 	RUBY_TYPED_FREE_IMMEDIATELY,
 };
 
-void
+VALUE
 pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 {
 	VALUE cfunc_obj = TypedData_Wrap_Struct( rb_cObject, &pg_coder_cfunc_type, func );
@@ -471,6 +471,7 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 	rb_define_const( coder_klass, "CFUNC", cfunc_obj );
 
 	RB_GC_GUARD(cfunc_obj);
+	return coder_klass;
 }
 
 
