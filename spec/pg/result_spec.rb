@@ -8,6 +8,18 @@ require 'pg'
 
 describe PG::Result do
 
+	it "provides res_status" do
+		str = PG::Result.res_status(PG::PGRES_EMPTY_QUERY)
+		expect( str ).to eq("PGRES_EMPTY_QUERY")
+		expect( str.encoding ).to eq(Encoding::UTF_8)
+
+		res = @conn.exec("SELECT 1")
+		expect( res.res_status ).to eq("PGRES_TUPLES_OK")
+		expect( res.res_status(PG::PGRES_FATAL_ERROR) ).to eq("PGRES_FATAL_ERROR")
+
+		expect{ res.res_status(1,2) }.to raise_error(ArgumentError)
+	end
+
 	describe :field_name_type do
 		let!(:res) { @conn.exec('SELECT 1 AS a, 2 AS "B"') }
 
@@ -431,6 +443,14 @@ describe PG::Result do
 
 		res = @conn.exec( 'SELECT * FROM valuestest' )
 		expect( res.values ).to eq( [ ["bar"], ["bar2"] ] )
+	end
+
+	it "provides the result status" do
+		res = @conn.exec("SELECT 1")
+		expect( res.result_status ).to eq(PG::PGRES_TUPLES_OK)
+
+		res = @conn.exec("")
+		expect( res.result_status ).to eq(PG::PGRES_EMPTY_QUERY)
 	end
 
 	it "can retrieve field names" do

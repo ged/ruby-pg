@@ -527,6 +527,8 @@ static void pgresult_init_fnames(VALUE self)
  * * +PGRES_SINGLE_TUPLE+
  * * +PGRES_PIPELINE_SYNC+
  * * +PGRES_PIPELINE_ABORTED+
+ *
+ * Use <tt>res.res_status</tt> to retrieve the string representation.
  */
 static VALUE
 pgresult_result_status(VALUE self)
@@ -536,16 +538,38 @@ pgresult_result_status(VALUE self)
 
 /*
  * call-seq:
- *    res.res_status( status ) -> String
+ *    PG::Result.res_status( status ) -> String
  *
  * Returns the string representation of +status+.
  *
 */
 static VALUE
-pgresult_res_status(VALUE self, VALUE status)
+pgresult_s_res_status(VALUE self, VALUE status)
+{
+	return rb_utf8_str_new_cstr(PQresStatus(NUM2INT(status)));
+}
+
+/*
+ * call-seq:
+ *    res.res_status -> String
+ *    res.res_status( status ) -> String
+ *
+ * Returns the string representation of the status of the result or of the provided +status+.
+ *
+ */
+static VALUE
+pgresult_res_status(int argc, VALUE *argv, VALUE self)
 {
 	t_pg_result *this = pgresult_get_this_safe(self);
-	VALUE ret = rb_str_new2(PQresStatus(NUM2INT(status)));
+	VALUE ret;
+
+	if( argc == 0 ){
+		ret = rb_str_new2(PQresStatus(PQresultStatus(this->pgresult)));
+	}else if( argc == 1 ){
+		ret = rb_str_new2(PQresStatus(NUM2INT(argv[0])));
+	}else{
+		rb_raise(rb_eArgError, "only 0 or 1 arguments expected");
+	}
 	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
@@ -1632,7 +1656,8 @@ init_pg_result(void)
 
 	/******     PG::Result INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
-	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
+	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, -1);
+	rb_define_singleton_method(rb_cPGresult, "res_status", pgresult_s_res_status, 1);
 	rb_define_method(rb_cPGresult, "error_message", pgresult_error_message, 0);
 	rb_define_alias( rb_cPGresult, "result_error_message", "error_message");
 #ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
