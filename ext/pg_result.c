@@ -1441,7 +1441,7 @@ VALUE
 pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* data)
 {
 	t_pg_result *this;
-	int nfields;
+	int nfields, nfields2;
 	PGconn *pgconn;
 	PGresult *pgresult;
 
@@ -1467,6 +1467,12 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 				pg_result_check( self );
 		}
 
+		nfields2 = PQnfields(pgresult);
+		if( nfields != nfields2 ){
+			pgresult_clear( this );
+			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode from %d to %d - this is a sign for intersection with another query", nfields, nfields2);
+		}
+
 		if( yielder( self, ntuples, nfields, data ) ){
 			pgresult_clear( this );
 		}
@@ -1479,9 +1485,6 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
 			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another query");
-
-		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode from %d to %d - this is a sign for intersection with another query", nfields, PQnfields(pgresult));
 
 		this->pgresult = pgresult;
 	}
