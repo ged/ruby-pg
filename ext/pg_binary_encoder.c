@@ -94,6 +94,52 @@ pg_bin_enc_int8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, i
 }
 
 /*
+ * Document-class: PG::BinaryEncoder::Float4 < PG::SimpleEncoder
+ *
+ * This is the binary encoder class for the PostgreSQL +float4+ type.
+ *
+ */
+static int
+pg_bin_enc_float4(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+{
+	union {
+		float f;
+		int32_t i;
+	} swap4;
+
+	if(out){
+		swap4.f = NUM2DBL(*intermediate);
+		write_nbo32(swap4.i, out);
+	}else{
+		*intermediate = value;
+	}
+	return 4;
+}
+
+/*
+ * Document-class: PG::BinaryEncoder::Float8 < PG::SimpleEncoder
+ *
+ * This is the binary encoder class for the PostgreSQL +float8+ type.
+ *
+ */
+static int
+pg_bin_enc_float8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+{
+	union {
+		double f;
+		int64_t i;
+	} swap8;
+
+	if(out){
+		swap8.f = NUM2DBL(*intermediate);
+		write_nbo64(swap8.i, out);
+	}else{
+		*intermediate = value;
+	}
+	return 8;
+}
+
+/*
  * Document-class: PG::BinaryEncoder::Timestamp < PG::SimpleEncoder
  *
  * This is a encoder class for conversion of Ruby Time objects to PostgreSQL binary timestamps.
@@ -207,6 +253,10 @@ init_pg_binary_encoder(void)
 	pg_define_coder( "Int4", pg_bin_enc_int4, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Int8", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Int8", pg_bin_enc_int8, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Float4", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Float4", pg_bin_enc_float4, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Float8", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Float8", pg_bin_enc_float8, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "String", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Bytea", rb_cPG_SimpleEncoder ); */

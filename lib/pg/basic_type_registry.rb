@@ -276,8 +276,8 @@ class PG::BasicTypeRegistry
 
 		register_type 1, 'bytea', PG::BinaryEncoder::Bytea, PG::BinaryDecoder::Bytea
 		register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
-		register_type 1, 'float4', nil, PG::BinaryDecoder::Float
-		register_type 1, 'float8', nil, PG::BinaryDecoder::Float
+		register_type 1, 'float4', PG::BinaryEncoder::Float4, PG::BinaryDecoder::Float
+		register_type 1, 'float8', PG::BinaryEncoder::Float8, PG::BinaryDecoder::Float
 		register_type 1, 'timestamp', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtc
 		register_type 1, 'timestamptz', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtcToLocal
 
