@@ -27,6 +27,7 @@ describe "PG::Type derivations" do
 	let!(:binaryenc_int2) { PG::BinaryEncoder::Int2.new }
 	let!(:binaryenc_int4) { PG::BinaryEncoder::Int4.new }
 	let!(:binaryenc_int8) { PG::BinaryEncoder::Int8.new }
+	let!(:binarydec_string) { PG::BinaryDecoder::String.new }
 	let!(:binarydec_integer) { PG::BinaryDecoder::Integer.new }
 	let!(:binaryenc_timestamputc) { PG::BinaryEncoder::TimestampUtc.new }
 	let!(:binaryenc_timestamplocal) { PG::BinaryEncoder::TimestampLocal.new }
@@ -1019,6 +1020,57 @@ describe "PG::Type derivations" do
 			end
 		end
 
+		describe PG::BinaryEncoder::CopyRow do
+			context "with default typemap" do
+				let!(:encoder) do
+					PG::BinaryEncoder::CopyRow.new
+				end
+
+				it "should encode different types of Ruby objects" do
+					expect( encoder.encode(["x", "yz"]) ).
+						to eq("\x00\x02\x00\x00\x00\x01x\x00\x00\x00\x02yz")
+				end
+
+				it 'should output a string with correct character encoding' do
+					v = encoder.encode(["Héllo"], "iso-8859-1")
+					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
+					expect( v.b ).to eq( "\x00\x01\x00\x00\x00\x05H\xE9llo".b )
+				end
+			end
+
+			context "with TypeMapByClass" do
+				let!(:tm) do
+					tm = PG::TypeMapByClass.new
+					tm[Integer] = binaryenc_int4
+					tm[Float] = intenc_incrementer
+					tm
+				end
+				let!(:encoder) do
+					PG::BinaryEncoder::CopyRow.new type_map: tm
+				end
+
+				it "should have reasonable default values" do
+					expect( encoder.name ).to be_nil
+				end
+
+				it "copies all attributes with #dup" do
+					encoder.name = "test"
+					encoder.type_map = PG::TypeMapByColumn.new []
+					encoder2 = encoder.dup
+					expect( encoder.object_id ).to_not eq( encoder2.object_id )
+					expect( encoder2.name ).to eq( "test" )
+					expect( encoder2.type_map ).to be_a_kind_of( PG::TypeMapByColumn )
+				end
+
+				it "should encode different types of Ruby objects" do
+					expect( encoder.encode([]) ).to eq("\x00\x00")
+					expect( encoder.encode(["a"]) ).to eq("\x00\x01\x00\x00\x00\x01a")
+					expect( encoder.encode([:xyz, 123, 12.1, "abcdefg", nil]) ).
+						to eq("\x00\x05\x00\x00\x00\x03xyz\x00\x00\x00\x04\x00\x00\x00{\x00\x00\x00\x0313 \x00\x00\x00\aabcdefg\xFF\xFF\xFF\xFF".b)
+				end
+			end
+		end
+
 		describe PG::TextDecoder::CopyRow do
 			context "with default typemap" do
 				let!(:decoder) do
@@ -1054,6 +1106,65 @@ describe "PG::Type derivations" do
 				describe '#decode' do
 					it "should decode different types of Ruby objects" do
 						expect( decoder.decode("123\t \0#\t#\n#\r#\\ \t234\t#\x01#\002\n".gsub("#", "\\"))).to eq( [123, " \0\t\n\r\\ ", 235, "\x01\x02"] )
+					end
+				end
+			end
+		end
+
+		describe PG::BinaryDecoder::CopyRow do
+			context "with default typemap" do
+				let!(:decoder) do
+					PG::BinaryDecoder::CopyRow.new
+				end
+
+				describe '#decode' do
+					it "should decode COPY binary format to array of strings" do
+						expect( decoder.decode([3, -1, 2, "xy", 1, "z"].pack("nNNa*Na*")) )
+								.to eq( [nil, "xy", "z"] )
+					end
+
+					it "should ignore COPY binary header before data" do
+						expect( decoder.decode(["PGCOPY\n\377\r\n\0", 0, 1, "x", 3, 2, "xy", 1, "z", -1].pack("a*NNa*nNa*Na*N")) )
+								.to eq( ["xy", "z", nil] )
+					end
+
+					it "should decode COPY data trailer to nil" do
+						expect( decoder.decode([-1].pack("n")) )
+								.to eq( nil )
+					end
+
+					it "should raise an error at grabage COPY format" do
+						expect{ decoder.decode("123\t \0\\\t\\") }
+								.to raise_error(ArgumentError, /premature.*at position: 7$/)
+					end
+
+					it "should raise an error at extra data after one row" do
+						expect{ decoder.decode([1, -1, 2].pack("nNN")) }
+								.to raise_error(ArgumentError, /trailing data.*at position: 7$/)
+					end
+
+					it "should raise an error at shortened COPY data" do
+						data = [3, -1, 2, "xy", 1, "z"].pack("nNNa*Na*")
+						(0 .. data.bytesize-1).each do |len|
+							expect{ decoder.decode(data[0, len]) }
+								.to raise_error(ArgumentError)
+						end
+					end
+				end
+			end
+
+			context "with TypeMapByColumn" do
+				let!(:tm) do
+					PG::TypeMapByColumn.new [binarydec_integer, binarydec_string, intdec_incrementer, nil]
+				end
+				let!(:decoder) do
+					PG::BinaryDecoder::CopyRow.new type_map: tm
+				end
+
+				describe '#decode' do
+					it "should decode different types of Ruby objects" do
+						expect( decoder.decode([4, 2, "\x01\x02", 7, " \0\t\n\r\xff ", 0, "", 3, "abc"].pack("nNa*Na*Na*Na*")) )
+								.to eq( [258, " \0\t\n\r\xff ".b, 1, "abc"] )
 					end
 				end
 			end
