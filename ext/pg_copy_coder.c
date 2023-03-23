@@ -792,7 +792,6 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 	cur_ptr = input_line;
 	line_end_ptr = input_line + len;
 
-
 	if (cur_ptr + 11 <= line_end_ptr && memcmp(cur_ptr, BinarySignature, 11) == 0){
 		/* binary COPY header signature detected -> just drop it */
 		int ext_bytes;
@@ -805,6 +804,7 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 		/* read header extensions */
 		if (cur_ptr + 4 > line_end_ptr) goto length_error;
 		ext_bytes = read_nbo32(cur_ptr);
+		if (ext_bytes < 0) goto length_error;
 		cur_ptr += 4;
 		if (cur_ptr + ext_bytes > line_end_ptr) goto length_error;
 		cur_ptr += ext_bytes;
@@ -816,11 +816,10 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 	cur_ptr += 2;
 
 	/* COPY data trailer? */
-	if (nfields == -1) {
+	if (nfields < 0) {
+		if (nfields != -1) goto length_error;
 		array = Qnil;
 	} else {
-
-		/* The received input string will probably have this->nfields fields. */
 		array = rb_ary_new2(expected_fields);
 
 		for( fieldno = 0; fieldno < nfields; fieldno++){
@@ -832,7 +831,8 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 			input_len = read_nbo32(cur_ptr);
 			cur_ptr += 4;
 
-			if (input_len == -1) {
+			if (input_len < 0) {
+				if (input_len != -1) goto length_error;
 				/* NULL indicator */
 				rb_ary_push(array, Qnil);
 			} else {
