@@ -210,6 +210,9 @@ pg_tmir_typecast_query_param( VALUE self, VALUE param_value, VALUE field )
  * This method is called, when a type map is used for decoding copy data,
  * before the value is casted.
  *
+ * Should return the expected number of columns or 0 if the number of columns is unknown.
+ * This number is only used for memory pre-allocation.
+ *
  */
 static VALUE pg_tmir_fit_to_copy_get_dummy( VALUE self ){}
 #endif
