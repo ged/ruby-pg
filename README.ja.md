@@ -116,10 +116,12 @@ Binary Encoder、BD = Binary Decoder）。
   💡
   リンクがないでしょうか。[こちら](https://deveiate.org/code/pg/README_ja_md.html#label-E5-9E-8B-E5-A4-89-E6-8F-9B)を代わりに見てください
   💡
-  * BE:
-    [Int2](rdoc-ref:PG::BinaryEncoder::Int2)、[Int4](rdoc-ref:PG::BinaryEncoder::Int4)、[Int8](rdoc-ref:PG::BinaryEncoder::Int8)
+    * BE:
+      [Int2](rdoc-ref:PG::BinaryEncoder::Int2)、[Int4](rdoc-ref:PG::BinaryEncoder::Int4)、[Int8](rdoc-ref:PG::BinaryEncoder::Int8)
 * Float:
   [TE](rdoc-ref:PG::TextEncoder::Float)、[TD](rdoc-ref:PG::TextDecoder::Float)、[BD](rdoc-ref:PG::BinaryDecoder::Float)
+    * BE: [Float4](rdoc-ref:PG::BinaryEncoder::Float4),
+      [Float8](rdoc-ref:PG::BinaryEncoder::Float8)
 * Numeric:
   [TE](rdoc-ref:PG::TextEncoder::Numeric)、[TD](rdoc-ref:PG::TextDecoder::Numeric)
 * Boolean:
@@ -135,6 +137,8 @@ Binary Encoder、BD = Binary Decoder）。
       [現地時間](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone)、[UTC](rdoc-ref:PG::TextEncoder::TimestampUtc)、[タイムゾーン付き](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
     * TD:
       [現地時間](rdoc-ref:PG::TextDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::TextDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
+    * BE: [local](rdoc-ref:PG::BinaryEncoder::TimestampLocal),
+      [UTC](rdoc-ref:PG::BinaryEncoder::TimestampUtc)
     * BD:
       [現地時間](rdoc-ref:PG::BinaryDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
 * Date:
@@ -147,9 +151,12 @@ Binary Encoder、BD = Binary Decoder）。
   [TE](rdoc-ref:PG::TextEncoder::Array)、[TD](rdoc-ref:PG::TextDecoder::Array)
 * 複合型（「行」や「レコード」などとも言います）：[TE](rdoc-ref:PG::TextEncoder::Record)、[TD](rdoc-ref:PG::TextDecoder::Record)
 
-カラム型として使われていませんが以下のテキスト形式もエンコードできます。
+The following text and binary formats can also be encoded although they are
+not used as column type:
 
-* COPYの入出力データ：[TE](rdoc-ref:PG::TextEncoder::CopyRow)、[TD](rdoc-ref:PG::TextDecoder::CopyRow)
+* COPYの入出力データ：[TE](rdoc-ref:PG::TextEncoder::CopyRow)、[TD](rdoc-ref:PG::TextDecoder::CopyRow),
+  [BE](rdoc-ref:PG::BinaryEncoder::CopyRow),
+  [BD](rdoc-ref:PG::BinaryDecoder::CopyRow)
 * SQL文字列に挿入するリテラル：[TE](rdoc-ref:PG::TextEncoder::QuotedLiteral)
 * SQLの識別子:
   [TE](rdoc-ref:PG::TextEncoder::Identifier)、[TD](rdoc-ref:PG::TextDecoder::Identifier)
