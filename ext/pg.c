@@ -33,7 +33,6 @@
  *
  * - PQfreemem -- unnecessary: copied to ruby object, then freed. Ruby object's
  *                memory is freed when it is garbage collected.
- * - PQbinaryTuples -- better to use PQfformat
  * - PQprint -- not very useful
  * - PQsetdb -- not very useful
  * - PQoidStatus -- deprecated, use PQoidValue

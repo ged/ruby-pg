@@ -1,7 +1,8 @@
 # pg
 
 * home :: https://github.com/ged/ruby-pg
-* docs :: http://deveiate.org/code/pg
+* docs :: http://deveiate.org/code/pg (English) ,
+          https://deveiate.org/code/pg/README_ja_md.html (Japanese)
 * clog :: link:/History.md
 
 [![https://gitter.im/ged/ruby-pg
@@ -130,12 +131,12 @@ Binary Encoder、BD = Binary Decoder）。
 * Base64:
   [TE](rdoc-ref:PG::TextEncoder::ToBase64)、[TD](rdoc-ref:PG::TextDecoder::FromBase64)、[BE](rdoc-ref:PG::BinaryEncoder::FromBase64)、[BD](rdoc-ref:PG::BinaryDecoder::ToBase64)
 * Timestamp:
-  * TE:
-    [現地時間](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone)、[UTC](rdoc-ref:PG::TextEncoder::TimestampUtc)、[タイムゾーン付き](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
-  * TD:
-    [現地時間](rdoc-ref:PG::TextDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::TextDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
-  * BD:
-    [現地時間](rdoc-ref:PG::BinaryDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
+    * TE:
+      [現地時間](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone)、[UTC](rdoc-ref:PG::TextEncoder::TimestampUtc)、[タイムゾーン付き](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
+    * TD:
+      [現地時間](rdoc-ref:PG::TextDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::TextDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
+    * BD:
+      [現地時間](rdoc-ref:PG::BinaryDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
 * Date:
   [TE](rdoc-ref:PG::TextEncoder::Date)、[TD](rdoc-ref:PG::TextDecoder::Date)
 * JSONとJSONB:

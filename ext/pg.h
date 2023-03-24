@@ -314,7 +314,7 @@ int pg_coder_enc_to_s                                  _(( t_pg_coder*, VALUE, c
 int pg_text_enc_identifier                             _(( t_pg_coder*, VALUE, char *, VALUE *, int));
 t_pg_coder_enc_func pg_coder_enc_func                  _(( t_pg_coder* ));
 t_pg_coder_dec_func pg_coder_dec_func                  _(( t_pg_coder*, int ));
-void pg_define_coder                                   _(( const char *, void *, VALUE, VALUE ));
+VALUE pg_define_coder                                  _(( const char *, void *, VALUE, VALUE ));
 VALUE pg_obj_to_i                                      _(( VALUE ));
 VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));

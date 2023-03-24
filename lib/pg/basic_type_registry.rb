@@ -240,6 +240,7 @@ class PG::BasicTypeRegistry
 		register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
 		alias_type 0, 'float8', 'float4'
 
+		# For compatibility reason the timestamp in text format is encoded as local time (TimestampWithoutTimeZone) instead of UTC
 		register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
 		register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
 		register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
@@ -274,10 +275,10 @@ class PG::BasicTypeRegistry
 
 		register_type 1, 'bytea', PG::BinaryEncoder::Bytea, PG::BinaryDecoder::Bytea
 		register_type 1, 'bool', PG::BinaryEncoder::Boolean, PG::BinaryDecoder::Boolean
-		register_type 1, 'float4', nil, PG::BinaryDecoder::Float
-		register_type 1, 'float8', nil, PG::BinaryDecoder::Float
-		register_type 1, 'timestamp', nil, PG::BinaryDecoder::TimestampUtc
-		register_type 1, 'timestamptz', nil, PG::BinaryDecoder::TimestampUtcToLocal
+		register_type 1, 'float4', PG::BinaryEncoder::Float4, PG::BinaryDecoder::Float
+		register_type 1, 'float8', PG::BinaryEncoder::Float8, PG::BinaryDecoder::Float
+		register_type 1, 'timestamp', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtc
+		register_type 1, 'timestamptz', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtcToLocal
 
 		self
 	end

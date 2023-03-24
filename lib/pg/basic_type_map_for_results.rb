@@ -46,6 +46,26 @@ require 'pg' unless defined?( PG )
 # This prints the rows with type casted columns:
 #   ["a", 123, [5, 4, 3]]
 #
+# Very similar with binary format:
+#
+#   conn.exec( "CREATE TABLE copytable AS VALUES('a', 123, '2023-03-19 18:39:44'::TIMESTAMP)" )
+#
+#   # Retrieve table OIDs per empty result set in binary format.
+#   res = conn.exec_params( "SELECT * FROM copytable LIMIT 0", [], 1 )
+#   # Build a type map for common database to ruby type decoders.
+#   btm = PG::BasicTypeMapForResults.new(conn)
+#   # Build a PG::TypeMapByColumn with decoders suitable for copytable.
+#   tm = btm.build_column_map( res )
+#   row_decoder = PG::BinaryDecoder::CopyRow.new type_map: tm
+#
+#   conn.copy_data( "COPY copytable TO STDOUT WITH (FORMAT binary)", row_decoder ) do |res|
+#     while row=conn.get_copy_data
+#       p row
+#     end
+#   end
+# This prints the rows with type casted columns:
+#   ["a", 123, 2023-03-19 18:39:44 UTC]
+#
 # See also PG::BasicTypeMapBasedOnResult for the encoder direction and PG::BasicTypeRegistry for the definition of additional types.
 class PG::BasicTypeMapForResults < PG::TypeMapByOid
 	include PG::BasicTypeRegistry::Checker

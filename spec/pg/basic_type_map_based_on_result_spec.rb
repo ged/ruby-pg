@@ -74,7 +74,7 @@ describe 'Basic type mapping' do
 		end
 
 		context "with usage of result oids for copy encoder selection" do
-			it "can type cast #copy_data input with explicit encoder" do
+			it "can type cast #copy_data text input with encoder" do
 				@conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[])" )
 
 				# Retrieve table OIDs per empty result set.
@@ -88,6 +88,28 @@ describe 'Basic type mapping' do
 				end
 				res = @conn.exec( "SELECT * FROM copytable" )
 				expect( res.values ).to eq( [['a', '123', '{5,4,3}'], ['b', '234', '{2,3}']] )
+			end
+
+			[1, 0].each do |format|
+				it "can type cast #copy_data input with encoder to format #{format}" do
+					@conn.exec( "CREATE TEMP TABLE copytable (b bytea, i INT, ts1 timestamp, ts2 timestamp, f4 float4, f8 float8)" )
+
+					# Retrieve table OIDs per empty result set.
+					res = @conn.exec_params( "SELECT * FROM copytable LIMIT 0", [], format )
+					tm = basic_type_mapping.build_column_map( res )
+					nsp = format==1 ? PG::BinaryEncoder : PG::TextEncoder
+					row_encoder = nsp::CopyRow.new type_map: tm
+
+					@conn.copy_data( "COPY copytable FROM STDIN WITH (FORMAT #{ format==1 ? "binary" : "text" })", row_encoder ) do |res|
+						@conn.put_copy_data ["\xff\x00\n\r'", 123, Time.utc(2023, 3, 17, 3, 4, 5.6789123), Time.new(1990, 12, 17, 18, 44, 45, "+03:30").utc, 12.345, -12.345e167]
+						@conn.put_copy_data ["  xyz  ", -444, "Infinity", "-infinity", -Float::INFINITY, Float::NAN]
+					end
+					res = @conn.exec( "SELECT * FROM copytable" )
+					expect( res.values ).to eq( [
+						["\\xff000a0d27", "123", "2023-03-17 03:04:05.678912", "1990-12-17 15:14:45", "12.345", "-1.2345e+168"],
+						["\\x202078797a2020", "-444", "infinity", "-infinity", "-Infinity", "NaN"]
+					] )
+				end
 			end
 		end
 	end

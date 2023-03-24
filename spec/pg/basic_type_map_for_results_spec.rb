@@ -354,7 +354,7 @@ describe 'Basic type mapping' do
 		end
 
 		context "with usage of result oids for copy decoder selection" do
-			it "can type cast #copy_data output with explicit decoder" do
+			it "can type cast #copy_data text output with decoder" do
 				@conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[])" )
 				@conn.exec( "INSERT INTO copytable VALUES ('a', 123, '{5,4,3}'), ('b', 234, '{2,3}')" )
 
@@ -370,6 +370,28 @@ describe 'Basic type mapping' do
 					end
 				end
 				expect( rows ).to eq( [['a', 123, [5,4,3]], ['b', 234, [2,3]]] )
+			end
+
+			it "can type cast #copy_data binary output with decoder" do
+				@conn.exec( "CREATE TEMP TABLE copytable (b BYTEA, i INT, ts timestamp)" )
+				@conn.exec( "INSERT INTO copytable VALUES ('\\xff000a0d27', 1234, '2023-03-17 03:04:05.678912'), ('\\x202078797a2020', '-444', '1990-12-17 15:14:45')" )
+
+				# Retrieve table OIDs per empty result.
+				res = @conn.exec_params( "SELECT * FROM copytable LIMIT 0", [], 1 )
+				tm = basic_type_mapping.build_column_map( res )
+				row_decoder = PG::BinaryDecoder::CopyRow.new type_map: tm
+
+				rows = []
+				@conn.copy_data( "COPY copytable TO STDOUT WITH (FORMAT binary)", row_decoder ) do |res|
+					while row=@conn.get_copy_data
+						rows << row
+					end
+				end
+				expect( rows.map{|l| l[0,2] } ).to eq( [["\xff\x00\n\r'".b, 1234], ["  xyz  ", -444]] )
+				expect( rows[0][2] ).
+					to be_within(0.000001).of( Time.utc(2023, 3, 17, 3, 4, 5.678912) )
+				expect( rows[1][2] ).
+					to be_within(0.000001).of( Time.utc(1990, 12, 17, 15, 14, 45) )
 			end
 		end
 	end

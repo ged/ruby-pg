@@ -527,6 +527,8 @@ static void pgresult_init_fnames(VALUE self)
  * * +PGRES_SINGLE_TUPLE+
  * * +PGRES_PIPELINE_SYNC+
  * * +PGRES_PIPELINE_ABORTED+
+ *
+ * Use <tt>res.res_status</tt> to retrieve the string representation.
  */
 static VALUE
 pgresult_result_status(VALUE self)
@@ -536,16 +538,38 @@ pgresult_result_status(VALUE self)
 
 /*
  * call-seq:
- *    res.res_status( status ) -> String
+ *    PG::Result.res_status( status ) -> String
  *
  * Returns the string representation of +status+.
  *
 */
 static VALUE
-pgresult_res_status(VALUE self, VALUE status)
+pgresult_s_res_status(VALUE self, VALUE status)
+{
+	return rb_utf8_str_new_cstr(PQresStatus(NUM2INT(status)));
+}
+
+/*
+ * call-seq:
+ *    res.res_status -> String
+ *    res.res_status( status ) -> String
+ *
+ * Returns the string representation of the status of the result or of the provided +status+.
+ *
+ */
+static VALUE
+pgresult_res_status(int argc, VALUE *argv, VALUE self)
 {
 	t_pg_result *this = pgresult_get_this_safe(self);
-	VALUE ret = rb_str_new2(PQresStatus(NUM2INT(status)));
+	VALUE ret;
+
+	if( argc == 0 ){
+		ret = rb_str_new2(PQresStatus(PQresultStatus(this->pgresult)));
+	}else if( argc == 1 ){
+		ret = rb_str_new2(PQresStatus(NUM2INT(argv[0])));
+	}else{
+		rb_raise(rb_eArgError, "only 0 or 1 arguments expected");
+	}
 	PG_ENCODING_SET_NOCHECK(ret, this->enc_idx);
 	return ret;
 }
@@ -683,6 +707,21 @@ static VALUE
 pgresult_nfields(VALUE self)
 {
 	return INT2NUM(PQnfields(pgresult_get(self)));
+}
+
+/*
+ * call-seq:
+ *    res.binary_tuples() -> Integer
+ *
+ * Returns 1 if the PGresult contains binary data and 0 if it contains text data.
+ *
+ * This function is deprecated (except for its use in connection with COPY), because it is possible for a single PGresult to contain text data in some columns and binary data in others.
+ * Result#fformat is preferred. binary_tuples returns 1 only if all columns of the result are binary (format 1).
+ */
+static VALUE
+pgresult_binary_tuples(VALUE self)
+{
+	return INT2NUM(PQbinaryTuples(pgresult_get(self)));
 }
 
 /*
@@ -1441,7 +1480,7 @@ VALUE
 pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* data)
 {
 	t_pg_result *this;
-	int nfields;
+	int nfields, nfields2;
 	PGconn *pgconn;
 	PGresult *pgresult;
 
@@ -1467,6 +1506,12 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 				pg_result_check( self );
 		}
 
+		nfields2 = PQnfields(pgresult);
+		if( nfields != nfields2 ){
+			pgresult_clear( this );
+			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode from %d to %d - this is a sign for intersection with another query", nfields, nfields2);
+		}
+
 		if( yielder( self, ntuples, nfields, data ) ){
 			pgresult_clear( this );
 		}
@@ -1479,9 +1524,6 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 		pgresult = gvl_PQgetResult(pgconn);
 		if( pgresult == NULL )
 			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another query");
-
-		if( nfields != PQnfields(pgresult) )
-			rb_raise( rb_eInvalidChangeOfResultFields, "number of fields changed in single row mode from %d to %d - this is a sign for intersection with another query", nfields, PQnfields(pgresult));
 
 		this->pgresult = pgresult;
 	}
@@ -1632,7 +1674,8 @@ init_pg_result(void)
 
 	/******     PG::Result INSTANCE METHODS: libpq     ******/
 	rb_define_method(rb_cPGresult, "result_status", pgresult_result_status, 0);
-	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, 1);
+	rb_define_method(rb_cPGresult, "res_status", pgresult_res_status, -1);
+	rb_define_singleton_method(rb_cPGresult, "res_status", pgresult_s_res_status, 1);
 	rb_define_method(rb_cPGresult, "error_message", pgresult_error_message, 0);
 	rb_define_alias( rb_cPGresult, "result_error_message", "error_message");
 #ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
@@ -1648,6 +1691,7 @@ init_pg_result(void)
 	rb_define_alias(rb_cPGresult, "num_tuples", "ntuples");
 	rb_define_method(rb_cPGresult, "nfields", pgresult_nfields, 0);
 	rb_define_alias(rb_cPGresult, "num_fields", "nfields");
+	rb_define_method(rb_cPGresult, "binary_tuples", pgresult_binary_tuples, 0);
 	rb_define_method(rb_cPGresult, "fname", pgresult_fname, 1);
 	rb_define_method(rb_cPGresult, "fnumber", pgresult_fnumber, 1);
 	rb_define_method(rb_cPGresult, "ftable", pgresult_ftable, 1);

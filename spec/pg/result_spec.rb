@@ -8,6 +8,18 @@ require 'pg'
 
 describe PG::Result do
 
+	it "provides res_status" do
+		str = PG::Result.res_status(PG::PGRES_EMPTY_QUERY)
+		expect( str ).to eq("PGRES_EMPTY_QUERY")
+		expect( str.encoding ).to eq(Encoding::UTF_8)
+
+		res = @conn.exec("SELECT 1")
+		expect( res.res_status ).to eq("PGRES_TUPLES_OK")
+		expect( res.res_status(PG::PGRES_FATAL_ERROR) ).to eq("PGRES_FATAL_ERROR")
+
+		expect{ res.res_status(1,2) }.to raise_error(ArgumentError)
+	end
+
 	describe :field_name_type do
 		let!(:res) { @conn.exec('SELECT 1 AS a, 2 AS "B"') }
 
@@ -241,15 +253,30 @@ describe PG::Result do
 			}.to raise_error(PG::DivisionByZero)
 		end
 
-		it "raises an error if result number of rows change" do
+		it "raises an error if result number of fields change" do
 			@conn.send_query( "SELECT 1" )
 			@conn.set_single_row_mode
+			res = @conn.get_result
 			expect{
-				@conn.get_result.stream_each_row do
+				res.stream_each_row do
 					@conn.discard_results
 					@conn.send_query("SELECT 2,3");
+					@conn.set_single_row_mode
 				end
 			}.to raise_error(PG::InvalidChangeOfResultFields, /from 1 to 2 /)
+			expect( res.cleared? ).to be true
+		end
+
+		it "raises an error if there is a timeout during streaming" do
+			@conn.exec( "SET local statement_timeout = 20" )
+
+			@conn.send_query( "SELECT 1, true UNION ALL SELECT 2, (pg_sleep(0.1) IS NULL)" )
+			@conn.set_single_row_mode
+			expect{
+				@conn.get_result.stream_each_row do |row|
+					# No-op
+				end
+			}.to raise_error(PG::QueryCanceled, /statement timeout/)
 		end
 	end
 
@@ -431,6 +458,27 @@ describe PG::Result do
 
 		res = @conn.exec( 'SELECT * FROM valuestest' )
 		expect( res.values ).to eq( [ ["bar"], ["bar2"] ] )
+	end
+
+	it "provides the result status" do
+		res = @conn.exec("SELECT 1")
+		expect( res.result_status ).to eq(PG::PGRES_TUPLES_OK)
+
+		res = @conn.exec("")
+		expect( res.result_status ).to eq(PG::PGRES_EMPTY_QUERY)
+	end
+
+	it "can retrieve number of fields" do
+		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
+		expect(res.nfields).to eq(2)
+		expect(res.num_fields).to eq(2)
+	end
+
+	it "can retrieve fields format (text/binary)" do
+		res = @conn.exec_params('SELECT 1 AS a, 2 AS "B"', [], 0)
+		expect(res.binary_tuples).to eq(0)
+		res = @conn.exec_params('SELECT 1 AS a, 2 AS "B"', [], 1)
+		expect(res.binary_tuples).to eq(1)
 	end
 
 	it "can retrieve field names" do
