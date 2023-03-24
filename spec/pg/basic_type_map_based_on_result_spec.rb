@@ -99,11 +99,11 @@ describe 'Basic type mapping' do
 				row_encoder = PG::BinaryEncoder::CopyRow.new type_map: tm
 
 				@conn.copy_data( "COPY copytable FROM STDIN WITH (FORMAT binary)", row_encoder ) do |res|
-					@conn.put_copy_data ["\xff\x00\n\r'", 123, Time.utc(2023, 3, 17, 3, 4, 5.6789123), 12.345, -12.345e67]
+					@conn.put_copy_data ["\xff\x00\n\r'", 123, Time.utc(2023, 3, 17, 3, 4, 5.6789123), 12.345, -12.345e167]
 					@conn.put_copy_data ["  xyz  ", -444, Time.new(1990, 12, 17, 18, 44, 45, "+03:30"), -Float::INFINITY, Float::NAN]
 				end
 				res = @conn.exec( "SELECT * FROM copytable" )
-				expect( res.values ).to eq( [["\\xff000a0d27", "123", "2023-03-17 03:04:05.678912", "12.345", "-1.2345e+68"], ["\\x202078797a2020", "-444", "1990-12-17 15:14:45", "-Infinity", "NaN"]] )
+				expect( res.values ).to eq( [["\\xff000a0d27", "123", "2023-03-17 03:04:05.678912", "12.345", "-1.2345e+168"], ["\\x202078797a2020", "-444", "1990-12-17 15:14:45", "-Infinity", "NaN"]] )
 			end
 		end
 	end
