@@ -32,7 +32,27 @@ require 'pg' unless defined?( PG )
 #     conn.put_copy_data ['a', 123, [5,4,3]]
 #   end
 # This inserts a single row into copytable with type casts from ruby to
-# database types.
+# database types using text format.
+#
+# Very similar with binary format:
+#
+#   conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, blob bytea, created_at timestamp)" )
+#   # Retrieve table OIDs per empty result set in binary format.
+#   res = conn.exec_params( "SELECT * FROM copytable LIMIT 0", [], 1 )
+#   # Build a type map for common ruby to database type encoders.
+#   btm = PG::BasicTypeMapBasedOnResult.new(conn)
+#   # Build a PG::TypeMapByColumn with encoders suitable for copytable.
+#   tm = btm.build_column_map( res )
+#   row_encoder = PG::BinaryEncoder::CopyRow.new type_map: tm
+#
+#   conn.copy_data( "COPY copytable FROM STDIN WITH (FORMAT binary)", row_encoder ) do |res|
+#     conn.put_copy_data ['a', 123, "\xff\x00".b, Time.now]
+#   end
+#
+# This inserts a single row into copytable with type casts from ruby to
+# database types using binary copy and value format.
+# Binary COPY is faster than text format but less portable and less readable and pg offers fewer en-/decoders of database types.
+#
 class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
 	include PG::BasicTypeRegistry::Checker
 

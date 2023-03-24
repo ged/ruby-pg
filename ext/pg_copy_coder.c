@@ -353,7 +353,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
  *     conn.put_copy_data ["string2", 42, true]
  *   end
  *
- * See also PG::BinaryEncoder::CopyRow for the decoding direction with
+ * See also PG::BinaryDecoder::CopyRow for the decoding direction with
  * PG::Connection#get_copy_data .
  */
 static int
