@@ -1,3 +1,32 @@
+## v1.5.0 [YYYY-MM-YY] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Bugfixes:
+
+- Move nfields-check of stream-methods after result status check [#507](https://github.com/ged/ruby-pg/pull/507)
+  This ensures that the nfield-check doesn't hide errors like statement timeout.
+
+Enhancements:
+
+- Add binary COPY encoder and decoder: [#511](https://github.com/ged/ruby-pg/pull/511)
+    * PG::BinaryEncoder::CopyRow
+    * PG::BinaryDecoder::CopyRow
+- Add binary timestamp encoders:
+    * PG::BinaryEncoder::TimestampUtc
+    * PG::BinaryEncoder::TimestampLocal
+    * PG::BinaryEncoder::Timestamp
+- Add PG::BinaryEncoder::Float4 and Float8
+- Add PG::Result#binary_tuples [#511](https://github.com/ged/ruby-pg/pull/511)
+  It is useful for COPY and not deprecated in that context.
+- Add PG::Result.res_status as a class method and extend Result#res_status to return the status of self. [#508](https://github.com/ged/ruby-pg/pull/508)
+- Add PG::TextEncoder::Bytea to BasicTypeRegistry [#506](https://github.com/ged/ruby-pg/pull/506)
+- Use keyword arguments instead of hashes for Coder initialization and #to_h. [#511](https://github.com/ged/ruby-pg/pull/511)
+
+Repository:
+
+- `rake test` tries to find PostgreSQL server commands by pg_config [#503](https://github.com/ged/ruby-pg/pull/503)
+  So there's no need to set the PATH manuelly any longer.
+
+
 ## v1.4.6 [2023-02-26] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Add japanese README file. [#502](https://github.com/ged/ruby-pg/pull/502)
