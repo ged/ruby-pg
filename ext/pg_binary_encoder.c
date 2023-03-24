@@ -139,6 +139,9 @@ pg_bin_enc_float8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 	return 8;
 }
 
+#define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
+#define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
+
 /*
  * Document-class: PG::BinaryEncoder::Timestamp < PG::SimpleEncoder
  *
@@ -163,8 +166,15 @@ pg_bin_enc_timestamp(t_pg_coder *this, VALUE value, char *out, VALUE *intermedia
 		struct timespec ts;
 
 		/* second call -> write data to *out */
-		if(TYPE(*intermediate) == T_STRING){
-			return pg_coder_enc_to_s(this, value, out, intermediate, enc_idx);
+		switch(TYPE(*intermediate)){
+			case T_STRING:
+				return pg_coder_enc_to_s(this, value, out, intermediate, enc_idx);
+			case T_TRUE:
+				write_nbo64(PG_INT64_MAX, out);
+				return 8;
+			case T_FALSE:
+				write_nbo64(PG_INT64_MIN, out);
+				return 8;
 		}
 
 		ts = rb_time_timespec(*intermediate);
@@ -181,6 +191,21 @@ pg_bin_enc_timestamp(t_pg_coder *this, VALUE value, char *out, VALUE *intermedia
 	}else{
 		/* first call -> determine the required length */
 		if(TYPE(value) == T_STRING){
+			char *pstr = RSTRING_PTR(value);
+			if(RSTRING_LEN(value) >= 1){
+				switch(pstr[0]) {
+					case 'I':
+					case 'i':
+						*intermediate = Qtrue;
+						return 8;
+					case '-':
+						if (RSTRING_LEN(value) >= 2 && (pstr[1] == 'I' || pstr[1] == 'i')) {
+							*intermediate = Qfalse;
+							return 8;
+						}
+				}
+			}
+
 			return pg_coder_enc_to_s(this, value, out, intermediate, enc_idx);
 		}
 

@@ -242,6 +242,7 @@ class PG::BasicTypeRegistry
 		register_type 0, 'float4', PG::TextEncoder::Float, PG::TextDecoder::Float
 		alias_type 0, 'float8', 'float4'
 
+		# For compatibility reason the timestamp in text format is encoded as local time (TimestampWithoutTimeZone) instead of UTC
 		register_type 0, 'timestamp', PG::TextEncoder::TimestampWithoutTimeZone, PG::TextDecoder::TimestampWithoutTimeZone
 		register_type 0, 'timestamptz', PG::TextEncoder::TimestampWithTimeZone, PG::TextDecoder::TimestampWithTimeZone
 		register_type 0, 'date', PG::TextEncoder::Date, PG::TextDecoder::Date
