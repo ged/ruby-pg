@@ -7,7 +7,8 @@ Bugfixes:
 
 Enhancements:
 
-- Add binary COPY encoder and decoder: [#511](https://github.com/ged/ruby-pg/pull/511)
+- Extend PG::Connection#copy_data to better support binary transfers [#511](https://github.com/ged/ruby-pg/pull/511)
+- Add binary COPY encoder and decoder:
     * PG::BinaryEncoder::CopyRow
     * PG::BinaryDecoder::CopyRow
 - Add binary timestamp encoders:
