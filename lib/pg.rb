@@ -79,7 +79,9 @@ module PG
 			autoload klass, 'pg/text_decoder/timestamp'
 		end
 		autoload :Date, 'pg/text_decoder/date'
+		autoload :Inet, 'pg/text_decoder/inet'
 		autoload :JSON, 'pg/text_decoder/json'
+		autoload :Numeric, 'pg/text_decoder/numeric'
 	end
 	module TextEncoder
 		%i[ TimestampUtc TimestampWithoutTimeZone TimestampWithTimeZone ].each do |klass|
@@ -88,6 +90,7 @@ module PG
 		autoload :Date, 'pg/text_encoder/date'
 		autoload :Inet, 'pg/text_encoder/inet'
 		autoload :JSON, 'pg/text_encoder/json'
+		autoload :Numeric, 'pg/text_encoder/numeric'
 	end
 
 	autoload :BasicTypeMapBasedOnResult, 'pg/basic_type_map_based_on_result'

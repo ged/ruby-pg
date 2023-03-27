@@ -371,6 +371,21 @@ pg_text_enc_numeric(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 	}
 }
 
+/* called per autoload when TextEncoder::Numeric is used */
+static VALUE
+init_pg_text_encoder_numeric(VALUE rb_mPG_TextDecoder)
+{
+	s_str_F = rb_str_freeze(rb_str_new_cstr("F"));
+	rb_global_variable(&s_str_F);
+	rb_require("bigdecimal");
+	s_cBigDecimal = rb_const_get(rb_cObject, rb_intern("BigDecimal"));
+
+	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Numeric", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Numeric", pg_text_enc_numeric, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
+
+	return Qnil;
+}
+
 
 static const char hextab[] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
@@ -784,14 +799,10 @@ init_pg_text_encoder(void)
 	s_id_encode = rb_intern("encode");
 	s_id_to_i = rb_intern("to_i");
 	s_id_to_s = rb_intern("to_s");
-	s_str_F = rb_str_freeze(rb_str_new_cstr("F"));
-	rb_global_variable(&s_str_F);
-	rb_require("bigdecimal");
-	s_cBigDecimal = rb_const_get(rb_cObject, rb_intern("BigDecimal"));
-
 
 	/* This module encapsulates all encoder classes with text output format */
 	rb_mPG_TextEncoder = rb_define_module_under( rb_mPG, "TextEncoder" );
+	rb_define_private_method(rb_singleton_class(rb_mPG_TextEncoder), "init_numeric", init_pg_text_encoder_numeric, 0);
 
 	/* Make RDoc aware of the encoder classes... */
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Boolean", rb_cPG_SimpleEncoder ); */
@@ -800,8 +811,6 @@ init_pg_text_encoder(void)
 	pg_define_coder( "Integer", pg_text_enc_integer, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Float", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Float", pg_text_enc_float, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
-	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Numeric", rb_cPG_SimpleEncoder ); */
-	pg_define_coder( "Numeric", pg_text_enc_numeric, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "String", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "String", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_TextEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Bytea", rb_cPG_SimpleEncoder ); */
