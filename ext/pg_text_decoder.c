@@ -43,7 +43,6 @@
 #include <string.h>
 
 VALUE rb_mPG_TextDecoder;
-static ID s_id_decode;
 static ID s_id_Rational;
 static ID s_id_new;
 static ID s_id_utc;
@@ -169,6 +168,19 @@ static VALUE
 pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
+}
+
+/* called per autoload when TextDecoder::Numeric is used */
+static VALUE
+init_pg_text_decoder_numeric(VALUE rb_mPG_TextDecoder)
+{
+	rb_require("bigdecimal");
+	s_id_BigDecimal = rb_intern("BigDecimal");
+
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Numeric", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Numeric", pg_text_dec_numeric, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+
+	return Qnil;
 }
 
 /*
@@ -922,8 +934,9 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 	return ip;
 }
 
-void
-init_pg_text_decoder(void)
+/* called per autoload when TextDecoder::Inet is used */
+static VALUE
+init_pg_text_decoder_inet(VALUE rb_mPG_TextDecoder)
 {
 	rb_require("ipaddr");
 	s_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
@@ -942,14 +955,21 @@ init_pg_text_decoder(void)
 	s_vmasks6 = rb_eval_string("a = [0]*129; a[0] = 0; a[128] = 0xffffffffffffffffffffffffffffffff; 127.downto(1){|i| a[i] = a[i+1] - (1 << (127 - i))}; a.freeze");
 	rb_global_variable(&s_vmasks6);
 
-	s_id_decode = rb_intern("decode");
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Inet", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Inet", pg_text_dec_inet, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
+
+	return Qnil;
+}
+
+
+void
+init_pg_text_decoder(void)
+{
 	s_id_Rational = rb_intern("Rational");
 	s_id_new = rb_intern("new");
 	s_id_utc = rb_intern("utc");
 	s_id_getlocal = rb_intern("getlocal");
 
-	rb_require("bigdecimal");
-	s_id_BigDecimal = rb_intern("BigDecimal");
 	s_nan = rb_eval_string("0.0/0.0");
 	rb_global_variable(&s_nan);
 	s_pos_inf = rb_eval_string("1.0/0.0");
@@ -959,6 +979,8 @@ init_pg_text_decoder(void)
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
+	rb_define_private_method(rb_singleton_class(rb_mPG_TextDecoder), "init_inet", init_pg_text_decoder_inet, 0);
+	rb_define_private_method(rb_singleton_class(rb_mPG_TextDecoder), "init_numeric", init_pg_text_decoder_numeric, 0);
 
 	/* Make RDoc aware of the decoder classes... */
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Boolean", rb_cPG_SimpleDecoder ); */
@@ -967,8 +989,6 @@ init_pg_text_decoder(void)
 	pg_define_coder( "Integer", pg_text_dec_integer, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Float", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Float", pg_text_dec_float, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
-	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Numeric", rb_cPG_SimpleDecoder ); */
-	pg_define_coder( "Numeric", pg_text_dec_numeric, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "String", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "String", pg_text_dec_string, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Bytea", rb_cPG_SimpleDecoder ); */
@@ -977,8 +997,6 @@ init_pg_text_decoder(void)
 	pg_define_coder( "Identifier", pg_text_dec_identifier, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Timestamp", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Timestamp", pg_text_dec_timestamp, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
-	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Inet", rb_cPG_SimpleDecoder ); */
-	pg_define_coder( "Inet", pg_text_dec_inet, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Array", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "Array", pg_text_dec_array, rb_cPG_CompositeDecoder, rb_mPG_TextDecoder );

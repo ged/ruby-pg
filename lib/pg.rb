@@ -64,21 +64,45 @@ module PG
 	end
 
 
+	module BinaryDecoder
+		%i[ TimestampUtc TimestampUtcToLocal TimestampLocal ].each do |klass|
+			autoload klass, 'pg/binary_decoder/timestamp'
+		end
+	end
+	module BinaryEncoder
+		%i[ TimestampUtc TimestampLocal ].each do |klass|
+			autoload klass, 'pg/binary_encoder/timestamp'
+		end
+	end
+	module TextDecoder
+		%i[ TimestampUtc TimestampUtcToLocal TimestampLocal TimestampWithoutTimeZone TimestampWithTimeZone ].each do |klass|
+			autoload klass, 'pg/text_decoder/timestamp'
+		end
+		autoload :Date, 'pg/text_decoder/date'
+		autoload :Inet, 'pg/text_decoder/inet'
+		autoload :JSON, 'pg/text_decoder/json'
+		autoload :Numeric, 'pg/text_decoder/numeric'
+	end
+	module TextEncoder
+		%i[ TimestampUtc TimestampWithoutTimeZone TimestampWithTimeZone ].each do |klass|
+			autoload klass, 'pg/text_encoder/timestamp'
+		end
+		autoload :Date, 'pg/text_encoder/date'
+		autoload :Inet, 'pg/text_encoder/inet'
+		autoload :JSON, 'pg/text_encoder/json'
+		autoload :Numeric, 'pg/text_encoder/numeric'
+	end
+
+	autoload :BasicTypeMapBasedOnResult, 'pg/basic_type_map_based_on_result'
+	autoload :BasicTypeMapForQueries, 'pg/basic_type_map_for_queries'
+	autoload :BasicTypeMapForResults, 'pg/basic_type_map_for_results'
+	autoload :BasicTypeRegistry, 'pg/basic_type_registry'
 	require 'pg/exceptions'
-	require 'pg/constants'
 	require 'pg/coder'
-	require 'pg/binary_encoder'
-	require 'pg/binary_decoder'
-	require 'pg/text_encoder'
-	require 'pg/text_decoder'
-	require 'pg/basic_type_registry'
-	require 'pg/basic_type_map_based_on_result'
-	require 'pg/basic_type_map_for_queries'
-	require 'pg/basic_type_map_for_results'
 	require 'pg/type_map_by_column'
 	require 'pg/connection'
 	require 'pg/result'
 	require 'pg/tuple'
-	require 'pg/version'
+	autoload :VERSION, 'pg/version'
 
 end # module PG
