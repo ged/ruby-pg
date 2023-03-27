@@ -513,39 +513,49 @@ describe "PG::Type derivations" do
 			expect( t.format ).to eq( 0 )
 		end
 
+		def expect_deprecated_coder_init
+			if RUBY_VERSION >= '3'
+				expect do
+					yield
+				end.to output(/deprecated.*type_spec.rb/).to_stderr
+			else
+				yield
+			end
+		end
+
 		it "should overwrite default values as hash" do
 			t = nil
-			expect do
+			expect_deprecated_coder_init do
 				t = PG::BinaryEncoder::Int4.new({format: 0})
-			end.to output(/deprecated.*type_spec.rb/).to_stderr
+			end
 			expect( t.format ).to eq( 0 )
 		end
 
 		it "should take hash argument" do
 			t = nil
-			expect { t = PG::TextEncoder::Integer.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::TextEncoder::Integer.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::BinaryEncoder::Int4.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::BinaryEncoder::Int4.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::BinaryDecoder::TimestampUtc.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::BinaryDecoder::TimestampUtc.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::BinaryDecoder::TimestampUtcToLocal.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::BinaryDecoder::TimestampUtcToLocal.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::BinaryDecoder::TimestampLocal.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::BinaryDecoder::TimestampLocal.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::BinaryEncoder::TimestampUtc.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::BinaryEncoder::TimestampUtc.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::BinaryEncoder::TimestampLocal.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::BinaryEncoder::TimestampLocal.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::TextDecoder::TimestampUtc.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampUtc.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::TextDecoder::TimestampUtcToLocal.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampUtcToLocal.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::TextDecoder::TimestampLocal.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampLocal.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::TextDecoder::TimestampWithoutTimeZone.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampWithoutTimeZone.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
-			expect { t = PG::TextDecoder::TimestampWithTimeZone.new({name: "abcä"}) }.to output(/deprecated.*type_spec.rb/).to_stderr
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampWithTimeZone.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
 		end
 
