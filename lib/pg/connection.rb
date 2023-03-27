@@ -2,8 +2,7 @@
 # frozen_string_literal: true
 
 require 'pg' unless defined?( PG )
-require 'uri'
-require 'io/wait'
+require 'io/wait' unless ::IO.public_instance_methods(false).include?(:wait_readable)
 require 'socket'
 
 # The PostgreSQL connection class. The interface for this class is based on
@@ -63,8 +62,8 @@ class PG::Connection
 		iopts = {}
 
 		if args.length == 1
-			case args.first
-			when URI, /=/, /:\/\//
+			case args.first.to_s
+			when /=/, /:\/\//
 				# Option or URL string style
 				conn_string = args.first.to_s
 				iopts = PG::Connection.conninfo_parse(conn_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }

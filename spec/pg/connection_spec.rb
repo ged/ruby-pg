@@ -199,6 +199,7 @@ describe PG::Connection do
 		end
 
 		it "accepts an URI object" do
+			require "uri"
 			string = described_class.parse_connect_args( URI.parse(uri) )
 
 			expect( string ).to be_a( String )
