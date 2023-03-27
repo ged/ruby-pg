@@ -6,6 +6,9 @@
 *_REMOTE_*
 /.test_symlink
 /build/
+/ext/Makefile
+/ext/mkmf.log
+/ext/postgresql_lib_path.rb
 /doc/
 /lib/*.bundle
 /lib/*.so
