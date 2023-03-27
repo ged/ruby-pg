@@ -6,15 +6,18 @@ module PG
 	class Coder
 
 		module BinaryFormatting
-			def initialize( **kwargs )
-				super(format: 1, **kwargs)
+			def initialize(hash={}, **kwargs)
+				warn "PG::Coder.new(hash) is deprecated. Please use keyword arguments instead! Called from #{caller.first}" unless hash.empty?
+				super(format: 1, **hash, **kwargs)
 			end
 		end
 
 
 		# Create a new coder object based on the attribute Hash.
-		def initialize(**kwargs)
-			kwargs.each do |key, val|
+		def initialize(hash=nil, **kwargs)
+			warn "PG::Coder.new(hash) is deprecated. Please use keyword arguments instead! Called from #{caller.first}" if hash
+
+			(hash || kwargs).each do |key, val|
 				send("#{key}=", val)
 			end
 		end
@@ -42,7 +45,7 @@ module PG
 		end
 
 		def marshal_load(str)
-			initialize **Marshal.load(str)
+			initialize(**Marshal.load(str))
 		end
 
 		def inspect
