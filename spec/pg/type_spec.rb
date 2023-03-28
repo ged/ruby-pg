@@ -508,9 +508,55 @@ describe "PG::Type derivations" do
 			expect( t.name ).to be_nil
 		end
 
-		it "should overwrite default values" do
+		it "should overwrite default values as kwargs" do
 			t = PG::BinaryEncoder::Int4.new(format: 0)
 			expect( t.format ).to eq( 0 )
+		end
+
+		def expect_deprecated_coder_init
+			if RUBY_VERSION >= '3'
+				expect do
+					yield
+				end.to output(/deprecated.*type_spec.rb/).to_stderr
+			else
+				yield
+			end
+		end
+
+		it "should overwrite default values as hash" do
+			t = nil
+			expect_deprecated_coder_init do
+				t = PG::BinaryEncoder::Int4.new({format: 0})
+			end
+			expect( t.format ).to eq( 0 )
+		end
+
+		it "should take hash argument" do
+			t = nil
+			expect_deprecated_coder_init { t = PG::TextEncoder::Integer.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::BinaryEncoder::Int4.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::BinaryDecoder::TimestampUtc.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::BinaryDecoder::TimestampUtcToLocal.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::BinaryDecoder::TimestampLocal.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::BinaryEncoder::TimestampUtc.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::BinaryEncoder::TimestampLocal.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampUtc.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampUtcToLocal.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampLocal.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampWithoutTimeZone.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
+			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampWithTimeZone.new({name: "abcä"}) }
+			expect( t.name ).to eq( "abcä" )
 		end
 
 		it "should give account about memory usage" do
