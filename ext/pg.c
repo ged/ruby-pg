@@ -73,6 +73,7 @@ VALUE rb_mPGconstants;
  * The mapping from canonical encoding names in PostgreSQL to ones in Ruby.
  */
 const char * const (pg_enc_pg2ruby_mapping[][2]) = {
+	{"UTF8",          "UTF-8"       },
 	{"BIG5",          "Big5"        },
 	{"EUC_CN",        "GB2312"      },
 	{"EUC_JP",        "EUC-JP"      },
@@ -104,7 +105,6 @@ const char * const (pg_enc_pg2ruby_mapping[][2]) = {
 	{"SHIFT_JIS_2004","Windows-31J" },
 	/* {"SQL_ASCII",     NULL          },  special case*/
 	{"UHC",           "CP949"       },
-	{"UTF8",          "UTF-8"       },
 	{"WIN866",        "IBM866"      },
 	{"WIN874",        "Windows-874" },
 	{"WIN1250",       "Windows-1250"},
@@ -120,12 +120,6 @@ const char * const (pg_enc_pg2ruby_mapping[][2]) = {
 
 
 /*
- * A cache of mapping from PostgreSQL's encoding indices to Ruby's rb_encoding*s.
- */
-static struct st_table *enc_pg2ruby;
-
-
-/*
  * Return the given PostgreSQL encoding ID as an rb_encoding.
  *
  * - returns NULL if the client encoding is 'SQL_ASCII'.
@@ -134,21 +128,8 @@ static struct st_table *enc_pg2ruby;
 rb_encoding *
 pg_get_pg_encoding_as_rb_encoding( int enc_id )
 {
-	rb_encoding *enc;
-
-	/* Use the cached value if it exists */
-	if ( st_lookup(enc_pg2ruby, (st_data_t)enc_id, (st_data_t*)&enc) ) {
-		return enc;
-	}
-	else {
-		const char *name = pg_encoding_to_char( enc_id );
-
-		enc = pg_get_pg_encname_as_rb_encoding( name );
-		st_insert( enc_pg2ruby, (st_data_t)enc_id, (st_data_t)enc );
-
-		return enc;
-	}
-
+	const char *name = pg_encoding_to_char( enc_id );
+	return pg_get_pg_encname_as_rb_encoding( name );
 }
 
 /*
@@ -683,8 +664,6 @@ Init_pg_ext(void)
 
 	/* Add the constants to the toplevel namespace */
 	rb_include_module( rb_mPG, rb_mPGconstants );
-
-	enc_pg2ruby = st_init_numtable();
 
 	/* Initialize the main extension classes */
 	init_pg_connection();
