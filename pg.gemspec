@@ -30,5 +30,5 @@ Gem::Specification.new do |spec|
   spec.cert_chain    = ["certs/ged.pem"]
   spec.rdoc_options  = ["--main", "README.md",
                         "--title", "PG: The Ruby PostgreSQL Driver"]
-  spec.extra_rdoc_files = `git ls-files -z *.rdoc *.md lib/*.rb lib/*/*.rb ext/*.c ext/*.h`.split("\x0")
+  spec.extra_rdoc_files = `git ls-files -z *.rdoc *.md lib/*.rb lib/*/*.rb lib/*/*/*.rb ext/*.c ext/*.h`.split("\x0")
 end
