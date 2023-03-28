@@ -279,6 +279,7 @@ class PG::BasicTypeRegistry
 		register_type 1, 'float8', PG::BinaryEncoder::Float8, PG::BinaryDecoder::Float
 		register_type 1, 'timestamp', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtc
 		register_type 1, 'timestamptz', PG::BinaryEncoder::TimestampUtc, PG::BinaryDecoder::TimestampUtcToLocal
+		register_type 1, 'date', PG::BinaryEncoder::Date, PG::BinaryDecoder::Date
 
 		self
 	end
