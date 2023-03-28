@@ -16,11 +16,19 @@ Enhancements:
     * PG::BinaryEncoder::TimestampLocal
     * PG::BinaryEncoder::Timestamp
 - Add PG::BinaryEncoder::Float4 and Float8
+- Add binary date type: [#515](https://github.com/ged/ruby-pg/pull/515)
+    * PG::BinaryEncoder::Date
+    * PG::BinaryDecoder::Date
 - Add PG::Result#binary_tuples [#511](https://github.com/ged/ruby-pg/pull/511)
   It is useful for COPY and not deprecated in that context.
 - Add PG::Result.res_status as a class method and extend Result#res_status to return the status of self. [#508](https://github.com/ged/ruby-pg/pull/508)
 - Add PG::TextEncoder::Bytea to BasicTypeRegistry [#506](https://github.com/ged/ruby-pg/pull/506)
 - Use keyword arguments instead of hashes for Coder initialization and #to_h. [#511](https://github.com/ged/ruby-pg/pull/511)
+
+Removed:
+
+- Add deprecation warning about PG::Coder initialization per Hash argument. [#514](https://github.com/ged/ruby-pg/pull/514)
+  It is recommended to use keyword arguments instead.
 
 Repository:
 
