@@ -31,7 +31,7 @@ class CrossLibrary < OpenStruct
 		self.host_platform              = toolchain
 
 		# Cross-compilation constants
-		self.openssl_version            = ENV['OPENSSL_VERSION'] || '3.0.8'
+		self.openssl_version            = ENV['OPENSSL_VERSION'] || '3.1.0'
 		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '15.2'
 
 		# Check if symlinks work in the current working directory.
