@@ -24,6 +24,9 @@ Enhancements:
 - Add PG::Result.res_status as a class method and extend Result#res_status to return the status of self. [#508](https://github.com/ged/ruby-pg/pull/508)
 - Add PG::TextEncoder::Bytea to BasicTypeRegistry [#506](https://github.com/ged/ruby-pg/pull/506)
 - Use keyword arguments instead of hashes for Coder initialization and #to_h. [#511](https://github.com/ged/ruby-pg/pull/511)
+- Use autoload to load optional classes at their first use to reduce the number of files loaded at `require 'pg'`.
+  Previously stdlib libraries `date`, `json`, `ipaddr` and `bigdecimal` were static dependencies, but now only `socket` is mantadory.
+- Update Windows fat binary gem to OpenSSL-3.1.0.
 
 Removed:
 
