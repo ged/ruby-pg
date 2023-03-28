@@ -141,8 +141,10 @@ Binary Encoder、BD = Binary Decoder）。
       [UTC](rdoc-ref:PG::BinaryEncoder::TimestampUtc)
     * BD:
       [現地時間](rdoc-ref:PG::BinaryDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
-* Date:
-  [TE](rdoc-ref:PG::TextEncoder::Date)、[TD](rdoc-ref:PG::TextDecoder::Date)
+* Date: [TE](rdoc-ref:PG::TextEncoder::Date),
+  [TD](rdoc-ref:PG::TextDecoder::Date),
+  [BE](rdoc-ref:PG::BinaryEncoder::Date),
+  [BD](rdoc-ref:PG::BinaryDecoder::Date)
 * JSONとJSONB:
   [TE](rdoc-ref:PG::TextEncoder::JSON)、[TD](rdoc-ref:PG::TextDecoder::JSON)
 * Inet:

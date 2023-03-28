@@ -12,6 +12,8 @@
 #endif
 
 VALUE rb_mPG_BinaryDecoder;
+static VALUE s_Date;
+static ID s_id_new;
 
 
 /*
@@ -195,6 +197,82 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 	}
 }
 
+#define PG_INT32_MIN    (-0x7FFFFFFF-1)
+#define PG_INT32_MAX    (0x7FFFFFFF)
+#define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
+#define MONTHS_PER_YEAR 12
+
+/* taken from PostgreSQL sources at src/backend/utils/adt/datetime.c */
+void
+j2date(int jd, int *year, int *month, int *day)
+{
+	unsigned int julian;
+	unsigned int quad;
+	unsigned int extra;
+	int			y;
+
+	julian = jd;
+	julian += 32044;
+	quad = julian / 146097;
+	extra = (julian - quad * 146097) * 4 + 3;
+	julian += 60 + quad * 3 + extra / 146097;
+	quad = julian / 1461;
+	julian -= quad * 1461;
+	y = julian * 4 / 1461;
+	julian = ((y != 0) ? ((julian + 305) % 365) : ((julian + 306) % 366))
+		+ 123;
+	y += quad * 4;
+	*year = y - 4800;
+	quad = julian * 2141 / 65536;
+	*day = julian - 7834 * quad / 256;
+	*month = (quad + 10) % MONTHS_PER_YEAR + 1;
+}								/* j2date() */
+
+/*
+ * Document-class: PG::BinaryDecoder::Date < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL binary date
+ * to Ruby Date objects.
+ */
+static VALUE
+pg_bin_dec_date(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
+{
+	int year, month, day;
+	int date;
+
+	if (len != 4) {
+		rb_raise(rb_eTypeError, "unexpected date format != 4 bytes");
+	}
+
+	date = read_nbo32(val);
+	switch(date){
+		case PG_INT32_MAX:
+			return rb_str_new2("infinity");
+		case PG_INT32_MIN:
+			return rb_str_new2("-infinity");
+		default:
+			j2date(date + POSTGRES_EPOCH_JDATE, &year, &month, &day);
+
+			return rb_funcall(s_Date, s_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
+	}
+}
+
+/* called per autoload when BinaryDecoder::Date is used */
+static VALUE
+init_pg_bin_decoder_date(VALUE rb_mPG_BinaryDecoder)
+{
+	rb_require("date");
+	s_Date = rb_const_get(rb_cObject, rb_intern("Date"));
+	rb_gc_register_mark_object(s_Date);
+	s_id_new = rb_intern("new");
+
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Date", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Date", pg_bin_dec_date, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
+
+	return Qnil;
+}
+
+
 /*
  * Document-class: PG::BinaryDecoder::String < PG::SimpleDecoder
  *
@@ -209,6 +287,7 @@ init_pg_binary_decoder(void)
 {
 	/* This module encapsulates all decoder classes with binary input format */
 	rb_mPG_BinaryDecoder = rb_define_module_under( rb_mPG, "BinaryDecoder" );
+	rb_define_private_method(rb_singleton_class(rb_mPG_BinaryDecoder), "init_date", init_pg_bin_decoder_date, 0);
 
 	/* Make RDoc aware of the decoder classes... */
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Boolean", rb_cPG_SimpleDecoder ); */

@@ -68,6 +68,7 @@ module PG
 		%i[ TimestampUtc TimestampUtcToLocal TimestampLocal ].each do |klass|
 			autoload klass, 'pg/binary_decoder/timestamp'
 		end
+		autoload :Date, 'pg/binary_decoder/date'
 	end
 	module BinaryEncoder
 		%i[ TimestampUtc TimestampLocal ].each do |klass|

@@ -207,8 +207,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do date type conversions" do
-				[0].each do |format|
+			[0, 1].each do |format|
+				it "should do format #{format} date type conversions" do
 					res = @conn.exec_params( "SELECT CAST('2113-12-31' AS DATE),
 																		CAST('1913-12-31' AS DATE),
 																		CAST('infinity' AS DATE),

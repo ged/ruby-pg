@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Pg 1.4.5\n"
-"POT-Creation-Date: 2023-03-24 13:35+0100\n"
+"POT-Creation-Date: 2023-03-28 08:27+0200\n"
 "PO-Revision-Date: 2023-02-28 21:24+0900\n"
 "Last-Translator: gemmaro <gemmaro.dev@gmail.com>\n"
 "Language-Team: none\n"
@@ -534,12 +534,19 @@ msgstr ""
 
 #. type: Bullet: '* '
 #: ../README.md:146
+#, fuzzy
+#| msgid ""
+#| "Bytea: [TE](rdoc-ref:PG::TextEncoder::Bytea), [TD](rdoc-ref:PG::"
+#| "TextDecoder::Bytea), [BE](rdoc-ref:PG::BinaryEncoder::Bytea), [BD](rdoc-"
+#| "ref:PG::BinaryDecoder::Bytea)"
 msgid ""
 "Date: [TE](rdoc-ref:PG::TextEncoder::Date), [TD](rdoc-ref:PG::TextDecoder::"
-"Date)"
+"Date), [BE](rdoc-ref:PG::BinaryEncoder::Date), [BD](rdoc-ref:PG::"
+"BinaryDecoder::Date)"
 msgstr ""
-"Date: [TE](rdoc-ref:PG::TextEncoder::Date)、[TD](rdoc-ref:PG::TextDecoder::"
-"Date)"
+"Bytea: [TE](rdoc-ref:PG::TextEncoder::Bytea)、[TD](rdoc-ref:PG::TextDecoder::"
+"Bytea)、[BE](rdoc-ref:PG::BinaryEncoder::Bytea)、[BD](rdoc-ref:PG::"
+"BinaryDecoder::Bytea)"
 
 #. type: Bullet: '* '
 #: ../README.md:146
@@ -596,10 +603,9 @@ msgid ""
 "(rdoc-ref:PG::TextDecoder::CopyRow), [BE](rdoc-ref:PG::BinaryEncoder::"
 "CopyRow), [BD](rdoc-ref:PG::BinaryDecoder::CopyRow)"
 msgstr ""
-"COPYの入出力データ：[TE](rdoc-ref:PG::TextEncoder::CopyRow)、[TD](rdoc-"
-"ref:PG::TextDecoder::CopyRow), "
-"[BE](rdoc-ref:PG::BinaryEncoder::CopyRow), "
-"[BD](rdoc-ref:PG::BinaryDecoder::CopyRow)"
+"COPYの入出力データ：[TE](rdoc-ref:PG::TextEncoder::CopyRow)、[TD](rdoc-ref:"
+"PG::TextDecoder::CopyRow), [BE](rdoc-ref:PG::BinaryEncoder::CopyRow), [BD]"
+"(rdoc-ref:PG::BinaryDecoder::CopyRow)"
 
 #. type: Bullet: '* '
 #: ../README.md:152

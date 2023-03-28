@@ -92,7 +92,7 @@ describe 'Basic type mapping' do
 
 			[1, 0].each do |format|
 				it "can type cast #copy_data input with encoder to format #{format}" do
-					@conn.exec( "CREATE TEMP TABLE copytable (b bytea, i INT, ts1 timestamp, ts2 timestamp, f4 float4, f8 float8)" )
+					@conn.exec( "CREATE TEMP TABLE copytable (b bytea, i INT, ts1 timestamp, ts2 timestamp, f4 float4, f8 float8, d1 date, d2 date)" )
 
 					# Retrieve table OIDs per empty result set.
 					res = @conn.exec_params( "SELECT * FROM copytable LIMIT 0", [], format )
@@ -101,13 +101,13 @@ describe 'Basic type mapping' do
 					row_encoder = nsp::CopyRow.new type_map: tm
 
 					@conn.copy_data( "COPY copytable FROM STDIN WITH (FORMAT #{ format==1 ? "binary" : "text" })", row_encoder ) do |res|
-						@conn.put_copy_data ["\xff\x00\n\r'", 123, Time.utc(2023, 3, 17, 3, 4, 5.6789123), Time.new(1990, 12, 17, 18, 44, 45, "+03:30").utc, 12.345, -12.345e167]
-						@conn.put_copy_data ["  xyz  ", -444, "Infinity", "-infinity", -Float::INFINITY, Float::NAN]
+						@conn.put_copy_data ["\xff\x00\n\r'", 123, Time.utc(2023, 3, 17, 3, 4, 5.6789123), Time.new(1990, 12, 17, 18, 44, 45, "+03:30").utc, 12.345, -12.345e167, Date.new(2055, 12, 31), Date.new(1234, 8, 31)]
+						@conn.put_copy_data ["  xyz  ", -444, "Infinity", "-infinity", -Float::INFINITY, Float::NAN, "infinity", "-infinity"]
 					end
 					res = @conn.exec( "SELECT * FROM copytable" )
 					expect( res.values ).to eq( [
-						["\\xff000a0d27", "123", "2023-03-17 03:04:05.678912", "1990-12-17 15:14:45", "12.345", "-1.2345e+168"],
-						["\\x202078797a2020", "-444", "infinity", "-infinity", "-Infinity", "NaN"]
+						["\\xff000a0d27", "123", "2023-03-17 03:04:05.678912", "1990-12-17 15:14:45", "12.345", "-1.2345e+168", "2055-12-31", "1234-08-31"],
+						["\\x202078797a2020", "-444", "infinity", "-infinity", "-Infinity", "NaN", "infinity", "-infinity"]
 					] )
 				end
 			end

@@ -11,6 +11,9 @@
 #endif
 
 VALUE rb_mPG_BinaryEncoder;
+static ID s_id_year;
+static ID s_id_month;
+static ID s_id_day;
 
 
 /*
@@ -139,6 +142,8 @@ pg_bin_enc_float8(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 	return 8;
 }
 
+#define PG_INT32_MIN    (-0x7FFFFFFF-1)
+#define PG_INT32_MAX    (0x7FFFFFFF)
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
 
@@ -218,6 +223,88 @@ pg_bin_enc_timestamp(t_pg_coder *this, VALUE value, char *out, VALUE *intermedia
 	return 8;
 }
 
+#define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
+int
+date2j(int year, int month, int day)
+{
+	int			julian;
+	int			century;
+
+	if (month > 2)
+	{
+		month += 1;
+		year += 4800;
+	}
+	else
+	{
+		month += 13;
+		year += 4799;
+	}
+
+	century = year / 100;
+	julian = year * 365 - 32167;
+	julian += year / 4 - century + century / 4;
+	julian += 7834 * month / 256 + day;
+
+	return julian;
+}								/* date2j() */
+
+/*
+ * Document-class: PG::BinaryEncoder::Date < PG::SimpleEncoder
+ *
+ * This is a encoder class for conversion of Ruby Date objects to PostgreSQL binary date.
+ *
+ * String values are expected to contain a binary data with a length of 4 byte.
+ *
+ */
+static int
+pg_bin_enc_date(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+{
+	if(out){
+		/* second call -> write data to *out */
+		switch(TYPE(*intermediate)){
+			case T_STRING:
+				return pg_coder_enc_to_s(this, value, out, intermediate, enc_idx);
+			case T_TRUE:
+				write_nbo32(PG_INT32_MAX, out);
+				return 4;
+			case T_FALSE:
+				write_nbo32(PG_INT32_MIN, out);
+				return 4;
+		}
+
+		VALUE year = rb_funcall(value, s_id_year, 0);
+		VALUE month = rb_funcall(value, s_id_month, 0);
+		VALUE day = rb_funcall(value, s_id_day, 0);
+		int jday = date2j(NUM2INT(year), NUM2INT(month), NUM2INT(day)) - POSTGRES_EPOCH_JDATE;
+		write_nbo32(jday, out);
+
+	}else{
+		/* first call -> determine the required length */
+		if(TYPE(value) == T_STRING){
+			char *pstr = RSTRING_PTR(value);
+			if(RSTRING_LEN(value) >= 1){
+				switch(pstr[0]) {
+					case 'I':
+					case 'i':
+						*intermediate = Qtrue;
+						return 4;
+					case '-':
+						if (RSTRING_LEN(value) >= 2 && (pstr[1] == 'I' || pstr[1] == 'i')) {
+							*intermediate = Qfalse;
+							return 4;
+						}
+				}
+			}
+
+			return pg_coder_enc_to_s(this, value, out, intermediate, enc_idx);
+		}
+
+		*intermediate = value;
+	}
+	return 4;
+}
+
 /*
  * Document-class: PG::BinaryEncoder::FromBase64 < PG::CompositeEncoder
  *
@@ -266,6 +353,10 @@ pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 void
 init_pg_binary_encoder(void)
 {
+	s_id_year = rb_intern("year");
+	s_id_month = rb_intern("month");
+	s_id_day = rb_intern("day");
+
 	/* This module encapsulates all encoder classes with binary output format */
 	rb_mPG_BinaryEncoder = rb_define_module_under( rb_mPG, "BinaryEncoder" );
 
@@ -288,6 +379,8 @@ init_pg_binary_encoder(void)
 	pg_define_coder( "Bytea", pg_coder_enc_to_s, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Timestamp", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Timestamp", pg_bin_enc_timestamp, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
+	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Date", rb_cPG_SimpleEncoder ); */
+	pg_define_coder( "Date", pg_bin_enc_date, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "FromBase64", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "FromBase64", pg_bin_enc_from_base64, rb_cPG_CompositeEncoder, rb_mPG_BinaryEncoder );
