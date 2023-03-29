@@ -128,7 +128,7 @@ static const rb_data_type_t pg_tuple_type = {
 		pg_compact_callback(pg_tuple_gc_compact),
 	},
 	0, 0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 /*
@@ -159,9 +159,9 @@ pg_tuple_new(VALUE result, int row_num)
 		sizeof(*this->values) * num_fields +
 		sizeof(*this->values) * (dup_names ? 1 : 0));
 
-	this->result = result;
-	this->typemap = p_result->typemap;
-	this->field_map = field_map;
+	RB_OBJ_WRITE(self, &this->result, result);
+	RB_OBJ_WRITE(self, &this->typemap, p_result->typemap);
+	RB_OBJ_WRITE(self, &this->field_map, field_map);
 	this->row_num = row_num;
 	this->num_fields = num_fields;
 
@@ -173,7 +173,8 @@ pg_tuple_new(VALUE result, int row_num)
 		/* Some of the column names are duplicated -> we need the keys as Array in addition.
 		 * Store it behind the values to save the space in the common case of no dups.
 		 */
-		this->values[num_fields] = rb_obj_freeze(rb_ary_new4(num_fields, p_result->fnames));
+		VALUE keys_array = rb_obj_freeze(rb_ary_new4(num_fields, p_result->fnames));
+		RB_OBJ_WRITE(self, &this->values[num_fields], keys_array);
 	}
 
 	RTYPEDDATA_DATA(self) = this;
@@ -193,8 +194,9 @@ pg_tuple_get_this( VALUE self )
 }
 
 static VALUE
-pg_tuple_materialize_field(t_pg_tuple *this, int col)
+pg_tuple_materialize_field(VALUE self, int col)
 {
+	t_pg_tuple *this = RTYPEDDATA_DATA( self );
 	VALUE value = this->values[col];
 
 	if( value == Qundef ){
@@ -202,29 +204,31 @@ pg_tuple_materialize_field(t_pg_tuple *this, int col)
 
 		pgresult_get(this->result); /* make sure we have a valid PGresult object */
 		value = p_typemap->funcs.typecast_result_value(p_typemap, this->result, this->row_num, col);
-		this->values[col] = value;
+		RB_OBJ_WRITE(self, &this->values[col], value);
 	}
 
 	return value;
 }
 
 static void
-pg_tuple_detach(t_pg_tuple *this)
+pg_tuple_detach(VALUE self)
 {
-	this->result = Qnil;
-	this->typemap = Qnil;
+	t_pg_tuple *this = RTYPEDDATA_DATA( self );
+	RB_OBJ_WRITE(self, &this->result, Qnil);
+	RB_OBJ_WRITE(self, &this->typemap, Qnil);
 	this->row_num = -1;
 }
 
 static void
-pg_tuple_materialize(t_pg_tuple *this)
+pg_tuple_materialize(VALUE self)
 {
+	t_pg_tuple *this = RTYPEDDATA_DATA( self );
 	int field_num;
 	for(field_num = 0; field_num < this->num_fields; field_num++) {
-		pg_tuple_materialize_field(this, field_num);
+		pg_tuple_materialize_field(self, field_num);
 	}
 
-	pg_tuple_detach(this);
+	pg_tuple_detach(self);
 }
 
 /*
@@ -286,7 +290,7 @@ pg_tuple_fetch(int argc, VALUE *argv, VALUE self)
 			field_num = NUM2INT(index);
 	}
 
-	return pg_tuple_materialize_field(this, field_num);
+	return pg_tuple_materialize_field(self, field_num);
 }
 
 /*
@@ -324,7 +328,7 @@ pg_tuple_aref(VALUE self, VALUE key)
 			field_num = NUM2INT(index);
 	}
 
-	return pg_tuple_materialize_field(this, field_num);
+	return pg_tuple_materialize_field(self, field_num);
 }
 
 static VALUE
@@ -335,10 +339,9 @@ pg_tuple_num_fields_for_enum(VALUE self, VALUE args, VALUE eobj)
 }
 
 static int
-pg_tuple_yield_key_value(VALUE key, VALUE index, VALUE _this)
+pg_tuple_yield_key_value(VALUE key, VALUE index, VALUE self)
 {
-	t_pg_tuple *this = (t_pg_tuple *)_this;
-	VALUE value = pg_tuple_materialize_field(this, NUM2INT(index));
+	VALUE value = pg_tuple_materialize_field(self, NUM2INT(index));
 	rb_yield_values(2, key, value);
 	return ST_CONTINUE;
 }
@@ -360,16 +363,16 @@ pg_tuple_each(VALUE self)
 	field_names = pg_tuple_get_field_names(this);
 
 	if( field_names == Qfalse ){
-		rb_hash_foreach(this->field_map, pg_tuple_yield_key_value, (VALUE)this);
+		rb_hash_foreach(this->field_map, pg_tuple_yield_key_value, self);
 	} else {
 		int i;
 		for( i = 0; i < this->num_fields; i++ ){
-			VALUE value = pg_tuple_materialize_field(this, i);
+			VALUE value = pg_tuple_materialize_field(self, i);
 			rb_yield_values(2, RARRAY_AREF(field_names, i), value);
 		}
 	}
 
-	pg_tuple_detach(this);
+	pg_tuple_detach(self);
 	return self;
 }
 
@@ -388,11 +391,11 @@ pg_tuple_each_value(VALUE self)
 	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pg_tuple_num_fields_for_enum);
 
 	for(field_num = 0; field_num < this->num_fields; field_num++) {
-		VALUE value = pg_tuple_materialize_field(this, field_num);
+		VALUE value = pg_tuple_materialize_field(self, field_num);
 		rb_yield(value);
 	}
 
-	pg_tuple_detach(this);
+	pg_tuple_detach(self);
 	return self;
 }
 
@@ -409,7 +412,7 @@ pg_tuple_values(VALUE self)
 {
 	t_pg_tuple *this = pg_tuple_get_this(self);
 
-	pg_tuple_materialize(this);
+	pg_tuple_materialize(self);
 	return rb_ary_new4(this->num_fields, &this->values[0]);
 }
 
@@ -462,7 +465,7 @@ pg_tuple_dump(VALUE self)
 	VALUE a;
 	t_pg_tuple *this = pg_tuple_get_this(self);
 
-	pg_tuple_materialize(this);
+	pg_tuple_materialize(self);
 
 	field_names = pg_tuple_get_field_names(this);
 	if( field_names == Qfalse )
@@ -520,26 +523,26 @@ pg_tuple_load(VALUE self, VALUE a)
 		sizeof(*this->values) * num_fields +
 		sizeof(*this->values) * (dup_names ? 1 : 0));
 
-	this->result = Qnil;
-	this->typemap = Qnil;
+	RB_OBJ_WRITE(self, &this->result, Qnil);
+	RB_OBJ_WRITE(self, &this->typemap, Qnil);
 	this->row_num = -1;
 	this->num_fields = num_fields;
-	this->field_map = field_map;
+	RB_OBJ_WRITE(self, &this->field_map, field_map);
 
 	for( i = 0; i < num_fields; i++ ){
 		VALUE v = RARRAY_AREF(values, i);
 		if( v == Qundef )
 			rb_raise(rb_eTypeError, "field %d is not materialized", i);
-		this->values[i] = v;
+		RB_OBJ_WRITE(self, &this->values[i], v);
 	}
 
 	if( dup_names ){
-		this->values[num_fields] = field_names;
+		RB_OBJ_WRITE(self, &this->values[num_fields], field_names);
 	}
 
 	RTYPEDDATA_DATA(self) = this;
 
-        rb_copy_generic_ivar(self, a);
+	rb_copy_generic_ivar(self, a);
 
 	return self;
 }
