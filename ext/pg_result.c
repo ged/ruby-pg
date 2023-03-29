@@ -183,7 +183,7 @@ static const rb_data_type_t pgresult_type = {
 		pg_compact_callback(pgresult_gc_compact),
 	},
 	0, 0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 /* Needed by sequel_pg gem, do not delete */
@@ -208,14 +208,12 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 
 	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
 	this->pgresult = result;
-	this->connection = rb_pgconn;
-	this->typemap = pg_typemap_all_strings;
-	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
 	this->flags = 0;
 	self = TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, this);
+	RB_OBJ_WRITE(self, &this->connection, rb_pgconn);
 
 	if( result ){
 		t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
@@ -224,10 +222,13 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 		t_typemap *p_typemap = RTYPEDDATA_DATA(typemap);
 
 		this->enc_idx = p_conn->enc_idx;
-		this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
+		typemap = p_typemap->funcs.fit_to_result( typemap, self );
+		RB_OBJ_WRITE(self, &this->typemap, typemap);
 		this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 		this->flags = p_conn->flags;
 	} else {
+		RB_OBJ_WRITE(self, &this->typemap, pg_typemap_all_strings);
+		this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 		this->enc_idx = rb_locale_encindex();
 	}
 
@@ -477,7 +478,8 @@ static void pgresult_init_fnames(VALUE self)
 
 		for( i=0; i<nfields; i++ ){
 			char *cfname = PQfname(this->pgresult, i);
-			this->fnames[i] = pg_cstr_to_sym(cfname, this->flags, this->enc_idx);
+			VALUE fname = pg_cstr_to_sym(cfname, this->flags, this->enc_idx);
+			RB_OBJ_WRITE(self, &this->fnames[i], fname);
 			this->nfields = i + 1;
 		}
 		this->nfields = nfields;
@@ -1126,7 +1128,7 @@ pgresult_aref(VALUE self, VALUE index)
 	}
 	/* Store a copy of the filled hash for use at the next row. */
 	if( num_tuples > 10 )
-		this->tuple_hash = rb_hash_dup(tuple);
+		RB_OBJ_WRITE(self, &this->tuple_hash, rb_hash_dup(tuple));
 
 	return tuple;
 }
@@ -1308,7 +1310,7 @@ static void ensure_init_for_tuple(VALUE self)
 			rb_hash_aset(field_map, this->fnames[i], INT2FIX(i));
 		}
 		rb_obj_freeze(field_map);
-		this->field_map = field_map;
+		RB_OBJ_WRITE(self, &this->field_map, field_map);
 	}
 }
 
@@ -1399,7 +1401,7 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 	/* Check type of method param */
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, p_typemap);
 
-	this->typemap = p_typemap->funcs.fit_to_result( typemap, self );
+	RB_OBJ_WRITE(self, &this->typemap, p_typemap->funcs.fit_to_result( typemap, self ));
 	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 
 	return typemap;

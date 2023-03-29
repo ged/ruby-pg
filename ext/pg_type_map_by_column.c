@@ -232,7 +232,7 @@ static const rb_data_type_t pg_tmbc_type = {
 	},
 	&pg_typemap_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 static VALUE
@@ -272,7 +272,7 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	/* Set nfields to 0 at first, so that GC mark function doesn't access uninitialized memory. */
 	this->nfields = 0;
 	this->typemap.funcs = pg_tmbc_funcs;
-	this->typemap.default_typemap = pg_typemap_all_strings;
+	RB_OBJ_WRITE(self, &this->typemap.default_typemap, pg_typemap_all_strings);
 	RTYPEDDATA_DATA(self) = this;
 
 	for(i=0; i<conv_ary_len; i++)
@@ -283,8 +283,13 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 			/* no type cast */
 			this->convs[i].cconv = NULL;
 		} else {
+			t_pg_coder *p_coder;
 			/* Check argument type and store the coder pointer */
-			TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, this->convs[i].cconv);
+			TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, p_coder);
+			if( p_coder ){
+				RB_OBJ_WRITTEN(self, Qnil, p_coder->coder_obj);
+			}
+			this->convs[i].cconv = p_coder;
 		}
 	}
 

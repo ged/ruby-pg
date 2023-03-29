@@ -194,7 +194,7 @@ static const rb_data_type_t pg_tmbo_type = {
 	},
 	&pg_typemap_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 static VALUE
@@ -212,11 +212,11 @@ pg_tmbo_s_allocate( VALUE klass )
 	this->typemap.funcs.typecast_result_value = pg_tmbo_result_value;
 	this->typemap.funcs.typecast_query_param = pg_typemap_typecast_query_param;
 	this->typemap.funcs.typecast_copy_get = pg_typemap_typecast_copy_get;
-	this->typemap.default_typemap = pg_typemap_all_strings;
+	RB_OBJ_WRITE(self, &this->typemap.default_typemap, pg_typemap_all_strings);
 	this->max_rows_for_online_lookup = 10;
 
 	for( i=0; i<2; i++){
-		this->format[i].oid_to_coder = rb_hash_new();
+		RB_OBJ_WRITE(self, &this->format[i].oid_to_coder, rb_hash_new());
 	}
 
 	return self;

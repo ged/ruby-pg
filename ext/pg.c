@@ -352,8 +352,8 @@ Init_pg_ext(void)
 	SINGLETON_ALIAS( rb_mPG, "is_threadsafe?", "isthreadsafe" );
 	SINGLETON_ALIAS( rb_mPG, "threadsafe?", "isthreadsafe" );
 
-  rb_define_singleton_method( rb_mPG, "init_openssl", pg_s_init_openssl, 2 );
-  rb_define_singleton_method( rb_mPG, "init_ssl", pg_s_init_ssl, 1 );
+	rb_define_singleton_method( rb_mPG, "init_openssl", pg_s_init_openssl, 2 );
+	rb_define_singleton_method( rb_mPG, "init_ssl", pg_s_init_ssl, 1 );
 
 
 	/******     PG::Connection CLASS CONSTANTS: Connection Status     ******/
