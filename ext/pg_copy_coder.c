@@ -55,7 +55,7 @@ static const rb_data_type_t pg_copycoder_type = {
 	},
 	&pg_coder_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 static VALUE
@@ -64,9 +64,9 @@ pg_copycoder_encoder_allocate( VALUE klass )
 	t_pg_copycoder *this;
 	VALUE self = TypedData_Make_Struct( klass, t_pg_copycoder, &pg_copycoder_type, this );
 	pg_coder_init_encoder( self );
-	this->typemap = pg_typemap_all_strings;
+	RB_OBJ_WRITE(self, &this->typemap, pg_typemap_all_strings);
 	this->delimiter = '\t';
-	this->null_string = rb_str_new_cstr("\\N");
+	RB_OBJ_WRITE(self, &this->null_string, rb_str_new_cstr("\\N"));
 	return self;
 }
 
@@ -76,9 +76,9 @@ pg_copycoder_decoder_allocate( VALUE klass )
 	t_pg_copycoder *this;
 	VALUE self = TypedData_Make_Struct( klass, t_pg_copycoder, &pg_copycoder_type, this );
 	pg_coder_init_decoder( self );
-	this->typemap = pg_typemap_all_strings;
+	RB_OBJ_WRITE(self, &this->typemap, pg_typemap_all_strings);
 	this->delimiter = '\t';
-	this->null_string = rb_str_new_cstr("\\N");
+	RB_OBJ_WRITE(self, &this->null_string, rb_str_new_cstr("\\N"));
 	return self;
 }
 
@@ -128,7 +128,7 @@ pg_copycoder_null_string_set(VALUE self, VALUE null_string)
 {
 	t_pg_copycoder *this = RTYPEDDATA_DATA(self);
 	StringValue(null_string);
-	this->null_string = null_string;
+	RB_OBJ_WRITE(self, &this->null_string, null_string);
 	return null_string;
 }
 
@@ -162,7 +162,7 @@ pg_copycoder_type_map_set(VALUE self, VALUE type_map)
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
 				rb_obj_classname( type_map ) );
 	}
-	this->typemap = type_map;
+	RB_OBJ_WRITE(self, &this->typemap, type_map);
 
 	return type_map;
 }

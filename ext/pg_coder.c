@@ -35,7 +35,7 @@ pg_coder_init_encoder( VALUE self )
 		this->enc_func = NULL;
 	}
 	this->dec_func = NULL;
-	this->coder_obj = self;
+	RB_OBJ_WRITE(self, &this->coder_obj, self);
 	this->oid = 0;
 	this->format = 0;
 	this->flags = 0;
@@ -54,7 +54,7 @@ pg_coder_init_decoder( VALUE self )
 	} else {
 		this->dec_func = NULL;
 	}
-	this->coder_obj = self;
+	RB_OBJ_WRITE(self, &this->coder_obj, self);
 	this->oid = 0;
 	this->format = 0;
 	this->flags = 0;
@@ -99,7 +99,9 @@ const rb_data_type_t pg_coder_type = {
 	},
 	0,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	// IMPORTANT: WB_PROTECTED objects must only use the RB_OBJ_WRITE()
+	// macro to update VALUE references, as to trigger write barriers.
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 static VALUE
@@ -121,7 +123,7 @@ static const rb_data_type_t pg_composite_coder_type = {
 	},
 	&pg_coder_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 static VALUE
@@ -452,7 +454,7 @@ static const rb_data_type_t pg_coder_cfunc_type = {
 	},
 	0,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 VALUE
