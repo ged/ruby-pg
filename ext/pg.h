@@ -97,6 +97,9 @@ typedef struct {
 
 	/* Cached IO object for the socket descriptor */
 	VALUE socket_io;
+	/* function pointers of the original libpq notice receivers */
+	PQnoticeReceiver default_notice_receiver;
+	PQnoticeProcessor default_notice_processor;
 	/* Proc object that receives notices as PG::Result objects */
 	VALUE notice_receiver;
 	/* Proc object that receives notices as String objects */

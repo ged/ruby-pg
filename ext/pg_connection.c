@@ -16,9 +16,6 @@ static ID s_id_autoclose_set;
 static VALUE sym_type, sym_format, sym_value;
 static VALUE sym_symbol, sym_string, sym_static_symbol;
 
-static PQnoticeReceiver default_notice_receiver = NULL;
-static PQnoticeProcessor default_notice_processor = NULL;
-
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
 static VALUE pgconn_wait_for_flush( VALUE self );
@@ -2822,8 +2819,8 @@ pgconn_set_notice_receiver(VALUE self)
 	 * This should not be a problem because the default receiver is
 	 * always the same, so won't vary among connections.
 	 */
-	if(default_notice_receiver == NULL)
-		default_notice_receiver = PQsetNoticeReceiver(this->pgconn, NULL, NULL);
+	if(this->default_notice_receiver == NULL)
+		this->default_notice_receiver = PQsetNoticeReceiver(this->pgconn, NULL, NULL);
 
 	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
@@ -2832,7 +2829,7 @@ pgconn_set_notice_receiver(VALUE self)
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
-		PQsetNoticeReceiver(this->pgconn, default_notice_receiver, NULL);
+		PQsetNoticeReceiver(this->pgconn, this->default_notice_receiver, NULL);
 	}
 
 	this->notice_receiver = proc;
@@ -2882,8 +2879,8 @@ pgconn_set_notice_processor(VALUE self)
 	 * This should not be a problem because the default processor is
 	 * always the same, so won't vary among connections.
 	 */
-	if(default_notice_processor == NULL)
-		default_notice_processor = PQsetNoticeProcessor(this->pgconn, NULL, NULL);
+	if(this->default_notice_processor == NULL)
+		this->default_notice_processor = PQsetNoticeProcessor(this->pgconn, NULL, NULL);
 
 	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
@@ -2892,7 +2889,7 @@ pgconn_set_notice_processor(VALUE self)
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
-		PQsetNoticeProcessor(this->pgconn, default_notice_processor, NULL);
+		PQsetNoticeProcessor(this->pgconn, this->default_notice_processor, NULL);
 	}
 
 	this->notice_receiver = proc;
