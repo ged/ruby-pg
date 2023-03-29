@@ -44,7 +44,7 @@ static const rb_data_type_t pg_tmir_type = {
 	},
 	&pg_typemap_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 /*
@@ -294,7 +294,7 @@ pg_tmir_s_allocate( VALUE klass )
 	this->typemap.funcs.typecast_result_value = pg_tmir_result_value;
 	this->typemap.funcs.typecast_query_param = pg_tmir_query_param;
 	this->typemap.funcs.typecast_copy_get = pg_tmir_copy_get;
-	this->typemap.default_typemap = pg_typemap_all_strings;
+	RB_OBJ_WRITE(self, &this->typemap.default_typemap, pg_typemap_all_strings);
 	this->self = self;
 
 	return self;

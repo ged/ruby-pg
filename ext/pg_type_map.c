@@ -37,7 +37,7 @@ const rb_data_type_t pg_typemap_type = {
 	},
 	0,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
 };
 
 VALUE rb_cTypeMap;
@@ -134,7 +134,7 @@ pg_typemap_default_type_map_set(VALUE self, VALUE typemap)
 
 	/* Check type of method param */
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
-	this->default_typemap = typemap;
+	RB_OBJ_WRITE(self, &this->default_typemap, typemap);
 
 	return typemap;
 }
