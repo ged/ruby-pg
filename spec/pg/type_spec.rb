@@ -559,6 +559,18 @@ describe "PG::Type derivations" do
 			expect( t.name ).to eq( "abcä" )
 		end
 
+		it "should deny changes when frozen" do
+			t = PG::TextEncoder::String.new.freeze
+			expect{ t.format = 1 }.to raise_error(FrozenError)
+			expect{ t.oid = 0  }.to raise_error(FrozenError)
+			expect{ t.name = "x" }.to raise_error(FrozenError)
+		end
+
+		it "should be shareable", :ractor do
+			t = PG::TextEncoder::String.new.freeze
+			Ractor.make_shareable(t)
+		end
+
 		it "should give account about memory usage" do
 			expect( ObjectSpace.memsize_of(textenc_int) ).to be > DATA_OBJ_MEMSIZE
 			expect( ObjectSpace.memsize_of(binarydec_integer) ).to be > DATA_OBJ_MEMSIZE
@@ -885,6 +897,21 @@ describe "PG::Type derivations" do
 				expect( t.elements_type ).to be_nil
 			end
 
+		it "should deny changes when frozen" do
+			t = PG::TextEncoder::Array.new.freeze
+			expect{ t.format = 1 }.to raise_error(FrozenError)
+			expect{ t.oid = 0  }.to raise_error(FrozenError)
+			expect{ t.name = "x" }.to raise_error(FrozenError)
+			expect{ t.needs_quotation = true }.to raise_error(FrozenError)
+			expect{ t.delimiter = ","  }.to raise_error(FrozenError)
+			expect{ t.elements_type = nil }.to raise_error(FrozenError)
+		end
+
+		it "should be shareable", :ractor do
+			t = PG::TextEncoder::Array.new.freeze
+			Ractor.make_shareable(t)
+		end
+
 		it "should give account about memory usage" do
 			expect( ObjectSpace.memsize_of(textenc_int_array) ).to be > DATA_OBJ_MEMSIZE
 			expect( ObjectSpace.memsize_of(textdec_bytea_array) ).to be > DATA_OBJ_MEMSIZE
@@ -996,6 +1023,21 @@ describe "PG::Type derivations" do
 			context "with default typemap" do
 				let!(:encoder) do
 					PG::TextEncoder::CopyRow.new
+				end
+
+				it "should deny changes when frozen" do
+					t = PG::TextEncoder::CopyRow.new.freeze
+					expect{ t.format = 1 }.to raise_error(FrozenError)
+					expect{ t.oid = 0  }.to raise_error(FrozenError)
+					expect{ t.name = "x" }.to raise_error(FrozenError)
+					expect{ t.type_map = nil }.to raise_error(FrozenError)
+					expect{ t.delimiter = ","  }.to raise_error(FrozenError)
+					expect{ t.null_string = "NULL" }.to raise_error(FrozenError)
+				end
+
+				it "should be shareable", :ractor do
+					t = PG::TextEncoder::CopyRow.new.freeze
+					Ractor.make_shareable(t)
 				end
 
 				it "should give account about memory usage" do
@@ -1222,6 +1264,19 @@ describe "PG::Type derivations" do
 			context "with default typemap" do
 				let!(:encoder) do
 					PG::TextEncoder::Record.new
+				end
+
+				it "should deny changes when frozen" do
+					t = PG::TextEncoder::Record.new.freeze
+					expect{ t.format = 1 }.to raise_error(FrozenError)
+					expect{ t.oid = 0  }.to raise_error(FrozenError)
+					expect{ t.name = "x" }.to raise_error(FrozenError)
+					expect{ t.type_map = nil }.to raise_error(FrozenError)
+				end
+
+				it "should be shareable", :ractor do
+					t = PG::TextEncoder::Record.new.freeze
+					Ractor.make_shareable(t)
 				end
 
 				it "should give account about memory usage" do

@@ -89,6 +89,12 @@ typedef long suseconds_t;
 #define pg_gc_location(x) UNUSED(x)
 #endif
 
+/* For compatibility with ruby < 3.0 */
+#ifndef RUBY_TYPED_FROZEN_SHAREABLE
+#define PG_RUBY_TYPED_FROZEN_SHAREABLE 0
+#else
+#define PG_RUBY_TYPED_FROZEN_SHAREABLE RUBY_TYPED_FROZEN_SHAREABLE
+#endif
 #define PG_ENC_IDX_BITS 28
 
 /* The data behind each PG::Connection object */

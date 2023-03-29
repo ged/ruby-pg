@@ -47,7 +47,7 @@ static const rb_data_type_t pg_recordcoder_type = {
 	},
 	&pg_coder_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 static VALUE
@@ -86,6 +86,7 @@ pg_recordcoder_type_map_set(VALUE self, VALUE type_map)
 {
 	t_pg_recordcoder *this = RTYPEDDATA_DATA( self );
 
+	rb_check_frozen(self);
 	if ( !rb_obj_is_kind_of(type_map, rb_cTypeMap) ){
 		rb_raise( rb_eTypeError, "wrong elements type %s (expected some kind of PG::TypeMap)",
 				rb_obj_classname( type_map ) );
