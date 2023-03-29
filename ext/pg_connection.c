@@ -117,7 +117,7 @@ pgconn_close_socket_io( VALUE self )
 		rb_funcall( socket_io, rb_intern("close"), 0 );
 	}
 
-	this->socket_io = Qnil;
+	RB_OBJ_WRITE(self, &this->socket_io, Qnil);
 }
 
 
@@ -237,7 +237,7 @@ static const rb_data_type_t pg_connection_type = {
 	},
 	0,
 	0,
-	0,
+	RUBY_TYPED_WB_PROTECTED,
 };
 
 
@@ -258,14 +258,14 @@ pgconn_s_allocate( VALUE klass )
 	VALUE self = TypedData_Make_Struct( klass, t_pg_connection, &pg_connection_type, this );
 
 	this->pgconn = NULL;
-	this->socket_io = Qnil;
-	this->notice_receiver = Qnil;
-	this->notice_processor = Qnil;
-	this->type_map_for_queries = pg_typemap_all_strings;
-	this->type_map_for_results = pg_typemap_all_strings;
-	this->encoder_for_put_copy_data = Qnil;
-	this->decoder_for_get_copy_data = Qnil;
-	this->trace_stream = Qnil;
+	RB_OBJ_WRITE(self, &this->socket_io, Qnil);
+	RB_OBJ_WRITE(self, &this->notice_receiver, Qnil);
+	RB_OBJ_WRITE(self, &this->notice_processor, Qnil);
+	RB_OBJ_WRITE(self, &this->type_map_for_queries, pg_typemap_all_strings);
+	RB_OBJ_WRITE(self, &this->type_map_for_results, pg_typemap_all_strings);
+	RB_OBJ_WRITE(self, &this->encoder_for_put_copy_data, Qnil);
+	RB_OBJ_WRITE(self, &this->decoder_for_get_copy_data, Qnil);
+	RB_OBJ_WRITE(self, &this->trace_stream, Qnil);
 	rb_ivar_set(self, rb_intern("@calls_to_put_copy_data"), INT2FIX(0));
 
 	return self;
@@ -941,7 +941,7 @@ pgconn_socket_io(VALUE self)
 		/* Disable autoclose feature */
 		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
 
-		this->socket_io = socket_io;
+		RB_OBJ_WRITE(self, &this->socket_io, socket_io);
 	}
 
 	return socket_io;
@@ -2739,7 +2739,7 @@ pgconn_trace(VALUE self, VALUE stream)
 		rb_raise(rb_eArgError, "stream is not writable");
 
 	new_file = rb_funcall(rb_cIO, rb_intern("new"), 1, INT2NUM(new_fd));
-	this->trace_stream = new_file;
+	RB_OBJ_WRITE(self, &this->trace_stream, new_file);
 
 	PQtrace(this->pgconn, new_fp);
 	return Qnil;
@@ -2758,7 +2758,7 @@ pgconn_untrace(VALUE self)
 
 	PQuntrace(this->pgconn);
 	rb_funcall(this->trace_stream, rb_intern("close"), 0);
-	this->trace_stream = Qnil;
+	RB_OBJ_WRITE(self, &this->trace_stream, Qnil);
 	return Qnil;
 }
 
@@ -2835,7 +2835,7 @@ pgconn_set_notice_receiver(VALUE self)
 		PQsetNoticeReceiver(this->pgconn, default_notice_receiver, NULL);
 	}
 
-	this->notice_receiver = proc;
+	RB_OBJ_WRITE(self, &this->notice_receiver, proc);
 	return old_proc;
 }
 
@@ -2850,10 +2850,10 @@ notice_processor_proxy(void *arg, const char *message)
 	VALUE self = (VALUE)arg;
 	t_pg_connection *this = pg_get_connection( self );
 
-	if (this->notice_receiver != Qnil) {
+	if (this->notice_processor != Qnil) {
 		VALUE message_str = rb_str_new2(message);
 		PG_ENCODING_SET_NOCHECK( message_str, this->enc_idx );
-		rb_funcall(this->notice_receiver, rb_intern("call"), 1, message_str);
+		rb_funcall(this->notice_processor, rb_intern("call"), 1, message_str);
 	}
 	return;
 }
@@ -2885,7 +2885,7 @@ pgconn_set_notice_processor(VALUE self)
 	if(default_notice_processor == NULL)
 		default_notice_processor = PQsetNoticeProcessor(this->pgconn, NULL, NULL);
 
-	old_proc = this->notice_receiver;
+	old_proc = this->notice_processor;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
 		PQsetNoticeProcessor(this->pgconn, gvl_notice_processor_proxy, (void *)self);
@@ -2895,7 +2895,7 @@ pgconn_set_notice_processor(VALUE self)
 		PQsetNoticeProcessor(this->pgconn, default_notice_processor, NULL);
 	}
 
-	this->notice_receiver = proc;
+	RB_OBJ_WRITE(self, &this->notice_processor, proc);
 	return old_proc;
 }
 
@@ -4196,7 +4196,7 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 	/* Check type of method param */
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
 
-	this->type_map_for_queries = typemap;
+	RB_OBJ_WRITE(self, &this->type_map_for_queries, typemap);
 
 	return typemap;
 }
@@ -4234,7 +4234,7 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 	UNUSED(tm);
 
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
-	this->type_map_for_results = typemap;
+	RB_OBJ_WRITE(self, &this->type_map_for_results, typemap);
 
 	return typemap;
 }
@@ -4278,7 +4278,7 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
 		/* Check argument type */
 		TypedData_Get_Struct(encoder, t_pg_coder, &pg_coder_type, co);
 	}
-	this->encoder_for_put_copy_data = encoder;
+	RB_OBJ_WRITE(self, &this->encoder_for_put_copy_data, encoder);
 
 	return encoder;
 }
@@ -4326,7 +4326,7 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
 		/* Check argument type */
 		TypedData_Get_Struct(decoder, t_pg_coder, &pg_coder_type, co);
 	}
-	this->decoder_for_get_copy_data = decoder;
+	RB_OBJ_WRITE(self, &this->decoder_for_get_copy_data, decoder);
 
 	return decoder;
 }
