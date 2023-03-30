@@ -8,10 +8,10 @@ require 'pg'
 
 describe PG::TypeMapByClass do
 
-	let!(:textenc_int){ PG::TextEncoder::Integer.new name: 'INT4', oid: 23 }
-	let!(:textenc_float){ PG::TextEncoder::Float.new name: 'FLOAT8', oid: 701 }
-	let!(:textenc_string){ PG::TextEncoder::String.new name: 'TEXT', oid: 25 }
-	let!(:binaryenc_int){ PG::BinaryEncoder::Int8.new name: 'INT8', oid: 20, format: 1 }
+	let!(:textenc_int){ PG::TextEncoder::Integer.new(name: 'INT4', oid: 23).freeze }
+	let!(:textenc_float){ PG::TextEncoder::Float.new(name: 'FLOAT8', oid: 701).freeze }
+	let!(:textenc_string){ PG::TextEncoder::String.new(name: 'TEXT', oid: 25).freeze }
+	let!(:binaryenc_int){ PG::BinaryEncoder::Int8.new(name: 'INT8', oid: 20, format: 1).freeze }
 	let!(:pass_through_type) do
 		type = Class.new(PG::SimpleEncoder) do
 			def encode(*v)
@@ -21,7 +21,7 @@ describe PG::TypeMapByClass do
 		type.oid = 25
 		type.format = 0
 		type.name = 'pass_through'
-		type
+		type.freeze
 	end
 
 	let!(:tm) do
@@ -29,7 +29,15 @@ describe PG::TypeMapByClass do
 		tm[Integer] = binaryenc_int
 		tm[Float] = textenc_float
 		tm[Symbol] = pass_through_type
-		tm
+		tm.freeze
+	end
+
+	let!(:tm_writable) do
+		tm_writable = PG::TypeMapByClass.new
+		tm.coders.each do |k, v|
+			tm_writable[k] = v
+		end
+		tm_writable
 	end
 
 	let!(:raise_class) do
@@ -45,7 +53,16 @@ describe PG::TypeMapByClass do
 		tm[Integer] = proc{|value| textenc_int }
 		tm[raise_class] = proc{|value| /invalid/ }
 		tm[Array] = :array_type_map_for
-		tm
+		tm.freeze
+	end
+
+	it "should deny changes when frozen" do
+		expect{ tm.default_type_map = PG::TypeMapByClass.new }.to raise_error(FrozenError)
+		expect{ tm[Integer] = nil }.to raise_error(FrozenError)
+	end
+
+	it "should be shareable for Ractor", :ractor do
+		Ractor.make_shareable(tm)
 	end
 
 	it "should give account about memory usage" do
@@ -69,9 +86,9 @@ describe PG::TypeMapByClass do
 	end
 
 	it "should allow deletion of coders" do
-		tm[Integer] = nil
-		expect( tm[Integer] ).to be_nil
-		expect( tm.coders ).to eq( {
+		tm_writable[Integer] = nil
+		expect( tm_writable[Integer] ).to be_nil
+		expect( tm_writable.coders ).to eq( {
 			Float => textenc_float,
 			Symbol => pass_through_type,
 		} )
@@ -111,12 +128,12 @@ describe PG::TypeMapByClass do
 	end
 
 	it "should expire the cache after changes to the coders" do
-		res = @conn.exec_params( "SELECT $1", [5], 0, tm )
+		res = @conn.exec_params( "SELECT $1", [5], 0, tm_writable )
 		expect( res.ftype(0) ).to eq(20)
 
-		tm[Integer] = textenc_int
+		tm_writable[Integer] = textenc_int
 
-		res = @conn.exec_params( "SELECT $1", [5], 0, tm )
+		res = @conn.exec_params( "SELECT $1", [5], 0, tm_writable )
 		expect( res.ftype(0) ).to eq(23)
 	end
 
@@ -134,9 +151,9 @@ describe PG::TypeMapByClass do
 	end
 
 	it "should raise error on invalid coder object" do
-		tm[TrueClass] = "dummy"
+		tm_writable[TrueClass] = "dummy"
 		expect{
-			@conn.exec_params( "SELECT $1", [true], 0, tm )
+			@conn.exec_params( "SELECT $1", [true], 0, tm_writable )
 		}.to raise_error(NoMethodError, /undefined method.*call/)
 	end
 end

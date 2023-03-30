@@ -125,6 +125,6 @@ init_pg_type_map_all_strings(void)
 	rb_cTypeMapAllStrings = rb_define_class_under( rb_mPG, "TypeMapAllStrings", rb_cTypeMap );
 	rb_define_alloc_func( rb_cTypeMapAllStrings, pg_tmas_s_allocate );
 
-	pg_typemap_all_strings = rb_funcall( rb_cTypeMapAllStrings, rb_intern("new"), 0 );
+	pg_typemap_all_strings = rb_obj_freeze( rb_funcall( rb_cTypeMapAllStrings, rb_intern("new"), 0 ));
 	rb_gc_register_address( &pg_typemap_all_strings );
 }

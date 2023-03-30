@@ -566,7 +566,7 @@ describe "PG::Type derivations" do
 			expect{ t.name = "x" }.to raise_error(FrozenError)
 		end
 
-		it "should be shareable", :ractor do
+		it "should be shareable for Ractor", :ractor do
 			t = PG::TextEncoder::String.new.freeze
 			Ractor.make_shareable(t)
 		end
@@ -907,7 +907,7 @@ describe "PG::Type derivations" do
 			expect{ t.elements_type = nil }.to raise_error(FrozenError)
 		end
 
-		it "should be shareable", :ractor do
+		it "should be shareable for Ractor", :ractor do
 			t = PG::TextEncoder::Array.new.freeze
 			Ractor.make_shareable(t)
 		end
@@ -1035,7 +1035,7 @@ describe "PG::Type derivations" do
 					expect{ t.null_string = "NULL" }.to raise_error(FrozenError)
 				end
 
-				it "should be shareable", :ractor do
+				it "should be shareable for Ractor", :ractor do
 					t = PG::TextEncoder::CopyRow.new.freeze
 					Ractor.make_shareable(t)
 				end
@@ -1274,7 +1274,7 @@ describe "PG::Type derivations" do
 					expect{ t.type_map = nil }.to raise_error(FrozenError)
 				end
 
-				it "should be shareable", :ractor do
+				it "should be shareable for Ractor", :ractor do
 					t = PG::TextEncoder::Record.new.freeze
 					Ractor.make_shareable(t)
 				end
