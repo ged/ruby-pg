@@ -183,7 +183,7 @@ static const rb_data_type_t pgresult_type = {
 		pg_compact_callback(pgresult_gc_compact),
 	},
 	0, 0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 /* Needed by sequel_pg gem, do not delete */
@@ -375,8 +375,28 @@ VALUE
 pg_result_clear(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this(self);
+	rb_check_frozen(self);
 	pgresult_clear( this );
 	return Qnil;
+}
+
+/*
+ * call-seq:
+ *    res.freeze
+ *
+ * Freeze the PG::Result object and unlink the result from the related PG::Connection.
+ *
+ * A frozen PG::Result object doesn't allow any streaming and it can't be cleared.
+ * It also denies setting a type_map or field_name_type.
+ *
+ */
+VALUE
+pg_result_freeze(VALUE self)
+{
+	t_pg_result *this = pgresult_get_this(self);
+
+	RB_OBJ_WRITE(self, &this->connection, Qnil);
+	return rb_call_super(0, NULL);
 }
 
 /*
@@ -1398,6 +1418,7 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 	t_pg_result *this = pgresult_get_this(self);
 	t_typemap *p_typemap;
 
+	rb_check_frozen(self);
 	/* Check type of method param */
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, p_typemap);
 
@@ -1486,6 +1507,7 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 	PGconn *pgconn;
 	PGresult *pgresult;
 
+	rb_check_frozen(self);
 	RETURN_ENUMERATOR(self, 0, NULL);
 
 	this = pgresult_get_this_safe(self);
@@ -1630,6 +1652,8 @@ static VALUE
 pgresult_field_name_type_set(VALUE self, VALUE sym)
 {
 	t_pg_result *this = pgresult_get_this(self);
+
+	rb_check_frozen(self);
 	if( this->nfields != -1 ) rb_raise(rb_eArgError, "field names are already materialized");
 
 	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
@@ -1687,6 +1711,7 @@ init_pg_result(void)
 	rb_define_method(rb_cPGresult, "error_field", pgresult_error_field, 1);
 	rb_define_alias( rb_cPGresult, "result_error_field", "error_field" );
 	rb_define_method(rb_cPGresult, "clear", pg_result_clear, 0);
+	rb_define_method(rb_cPGresult, "freeze", pg_result_freeze, 0 );
 	rb_define_method(rb_cPGresult, "check", pg_result_check, 0);
 	rb_define_alias (rb_cPGresult, "check_result", "check");
 	rb_define_method(rb_cPGresult, "ntuples", pgresult_ntuples, 0);
