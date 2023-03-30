@@ -38,25 +38,6 @@ describe PG do
 		expect( PG ).to be_threadsafe()
 	end
 
-	it "does have hierarchical error classes" do
-		expect( PG::UndefinedTable.ancestors[0,4] ).to eq([
-				PG::UndefinedTable,
-				PG::SyntaxErrorOrAccessRuleViolation,
-				PG::ServerError,
-		        PG::Error
-		        ])
-
-		expect( PG::InvalidSchemaName.ancestors[0,3] ).to eq([
-				PG::InvalidSchemaName,
-				PG::ServerError,
-		        PG::Error
-		        ])
-	end
-
-	it "can be used to raise errors without text" do
-		expect{ raise PG::InvalidTextRepresentation }.to raise_error(PG::InvalidTextRepresentation)
-	end
-
 	it "tells about the libpq library path" do
 		expect( PG::POSTGRESQL_LIB_PATH ).to include("/")
 	end

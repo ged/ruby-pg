@@ -30,6 +30,35 @@ describe 'Basic type mapping' do
 			Ractor.make_shareable(basic_type_mapping)
 		end
 
+		it "should be usable with Ractor and shared type map", :ractor do
+			vals = Ractor.new(@conninfo, Ractor.make_shareable(basic_type_mapping)) do |conninfo, btm|
+				conn = PG.connect(conninfo)
+				res = conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE" )
+				res.map_types!(btm).values
+			ensure
+				conn&.finish
+			end.take
+
+			expect( vals ).to eq( [
+					[ 1, 'a', 2.0, true, Date.new(2013,6,30) ],
+			] )
+		end
+
+		it "should be usable with Ractor", :ractor do
+			vals = Ractor.new(@conninfo) do |conninfo|
+				conn = PG.connect(conninfo)
+				res = conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE" )
+				btm = PG::BasicTypeMapForResults.new(@conn)
+				res.map_types!(btm).values
+			ensure
+				conn&.finish
+			end.take
+
+			expect( vals ).to eq( [
+					[ 1, 'a', 2.0, true, Date.new(2013,6,30) ],
+			] )
+		end
+
 		#
 		# Decoding Examples
 		#

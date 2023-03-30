@@ -13,6 +13,17 @@ describe PG::Connection do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
 	end
 
+	it "should be usable with Ractor", :ractor do
+		vals = Ractor.new(@conninfo) do |conninfo|
+			conn = PG.connect(conninfo)
+			conn.exec("SELECT 123").values
+		ensure
+			conn&.finish
+		end.take
+
+		expect( vals ).to eq( [["123"]] )
+	end
+
 	describe "#inspect", :without_transaction do
 		it "should print host, port and user of a fresh connection, but not more" do
 			expect( @conn.inspect ).to match(/<PG::Connection:[0-9a-fx]+ host=localhost port=#{@port} user=\w*>/)

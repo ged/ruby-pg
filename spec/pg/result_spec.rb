@@ -32,6 +32,19 @@ describe PG::Result do
 		Ractor.make_shareable(res)
 	end
 
+	it "should be usable with Ractor", :ractor do
+		res = Ractor.new(@conninfo) do |conninfo|
+			conn = PG.connect(conninfo)
+			conn.exec("SELECT 123 as col")
+		ensure
+			conn&.finish
+		end.take
+
+		expect( res ).to be_kind_of( PG::Result )
+		expect( res.fields ).to eq( ["col"] )
+		expect( res.values ).to eq( [["123"]] )
+	end
+
 	describe :field_name_type do
 		let!(:res) { @conn.exec('SELECT 1 AS a, 2 AS "B"') }
 

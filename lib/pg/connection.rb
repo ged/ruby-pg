@@ -30,7 +30,7 @@ require 'socket'
 class PG::Connection
 
 	# The order the options are passed to the ::connect method.
-	CONNECT_ARGUMENT_ORDER = %w[host port options tty dbname user password]
+	CONNECT_ARGUMENT_ORDER = %w[host port options tty dbname user password].freeze
 
 
 	### Quote a single +value+ for use in a connection-parameter string.
@@ -44,6 +44,9 @@ class PG::Connection
 	def self.connect_hash_to_string( hash )
 		hash.map { |k,v| "#{k}=#{quote_connstr(v)}" }.join( ' ' )
 	end
+
+	# Shareable program name for Ractor
+	PROGRAM_NAME = $PROGRAM_NAME
 
 	# Parse the connection +args+ into a connection-parameter string.
 	# See PG::Connection.new for valid arguments.
@@ -86,7 +89,7 @@ class PG::Connection
 		iopts.merge!( hash_arg )
 
 		if !iopts[:fallback_application_name]
-			iopts[:fallback_application_name] = $0.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
+			iopts[:fallback_application_name] = PROGRAM_NAME.sub( /^(.{30}).{4,}(.{30})$/ ){ $1+"..."+$2 }
 		end
 
 		return connect_hash_to_string(iopts)

@@ -334,6 +334,11 @@ pg_s_init_ssl(VALUE self, VALUE do_ssl)
 void
 Init_pg_ext(void)
 {
+
+#ifdef HAVE_RB_EXT_RACTOR_SAFE
+	rb_ext_ractor_safe(PQisthreadsafe());
+#endif
+
 	if( RTEST(rb_eval_string("ENV['PG_SKIP_DEPRECATION_WARNING']")) ){
 		/* Set all bits to disable all deprecation warnings. */
 		pg_skip_deprecation_warning = 0xFFFF;
@@ -685,4 +690,3 @@ Init_pg_ext(void)
 	init_pg_recordcoder();
 	init_pg_tuple();
 }
-
