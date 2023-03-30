@@ -8,11 +8,11 @@ require 'time'
 describe 'Basic type mapping' do
 	describe PG::BasicTypeMapForResults do
 		let!(:basic_type_mapping) do
-			PG::BasicTypeMapForResults.new @conn
+			PG::BasicTypeMapForResults.new(@conn).freeze
 		end
 
 		it "can be initialized with a CoderMapsBundle instead of a connection" do
-			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn)
+			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn).freeze
 			tm = PG::BasicTypeMapForResults.new(maps)
 			expect( tm.rm_coder(0, 16) ).to be_kind_of(PG::TextDecoder::Boolean)
 		end
@@ -20,10 +20,14 @@ describe 'Basic type mapping' do
 		it "can be initialized with a custom type registry" do
 			regi = PG::BasicTypeRegistry.new
 			regi.register_type 1, 'int4', nil, PG::BinaryDecoder::Integer
-			tm = PG::BasicTypeMapForResults.new(@conn, registry: regi)
+			tm = PG::BasicTypeMapForResults.new(@conn, registry: regi).freeze
 			res = @conn.exec_params( "SELECT '2021-08-03'::DATE, 234", [], 1 ).map_types!(tm)
 			expect{ res.values }.to output(/no type cast defined for type "date" format 1 /).to_stderr
 			expect( res.values ).to eq( [["\x00\x00\x1E\xCD".b, 234]] )
+		end
+
+		it "should be shareable for Ractor", :ractor do
+			Ractor.make_shareable(basic_type_mapping)
 		end
 
 		#
@@ -40,8 +44,8 @@ describe 'Basic type mapping' do
 
 		[1, 0].each do |format|
 			it "should warn about undefined types in format #{format}" do
-				regi = PG::BasicTypeRegistry.new
-				tm = PG::BasicTypeMapForResults.new(@conn, registry: regi)
+				regi = PG::BasicTypeRegistry.new.freeze
+				tm = PG::BasicTypeMapForResults.new(@conn, registry: regi).freeze
 				res = @conn.exec_params( "SELECT 1.23", [], format ).map_types!(tm)
 				expect{ res.values }.to output(/type "numeric".*format #{format}.*oid 1700/).to_stderr
 			end
@@ -57,7 +61,7 @@ describe 'Basic type mapping' do
 			end
 
 			after :each do
-				@conn.type_map_for_results = PG::TypeMapAllStrings.new
+				@conn.type_map_for_results = PG::TypeMapAllStrings.new.freeze
 			end
 
 			it "should do boolean type conversions" do
@@ -361,7 +365,7 @@ describe 'Basic type mapping' do
 				# Retrieve table OIDs per empty result.
 				res = @conn.exec( "SELECT * FROM copytable LIMIT 0" )
 				tm = basic_type_mapping.build_column_map( res )
-				row_decoder = PG::TextDecoder::CopyRow.new type_map: tm
+				row_decoder = PG::TextDecoder::CopyRow.new(type_map: tm).freeze
 
 				rows = []
 				@conn.copy_data( "COPY copytable TO STDOUT", row_decoder ) do |res|
@@ -379,7 +383,7 @@ describe 'Basic type mapping' do
 				# Retrieve table OIDs per empty result.
 				res = @conn.exec_params( "SELECT * FROM copytable LIMIT 0", [], 1 )
 				tm = basic_type_mapping.build_column_map( res )
-				row_decoder = PG::BinaryDecoder::CopyRow.new type_map: tm
+				row_decoder = PG::BinaryDecoder::CopyRow.new(type_map: tm).freeze
 
 				rows = []
 				@conn.copy_data( "COPY copytable TO STDOUT WITH (FORMAT binary)", row_decoder ) do |res|

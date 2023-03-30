@@ -72,16 +72,19 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 
 	class WarningTypeMap < PG::TypeMapInRuby
 		def initialize(typenames)
-			@already_warned = Hash.new{|h, k| h[k] = {} }
+			@already_warned = {}
 			@typenames_by_oid = typenames
 		end
 
 		def typecast_result_value(result, _tuple, field)
 			format = result.fformat(field)
 			oid = result.ftype(field)
-			unless @already_warned[format][oid]
+			unless @already_warned.dig(format, oid)
 				warn "Warning: no type cast defined for type #{@typenames_by_oid[oid].inspect} format #{format} with oid #{oid}. Please cast this type explicitly to TEXT to be safe for future changes."
-				 @already_warned[format][oid] = true
+				unless frozen?
+					@already_warned[format] ||= {}
+					@already_warned[format][oid] = true
+				end
 			end
 			super
 		end

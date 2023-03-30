@@ -6,11 +6,11 @@ require_relative '../helpers'
 describe 'Basic type mapping' do
 	describe PG::BasicTypeMapBasedOnResult do
 		let!(:basic_type_mapping) do
-			PG::BasicTypeMapBasedOnResult.new @conn
+			PG::BasicTypeMapBasedOnResult.new(@conn).freeze
 		end
 
 		it "can be initialized with a CoderMapsBundle instead of a connection" do
-			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn)
+			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn).freeze
 			tm = PG::BasicTypeMapBasedOnResult.new(maps)
 			expect( tm.rm_coder(0, 16) ).to be_kind_of(PG::TextEncoder::Boolean)
 		end
@@ -18,11 +18,15 @@ describe 'Basic type mapping' do
 		it "can be initialized with a custom type registry" do
 			regi = PG::BasicTypeRegistry.new
 			regi.register_type 1, 'int4', PG::BinaryEncoder::Int8, nil
-			tm = PG::BasicTypeMapBasedOnResult.new(@conn, registry: regi)
+			tm = PG::BasicTypeMapBasedOnResult.new(@conn, registry: regi).freeze
 
 			res = @conn.exec_params( "SELECT 123::INT4", [], 1 )
 			tm2 = tm.build_column_map( res )
 			expect( tm2.coders.map(&:class) ).to eq( [PG::BinaryEncoder::Int8] )
+		end
+
+		it "should be shareable for Ractor", :ractor do
+			Ractor.make_shareable(basic_type_mapping)
 		end
 
 		context "with usage of result oids for bind params encoder selection" do
