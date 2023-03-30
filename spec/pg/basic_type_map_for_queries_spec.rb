@@ -17,6 +17,24 @@ describe 'Basic type mapping' do
 			PG::BasicTypeMapForQueries.new(@conn)
 		end
 
+		it "should be shareable for Ractor", :ractor do
+			Ractor.make_shareable(basic_type_mapping)
+		end
+
+		it "should be usable with Ractor", :ractor do
+			vals = Ractor.new(@conninfo) do |conninfo|
+				conn = PG.connect(conninfo)
+				conn.type_map_for_queries = PG::BasicTypeMapForQueries.new(conn)
+				res = conn.exec_params( "SELECT $1 AT TIME ZONE '-02', $2",
+					[Time.new(2019, 12, 8, 20, 38, 12.123, "-01:00"), true])
+				res.values
+			ensure
+				conn&.finish
+			end.take
+
+			expect( vals ).to eq( [[ "2019-12-08 23:38:12.123", "t" ]] )
+		end
+
 		it "can be initialized with a CoderMapsBundle instead of a connection" do
 			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn).freeze
 			tm = PG::BasicTypeMapForQueries.new(maps)

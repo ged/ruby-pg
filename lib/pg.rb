@@ -63,6 +63,15 @@ module PG
 		Connection.new( *args, &block )
 	end
 
+	if defined?(Ractor.make_shareable)
+		def self.make_shareable(obj)
+			Ractor.make_shareable(obj)
+		end
+	else
+		def self.make_shareable(obj)
+			obj.freeze
+		end
+	end
 
 	module BinaryDecoder
 		%i[ TimestampUtc TimestampUtcToLocal TimestampLocal ].each do |klass|

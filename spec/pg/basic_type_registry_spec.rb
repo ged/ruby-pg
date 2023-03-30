@@ -5,6 +5,10 @@ require_relative '../helpers'
 
 describe 'Basic type mapping' do
 	describe PG::BasicTypeRegistry do
+		it "should be shareable for Ractor", :ractor do
+			Ractor.make_shareable(PG::BasicTypeRegistry.new.register_default_types)
+		end
+
 		it "can register_type" do
 			regi = PG::BasicTypeRegistry.new
 			res = regi.register_type(1, 'int4', PG::BinaryEncoder::Int8, PG::BinaryDecoder::Integer)

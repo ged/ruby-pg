@@ -7,6 +7,10 @@ require 'timeout'
 require 'socket'
 require 'pg'
 
+# Work around ruby bug: https://bugs.ruby-lang.org/issues/19562
+''.encode(Encoding::ISO8859_2)
+''.encode(Encoding::KOI8_R)
+
 describe PG::Connection do
 
 	it "should give account about memory usage" do
@@ -16,6 +20,8 @@ describe PG::Connection do
 	it "should be usable with Ractor", :ractor do
 		vals = Ractor.new(@conninfo) do |conninfo|
 			conn = PG.connect(conninfo)
+			conn.setnonblocking true
+			conn.setnonblocking false
 			conn.exec("SELECT 123").values
 		ensure
 			conn&.finish
@@ -264,16 +270,16 @@ describe PG::Connection do
 		end
 
 		it "sets a shortened fallback_application_name on new connections" do
-			old_0 = $0
+			old_script_name = PG::Connection::PROGRAM_NAME
 			begin
-				$0 = "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby"
+				PG::Connection.const_set(:PROGRAM_NAME, "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby")
 				conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
 				conn_name = conn_string[ /application_name='(.*?)'/, 1 ]
-				expect( conn_name ).to include( $0[0..10] )
-				expect( conn_name ).to include( $0[-10..-1] )
+				expect( conn_name ).to include( PG::Connection::PROGRAM_NAME[0..10] )
+				expect( conn_name ).to include( PG::Connection::PROGRAM_NAME[-10..-1] )
 				expect( conn_name.length ).to be <= 64
 			ensure
-				$0 = old_0
+				PG::Connection.const_set(:PROGRAM_NAME, old_script_name)
 			end
 		end
 	end

@@ -48,7 +48,7 @@ describe 'Basic type mapping' do
 			vals = Ractor.new(@conninfo) do |conninfo|
 				conn = PG.connect(conninfo)
 				res = conn.exec( "SELECT 1, 'a', 2.0::FLOAT, TRUE, '2013-06-30'::DATE" )
-				btm = PG::BasicTypeMapForResults.new(@conn)
+				btm = PG::BasicTypeMapForResults.new(conn)
 				res.map_types!(btm).values
 			ensure
 				conn&.finish

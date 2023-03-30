@@ -460,7 +460,7 @@ static const rb_data_type_t pg_coder_cfunc_type = {
 	},
 	0,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 VALUE
@@ -476,7 +476,7 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 	if( nsp==rb_mPG_BinaryDecoder || nsp==rb_mPG_TextDecoder )
 		rb_define_method( coder_klass, "decode", pg_coder_decode, -1 );
 
-	rb_define_const( coder_klass, "CFUNC", cfunc_obj );
+	rb_define_const( coder_klass, "CFUNC", rb_obj_freeze(cfunc_obj) );
 
 	RB_GC_GUARD(cfunc_obj);
 	return coder_klass;

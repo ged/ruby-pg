@@ -46,7 +46,7 @@ class PG::Connection
 	end
 
 	# Shareable program name for Ractor
-	PROGRAM_NAME = $PROGRAM_NAME
+	PROGRAM_NAME = $PROGRAM_NAME.dup.freeze
 
 	# Parse the connection +args+ into a connection-parameter string.
 	# See PG::Connection.new for valid arguments.
@@ -821,23 +821,23 @@ class PG::Connection
 		end
 		alias async_ping ping
 
-		REDIRECT_CLASS_METHODS = {
+		REDIRECT_CLASS_METHODS = PG.make_shareable({
 			:new => [:async_connect, :sync_connect],
 			:connect => [:async_connect, :sync_connect],
 			:open => [:async_connect, :sync_connect],
 			:setdb => [:async_connect, :sync_connect],
 			:setdblogin => [:async_connect, :sync_connect],
 			:ping => [:async_ping, :sync_ping],
-		}
+		})
 
 		# These methods are affected by PQsetnonblocking
-		REDIRECT_SEND_METHODS = {
+		REDIRECT_SEND_METHODS = PG.make_shareable({
 			:isnonblocking => [:async_isnonblocking, :sync_isnonblocking],
 			:nonblocking? => [:async_isnonblocking, :sync_isnonblocking],
 			:put_copy_data => [:async_put_copy_data, :sync_put_copy_data],
 			:put_copy_end => [:async_put_copy_end, :sync_put_copy_end],
 			:flush => [:async_flush, :sync_flush],
-		}
+		})
 		REDIRECT_METHODS = {
 			:exec => [:async_exec, :sync_exec],
 			:query => [:async_exec, :sync_exec],
@@ -861,6 +861,7 @@ class PG::Connection
 				:encrypt_password => [:async_encrypt_password, :sync_encrypt_password],
 			})
 		end
+		PG.make_shareable(REDIRECT_METHODS)
 
 		def async_send_api=(enable)
 			REDIRECT_SEND_METHODS.each do |ali, (async, sync)|

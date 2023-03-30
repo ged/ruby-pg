@@ -166,7 +166,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 				@textarray_encoder
 	end
 
-	DEFAULT_TYPE_MAP = {
+	DEFAULT_TYPE_MAP = PG.make_shareable({
 		TrueClass => [1, 'bool', 'bool'],
 		FalseClass => [1, 'bool', 'bool'],
 		# We use text format and no type OID for numbers, because setting the OID can lead
@@ -181,9 +181,9 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Hash => [0, 'json'],
 		Array => :get_array_type,
 		BinaryData => [1, 'bytea'],
-	}
+	})
 
-	DEFAULT_ARRAY_TYPE_MAP = {
+	DEFAULT_ARRAY_TYPE_MAP = PG.make_shareable({
 		TrueClass => [0, '_bool'],
 		FalseClass => [0, '_bool'],
 		Integer => [0, '_int8'],
@@ -192,6 +192,6 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		BigDecimal => [0, '_numeric'],
 		Time => [0, '_timestamptz'],
 		IPAddr => [0, '_inet'],
-	}
+	})
 
 end
