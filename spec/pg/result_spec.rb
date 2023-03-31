@@ -20,6 +20,31 @@ describe PG::Result do
 		expect{ res.res_status(1,2) }.to raise_error(ArgumentError)
 	end
 
+	it "should deny changes when frozen" do
+		res = @conn.exec("SELECT 1").freeze
+		expect{ res.type_map = PG::TypeMapAllStrings.new }.to raise_error(FrozenError)
+		expect{ res.field_name_type = :symbol  }.to raise_error(FrozenError)
+		expect{ res.clear }.to raise_error(FrozenError)
+	end
+
+	it "should be shareable for Ractor", :ractor do
+		res = @conn.exec("SELECT 1")
+		Ractor.make_shareable(res)
+	end
+
+	it "should be usable with Ractor", :ractor do
+		res = Ractor.new(@conninfo) do |conninfo|
+			conn = PG.connect(conninfo)
+			conn.exec("SELECT 123 as col")
+		ensure
+			conn&.finish
+		end.take
+
+		expect( res ).to be_kind_of( PG::Result )
+		expect( res.fields ).to eq( ["col"] )
+		expect( res.values ).to eq( [["123"]] )
+	end
+
 	describe :field_name_type do
 		let!(:res) { @conn.exec('SELECT 1 AS a, 2 AS "B"') }
 
@@ -277,6 +302,15 @@ describe PG::Result do
 					# No-op
 				end
 			}.to raise_error(PG::QueryCanceled, /statement timeout/)
+		end
+
+		it "should deny streaming when frozen" do
+			@conn.send_query( "SELECT 1" )
+			@conn.set_single_row_mode
+			res = @conn.get_result.freeze
+			expect{
+				res.stream_each_row
+			}.to raise_error(FrozenError)
 		end
 	end
 

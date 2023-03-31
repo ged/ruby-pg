@@ -232,7 +232,7 @@ static const rb_data_type_t pg_tmbc_type = {
 	},
 	&pg_typemap_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 static VALUE
@@ -266,6 +266,7 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 	t_tmbc *this;
 	int conv_ary_len;
 
+	rb_check_frozen(self);
 	Check_Type(conv_ary, T_ARRAY);
 	conv_ary_len = RARRAY_LENINT(conv_ary);
 	this = xmalloc(sizeof(t_tmbc) + sizeof(struct pg_tmbc_converter) * conv_ary_len);

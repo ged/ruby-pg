@@ -8,15 +8,15 @@ require 'pg'
 
 describe PG::TypeMapByColumn do
 
-	let!(:textenc_int){ PG::TextEncoder::Integer.new name: 'INT4', oid: 23 }
-	let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
-	let!(:textenc_float){ PG::TextEncoder::Float.new name: 'FLOAT4', oid: 700 }
-	let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT4', oid: 700 }
-	let!(:textenc_string){ PG::TextEncoder::String.new name: 'TEXT', oid: 25 }
-	let!(:textdec_string){ PG::TextDecoder::String.new name: 'TEXT', oid: 25 }
-	let!(:textdec_bytea){ PG::TextDecoder::Bytea.new name: 'BYTEA', oid: 17 }
-	let!(:binaryenc_bytea){ PG::BinaryEncoder::Bytea.new name: 'BYTEA', oid: 17, format: 1 }
-	let!(:binarydec_bytea){ PG::BinaryDecoder::Bytea.new name: 'BYTEA', oid: 17, format: 1 }
+	let!(:textenc_int){ PG::TextEncoder::Integer.new(name: 'INT4', oid: 23).freeze }
+	let!(:textdec_int){ PG::TextDecoder::Integer.new(name: 'INT4', oid: 23).freeze }
+	let!(:textenc_float){ PG::TextEncoder::Float.new(name: 'FLOAT4', oid: 700).freeze }
+	let!(:textdec_float){ PG::TextDecoder::Float.new(name: 'FLOAT4', oid: 700).freeze }
+	let!(:textenc_string){ PG::TextEncoder::String.new(name: 'TEXT', oid: 25).freeze }
+	let!(:textdec_string){ PG::TextDecoder::String.new(name: 'TEXT', oid: 25).freeze }
+	let!(:textdec_bytea){ PG::TextDecoder::Bytea.new(name: 'BYTEA', oid: 17).freeze }
+	let!(:binaryenc_bytea){ PG::BinaryEncoder::Bytea.new(name: 'BYTEA', oid: 17, format: 1).freeze }
+	let!(:binarydec_bytea){ PG::BinaryDecoder::Bytea.new(name: 'BYTEA', oid: 17, format: 1).freeze }
 	let!(:pass_through_type) do
 		type = Class.new(PG::SimpleDecoder) do
 			def decode(*v)
@@ -26,20 +26,31 @@ describe PG::TypeMapByColumn do
 		type.oid = 123456
 		type.format = 1
 		type.name = 'pass_through'
-		type
+		type.freeze
+	end
+
+	it "should deny changes when frozen" do
+		tm = PG::TypeMapByColumn.new([]).freeze
+		expect{ tm.default_type_map = PG::TypeMapByClass.new }.to raise_error(FrozenError)
+		expect{ tm.with_default_type_map(PG::TypeMapByClass.new) }.to raise_error(FrozenError)
+	end
+
+	it "should be shareable for Ractor", :ractor do
+		tm = PG::TypeMapByColumn.new([pass_through_type]).freeze
+		Ractor.make_shareable(tm)
 	end
 
 	it "should give account about memory usage" do
-		tm = PG::TypeMapByColumn.new( [] )
+		tm = PG::TypeMapByColumn.new( [] ).freeze
 		size0 =  ObjectSpace.memsize_of(tm)
 		expect( size0 ).to be > DATA_OBJ_MEMSIZE
 
-		tm = PG::TypeMapByColumn.new( [textenc_float, nil, textenc_int] )
+		tm = PG::TypeMapByColumn.new( [textenc_float, nil, textenc_int] ).freeze
 		expect( ObjectSpace.memsize_of(tm) ).to be > size0
 	end
 
 	it "should retrieve it's conversions" do
-		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, nil] )
+		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, nil] ).freeze
 		expect( cm.coders ).to eq( [
 			textdec_int,
 			textenc_string,
@@ -50,12 +61,12 @@ describe PG::TypeMapByColumn do
 	end
 
 	it "should respond to inspect" do
-		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, PG::TextEncoder::Float.new, nil] )
+		cm = PG::TypeMapByColumn.new( [textdec_int, textenc_string, textdec_float, pass_through_type, PG::TextEncoder::Float.new, nil] ).freeze
 		expect( cm.inspect ).to eq( "#<PG::TypeMapByColumn INT4:TD TEXT:TE FLOAT4:TD pass_through:BD PG::TextEncoder::Float:TE nil>" )
 	end
 
 	it "should retrieve it's oids" do
-		cm = PG::TypeMapByColumn.new( [textdec_int, textdec_string, textdec_float, pass_through_type, nil] )
+		cm = PG::TypeMapByColumn.new( [textdec_int, textdec_string, textdec_float, pass_through_type, nil] ).freeze
 		expect( cm.oids ).to eq( [23, 25, 700, 123456, nil] )
 	end
 
@@ -67,7 +78,7 @@ describe PG::TypeMapByColumn do
 			def initialize
 				# no super call
 			end
-		end.new
+		end.new.freeze
 
 		expect{ @conn.exec_params( "SELECT $1", [ 0 ], 0, not_init ) }.to raise_error(NotImplementedError)
 
@@ -87,7 +98,7 @@ describe PG::TypeMapByColumn do
 	#
 
 	it "should encode integer params" do
-		col_map = PG::TypeMapByColumn.new( [textenc_int]*3 )
+		col_map = PG::TypeMapByColumn.new( [textenc_int]*3 ).freeze
 		res = @conn.exec_params( "SELECT $1, $2, $3", [ 0, nil, "-999" ], 0, col_map )
 		expect( res.values ).to eq( [
 				[ "0", nil, "-999" ],
@@ -96,7 +107,7 @@ describe PG::TypeMapByColumn do
 
 	it "should encode bytea params" do
 		data = "'\u001F\\"
-		col_map = PG::TypeMapByColumn.new( [binaryenc_bytea]*2 )
+		col_map = PG::TypeMapByColumn.new( [binaryenc_bytea]*2 ).freeze
 		res = @conn.exec_params( "SELECT $1, $2", [ data, nil ], 0, col_map )
 		res.type_map = PG::TypeMapByColumn.new( [textdec_bytea]*2 )
 		expect( res.values ).to eq( [
@@ -106,7 +117,7 @@ describe PG::TypeMapByColumn do
 
 
 	it "should allow hash form parameters for default encoder" do
-		col_map = PG::TypeMapByColumn.new( [nil, nil] )
+		col_map = PG::TypeMapByColumn.new( [nil, nil] ).freeze
 		hash_param_bin = { value: ["00ff"].pack("H*"), type: 17, format: 1 }
 		hash_param_nil = { value: nil, type: 17, format: 1 }
 		res = @conn.exec_params( "SELECT $1, $2",
@@ -116,7 +127,7 @@ describe PG::TypeMapByColumn do
 	end
 
 	it "should convert hash form parameters to string when using string encoders" do
-		col_map = PG::TypeMapByColumn.new( [textenc_string, textenc_string] )
+		col_map = PG::TypeMapByColumn.new( [textenc_string, textenc_string] ).freeze
 		hash_param_bin = { value: ["00ff"].pack("H*"), type: 17, format: 1 }
 		hash_param_nil = { value: nil, type: 17, format: 1 }
 		res = @conn.exec_params( "SELECT $1::text, $2::text",
@@ -126,12 +137,12 @@ describe PG::TypeMapByColumn do
 
 	it "shouldn't allow param mappings with different number of fields" do
 		expect{
-			@conn.exec_params( "SELECT $1", [ 123 ], 0, PG::TypeMapByColumn.new([]) )
+			@conn.exec_params( "SELECT $1", [ 123 ], 0, PG::TypeMapByColumn.new([]).freeze )
 		}.to raise_error(ArgumentError, /mapped columns/)
 	end
 
 	it "should verify the default type map for query params as well" do
-		tm1 = PG::TypeMapByColumn.new([])
+		tm1 = PG::TypeMapByColumn.new([]).freeze
 		expect{
 			@conn.exec_params( "SELECT $1", [ 123 ], 0, PG::TypeMapByColumn.new([nil]).with_default_type_map(tm1) )
 		}.to raise_error(ArgumentError, /mapped columns/)
@@ -141,7 +152,7 @@ describe PG::TypeMapByColumn do
 		tm1 = PG::TypeMapByClass.new
 		tm1[Integer] = PG::TextEncoder::Integer.new name: 'INT2', oid: 21
 
-		tm2 = PG::TypeMapByColumn.new( [textenc_int, nil, nil] ).with_default_type_map( tm1 )
+		tm2 = PG::TypeMapByColumn.new( [textenc_int, nil, nil] ).with_default_type_map( tm1 ).freeze
 		res = @conn.exec_params( "SELECT $1, $2, $3::TEXT", [1, 2, :abc], 0, tm2 )
 
 		expect( res.ftype(0) ).to eq( 23 ) # tm2
@@ -162,7 +173,7 @@ describe PG::TypeMapByColumn do
 	it "should raise an error from decode method of type converter" do
 		res = @conn.exec( "SELECT now()" )
 		types = Array.new( res.nfields, Exception_in_decode.new )
-		res.type_map = PG::TypeMapByColumn.new( types )
+		res.type_map = PG::TypeMapByColumn.new( types ).freeze
 		expect{ res.values }.to raise_error(/no type decoder defined/)
 	end
 
@@ -178,7 +189,7 @@ describe PG::TypeMapByColumn do
 
 	it "should verify the default type map for result values as well" do
 		res = @conn.exec( "SELECT 1" )
-		tm1 = PG::TypeMapByColumn.new([])
+		tm1 = PG::TypeMapByColumn.new([]).freeze
 		expect{
 			res.type_map = PG::TypeMapByColumn.new([nil]).with_default_type_map(tm1)
 		}.to raise_error(ArgumentError, /mapped columns/)
@@ -191,7 +202,7 @@ describe PG::TypeMapByColumn do
 			tm1.add_coder PG::TextDecoder::Integer.new name: 'INT2', oid: 21
 			tm1.max_rows_for_online_lookup = max_rows
 
-			tm2 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] ).with_default_type_map( tm1 )
+			tm2 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] ).with_default_type_map( tm1 ).freeze
 			res = @conn.exec( "SELECT '1'::INT4, '2'::INT2, '3'::INT8" ).map_types!( tm2 )
 
 			expect( res.getvalue(0,0) ).to eq( 1 ) # tm2
@@ -201,7 +212,7 @@ describe PG::TypeMapByColumn do
 	end
 
 	it "get_copy_data returns string with encoding" do
-		tm1 = PG::TypeMapByColumn.new( [textdec_string, textdec_bytea] )
+		tm1 = PG::TypeMapByColumn.new( [textdec_string, textdec_bytea] ).freeze
 		decoder = PG::TextDecoder::CopyRow.new(type_map: tm1)
 		@conn.copy_data("COPY (SELECT 'Ä', 'Ö') TO STDOUT", decoder) do
 			res = @conn.get_copy_data
@@ -213,8 +224,8 @@ describe PG::TypeMapByColumn do
 	end
 
 	it "forwards get_copy_data conversions to another TypeMapByColumn as #default_type_map" do
-		tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] )
-		tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil] ).with_default_type_map( tm1 )
+		tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil] ).freeze
+		tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil] ).with_default_type_map( tm1 ).freeze
 		decoder = PG::TextDecoder::CopyRow.new(type_map: tm2)
 		@conn.copy_data("COPY (SELECT 1, 2, 3) TO STDOUT", decoder) do
 			expect( @conn.get_copy_data ).to eq( [1, 2, '3'] )
@@ -224,8 +235,8 @@ describe PG::TypeMapByColumn do
 
 	it "will deny copy queries with different column count" do
 		[[2, 2], [2, 3], [3, 2]].each do |cols1, cols2|
-			tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil][0, cols1] )
-			tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil][0, cols2] ).with_default_type_map( tm1 )
+			tm1 = PG::TypeMapByColumn.new( [textdec_int, nil, nil][0, cols1] ).freeze
+			tm2 = PG::TypeMapByColumn.new( [nil, textdec_int, nil][0, cols2] ).with_default_type_map( tm1 ).freeze
 			decoder = PG::TextDecoder::CopyRow.new(type_map: tm2)
 			@conn.copy_data("COPY (SELECT 1, 2, 3) TO STDOUT", decoder) do
 				expect{ @conn.get_copy_data }.to raise_error(ArgumentError, /number of copy fields/)
@@ -240,7 +251,7 @@ describe PG::TypeMapByColumn do
 
 	it "should allow mixed type conversions" do
 		res = @conn.exec( "SELECT 1, 'a', 2.0::FLOAT, '2013-06-30'::DATE, 3" )
-		res.type_map = PG::TypeMapByColumn.new( [textdec_int, textdec_string, textdec_float, pass_through_type, nil] )
+		res.type_map = PG::TypeMapByColumn.new( [textdec_int, textdec_string, textdec_float, pass_through_type, nil] ).freeze
 		expect( res.values ).to eq( [[1, 'a', 2.0, ['2013-06-30', 0, 3], '3' ]] )
 	end
 

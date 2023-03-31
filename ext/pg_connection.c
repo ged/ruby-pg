@@ -1811,6 +1811,7 @@ pgconn_set_single_row_mode(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
 
+	rb_check_frozen(self);
 	if( PQsetSingleRowMode(conn) == 0 )
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 
@@ -2145,6 +2146,7 @@ pgconn_sync_setnonblocking(VALUE self, VALUE state)
 {
 	int arg;
 	PGconn *conn = pg_get_pgconn(self);
+	rb_check_frozen(self);
 	if(state == Qtrue)
 		arg = 1;
 	else if (state == Qfalse)
@@ -2461,6 +2463,7 @@ pgconn_wait_for_flush( VALUE self ){
 static VALUE
 pgconn_flush_data_set( VALUE self, VALUE enabled ){
 	t_pg_connection *conn = pg_get_connection(self);
+	rb_check_frozen(self);
 	conn->flush_data = RTEST(enabled);
 	return enabled;
 }
@@ -2715,6 +2718,7 @@ pgconn_trace(VALUE self, VALUE stream)
 	VALUE new_file;
 	t_pg_connection *this = pg_get_connection_safe( self );
 
+	rb_check_frozen(self);
 	if(!rb_respond_to(stream,rb_intern("fileno")))
 		rb_raise(rb_eArgError, "stream does not respond to method: fileno");
 
@@ -2814,6 +2818,7 @@ pgconn_set_notice_receiver(VALUE self)
 	VALUE proc, old_proc;
 	t_pg_connection *this = pg_get_connection_safe( self );
 
+	rb_check_frozen(self);
 	/* If default_notice_receiver is unset, assume that the current
 	 * notice receiver is the default, and save it to a global variable.
 	 * This should not be a problem because the default receiver is
@@ -2874,6 +2879,7 @@ pgconn_set_notice_processor(VALUE self)
 	VALUE proc, old_proc;
 	t_pg_connection *this = pg_get_connection_safe( self );
 
+	rb_check_frozen(self);
 	/* If default_notice_processor is unset, assume that the current
 	 * notice processor is the default, and save it to a global variable.
 	 * This should not be a problem because the default processor is
@@ -2924,6 +2930,7 @@ pgconn_sync_set_client_encoding(VALUE self, VALUE str)
 {
 	PGconn *conn = pg_get_pgconn( self );
 
+	rb_check_frozen(self);
 	Check_Type(str, T_STRING);
 
 	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 )
@@ -4055,6 +4062,7 @@ static VALUE pgconn_external_encoding(VALUE self);
 static VALUE
 pgconn_internal_encoding_set(VALUE self, VALUE enc)
 {
+	rb_check_frozen(self);
 	if (NIL_P(enc)) {
 		pgconn_sync_set_client_encoding( self, rb_usascii_str_new_cstr("SQL_ASCII") );
 		return enc;
@@ -4109,6 +4117,7 @@ pgconn_async_set_client_encoding(VALUE self, VALUE encname)
 {
 	VALUE query_format, query;
 
+	rb_check_frozen(self);
 	Check_Type(encname, T_STRING);
 	query_format = rb_str_new_cstr("set client_encoding to '%s'");
 	query = rb_funcall(query_format, rb_intern("%"), 1, encname);
@@ -4161,6 +4170,7 @@ pgconn_set_default_encoding( VALUE self )
 	rb_encoding *enc;
 	const char *encname;
 
+	rb_check_frozen(self);
 	if (( enc = rb_default_internal_encoding() )) {
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
 		if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
@@ -4190,6 +4200,7 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
 	t_typemap *tm;
 	UNUSED(tm);
 
+	rb_check_frozen(self);
 	/* Check type of method param */
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
 
@@ -4230,6 +4241,7 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
 	t_typemap *tm;
 	UNUSED(tm);
 
+	rb_check_frozen(self);
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, tm);
 	RB_OBJ_WRITE(self, &this->type_map_for_results, typemap);
 
@@ -4269,6 +4281,7 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
+	rb_check_frozen(self);
 	if( encoder != Qnil ){
 		t_pg_coder *co;
 		UNUSED(co);
@@ -4317,6 +4330,7 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
+	rb_check_frozen(self);
 	if( decoder != Qnil ){
 		t_pg_coder *co;
 		UNUSED(co);
@@ -4369,6 +4383,7 @@ pgconn_field_name_type_set(VALUE self, VALUE sym)
 {
 	t_pg_connection *this = pg_get_connection( self );
 
+	rb_check_frozen(self);
 	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
 	if( sym == sym_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_SYMBOL;
 	else if ( sym == sym_static_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_STATIC_SYMBOL;

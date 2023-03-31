@@ -10,11 +10,33 @@ describe 'Basic type mapping' do
 
 	describe PG::BasicTypeMapForQueries do
 		let!(:basic_type_mapping) do
-			PG::BasicTypeMapForQueries.new @conn
+			PG::BasicTypeMapForQueries.new(@conn).freeze
+		end
+
+		let!(:basic_type_mapping_writable) do
+			PG::BasicTypeMapForQueries.new(@conn)
+		end
+
+		it "should be shareable for Ractor", :ractor do
+			Ractor.make_shareable(basic_type_mapping)
+		end
+
+		it "should be usable with Ractor", :ractor do
+			vals = Ractor.new(@conninfo) do |conninfo|
+				conn = PG.connect(conninfo)
+				conn.type_map_for_queries = PG::BasicTypeMapForQueries.new(conn)
+				res = conn.exec_params( "SELECT $1 AT TIME ZONE '-02', $2",
+					[Time.new(2019, 12, 8, 20, 38, 12.123, "-01:00"), true])
+				res.values
+			ensure
+				conn&.finish
+			end.take
+
+			expect( vals ).to eq( [[ "2019-12-08 23:38:12.123", "t" ]] )
 		end
 
 		it "can be initialized with a CoderMapsBundle instead of a connection" do
-			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn)
+			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn).freeze
 			tm = PG::BasicTypeMapForQueries.new(maps)
 			expect( tm[Integer] ).to be_kind_of(PG::TextEncoder::Integer)
 		end
@@ -22,13 +44,13 @@ describe 'Basic type mapping' do
 		it "can be initialized with a custom type registry" do
 			regi = PG::BasicTypeRegistry.new
 			regi.register_type 0, 'int8', PG::BinaryEncoder::Int8, nil
-			tm = PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: proc{})
+			tm = PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: proc{}).freeze
 			res = @conn.exec_params( "SELECT $1::text", [0x3031323334353637], 0, tm )
 			expect( res.values ).to eq( [["01234567"]] )
 		end
 
 		it "can take a Proc and nitify about undefined types" do
-			regi = PG::BasicTypeRegistry.new
+			regi = PG::BasicTypeRegistry.new.freeze
 			args = []
 			pr = proc { |*a| args << a }
 			PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: pr)
@@ -36,10 +58,14 @@ describe 'Basic type mapping' do
 		end
 
 		it "raises UndefinedEncoder for undefined types" do
-			regi = PG::BasicTypeRegistry.new
+			regi = PG::BasicTypeRegistry.new.freeze
 			expect do
 				PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: nil)
 			end.to raise_error(PG::BasicTypeMapForQueries::UndefinedEncoder)
+		end
+
+		it "should be shareable for Ractor", :ractor do
+			Ractor.make_shareable(basic_type_mapping)
 		end
 
 		#
@@ -118,13 +144,13 @@ describe 'Basic type mapping' do
 		end
 
 		it "should do array-as-json encoding" do
-			basic_type_mapping.encode_array_as = :json
-			expect( basic_type_mapping.encode_array_as).to eq(:json)
+			basic_type_mapping_writable.encode_array_as = :json
+			expect( basic_type_mapping_writable.encode_array_as).to eq(:json)
 
 			res = @conn.exec_params( "SELECT $1::JSON, $2::JSON", [
 					[1, {a: 5}, true, ["a", 2], [3.4, nil]],
 					['/,"'.gsub("/", "\\"), nil, 'abcäöü'],
-				], nil, basic_type_mapping )
+				], nil, basic_type_mapping_writable )
 
 			expect( res.values ).to eq( [[
 					'[1,{"a":5},true,["a",2],[3.4,null]]',
@@ -160,14 +186,14 @@ describe 'Basic type mapping' do
 			end
 
 			it "should do array-as-record encoding" do
-				basic_type_mapping.encode_array_as = :record
-				expect( basic_type_mapping.encode_array_as).to eq(:record)
+				basic_type_mapping_writable.encode_array_as = :record
+				expect( basic_type_mapping_writable.encode_array_as).to eq(:record)
 
 				res = @conn.exec_params( "SELECT $1::test_record1, $2::test_record2, $3::text", [
 						[5, 3.4, "txt"],
 				    [1, [2, 4.5, "bcd"]],
 				    [4, 5, 6],
-					], nil, basic_type_mapping )
+					], nil, basic_type_mapping_writable )
 
 				expect( res.values ).to eq( [[
 						'(5,3.4,txt)',
@@ -221,7 +247,7 @@ describe 'Basic type mapping' do
 
 		it "should take BinaryData for bytea columns" do
 			@conn.exec("CREATE TEMP TABLE IF NOT EXISTS bytea_test (data bytea)")
-			bd = PG::BasicTypeMapForQueries::BinaryData.new("ab\xff\0cd")
+			bd = PG::BasicTypeMapForQueries::BinaryData.new("ab\xff\0cd").freeze
 			res = @conn.exec_params("INSERT INTO bytea_test (data) VALUES ($1) RETURNING data", [bd], nil, basic_type_mapping)
 
 			expect( res.to_a ).to eq([{"data" => "\\x6162ff006364"}])

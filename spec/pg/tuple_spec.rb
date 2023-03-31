@@ -5,26 +5,28 @@ require_relative '../helpers'
 require 'pg'
 
 describe PG::Tuple do
-	let!(:typemap) { PG::BasicTypeMapForResults.new(@conn) }
-	let!(:result2x2) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ) }
-	let!(:result2x2sym) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ).field_names_as(:symbol) }
+	let!(:typemap) { PG::BasicTypeMapForResults.new(@conn).freeze }
+	let!(:result2x2) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ).freeze }
+	let!(:result2x2_writable) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ) }
+	let!(:result2x2sym) { @conn.exec( "VALUES(1, 'a'), (2, 'b')" ).field_names_as(:symbol).freeze }
 	let!(:result2x3cast) do
 		@conn.exec( "SELECT * FROM (VALUES(1, TRUE, '3'), (2, FALSE, '4')) AS m (a, b, b)" )
-			.map_types!(typemap)
+			.map_types!(typemap).freeze
 	end
 	let!(:result2x3symcast) do
 		@conn.exec( "SELECT * FROM (VALUES(1, TRUE, '3'), (2, FALSE, '4')) AS m (a, b, b)" )
 			.map_types!(typemap)
-			.field_names_as(:symbol)
+			.field_names_as(:symbol).freeze
 	end
-	let!(:tuple0) { result2x2.tuple(0) }
-	let!(:tuple0sym) { result2x2sym.tuple(0) }
-	let!(:tuple1) { result2x2.tuple(1) }
-	let!(:tuple1sym) { result2x2sym.tuple(1) }
-	let!(:tuple2) { result2x3cast.tuple(0) }
-	let!(:tuple2sym) { result2x3symcast.tuple(0) }
-	let!(:tuple3) { str = Marshal.dump(result2x3cast.tuple(1)); Marshal.load(str) }
-	let!(:tuple_empty) { PG::Tuple.new }
+	let!(:tuple0) { result2x2.tuple(0).freeze }
+	let!(:tuple0_writable) { result2x2.tuple(0) }
+	let!(:tuple0sym) { result2x2sym.tuple(0).freeze }
+	let!(:tuple1) { result2x2.tuple(1).freeze }
+	let!(:tuple1sym) { result2x2sym.tuple(1).freeze }
+	let!(:tuple2) { result2x3cast.tuple(0).freeze }
+	let!(:tuple2sym) { result2x3symcast.tuple(0).freeze }
+	let!(:tuple3) { str = Marshal.dump(result2x3cast.tuple(1).freeze); Marshal.load(str) }
+	let!(:tuple_empty) { PG::Tuple.new.freeze }
 
 	describe "[]" do
 		it "returns nil for invalid keys" do
@@ -84,8 +86,8 @@ describe PG::Tuple do
 				end
 			end.new
 
-			result2x2.map_types!(PG::TypeMapByColumn.new([deco, deco]))
-			t = result2x2.tuple(1)
+			result2x2_writable.map_types!(PG::TypeMapByColumn.new([deco, deco]))
+			t = result2x2_writable.tuple(1)
 
 			# cast and cache at first call to [0]
 			a.clear
@@ -284,7 +286,7 @@ describe PG::Tuple do
 	end
 
 	it "passes instance variables when marshaled" do
-		t1 = tuple0
+		t1 = tuple0_writable
 		t1.instance_variable_set("@a", 4711)
 		str = Marshal.dump(t1)
 		t2 = Marshal.load(str)
@@ -294,6 +296,11 @@ describe PG::Tuple do
 
 	it "can't be marshaled when empty" do
 		expect{ Marshal.dump(tuple_empty) }.to raise_error(TypeError)
+	end
+
+	it "should be shareable for Ractor", :ractor do
+		res = @conn.exec("SELECT 1").tuple(0)
+		Ractor.make_shareable(res)
 	end
 
 	it "should give account about memory usage" do
@@ -310,7 +317,7 @@ describe PG::Tuple do
 
 	context "with cleared result" do
 		it "should raise an error when non-materialized fields are used" do
-			r = result2x2
+			r = result2x2_writable
 			t = r.tuple(0)
 			t[0] # materialize first field only
 			r.clear

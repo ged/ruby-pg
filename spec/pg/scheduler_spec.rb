@@ -3,6 +3,9 @@
 
 require_relative '../helpers'
 
+# Work around ruby bug: https://bugs.ruby-lang.org/issues/19562
+''.encode(Encoding::ISO8859_3)
+
 $scheduler_timeout = false
 
 context "with a Fiber scheduler", :scheduler do

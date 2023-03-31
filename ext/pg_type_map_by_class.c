@@ -157,7 +157,7 @@ static const rb_data_type_t pg_tmbk_type = {
 	},
 	&pg_typemap_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 static VALUE
@@ -204,6 +204,8 @@ static VALUE
 pg_tmbk_aset( VALUE self, VALUE klass, VALUE coder )
 {
 	t_tmbk *this = RTYPEDDATA_DATA( self );
+
+	rb_check_frozen(self);
 
 	if(NIL_P(coder)){
 		rb_hash_delete( this->klass_to_coder, klass );

@@ -101,7 +101,7 @@ const rb_data_type_t pg_coder_type = {
 	0,
 	// IMPORTANT: WB_PROTECTED objects must only use the RB_OBJ_WRITE()
 	// macro to update VALUE references, as to trigger write barriers.
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 static VALUE
@@ -123,7 +123,7 @@ static const rb_data_type_t pg_composite_coder_type = {
 	},
 	&pg_coder_type,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 static VALUE
@@ -275,6 +275,7 @@ static VALUE
 pg_coder_oid_set(VALUE self, VALUE oid)
 {
 	t_pg_coder *this = RTYPEDDATA_DATA(self);
+	rb_check_frozen(self);
 	this->oid = NUM2UINT(oid);
 	return oid;
 }
@@ -306,6 +307,7 @@ static VALUE
 pg_coder_format_set(VALUE self, VALUE format)
 {
 	t_pg_coder *this = RTYPEDDATA_DATA(self);
+	rb_check_frozen(self);
 	this->format = NUM2INT(format);
 	return format;
 }
@@ -337,6 +339,7 @@ static VALUE
 pg_coder_flags_set(VALUE self, VALUE flags)
 {
 	t_pg_coder *this = RTYPEDDATA_DATA(self);
+	rb_check_frozen(self);
 	this->flags = NUM2INT(flags);
 	return flags;
 }
@@ -368,6 +371,7 @@ static VALUE
 pg_coder_needs_quotation_set(VALUE self, VALUE needs_quotation)
 {
 	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
+	rb_check_frozen(self);
 	this->needs_quotation = RTEST(needs_quotation);
 	return needs_quotation;
 }
@@ -398,6 +402,7 @@ static VALUE
 pg_coder_delimiter_set(VALUE self, VALUE delimiter)
 {
 	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
+	rb_check_frozen(self);
 	StringValue(delimiter);
 	if(RSTRING_LEN(delimiter) != 1)
 		rb_raise( rb_eArgError, "delimiter size must be one byte");
@@ -432,6 +437,7 @@ pg_coder_elements_type_set(VALUE self, VALUE elem_type)
 {
 	t_pg_composite_coder *this = RTYPEDDATA_DATA( self );
 
+	rb_check_frozen(self);
 	if ( NIL_P(elem_type) ){
 		this->elem = NULL;
 	} else if ( rb_obj_is_kind_of(elem_type, rb_cPG_Coder) ){
@@ -454,7 +460,7 @@ static const rb_data_type_t pg_coder_cfunc_type = {
 	},
 	0,
 	0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 VALUE
@@ -470,7 +476,7 @@ pg_define_coder( const char *name, void *func, VALUE base_klass, VALUE nsp )
 	if( nsp==rb_mPG_BinaryDecoder || nsp==rb_mPG_TextDecoder )
 		rb_define_method( coder_klass, "decode", pg_coder_decode, -1 );
 
-	rb_define_const( coder_klass, "CFUNC", cfunc_obj );
+	rb_define_const( coder_klass, "CFUNC", rb_obj_freeze(cfunc_obj) );
 
 	RB_GC_GUARD(cfunc_obj);
 	return coder_klass;

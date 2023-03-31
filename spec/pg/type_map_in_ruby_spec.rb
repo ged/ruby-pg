@@ -8,14 +8,25 @@ require 'pg'
 
 describe PG::TypeMapInRuby do
 
+	it "should deny changes when frozen" do
+		tm = PG::TypeMapInRuby.new.freeze
+		expect{ tm.default_type_map = PG::TypeMapByClass.new }.to raise_error(FrozenError)
+		expect{ tm.with_default_type_map(PG::TypeMapByClass.new) }.to raise_error(FrozenError)
+	end
+
+	it "should be shareable for Ractor", :ractor do
+		tm = PG::TypeMapInRuby.new.freeze
+		Ractor.make_shareable(tm)
+	end
+
 	it "should give account about memory usage" do
-		tm = PG::TypeMapInRuby.new
+		tm = PG::TypeMapInRuby.new.freeze
 		expect( ObjectSpace.memsize_of(tm) ).to be > DATA_OBJ_MEMSIZE
 	end
 
 	context "result values" do
 		it "should be usable non-derived" do
-			tm = PG::TypeMapInRuby.new
+			tm = PG::TypeMapInRuby.new.freeze
 			res = @conn.exec("select 5").map_types!(tm)
 			expect( res.getvalue(0,0) ).to eq( "5" )
 		end
@@ -44,7 +55,7 @@ describe PG::TypeMapInRuby do
 				def fit_to_result(*args)
 					:invalid
 				end
-			end.new
+			end.new.freeze
 
 			res = @conn.exec("select 5,6")
 			expect{ res.map_types!(tm) }.to raise_error(TypeError, /kind of PG::TypeMap/)
@@ -53,7 +64,7 @@ describe PG::TypeMapInRuby do
 
 	context "query bind params" do
 		it "should be usable non-derived" do
-			tm = PG::TypeMapInRuby.new
+			tm = PG::TypeMapInRuby.new.freeze
 			res = @conn.exec_params("select $1::int, $2::text", [5, 6], 0, tm)
 			expect( res.values ).to eq( [["5", "6"]] )
 		end
@@ -84,8 +95,8 @@ describe PG::TypeMapInRuby do
 
 	context "put_copy_data" do
 		it "should be usable non-derived" do
-			tm = PG::TypeMapInRuby.new
-			ce = PG::TextEncoder::CopyRow.new type_map: tm
+			tm = PG::TypeMapInRuby.new.freeze
+			ce = PG::TextEncoder::CopyRow.new(type_map: tm).freeze
 			res = ce.encode([5, 6])
 			expect( res ).to eq( "5\t6\n" )
 		end
@@ -119,17 +130,17 @@ describe PG::TypeMapInRuby do
 				def typecast_query_param(*args)
 					:invalid
 				end
-			end.new
+			end.new.freeze
 
-			ce = PG::TextEncoder::CopyRow.new type_map: tm
+			ce = PG::TextEncoder::CopyRow.new(type_map: tm).freeze
 			expect{ ce.encode([5, 6]) }.to raise_error(TypeError, /nil or kind of PG::Coder/)
 		end
 	end
 
 	context "get_copy_data" do
 		it "should be usable non-derived" do
-			tm = PG::TypeMapInRuby.new
-			ce = PG::TextDecoder::CopyRow.new type_map: tm
+			tm = PG::TypeMapInRuby.new.freeze
+			ce = PG::TextDecoder::CopyRow.new(type_map: tm).freeze
 			res = ce.decode("5\t6\n")
 			expect( res ).to eq( ["5", "6"] )
 		end
@@ -159,9 +170,9 @@ describe PG::TypeMapInRuby do
 				def fit_to_copy_get
 					:invalid
 				end
-			end.new
+			end.new.freeze
 
-			ce = PG::TextDecoder::CopyRow.new type_map: tm
+			ce = PG::TextDecoder::CopyRow.new(type_map: tm).freeze
 			expect{ ce.decode("5\t6\n") }.to raise_error(TypeError, /kind of Integer/)
 		end
 	end

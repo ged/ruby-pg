@@ -7,10 +7,44 @@ require 'timeout'
 require 'socket'
 require 'pg'
 
+# Work around ruby bug: https://bugs.ruby-lang.org/issues/19562
+''.encode(Encoding::ISO8859_2)
+''.encode(Encoding::KOI8_R)
+
 describe PG::Connection do
 
 	it "should give account about memory usage" do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
+	end
+
+	it "should deny changes when frozen" do
+		c = PG.connect(@conninfo).freeze
+		expect{ c.setnonblocking true }.to raise_error(FrozenError)
+		expect{ c.field_name_type = :symbol  }.to raise_error(FrozenError)
+		expect{ c.set_default_encoding }.to raise_error(FrozenError)
+		expect{ c.internal_encoding = nil }.to raise_error(FrozenError)
+	ensure
+		c&.finish
+	end
+
+	it "shouldn't be shareable for Ractor", :ractor do
+		c = PG.connect(@conninfo)
+		expect{ Ractor.make_shareable(c) }.to raise_error(Ractor::Error, /PG::Connection/)
+	ensure
+		c&.finish
+	end
+
+	it "should be usable with Ractor", :ractor do
+		vals = Ractor.new(@conninfo) do |conninfo|
+			conn = PG.connect(conninfo)
+			conn.setnonblocking true
+			conn.setnonblocking false
+			conn.exec("SELECT 123").values
+		ensure
+			conn&.finish
+		end.take
+
+		expect( vals ).to eq( [["123"]] )
 	end
 
 	describe "#inspect", :without_transaction do
@@ -253,16 +287,16 @@ describe PG::Connection do
 		end
 
 		it "sets a shortened fallback_application_name on new connections" do
-			old_0 = $0
+			old_script_name = PG::Connection::PROGRAM_NAME
 			begin
-				$0 = "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby"
+				PG::Connection.const_set(:PROGRAM_NAME, "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby")
 				conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
 				conn_name = conn_string[ /application_name='(.*?)'/, 1 ]
-				expect( conn_name ).to include( $0[0..10] )
-				expect( conn_name ).to include( $0[-10..-1] )
+				expect( conn_name ).to include( PG::Connection::PROGRAM_NAME[0..10] )
+				expect( conn_name ).to include( PG::Connection::PROGRAM_NAME[-10..-1] )
 				expect( conn_name.length ).to be <= 64
 			ensure
-				$0 = old_0
+				PG::Connection.const_set(:PROGRAM_NAME, old_script_name)
 			end
 		end
 	end

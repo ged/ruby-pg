@@ -193,7 +193,7 @@ If messages like the following are printed to stderr, you're probably using one 
 
 ## Fiber IO scheduler support
 
-Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0.
+Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0 since pg-1.3.0.
 On Windows support for `Fiber.scheduler` is available on Ruby-3.1 or newer.
 All possibly blocking IO operations are routed through the `Fiber.scheduler` if one is registered for the running thread.
 That is why pg internally uses the asynchronous libpq interface even for synchronous/blocking method calls.
@@ -206,6 +206,16 @@ When `PG::Connection.setnonblocking(true)` is called then the nonblocking state 
 An exception to this rule are the methods for large objects like `PG::Connection#lo_create` and authentication methods using external libraries (like GSSAPI authentication).
 They are not compatible with `Fiber.scheduler`, so that blocking states are not passed to the registered IO scheduler.
 That means the operation will work properly, but IO waiting states can not be used to switch to another Fiber doing IO.
+
+
+## Ractor support
+
+Pg is fully compatible with Ractor introduced in Ruby-3.0 since pg-1.5.0.
+All type en/decoders and type maps are shareable between ractors if they are made frozen by `Ractor.make_shareable`.
+Also frozen PG::Result and PG::Tuple objects can be shared.
+All frozen objects (except PG::Connection) can still be used to do communication with the PostgreSQL server or to read retrieved data.
+
+PG::Connection is not shareable and must be created within each Ractor to establish a dedicated connection.
 
 
 ## Contributing

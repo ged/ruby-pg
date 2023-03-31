@@ -128,7 +128,7 @@ static const rb_data_type_t pg_tuple_type = {
 		pg_compact_callback(pg_tuple_gc_compact),
 	},
 	0, 0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 /*

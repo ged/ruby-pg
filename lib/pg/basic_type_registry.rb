@@ -39,7 +39,7 @@ class PG::BasicTypeRegistry
 			oid
 			bool
 			date timestamp timestamptz
-		].inject({}){|h,e| h[e] = true; h }
+		].inject({}){|h,e| h[e] = true; h }.freeze
 
 		def initialize(result, coders_by_name, format, arraycoder)
 			coder_map = {}
@@ -52,7 +52,7 @@ class PG::BasicTypeRegistry
 				coder.oid = row['oid'].to_i
 				coder.name = row['typname']
 				coder.format = format
-				coder_map[coder.oid] = coder
+				coder_map[coder.oid] = coder.freeze
 			end
 
 			if arraycoder
@@ -67,13 +67,14 @@ class PG::BasicTypeRegistry
 					coder.format = format
 					coder.elements_type = elements_coder
 					coder.needs_quotation = !DONT_QUOTE_TYPES[elements_coder.name]
-					coder_map[coder.oid] = coder
+					coder_map[coder.oid] = coder.freeze
 				end
 			end
 
-			@coders = coder_map.values
-			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }
-			@coders_by_oid = @coders.inject({}){|h, t| h[t.oid] = t; h }
+			@coders = coder_map.values.freeze
+			@coders_by_name = @coders.inject({}){|h, t| h[t.name] = t; h }.freeze
+			@coders_by_oid = @coders.inject({}){|h, t| h[t.oid] = t; h }.freeze
+			freeze
 		end
 
 		attr_reader :coders
@@ -117,6 +118,11 @@ class PG::BasicTypeRegistry
 				JOIN pg_proc as ti ON ti.oid = t.typinput
 			SQL
 
+			init_maps(registry, result.freeze)
+			freeze
+		end
+
+		private def init_maps(registry, result)
 			@maps = [
 				[0, :encoder, PG::TextEncoder::Array],
 				[0, :decoder, PG::TextDecoder::Array],
@@ -127,9 +133,9 @@ class PG::BasicTypeRegistry
 				h[format] ||= {}
 				h[format][direction] = CoderMap.new(result, coders, format, arraycoder)
 				h
-			end
+			end.each{|h| h.freeze }.freeze
 
-			@typenames_by_oid = result.inject({}){|h, t| h[t['oid'].to_i] = t['typname']; h }
+			@typenames_by_oid = result.inject({}){|h, t| h[t['oid'].to_i] = t['typname']; h }.freeze
 		end
 
 		def each_format(direction)
@@ -142,8 +148,8 @@ class PG::BasicTypeRegistry
 	end
 
 	module Checker
-		ValidFormats = { 0 => true, 1 => true }
-		ValidDirections = { :encoder => true, :decoder => true }
+		ValidFormats = { 0 => true, 1 => true }.freeze
+		ValidDirections = { :encoder => true, :decoder => true }.freeze
 
 		protected def check_format_and_direction(format, direction)
 			raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
@@ -155,7 +161,7 @@ class PG::BasicTypeRegistry
 				raise ArgumentError, "registry argument must be given to CoderMapsBundle" if registry
 				conn_or_maps
 			else
-				PG::BasicTypeRegistry::CoderMapsBundle.new(conn_or_maps, registry: registry)
+				PG::BasicTypeRegistry::CoderMapsBundle.new(conn_or_maps, registry: registry).freeze
 			end
 		end
 	end
@@ -192,8 +198,8 @@ class PG::BasicTypeRegistry
 	# +name+ must correspond to the +typname+ column in the +pg_type+ table.
 	# +format+ can be 0 for text format and 1 for binary.
 	def register_type(format, name, encoder_class, decoder_class)
-		register_coder(encoder_class.new(name: name, format: format)) if encoder_class
-		register_coder(decoder_class.new(name: name, format: format)) if decoder_class
+		register_coder(encoder_class.new(name: name, format: format).freeze) if encoder_class
+		register_coder(decoder_class.new(name: name, format: format).freeze) if decoder_class
 		self
 	end
 
@@ -287,15 +293,5 @@ class PG::BasicTypeRegistry
 	alias define_default_types register_default_types
 
 	# @private
-	DEFAULT_TYPE_REGISTRY = PG::BasicTypeRegistry.new.register_default_types
-
-	# Delegate class method calls to DEFAULT_TYPE_REGISTRY
-	class << self
-		%i[ register_coder register_type alias_type ].each do |meth|
-			define_method(meth) do |*args|
-				warn "PG::BasicTypeRegistry.#{meth} is deprecated. Please use your own instance by PG::BasicTypeRegistry.new instead!"
-				DEFAULT_TYPE_REGISTRY.send(meth, *args)
-			end
-		end
-	end
+	DEFAULT_TYPE_REGISTRY = PG.make_shareable(PG::BasicTypeRegistry.new.register_default_types)
 end

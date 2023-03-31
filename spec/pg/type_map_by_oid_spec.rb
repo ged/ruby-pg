@@ -8,11 +8,11 @@ require 'pg'
 
 describe PG::TypeMapByOid do
 
-	let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
-	let!(:textdec_float){ PG::TextDecoder::Float.new name: 'FLOAT8', oid: 701 }
-	let!(:textdec_string){ PG::TextDecoder::String.new name: 'TEXT', oid: 25 }
-	let!(:textdec_bytea){ PG::TextDecoder::Bytea.new name: 'BYTEA', oid: 17 }
-	let!(:binarydec_float){ PG::BinaryDecoder::Float.new name: 'FLOAT8', oid: 701, format: 1 }
+	let!(:textdec_int){ PG::TextDecoder::Integer.new(name: 'INT4', oid: 23).freeze }
+	let!(:textdec_float){ PG::TextDecoder::Float.new(name: 'FLOAT8', oid: 701).freeze }
+	let!(:textdec_string){ PG::TextDecoder::String.new(name: 'TEXT', oid: 25).freeze }
+	let!(:textdec_bytea){ PG::TextDecoder::Bytea.new(name: 'BYTEA', oid: 17).freeze }
+	let!(:binarydec_float){ PG::BinaryDecoder::Float.new(name: 'FLOAT8', oid: 701, format: 1).freeze }
 	let!(:pass_through_type) do
 		type = Class.new(PG::SimpleDecoder) do
 			def decode(*v)
@@ -22,7 +22,7 @@ describe PG::TypeMapByOid do
 		type.oid = 1082
 		type.format = 0
 		type.name = 'pass_through'
-		type
+		type.freeze
 	end
 
 	let!(:tm) do
@@ -31,7 +31,27 @@ describe PG::TypeMapByOid do
 		tm.add_coder textdec_float
 		tm.add_coder binarydec_float
 		tm.add_coder pass_through_type
-		tm
+		tm.freeze
+	end
+
+	let!(:tm_writable) do
+		tm_writable = PG::TypeMapByOid.new
+		tm.coders.each do |c|
+			tm_writable.add_coder c
+		end
+		tm_writable
+	end
+
+	it "should deny changes when frozen" do
+		tm = PG::TypeMapByOid.new.freeze
+		expect{ tm.default_type_map = PG::TypeMapByClass.new }.to raise_error(FrozenError)
+		expect{ tm.with_default_type_map(PG::TypeMapByClass.new) }.to raise_error(FrozenError)
+		expect{ tm.add_coder textdec_int }.to raise_error(FrozenError)
+	end
+
+	it "should be shareable for Ractor", :ractor do
+		tm = PG::TypeMapByOid.new.freeze
+		Ractor.make_shareable(tm)
 	end
 
 	it "should give account about memory usage" do
@@ -49,32 +69,34 @@ describe PG::TypeMapByOid do
 	end
 
 	it "should allow deletion of coders" do
-		expect( tm.rm_coder 0, 701 ).to eq(textdec_float)
-		expect( tm.rm_coder 0, 701 ).to eq(nil)
-		expect( tm.rm_coder 1, 701 ).to eq(binarydec_float)
-		expect( tm.coders ).to eq( [
+		expect( tm_writable.rm_coder 0, 701 ).to eq(textdec_float)
+		expect( tm_writable.rm_coder 0, 701 ).to eq(nil)
+		expect( tm_writable.rm_coder 1, 701 ).to eq(binarydec_float)
+		expect( tm_writable.coders ).to eq( [
 			textdec_int,
 			pass_through_type,
 		] )
 	end
 
 	it "should check format when deleting coders" do
-		expect{ tm.rm_coder(2, 123) }.to raise_error(ArgumentError)
-		expect{ tm.rm_coder(-1, 123) }.to raise_error(ArgumentError)
+		expect{ tm_writable.rm_coder(2, 123) }.to raise_error(ArgumentError)
+		expect{ tm_writable.rm_coder(-1, 123) }.to raise_error(ArgumentError)
 	end
 
 	it "should check format when adding coders" do
+		textdec_int = PG::TextDecoder::Integer.new(name: 'INT4', oid: 23)
 		textdec_int.format = 2
-		expect{ tm.add_coder textdec_int }.to raise_error(ArgumentError)
+		expect{ tm_writable.add_coder textdec_int }.to raise_error(ArgumentError)
 		textdec_int.format = -1
-		expect{ tm.add_coder textdec_int }.to raise_error(ArgumentError)
+		expect{ tm_writable.add_coder textdec_int }.to raise_error(ArgumentError)
 	end
 
 	it "should check coder type when adding coders" do
-		expect{ tm.add_coder :dummy }.to raise_error(TypeError)
+		expect{ tm_writable.add_coder :dummy }.to raise_error(TypeError)
 	end
 
 	it "should allow reading and writing max_rows_for_online_lookup" do
+		tm = PG::TypeMapByOid.new
 		expect( tm.max_rows_for_online_lookup ).to eq(10)
 		tm.max_rows_for_online_lookup = 5
 		expect( tm.max_rows_for_online_lookup ).to eq(5)

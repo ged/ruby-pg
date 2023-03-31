@@ -7,7 +7,7 @@ require 'pg'
 
 
 describe PG::TypeMap do
-	let!(:tm){ PG::TypeMap.new }
+	let!(:tm){ PG::TypeMap.new.freeze }
 
 	it "should give account about memory usage" do
 		expect( ObjectSpace.memsize_of(tm) ).to be > DATA_OBJ_MEMSIZE
@@ -23,4 +23,9 @@ describe PG::TypeMap do
 		res = @conn.exec( "SELECT 1" )
 		expect{ res.map_types!(tm) }.to raise_error(NotImplementedError, /not suitable to map result values/)
 	end
+
+	it "should be shareable for Ractor", :ractor do
+		Ractor.make_shareable(tm)
+	end
+
 end

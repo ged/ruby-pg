@@ -53,10 +53,12 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
-		@if_undefined = if_undefined || proc { |oid_name, format|
-			raise UndefinedEncoder, "no encoder defined for type #{oid_name.inspect} format #{format}"
-		}
+		@if_undefined = if_undefined || method(:raise_undefined_type).to_proc
 		init_encoders
+	end
+
+	private def raise_undefined_type(oid_name, format)
+		raise UndefinedEncoder, "no encoder defined for type #{oid_name.inspect} format #{format}"
 	end
 
 	# Change the mechanism that is used to encode ruby array values
@@ -164,7 +166,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 				@textarray_encoder
 	end
 
-	DEFAULT_TYPE_MAP = {
+	DEFAULT_TYPE_MAP = PG.make_shareable({
 		TrueClass => [1, 'bool', 'bool'],
 		FalseClass => [1, 'bool', 'bool'],
 		# We use text format and no type OID for numbers, because setting the OID can lead
@@ -179,9 +181,9 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Hash => [0, 'json'],
 		Array => :get_array_type,
 		BinaryData => [1, 'bytea'],
-	}
+	})
 
-	DEFAULT_ARRAY_TYPE_MAP = {
+	DEFAULT_ARRAY_TYPE_MAP = PG.make_shareable({
 		TrueClass => [0, '_bool'],
 		FalseClass => [0, '_bool'],
 		Integer => [0, '_int8'],
@@ -190,6 +192,6 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		BigDecimal => [0, '_numeric'],
 		Time => [0, '_timestamptz'],
 		IPAddr => [0, '_inet'],
-	}
+	})
 
 end
