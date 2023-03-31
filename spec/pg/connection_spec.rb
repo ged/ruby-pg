@@ -17,6 +17,23 @@ describe PG::Connection do
 		expect( ObjectSpace.memsize_of(@conn) ).to be > DATA_OBJ_MEMSIZE
 	end
 
+	it "should deny changes when frozen" do
+		c = PG.connect(@conninfo).freeze
+		expect{ c.setnonblocking true }.to raise_error(FrozenError)
+		expect{ c.field_name_type = :symbol  }.to raise_error(FrozenError)
+		expect{ c.set_default_encoding }.to raise_error(FrozenError)
+		expect{ c.internal_encoding = nil }.to raise_error(FrozenError)
+	ensure
+		c&.finish
+	end
+
+	it "shouldn't be shareable for Ractor", :ractor do
+		c = PG.connect(@conninfo)
+		expect{ Ractor.make_shareable(c) }.to raise_error(Ractor::Error, /PG::Connection/)
+	ensure
+		c&.finish
+	end
+
 	it "should be usable with Ractor", :ractor do
 		vals = Ractor.new(@conninfo) do |conninfo|
 			conn = PG.connect(conninfo)
