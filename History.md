@@ -1,37 +1,49 @@
 ## v1.5.0 [YYYY-MM-YY] Lars Kanis <lars@greiz-reinsdorf.de>
 
+Enhancements:
+
+- Better support for binary format:
+    - Extend PG::Connection#copy_data to better support binary transfers [#511](https://github.com/ged/ruby-pg/pull/511)
+    - Add binary COPY encoder and decoder:
+        * PG::BinaryEncoder::CopyRow
+        * PG::BinaryDecoder::CopyRow
+    - Add binary timestamp encoders:
+        * PG::BinaryEncoder::TimestampUtc
+        * PG::BinaryEncoder::TimestampLocal
+        * PG::BinaryEncoder::Timestamp
+    - Add PG::BinaryEncoder::Float4 and Float8
+    - Add binary date type: [#515](https://github.com/ged/ruby-pg/pull/515)
+        * PG::BinaryEncoder::Date
+        * PG::BinaryDecoder::Date
+    - Add PG::Result#binary_tuples [#511](https://github.com/ged/ruby-pg/pull/511)
+      It is useful for COPY and not deprecated in that context.
+    - Add PG::TextEncoder::Bytea to BasicTypeRegistry [#506](https://github.com/ged/ruby-pg/pull/506)
+- Ractor support: [#519](https://github.com/ged/ruby-pg/pull/519)
+    - Pg is now fully compatible with Ractor introduced in Ruby-3.0 and doesn't use any global mutable state.
+    - All type en/decoders and type maps are shareable between ractors if they are made frozen by `Ractor.make_shareable`.
+    - Also frozen PG::Result and PG::Tuple objects can be shared.
+    - All frozen objects (except PG::Connection) can still be used to do communication with the PostgreSQL server or to read retrieved data.
+    - PG::Connection is not shareable and must be created within each Ractor to establish a dedicated connection.
+- Use keyword arguments instead of hashes for Coder initialization and #to_h. [#511](https://github.com/ged/ruby-pg/pull/511)
+- Add PG::Result.res_status as a class method and extend Result#res_status to return the status of self. [#508](https://github.com/ged/ruby-pg/pull/508)
+- Reduce the number of files loaded at `require 'pg'` by using autoload. [#513](https://github.com/ged/ruby-pg/pull/513)
+  Previously stdlib libraries `date`, `json`, `ipaddr` and `bigdecimal` were static dependencies, but now only `socket` is mandatory.
+- Improve garbage collector performance by adding write barriers to all PG classes. [#518](https://github.com/ged/ruby-pg/pull/518)
+  Now they can be promoted to the old generation, which means they only get marked on major GC.
+- Update Windows fat binary gem to OpenSSL-3.1.0.
+
 Bugfixes:
 
 - Move nfields-check of stream-methods after result status check [#507](https://github.com/ged/ruby-pg/pull/507)
   This ensures that the nfield-check doesn't hide errors like statement timeout.
 
-Enhancements:
-
-- Extend PG::Connection#copy_data to better support binary transfers [#511](https://github.com/ged/ruby-pg/pull/511)
-- Add binary COPY encoder and decoder:
-    * PG::BinaryEncoder::CopyRow
-    * PG::BinaryDecoder::CopyRow
-- Add binary timestamp encoders:
-    * PG::BinaryEncoder::TimestampUtc
-    * PG::BinaryEncoder::TimestampLocal
-    * PG::BinaryEncoder::Timestamp
-- Add PG::BinaryEncoder::Float4 and Float8
-- Add binary date type: [#515](https://github.com/ged/ruby-pg/pull/515)
-    * PG::BinaryEncoder::Date
-    * PG::BinaryDecoder::Date
-- Add PG::Result#binary_tuples [#511](https://github.com/ged/ruby-pg/pull/511)
-  It is useful for COPY and not deprecated in that context.
-- Add PG::Result.res_status as a class method and extend Result#res_status to return the status of self. [#508](https://github.com/ged/ruby-pg/pull/508)
-- Add PG::TextEncoder::Bytea to BasicTypeRegistry [#506](https://github.com/ged/ruby-pg/pull/506)
-- Use keyword arguments instead of hashes for Coder initialization and #to_h. [#511](https://github.com/ged/ruby-pg/pull/511)
-- Use autoload to load optional classes at their first use to reduce the number of files loaded at `require 'pg'`.
-  Previously stdlib libraries `date`, `json`, `ipaddr` and `bigdecimal` were static dependencies, but now only `socket` is mantadory.
-- Update Windows fat binary gem to OpenSSL-3.1.0.
-
 Removed:
 
+- Remove deprecated PG::BasicTypeRegistry.register_type and co. [Part of #519](https://github.com/ged/ruby-pg/commit/2919ee1a0c6b216e18e1d06c95c2616ef69d2f97)
 - Add deprecation warning about PG::Coder initialization per Hash argument. [#514](https://github.com/ged/ruby-pg/pull/514)
   It is recommended to use keyword arguments instead.
+- The internal encoding cache was removed. [#516](https://github.com/ged/ruby-pg/pull/516)
+  It shouldn't have a practical performance impact.
 
 Repository:
 
