@@ -294,14 +294,4 @@ class PG::BasicTypeRegistry
 
 	# @private
 	DEFAULT_TYPE_REGISTRY = PG.make_shareable(PG::BasicTypeRegistry.new.register_default_types)
-
-	# Delegate class method calls to DEFAULT_TYPE_REGISTRY
-	class << self
-		%i[ register_coder register_type alias_type ].each do |meth|
-			define_method(meth) do |*args|
-				warn "PG::BasicTypeRegistry.#{meth} is deprecated. Please use your own instance by PG::BasicTypeRegistry.new instead!"
-				DEFAULT_TYPE_REGISTRY.send(meth, *args)
-			end
-		end
-	end
 end
