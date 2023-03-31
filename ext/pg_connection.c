@@ -3099,7 +3099,7 @@ pgconn_async_get_last_result(VALUE self)
 	VALUE rb_pgresult = Qnil;
 	PGresult *cur, *prev;
 
-  cur = prev = NULL;
+	cur = prev = NULL;
 	for(;;) {
 		int status;
 
