@@ -1678,6 +1678,40 @@ describe PG::Connection do
 		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /can't get socket descriptor|connection not open/){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
+	describe :check_connection do
+		it "does nothing if connection is OK" do
+			expect( @conn.check_connection ).to be_nil
+		end
+
+		def wait_check_connection(conn)
+			retries = 100
+			loop do
+				conn.check_connection
+				sleep 0.1
+				break if (retries-=1) < 0
+			end
+		end
+
+		it "raises error on broken connection" do
+			conn = PG.connect(@conninfo)
+			conn.send_query "SELECT pg_terminate_backend(pg_backend_pid())"
+			expect( conn.get_result.result_status ).to be( PG::PGRES_FATAL_ERROR )
+
+			expect do
+				wait_check_connection(conn)
+			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly/)
+		end
+
+		it "processes messages before connection error" do
+			conn = PG.connect(@conninfo)
+			conn.send_query "do $$ BEGIN RAISE NOTICE 'foo'; PERFORM pg_terminate_backend(pg_backend_pid()); END; $$ LANGUAGE plpgsql;"
+
+			expect do
+				wait_check_connection(conn)
+			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly/)
+		end
+	end
+
 	it "calls the block supplied to wait_for_notify with the notify payload if it accepts " +
 			"any number of arguments" do
 

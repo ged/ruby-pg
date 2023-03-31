@@ -343,6 +343,20 @@ class PG::Connection
 		end
 	end
 
+	# Read all pending socket input to internal memory and raise an exception in case of errors.
+	#
+	# This verifies that the connection socket is in a usable state and not aborted in any way.
+	# No communication is done with the server.
+	# Only pending data is read from the socket - the method doesn't wait for any outstanding server answers.
+	#
+	# Raises a kind of PG::Error if there was an error reading the data or if the socket is in a failure state.
+	def check_connection
+		while socket_io.wait_readable(0)
+			consume_input
+		end
+		nil
+	end
+
 	# call-seq:
 	#    conn.get_result() -> PG::Result
 	#    conn.get_result() {|pg_result| block }
@@ -797,7 +811,10 @@ class PG::Connection
 		#    PG::Connection.ping(connection_string)     -> Integer
 		#    PG::Connection.ping(host, port, options, tty, dbname, login, password) ->  Integer
 		#
-		# Check server status.
+		# PQpingParams reports the status of the server.
+		#
+		# It accepts connection parameters identical to those of PQ::Connection.new .
+		# It is not necessary to supply correct user name, password, or database name values to obtain the server status; however, if incorrect values are provided, the server will log a failed connection attempt.
 		#
 		# See PG::Connection.new for a description of the parameters.
 		#
@@ -810,6 +827,8 @@ class PG::Connection
 		#   could not establish connection
 		# [+PQPING_NO_ATTEMPT+]
 		#   connection not attempted (bad params)
+		#
+		# See also check_connection for a way to check the connection without doing any server communication.
 		def ping(*args)
 			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
 				# Run PQping in a second thread to avoid blocking of the scheduler.
