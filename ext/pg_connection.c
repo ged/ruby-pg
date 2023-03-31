@@ -763,6 +763,10 @@ pgconn_conninfo( VALUE self )
  *
  * ... and other constants of kind PG::Constants::CONNECTION_*
  *
+ * This method returns the status of the last command from memory.
+ * It doesn't do any socket access hence is not suitable to test the connectivity.
+ * See check_socket for a way to verify the socket state.
+ *
  * Example:
  *   PG.constants.grep(/CONNECTION_/).find{|c| PG.const_get(c) == conn.status} # => :CONNECTION_OK
  */
