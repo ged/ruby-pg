@@ -350,6 +350,9 @@ class PG::Connection
 	# Only pending data is read from the socket - the method doesn't wait for any outstanding server answers.
 	#
 	# Raises a kind of PG::Error if there was an error reading the data or if the socket is in a failure state.
+	#
+	# The method doesn't verify that the server is still responding.
+	# To verify that the communication to the server works, it is recommended to use something like <tt>conn.exec('')</tt> instead.
 	def check_connection
 		while socket_io.wait_readable(0)
 			consume_input
