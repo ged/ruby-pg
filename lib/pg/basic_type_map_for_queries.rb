@@ -182,6 +182,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Array => :get_array_type,
 		BinaryData => [1, 'bytea'],
 	})
+	private_constant :DEFAULT_TYPE_MAP
 
 	DEFAULT_ARRAY_TYPE_MAP = PG.make_shareable({
 		TrueClass => [0, '_bool'],
@@ -193,5 +194,5 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Time => [0, '_timestamptz'],
 		IPAddr => [0, '_inet'],
 	})
-
+	private_constant :DEFAULT_ARRAY_TYPE_MAP
 end

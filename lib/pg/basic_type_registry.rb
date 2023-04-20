@@ -40,6 +40,7 @@ class PG::BasicTypeRegistry
 			bool
 			date timestamp timestamptz
 		].inject({}){|h,e| h[e] = true; h }.freeze
+		private_constant :DONT_QUOTE_TYPES
 
 		def initialize(result, coders_by_name, format, arraycoder)
 			coder_map = {}
@@ -150,6 +151,7 @@ class PG::BasicTypeRegistry
 	module Checker
 		ValidFormats = { 0 => true, 1 => true }.freeze
 		ValidDirections = { :encoder => true, :decoder => true }.freeze
+		private_constant :ValidFormats, :ValidDirections
 
 		protected def check_format_and_direction(format, direction)
 			raise(ArgumentError, "Invalid format value %p" % format) unless ValidFormats[format]
@@ -292,6 +294,6 @@ class PG::BasicTypeRegistry
 
 	alias define_default_types register_default_types
 
-	# @private
 	DEFAULT_TYPE_REGISTRY = PG.make_shareable(PG::BasicTypeRegistry.new.register_default_types)
+	private_constant :DEFAULT_TYPE_REGISTRY
 end

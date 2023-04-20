@@ -31,7 +31,7 @@ class PG::Connection
 
 	# The order the options are passed to the ::connect method.
 	CONNECT_ARGUMENT_ORDER = %w[host port options tty dbname user password].freeze
-
+	private_constant :CONNECT_ARGUMENT_ORDER
 
 	### Quote a single +value+ for use in a connection-parameter string.
 	def self.quote_connstr( value )
@@ -47,6 +47,7 @@ class PG::Connection
 
 	# Shareable program name for Ractor
 	PROGRAM_NAME = $PROGRAM_NAME.dup.freeze
+	private_constant :PROGRAM_NAME
 
 	# Parse the connection +args+ into a connection-parameter string.
 	# See PG::Connection.new for valid arguments.
@@ -117,6 +118,7 @@ class PG::Connection
 	end
 
 	BinarySignature = "PGCOPY\n\377\r\n\0".b
+	private_constant :BinarySignature
 
 	#  call-seq:
 	#     conn.copy_data( sql [, coder] ) {|sql_result| ... } -> PG::Result
@@ -851,6 +853,7 @@ class PG::Connection
 			:setdblogin => [:async_connect, :sync_connect],
 			:ping => [:async_ping, :sync_ping],
 		})
+		private_constant :REDIRECT_CLASS_METHODS
 
 		# These methods are affected by PQsetnonblocking
 		REDIRECT_SEND_METHODS = PG.make_shareable({
@@ -860,6 +863,7 @@ class PG::Connection
 			:put_copy_end => [:async_put_copy_end, :sync_put_copy_end],
 			:flush => [:async_flush, :sync_flush],
 		})
+		private_constant :REDIRECT_SEND_METHODS
 		REDIRECT_METHODS = {
 			:exec => [:async_exec, :sync_exec],
 			:query => [:async_exec, :sync_exec],
@@ -877,6 +881,7 @@ class PG::Connection
 			:client_encoding= => [:async_set_client_encoding, :sync_set_client_encoding],
 			:cancel => [:async_cancel, :sync_cancel],
 		}
+		private_constant :REDIRECT_METHODS
 
 		if PG::Connection.instance_methods.include? :async_encrypt_password
 			REDIRECT_METHODS.merge!({
