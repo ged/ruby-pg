@@ -76,10 +76,6 @@ typedef long suseconds_t;
 	#define PG_MAX_COLUMNS 4000
 #endif
 
-#ifndef RARRAY_AREF
-#define RARRAY_AREF(a, i) (RARRAY_PTR(a)[i])
-#endif
-
 #ifdef HAVE_RB_GC_MARK_MOVABLE
 #define pg_compact_callback(x) (x)
 #define pg_gc_location(x) x = rb_gc_location(x)
