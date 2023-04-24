@@ -523,11 +523,14 @@ describe "PG::Type derivations" do
 			end
 		end
 
-		it "should overwrite default values as hash" do
+		it "should overwrite default format" do
 			t = nil
 			expect_deprecated_coder_init do
 				t = PG::BinaryEncoder::Int4.new({format: 0})
 			end
+			expect( t.format ).to eq( 0 )
+
+			t = PG::BinaryEncoder::Int4.new(format: 0)
 			expect( t.format ).to eq( 0 )
 		end
 
@@ -557,6 +560,27 @@ describe "PG::Type derivations" do
 			expect( t.name ).to eq( "abcä" )
 			expect_deprecated_coder_init { t = PG::TextDecoder::TimestampWithTimeZone.new({name: "abcä"}) }
 			expect( t.name ).to eq( "abcä" )
+		end
+
+		it "shouldn't overwrite timestamp flags" do
+			t = PG::TextDecoder::TimestampUtc.new({flags: PG::Coder::TIMESTAMP_DB_LOCAL})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_UTC )
+			t = PG::TextDecoder::TimestampUtcToLocal.new({flags: PG::Coder::TIMESTAMP_APP_UTC})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_LOCAL )
+			t = PG::TextDecoder::TimestampLocal.new({flags: PG::Coder::TIMESTAMP_DB_UTC})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_LOCAL | PG::Coder::TIMESTAMP_APP_LOCAL )
+
+			t = PG::BinaryDecoder::TimestampUtc.new({flags: PG::Coder::TIMESTAMP_DB_LOCAL})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_UTC )
+			t = PG::BinaryDecoder::TimestampUtcToLocal.new({flags: PG::Coder::TIMESTAMP_APP_UTC})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_LOCAL )
+			t = PG::BinaryDecoder::TimestampLocal.new({flags: PG::Coder::TIMESTAMP_DB_UTC})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_LOCAL | PG::Coder::TIMESTAMP_APP_LOCAL )
+
+			t = PG::BinaryEncoder::TimestampUtc.new({flags: PG::Coder::TIMESTAMP_DB_LOCAL})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_UTC )
+			t = PG::BinaryEncoder::TimestampLocal.new({flags: PG::Coder::TIMESTAMP_APP_LOCAL})
+			expect( t.flags ).to eq( PG::Coder::TIMESTAMP_DB_LOCAL )
 		end
 
 		it "should deny changes when frozen" do
