@@ -1,3 +1,9 @@
+## v1.5.1 [2023-04-24] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Don't overwrite flags of timestamp coders. [#524](https://github.com/ged/ruby-pg/pull/524)
+  Fixes a regression in rails: https://github.com/rails/rails/issues/48049
+
+
 ## v1.5.0 [2023-04-24] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Enhancements:
