@@ -1,4 +1,4 @@
-## v1.5.0 [YYYY-MM-YY] Lars Kanis <lars@greiz-reinsdorf.de>
+## v1.5.0 [2023-04-24] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Enhancements:
 
