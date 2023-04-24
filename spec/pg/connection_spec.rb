@@ -1678,15 +1678,15 @@ describe PG::Connection do
 		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /can't get socket descriptor|connection not open/){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
-	describe :check_connection do
+	describe :check_socket do
 		it "does nothing if connection is OK" do
-			expect( @conn.check_connection ).to be_nil
+			expect( @conn.check_socket ).to be_nil
 		end
 
-		def wait_check_connection(conn)
+		def wait_check_socket(conn)
 			retries = 100
 			loop do
-				conn.check_connection
+				conn.check_socket
 				sleep 0.1
 				break if (retries-=1) < 0
 			end
@@ -1698,7 +1698,7 @@ describe PG::Connection do
 			expect( conn.get_result.result_status ).to be( PG::PGRES_FATAL_ERROR )
 
 			expect do
-				wait_check_connection(conn)
+				wait_check_socket(conn)
 			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly/)
 		end
 
@@ -1707,7 +1707,7 @@ describe PG::Connection do
 			conn.send_query "do $$ BEGIN RAISE NOTICE 'foo'; PERFORM pg_terminate_backend(pg_backend_pid()); END; $$ LANGUAGE plpgsql;"
 
 			expect do
-				wait_check_connection(conn)
+				wait_check_socket(conn)
 			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly/)
 		end
 	end

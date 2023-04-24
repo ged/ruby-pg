@@ -353,7 +353,7 @@ class PG::Connection
 	#
 	# The method doesn't verify that the server is still responding.
 	# To verify that the communication to the server works, it is recommended to use something like <tt>conn.exec('')</tt> instead.
-	def check_connection
+	def check_socket
 		while socket_io.wait_readable(0)
 			consume_input
 		end
@@ -831,7 +831,7 @@ class PG::Connection
 		# [+PQPING_NO_ATTEMPT+]
 		#   connection not attempted (bad params)
 		#
-		# See also check_connection for a way to check the connection without doing any server communication.
+		# See also check_socket for a way to check the connection without doing any server communication.
 		def ping(*args)
 			if Fiber.respond_to?(:scheduler) && Fiber.scheduler
 				# Run PQping in a second thread to avoid blocking of the scheduler.

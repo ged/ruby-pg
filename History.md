@@ -30,7 +30,7 @@ Enhancements:
   Previously stdlib libraries `date`, `json`, `ipaddr` and `bigdecimal` were static dependencies, but now only `socket` is mandatory.
 - Improve garbage collector performance by adding write barriers to all PG classes. [#518](https://github.com/ged/ruby-pg/pull/518)
   Now they can be promoted to the old generation, which means they only get marked on major GC.
-- New method PG::Connection#check_connection to check the socket state. [#521](https://github.com/ged/ruby-pg/pull/521)
+- New method PG::Connection#check_socket to check the socket state. [#521](https://github.com/ged/ruby-pg/pull/521)
 - Update Windows fat binary gem to OpenSSL-3.1.0.
 
 Bugfixes:
