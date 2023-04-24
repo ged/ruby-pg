@@ -31,6 +31,7 @@ Enhancements:
 - Improve garbage collector performance by adding write barriers to all PG classes. [#518](https://github.com/ged/ruby-pg/pull/518)
   Now they can be promoted to the old generation, which means they only get marked on major GC.
 - New method PG::Connection#check_socket to check the socket state. [#521](https://github.com/ged/ruby-pg/pull/521)
+- Mark many internal constants as private. [#522](https://github.com/ged/ruby-pg/pull/522)
 - Update Windows fat binary gem to OpenSSL-3.1.0.
 
 Bugfixes:
