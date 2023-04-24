@@ -287,16 +287,17 @@ describe PG::Connection do
 		end
 
 		it "sets a shortened fallback_application_name on new connections" do
-			old_script_name = PG::Connection::PROGRAM_NAME
+			old_script_name = PG::Connection.class_eval("PROGRAM_NAME")
 			begin
-				PG::Connection.const_set(:PROGRAM_NAME, "/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby")
+				prg = '/this/is/a/very/long/path/with/many/directories/to/our/beloved/ruby'
+				PG::Connection.class_eval("PROGRAM_NAME=#{prg.inspect}")
 				conn_string = PG::Connection.parse_connect_args( 'dbname=test' )
 				conn_name = conn_string[ /application_name='(.*?)'/, 1 ]
-				expect( conn_name ).to include( PG::Connection::PROGRAM_NAME[0..10] )
-				expect( conn_name ).to include( PG::Connection::PROGRAM_NAME[-10..-1] )
+				expect( conn_name ).to include( prg[0..10] )
+				expect( conn_name ).to include( prg[-10..-1] )
 				expect( conn_name.length ).to be <= 64
 			ensure
-				PG::Connection.const_set(:PROGRAM_NAME, old_script_name)
+				PG::Connection.class_eval("PROGRAM_NAME=PG.make_shareable(#{old_script_name.inspect})")
 			end
 		end
 	end
