@@ -1212,16 +1212,32 @@ describe PG::Connection do
 	end
 
 	describe "#copy_data" do
-		it "can process #copy_data output queries" do
+		it "can process #copy_data output queries in text format" do
 			rows = []
 			res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT" ) do |res|
 				expect( res.result_status ).to eq( PG::PGRES_COPY_OUT )
 				expect( res.nfields ).to eq( 1 )
+				expect( res.binary_tuples ).to eq( 0 )
 				while row=@conn.get_copy_data
 					rows << row
 				end
 			end
 			expect( rows ).to eq( ["1\n", "2\n"] )
+			expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
+			expect( @conn ).to still_be_usable
+		end
+
+		it "can process #copy_data output queries in binary format" do
+			rows = []
+			res2 = @conn.copy_data( "COPY (SELECT 1 UNION ALL SELECT 2) TO STDOUT (FORMAT binary)" ) do |res|
+				expect( res.result_status ).to eq( PG::PGRES_COPY_OUT )
+				expect( res.nfields ).to eq( 1 )
+				expect( res.binary_tuples ).to eq( 1 )
+				while row=@conn.get_copy_data
+					rows << row
+				end
+			end
+			expect( rows ).to eq( ["PGCOPY\n\xFF\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01".b, "\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02".b, "\xFF\xFF".b] )
 			expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
 			expect( @conn ).to still_be_usable
 		end
@@ -1269,13 +1285,36 @@ describe PG::Connection do
 			expect( @conn ).to still_be_usable
 		end
 
-		it "can process #copy_data input queries" do
+		it "can process #copy_data input queries in text format" do
 			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
 			res2 = @conn.copy_data( "COPY copytable FROM STDOUT" ) do |res|
 				expect( res.result_status ).to eq( PG::PGRES_COPY_IN )
 				expect( res.nfields ).to eq( 1 )
+				expect( res.binary_tuples ).to eq( 0 )
 				@conn.put_copy_data "1\n"
 				@conn.put_copy_data "2\n"
+			end
+			expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
+
+			expect( @conn ).to still_be_usable
+
+			res = @conn.exec( "SELECT * FROM copytable ORDER BY col1" )
+			expect( res.values ).to eq( [["1"], ["2"]] )
+			@conn.exec( "DROP TABLE IF EXISTS copytable" )
+		end
+
+		it "can process #copy_data input queries in binary format" do
+			@conn.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
+			res2 = @conn.copy_data( "COPY copytable FROM STDOUT (FORMAT binary)" ) do |res|
+				expect( res.result_status ).to eq( PG::PGRES_COPY_IN )
+				expect( res.nfields ).to eq( 1 )
+				expect( res.binary_tuples ).to eq( 1 )
+				# header and first record ("1")
+				@conn.put_copy_data "PGCOPY\n\xFF\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x31".b
+				# second record ("2")
+				@conn.put_copy_data "\x00\x01\x00\x00\x00\x01\x32".b
+				# trailer
+				@conn.put_copy_data "\xFF\xFF".b
 			end
 			expect( res2.result_status ).to eq( PG::PGRES_COMMAND_OK )
 
