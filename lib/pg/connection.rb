@@ -265,7 +265,8 @@ class PG::Connection
 				raise
 			else
 				if coder && res.binary_tuples == 1
-					# there are two end markers in binary mode: file trailer and the final nil
+					# There are two end markers in binary mode: file trailer and the final nil.
+					# The file trailer is expected to be processed by BinaryDecoder::CopyRow and already returns nil, so that the remaining NULL from PQgetCopyData is retrieved here:
 					if get_copy_data
 						discard_results
 						raise PG::NotAllCopyDataRetrieved.new("Not all binary COPY data retrieved", connection: self)
