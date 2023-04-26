@@ -166,6 +166,14 @@ class PG::Connection
 	#     conn.put_copy_data ['more', 'data', 'to', 'copy']
 	#   end
 	#
+	# Also PG::BinaryEncoder::CopyRow can be used to send data in binary format to the server.
+	# In this case copy_data generates the header and trailer data automatically:
+	#   enco = PG::BinaryEncoder::CopyRow.new
+	#   conn.copy_data "COPY my_table FROM STDIN (FORMAT binary)", enco do
+	#     conn.put_copy_data ['some', 'data', 'to', 'copy']
+	#     conn.put_copy_data ['more', 'data', 'to', 'copy']
+	#   end
+	#
 	# Example with CSV output format:
 	#   conn.copy_data "COPY my_table TO STDOUT CSV" do
 	#     while row=conn.get_copy_data
@@ -187,6 +195,18 @@ class PG::Connection
 	# This receives all rows of +my_table+ as ruby array:
 	#   ["some", "data", "to", "copy"]
 	#   ["more", "data", "to", "copy"]
+	#
+	# Also PG::BinaryDecoder::CopyRow can be used to retrieve data in binary format from the server.
+	# In this case the header and trailer data is processed by the decoder and the remaining +nil+ from get_copy_data is processed by copy_data, so that binary data can be processed equally to text data:
+	#   deco = PG::BinaryDecoder::CopyRow.new
+	#   conn.copy_data "COPY my_table TO STDOUT (FORMAT binary)", deco do
+	#     while row=conn.get_copy_data
+	#       p row
+	#     end
+	#   end
+	# This receives all rows of +my_table+ as ruby array:
+	#   ["some", "data", "to", "copy"]
+	#   ["more", "data", "to", "copy"]
 
 	def copy_data( sql, coder=nil )
 		raise PG::NotInBlockingMode.new("copy_data can not be used in nonblocking mode", connection: self) if nonblocking?
@@ -195,7 +215,7 @@ class PG::Connection
 		case res.result_status
 		when PGRES_COPY_IN
 			begin
-				if res.binary_tuples == 1
+				if coder && res.binary_tuples == 1
 					# Binary file header (11 byte signature, 32 bit flags and 32 bit extension length)
 					put_copy_data(BinarySignature + ("\x00" * 8))
 				end
@@ -219,7 +239,7 @@ class PG::Connection
 				begin
 					self.encoder_for_put_copy_data = old_coder if coder
 
-					if res.binary_tuples == 1
+					if coder && res.binary_tuples == 1
 						put_copy_data("\xFF\xFF") # Binary file trailer 16 bit "-1"
 					end
 
@@ -244,7 +264,7 @@ class PG::Connection
 				discard_results
 				raise
 			else
-				if res.binary_tuples == 1
+				if coder && res.binary_tuples == 1
 					# there are two end markers in binary mode: file trailer and the final nil
 					if get_copy_data
 						discard_results
