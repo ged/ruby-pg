@@ -115,4 +115,15 @@ module PG
 	require 'pg/tuple'
 	autoload :VERSION, 'pg/version'
 
+
+	# Avoid "uninitialized constant Truffle::WarningOperations" on Truffleruby up to 22.3.1
+	if RUBY_ENGINE=="truffleruby" && !defined?(Truffle::WarningOperations)
+		module TruffleFixWarn
+			def warn(str, category=nil)
+				super(str)
+			end
+		end
+		Warning.extend(TruffleFixWarn)
+	end
+
 end # module PG
