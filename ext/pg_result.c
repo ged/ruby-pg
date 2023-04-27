@@ -391,7 +391,7 @@ pg_result_clear(VALUE self)
  *
  */
 VALUE
-pg_result_freeze(VALUE self)
+static pg_result_freeze(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this(self);
 
@@ -405,7 +405,7 @@ pg_result_freeze(VALUE self)
  *
  * Returns +true+ if the backend result memory has been freed.
  */
-VALUE
+static VALUE
 pgresult_cleared_p( VALUE self )
 {
 	t_pg_result *this = pgresult_get_this(self);
@@ -422,7 +422,7 @@ pgresult_cleared_p( VALUE self )
  * All other Result objects are automatically cleared by the GC when the object is no longer in use or manually by PG::Result#clear .
  *
  */
-VALUE
+static VALUE
 pgresult_autoclear_p( VALUE self )
 {
 	t_pg_result *this = pgresult_get_this(self);
