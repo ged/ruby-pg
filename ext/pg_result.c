@@ -208,12 +208,16 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 
 	this = (t_pg_result *)xmalloc(sizeof(*this) +  sizeof(*this->fnames) * nfields);
 	this->pgresult = result;
+	/* Initialize connection and typemap prior to any object allocations,
+	 * to make sure valid objects are marked. */
+	this->connection = rb_pgconn;
+	this->typemap = pg_typemap_all_strings;
+	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 	this->nfields = -1;
 	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
 	this->flags = 0;
 	self = TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, this);
-	RB_OBJ_WRITE(self, &this->connection, rb_pgconn);
 
 	if( result ){
 		t_pg_connection *p_conn = pg_get_connection(rb_pgconn);
@@ -227,8 +231,6 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 		this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 		this->flags = p_conn->flags;
 	} else {
-		RB_OBJ_WRITE(self, &this->typemap, pg_typemap_all_strings);
-		this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 		this->enc_idx = rb_locale_encindex();
 	}
 
