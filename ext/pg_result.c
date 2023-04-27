@@ -1424,8 +1424,9 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
 	/* Check type of method param */
 	TypedData_Get_Struct(typemap, t_typemap, &pg_typemap_type, p_typemap);
 
-	RB_OBJ_WRITE(self, &this->typemap, p_typemap->funcs.fit_to_result( typemap, self ));
-	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
+	typemap = p_typemap->funcs.fit_to_result( typemap, self );
+	RB_OBJ_WRITE(self, &this->typemap, typemap);
+	this->p_typemap = RTYPEDDATA_DATA( typemap );
 
 	return typemap;
 }
