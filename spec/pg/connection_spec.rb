@@ -1735,9 +1735,10 @@ describe PG::Connection do
 		it "raises error on broken connection" do
 			conn = PG.connect(@conninfo)
 			conn.send_query "SELECT pg_terminate_backend(pg_backend_pid())"
-			expect( conn.get_result.result_status ).to be( PG::PGRES_FATAL_ERROR )
-
 			expect do
+				# Windows sometimes delivers the socket error prematurely in get_result, due a bug in the TCP stack
+				expect( conn.get_result.result_status ).to be( PG::PGRES_FATAL_ERROR )
+
 				wait_check_socket(conn)
 			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly/)
 		end
