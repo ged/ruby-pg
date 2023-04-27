@@ -287,9 +287,7 @@ pg_tmbc_init(VALUE self, VALUE conv_ary)
 			t_pg_coder *p_coder;
 			/* Check argument type and store the coder pointer */
 			TypedData_Get_Struct(obj, t_pg_coder, &pg_coder_type, p_coder);
-			if( p_coder ){
-				RB_OBJ_WRITTEN(self, Qnil, p_coder->coder_obj);
-			}
+			RB_OBJ_WRITTEN(self, Qnil, p_coder->coder_obj);
 			this->convs[i].cconv = p_coder;
 		}
 	}
