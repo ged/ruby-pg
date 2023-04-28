@@ -1,3 +1,9 @@
+## v1.5.3 [2023-04-28] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Fix possible segfault when creating a new PG::Result with type map. [#530](https://github.com/ged/ruby-pg/pull/530)
+- Add category to deprecation warnings of Coder.new, so that they are suppressed for most users. [#528](https://github.com/ged/ruby-pg/pull/528)
+
+
 ## v1.5.2 [2023-04-26] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Fix regression in copy_data regarding binary format when using no coder. [#527](https://github.com/ged/ruby-pg/pull/527)
