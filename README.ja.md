@@ -1,9 +1,8 @@
 # pg
 
-* home :: https://github.com/ged/ruby-pg
-* docs :: http://deveiate.org/code/pg (English) ,
-          https://deveiate.org/code/pg/README_ja_md.html (Japanese)
-* clog :: link:/History.md
+* ホーム :: https://github.com/ged/ruby-pg
+* ドキュメント :: http://deveiate.org/code/pg （英語）、 https://deveiate.org/code/pg/README_ja_md.html （日本語）
+* 変更履歴 :: link:/History.md
 
 [![https://gitter.im/ged/ruby-pg
 でチャットに参加](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ged/ruby-pg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -84,8 +83,9 @@ README-Windows.rdoc を参照してください。
 
 ## 型変換
 
-PgにはおまけとしてRubyとネイティブCコードにある結果の値やクエリ引数の型変換ができます。
-こうすることでデータベースとのデータの往来を加速させられますが、それは文字列のアロケーションが減り、（より遅い）Rubyのコードでの変換部分が除かれるからです。
+Pgでは任意でRubyと素のCコードにある結果の値やクエリ引数の型変換ができます。
+こうすることでデータベースとのデータの往来を加速させられます。
+なぜなら文字列のアロケーションが減り、（比較的遅い）Rubyのコードでの変換部分が省かれるからです。
 
 とても基本的な型変換は次のようにできます。
 ```ruby
@@ -104,9 +104,13 @@ PgにはおまけとしてRubyとネイティブCコードにある結果の値�
 
 ### エンコーダーとデコーダー (ext/pg_*coder.c, lib/pg/*coder.rb)
 
-こちらはより低層で、DBMSへ転送するためにRubyのオブジェクトを変換するエンコーディングクラスと取得してきたデータをRubyのオブジェクトに変換し戻すデコーディングクラスが含まれています。クラスはそれぞれの形式によって名前空間PG::TextEncoder、PG::TextDecoder、PG::BinaryEncoder、そしてPG::BinaryDecoderに分かれています。
+こちらはより低層で、DBMSへ転送するためにRubyのオブジェクトを変換するエンコーディングクラスと、取得してきたデータをRubyのオブジェクトに変換し戻すデコーディングクラスが含まれています。
+クラスはそれぞれの形式によって名前空間 PG::TextEncoder, PG::TextDecoder, PG::BinaryEncoder, そして
+PG::BinaryDecoder に分かれています。
 
-エンコーダーないしデコーダーオブジェクトにOIDデータ型や形式コード（テキストないしバイナリ）や任意で名前を割り当てることができます。要素のエンコーダーないしデコーダーを割り当てることによって複合型を構築することもできます。PG::CoderオブジェクトはPG::TypeMapをセットアップしたりその代わりに単一の値と文字列表現とを相互に変換したりするのに使えます。
+エンコーダーないしデコーダーオブジェクトにOIDデータ型や形式コード（テキストないしバイナリ）や任意で名前を割り当てることができます。
+要素のエンコーダーないしデコーダーを割り当てることによって複合型を構築することもできます。
+PG::Coder オブジェクトは PG::TypeMap をセットアップしたり、その代わりに単一の値と文字列表現とを相互に変換したりするのに使えます。
 
 ruby-pgでは以下のPostgreSQLカラム型に対応しています（TE = Text Encoder、TD = Text Decoder、BE =
 Binary Encoder、BD = Binary Decoder）。
@@ -137,14 +141,11 @@ Binary Encoder、BD = Binary Decoder）。
       [現地時間](rdoc-ref:PG::TextEncoder::TimestampWithoutTimeZone)、[UTC](rdoc-ref:PG::TextEncoder::TimestampUtc)、[タイムゾーン付き](rdoc-ref:PG::TextEncoder::TimestampWithTimeZone)
     * TD:
       [現地時間](rdoc-ref:PG::TextDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::TextDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::TextDecoder::TimestampUtcToLocal)
-    * BE: [local](rdoc-ref:PG::BinaryEncoder::TimestampLocal),
-      [UTC](rdoc-ref:PG::BinaryEncoder::TimestampUtc)
+    * BE:
+      [現地時間](rdoc-ref:PG::BinaryEncoder::TimestampLocal)、[UTC](rdoc-ref:PG::BinaryEncoder::TimestampUtc)
     * BD:
       [現地時間](rdoc-ref:PG::BinaryDecoder::TimestampLocal)、[UTC](rdoc-ref:PG::BinaryDecoder::TimestampUtc)、[UTCから現地時間へ](rdoc-ref:PG::BinaryDecoder::TimestampUtcToLocal)
-* Date: [TE](rdoc-ref:PG::TextEncoder::Date),
-  [TD](rdoc-ref:PG::TextDecoder::Date),
-  [BE](rdoc-ref:PG::BinaryEncoder::Date),
-  [BD](rdoc-ref:PG::BinaryDecoder::Date)
+* 日付：[TE](rdoc-ref:PG::TextEncoder::Date)、[TD](rdoc-ref:PG::TextDecoder::Date)、[BE](rdoc-ref:PG::BinaryEncoder::Date)、[BD](rdoc-ref:PG::BinaryDecoder::Date)
 * JSONとJSONB:
   [TE](rdoc-ref:PG::TextEncoder::JSON)、[TD](rdoc-ref:PG::TextDecoder::JSON)
 * Inet:
@@ -153,8 +154,7 @@ Binary Encoder、BD = Binary Decoder）。
   [TE](rdoc-ref:PG::TextEncoder::Array)、[TD](rdoc-ref:PG::TextDecoder::Array)
 * 複合型（「行」や「レコード」などとも言います）：[TE](rdoc-ref:PG::TextEncoder::Record)、[TD](rdoc-ref:PG::TextDecoder::Record)
 
-The following text and binary formats can also be encoded although they are
-not used as column type:
+カラム型として使われていませんが、以下のテキスト形式とバイナリ形式もエンコードできます。
 
 * COPYの入出力データ：[TE](rdoc-ref:PG::TextEncoder::CopyRow)、[TD](rdoc-ref:PG::TextDecoder::CopyRow),
   [BE](rdoc-ref:PG::BinaryEncoder::CopyRow),
@@ -163,11 +163,16 @@ not used as column type:
 * SQLの識別子:
   [TE](rdoc-ref:PG::TextEncoder::Identifier)、[TD](rdoc-ref:PG::TextDecoder::Identifier)
 
-### PG::TypeMapとその派生 (ext/pg_type_map*.c, lib/pg/type_map*.rb)
+### PG::TypeMap とその派生 (ext/pg_type_map*.c, lib/pg/type_map*.rb)
 
-TypeMapはエンコーダーまたはデコーダーのどちらによってどの値を変換するかを定義します。様々な型の対応付け戦略があるので、このクラスにはいくつかの派生が実装されています。型変換の特有の需要に合わせてそれらの派生から選んで調整を加えることができます。既定の型の対応付けはPG::TypeMapAllStringsです。
+TypeMapはエンコーダーまたはデコーダーのどちらによってどの値を変換するかを定義します。
+様々な型の対応付け戦略があるので、このクラスにはいくつかの派生が実装されています。
+型変換の特有の需要に合わせてそれらの派生から選んで調整を加えることができます。
+既定の型の対応付けは PG::TypeMapAllStrings です。
 
-型の対応付けは、結果の集合それぞれに対し、接続毎ないしクエリ毎に割り当てることができます。型の対応付けはCOPYの入出力データストリーミングでも使うことができます。PG::Connection#copy_dataを参照してください。
+型の対応付けは、結果の集合それぞれに対し、接続毎ないしクエリ毎に割り当てることができます。
+型の対応付けはCOPYの入出力データストリーミングでも使うことができます。
+PG::Connection#copy_data を参照してください。
 
 以下の基底となる型の対応付けが使えます。
 
@@ -177,19 +182,21 @@ TypeMapはエンコーダーまたはデコーダーのどちらによってど�
 * PG::TypeMapByOid - PostgreSQLのOIDデータ型によってデコーダーを選択します
 * PG::TypeMapInRuby - Rubyで独自の型の対応付けを定義します
 
-以下の型の対応付けはPG::BasicTypeRegistry由来の型の対応付けが入った状態になっています。
+以下の型の対応付けは PG::BasicTypeRegistry 由来の型の対応付けが入った状態になっています。
 
-* PG::BasicTypeMapForResults -
-  PG::TypeMapByOidによくあるPostgreSQLカラム型用にデコーダーが入った状態になっています
-* PG::BasicTypeMapBasedOnResult -
-  PG::TypeMapByOidによくあるPostgreSQLカラム型用のエンコーダーが入った状態になっています
-* PG::BasicTypeMapForQueries -
-  PG::TypeMapByClassによくあるRubyの値クラス用にエンコーダーが入った状態になっています
+* PG::BasicTypeMapForResults - PG::TypeMapByOid
+  によくあるPostgreSQLカラム型用にデコーダーが入った状態になっています
+* PG::BasicTypeMapBasedOnResult - PG::TypeMapByOid
+  によくあるPostgreSQLカラム型用のエンコーダーが入った状態になっています
+* PG::BasicTypeMapForQueries - PG::TypeMapByClass
+  によくあるRubyの値クラス用にエンコーダーが入った状態になっています
 
 
 ## スレッド対応
 
-PGには個々のスレッドが別々のPG::Connectionオブジェクトを同時に使えるという点でスレッド安全性があります。しかし1つ以上のスレッドから同時にPgのオブジェクトにアクセスすると安全ではありません。そのため必ず、毎回新しいスレッドを作るときに新しいデータベースサーバー接続を開くか、スレッド安全性のある方法で接続を管理するActiveRecordのようなラッパーライブラリを使うようにしてください。
+PGには個々のスレッドが別々の PG::Connection オブジェクトを同時に使えるという点でスレッド安全性があります。
+しかし1つ以上のスレッドから同時にPgのオブジェクトにアクセスすると安全ではありません。
+そのため必ず、毎回新しいスレッドを作るときに新しいデータベースサーバー接続を開くか、スレッド安全性のある方法で接続を管理するActiveRecordのようなラッパーライブラリを使うようにしてください。
 
 以下のようなメッセージが標準エラー出力に表示された場合、恐らく複数のスレッドが1つの接続を使っています。
 
@@ -202,11 +209,28 @@ PGには個々のスレッドが別々のPG::Connectionオブジェクトを同�
 
 ## Fiber IOスケジューラー対応
 
-PgはRuby-3.0で導入された`Fiber.scheduler`に完全に対応しています。`Fiber.scheduler`のWindows対応についてはRuby-3.1以降で使えます。`Fiber.scheduler`が走らせているスレッドに登録されている場合、起こりうる全てのブロッキングIO操作はそのスケジューラーを経由します。同期的であったりブロックしたりするメソッド呼び出しについてもpgが内部的に非同期のlibpqインターフェースを使っているのはそれが理由です。またlibpqの組み込み関数に代えてRubyのDNS解決を使っています。
+pg-1.3.0以降で、PgはRuby-3.0で導入された`Fiber.scheduler`に完全に対応しています。
+Windowsでは、`Fiber.scheduler`対応はRuby-3.1以降で使えます。
+`Fiber.scheduler`が走らせているスレッドに登録されている場合、起こりうる全てのブロッキングIO操作はそのスケジューラーを経由します。
+同期的であったりブロックしたりするメソッド呼び出しについてもpgが内部的に非同期のlibpqインターフェースを使っているのはそれが理由です。
+またlibpqの組み込み関数に代えてRubyのDNS解決を使っています。
 
-内部的にPgは常にlibpqのノンブロッキング接続モードを使います。それからブロッキングモードで走っているように振舞いますが、もし`Fiber.scheduler`が登録されていれば全てのブロッキングIOはそのスケジューラーを通じてRubyで制御されます。`PG::Connection.setnonblocking(true)`が呼ばれたらノンブロッキング状態が有効になったままになりますが、それ以降のブロッキング状態の制御が無効になるので、呼び出しているプログラムはブロッキング状態を自力で制御しなければなりません。
+内部的にPgは常にlibpqのノンブロッキング接続モードを使います。
+それからブロッキングモードで走っているように振舞いますが、もし`Fiber.scheduler`が登録されていれば全てのブロッキングIOはそのスケジューラーを通じてRubyで制御されます。
+`PG::Connection.setnonblocking(true)`が呼ばれたらノンブロッキング状態が有効になったままになりますが、それ以降のブロッキング状態の制御が無効になるので、呼び出しているプログラムはブロッキング状態を自力で制御しなければなりません。
 
 この規則の1つの例外には、`PG::Connection#lo_create`や外部ライブラリを使う認証メソッド（GSSAPI認証など）のような、大きめのオブジェクト用のメソッドがあります。これらは`Fiber.scheduler`と互換性がないため、ブロッキング状態は登録されたIOスケジューラに渡されません。つまり操作は適切に実行されますが、IO待ち状態に別のIOを扱うFiberから使用を切り替えてくることができなくなります。
+
+
+## Ractor対応
+
+pg-1.5.0以降で、PgはRuby-3.0で導入されたRactorと完全な互換性があります。
+型エンコーダーないしデコーダー、及び型の対応付けが`Ractor.make_shareable`により凍結されている場合、これらをractor間で共有できます。
+また凍結された PG::Result と PG::Tuple オブジェクトも共有できます。
+少なくとも全ての凍結されたオブジェクト（ただし PG::Connection
+を除く）はPostgreSQLサーバーとのやり取りをしたり取得されたデータを読むのに使えます。
+
+PG::Connection は共有できません。個々の接続を確立するために、それぞれのRactor内で作られなければなりません。
 
 
 ## 貢献
@@ -271,6 +295,6 @@ Portions copyright LAIKA, Inc.
 
 ## 謝辞
 
-長年にわたって貢献してくださった方々についてはContributors.rdocを参照してください。
+長年にわたって貢献してくださった方々については Contributors.rdoc を参照してください。
 
 ruby-listとruby-devメーリングリストの方々に感謝します。またPostgreSQLを開発された方々へも謝意を表します。
