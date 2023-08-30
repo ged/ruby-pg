@@ -4176,8 +4176,11 @@ pgconn_set_default_encoding( VALUE self )
 
 	rb_check_frozen(self);
 	if (( enc = rb_default_internal_encoding() )) {
+		rb_encoding * conn_encoding = pg_conn_enc_get( conn );
 		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
+		bool ruby_and_conn_encoding_equal = conn_encoding && strcmp(enc->name, conn_encoding->name) == 0;
+
+		if ( !ruby_and_conn_encoding_equal && pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
 			rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
 		return rb_enc_from_encoding( enc );
