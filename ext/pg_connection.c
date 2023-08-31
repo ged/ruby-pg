@@ -4171,17 +4171,23 @@ static VALUE
 pgconn_set_default_encoding( VALUE self )
 {
 	PGconn *conn = pg_get_pgconn( self );
-	rb_encoding *enc;
-	const char *encname;
+	rb_encoding *rb_enc;
 
 	rb_check_frozen(self);
-	if (( enc = rb_default_internal_encoding() )) {
-		encname = pg_get_rb_encoding_as_pg_encoding( enc );
-		if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
-			rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
-			         encname, PQerrorMessage(conn) );
+	if (( rb_enc = rb_default_internal_encoding() )) {
+		rb_encoding * conn_encoding = pg_conn_enc_get( conn );
+
+		/* Don't set the server encoding, if it's unnecessary.
+		 * This is important for connection proxies, who disallow configuration settings.
+		 */
+		if ( conn_encoding != rb_enc ) {
+			const char *encname = pg_get_rb_encoding_as_pg_encoding( rb_enc );
+			if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
+				rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
+								encname, PQerrorMessage(conn) );
+		}
 		pgconn_set_internal_encoding_index( self );
-		return rb_enc_from_encoding( enc );
+		return rb_enc_from_encoding( rb_enc );
 	} else {
 		pgconn_set_internal_encoding_index( self );
 		return Qnil;
