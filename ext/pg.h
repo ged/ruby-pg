@@ -369,7 +369,6 @@ pgresult_get_this( VALUE self )
 }
 
 
-rb_encoding * pg_get_pg_encoding_as_rb_encoding        _(( int ));
 rb_encoding * pg_get_pg_encname_as_rb_encoding         _(( const char * ));
 const char * pg_get_rb_encoding_as_pg_encoding         _(( rb_encoding * ));
 rb_encoding *pg_conn_enc_get                           _(( PGconn * ));

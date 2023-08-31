@@ -125,7 +125,7 @@ const char * const (pg_enc_pg2ruby_mapping[][2]) = {
  * - returns NULL if the client encoding is 'SQL_ASCII'.
  * - returns ASCII-8BIT if the client encoding is unknown.
  */
-rb_encoding *
+static rb_encoding *
 pg_get_pg_encoding_as_rb_encoding( int enc_id )
 {
 	const char *name = pg_encoding_to_char( enc_id );
