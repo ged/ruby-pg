@@ -4180,6 +4180,7 @@ pgconn_set_default_encoding( VALUE self )
 		if ( pgconn_set_client_encoding_async(self, rb_str_new_cstr(encname)) != 0 )
 			rb_warning( "Failed to set the default_internal encoding to %s: '%s'",
 			         encname, PQerrorMessage(conn) );
+		pgconn_set_internal_encoding_index( self );
 		return rb_enc_from_encoding( enc );
 	} else {
 		pgconn_set_internal_encoding_index( self );
