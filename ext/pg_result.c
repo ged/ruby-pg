@@ -392,8 +392,8 @@ pg_result_clear(VALUE self)
  * It also denies setting a type_map or field_name_type.
  *
  */
-VALUE
-static pg_result_freeze(VALUE self)
+static VALUE
+pg_result_freeze(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this(self);
 
