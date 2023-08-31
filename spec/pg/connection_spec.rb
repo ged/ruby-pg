@@ -2368,6 +2368,22 @@ describe PG::Connection do
 				end
 			end
 
+			it "doesn't change anything if Encoding.default_internal it set to DB default encoding", :without_transaction do
+				begin
+					prev_encoding = Encoding.default_internal
+					Encoding.default_internal = Encoding::UTF_8
+
+					# PG.connect shouldn't emit a "set client_encoding" for UTF_8, since the server is already on UTF8.
+					conn = PG.connect( @conninfo )
+					expect( conn.internal_encoding ).to eq( Encoding::UTF_8 )
+					res = conn.exec( "SELECT setting, source FROM pg_settings WHERE name='client_encoding'" )
+					expect( res[0].values ).to eq( ['UTF8', 'default'] )
+				ensure
+					conn.finish if conn
+					Encoding.default_internal = prev_encoding
+				end
+			end
+
 			it "allows users of the async interface to set the client_encoding to the default_internal" do
 				begin
 					prev_encoding = Encoding.default_internal
