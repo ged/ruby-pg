@@ -4,6 +4,7 @@
 - Set PG::Connection's encoding even if setting client_encoding on connection startup fails. [#541](https://github.com/ged/ruby-pg/pull/541)
 - Don't set the server's client_encoding if it's unnecessary. [#542](https://github.com/ged/ruby-pg/pull/542)
   This is important for connection proxies, who disallow configuration settings.
+- Update Windows fat binary gem to OpenSSL-3.1.2 and PostgreSQL-15.4.
 
 
 ## v1.5.3 [2023-04-28] Lars Kanis <lars@greiz-reinsdorf.de>
