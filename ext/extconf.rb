@@ -60,6 +60,10 @@ else
 	if dlldir && RbConfig::CONFIG["RPATHFLAG"].to_s.empty?
 		append_ldflags "-Wl,-rpath,#{dlldir.quote}"
 	end
+
+	if /mswin/ =~ RUBY_PLATFORM
+		$libs = append_library($libs, 'ws2_32')
+	end
 end
 
 $stderr.puts "Using libpq from #{dlldir}"
