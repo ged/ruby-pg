@@ -42,6 +42,10 @@ jobs:
             ruby: "2.5"
             PGVERSION: 9.4.26-1-windows-x64
             PGVER: "9.4"
+          - os: windows
+            ruby: "mswin"
+            PGVERSION: 15.1-1-windows-x64
+            PGVER: "15"
           - os: ubuntu
             ruby: "head"
             PGVER: "15"
@@ -82,7 +86,7 @@ jobs:
           name: source-gem
 
       - name: Install required packages Windows
-        if: matrix.os == 'windows'
+        if: matrix.os == 'windows' && matrix.ruby != 'mswin'
         shell: cmd
         run: ridk exec sh -c "pacman --sync --needed --noconfirm  ${MINGW_PACKAGE_PREFIX}-gcc"
 
