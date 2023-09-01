@@ -1,3 +1,11 @@
+## v1.5.4 [2023-09-01] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Fix compiling the pg extension with MSVC 2022. [#535](https://github.com/ged/ruby-pg/pull/535)
+- Set PG::Connection's encoding even if setting client_encoding on connection startup fails. [#541](https://github.com/ged/ruby-pg/pull/541)
+- Don't set the server's client_encoding if it's unnecessary. [#542](https://github.com/ged/ruby-pg/pull/542)
+  This is important for connection proxies, who disallow configuration settings.
+
+
 ## v1.5.3 [2023-04-28] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Fix possible segfault when creating a new PG::Result with type map. [#530](https://github.com/ged/ruby-pg/pull/530)
