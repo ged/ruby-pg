@@ -346,7 +346,7 @@ EOT
 		def teardown
 			trace "Tearing down test database for #{@name}"
 
-			log_and_run @logfile, pg_bin_path('pg_ctl'), '-D', @test_pgdata.to_s, 'stop'
+			log_and_run @logfile, pg_bin_path('pg_ctl'), '-D', @test_pgdata.to_s, '-m', 'fast', 'stop'
 		end
 
 		def pg_bin_path(cmd)
