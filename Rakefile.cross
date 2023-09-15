@@ -32,7 +32,7 @@ class CrossLibrary < OpenStruct
 
 		# Cross-compilation constants
 		self.openssl_version            = ENV['OPENSSL_VERSION'] || '3.1.2'
-		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '15.4'
+		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '16.0'
 
 		# Check if symlinks work in the current working directory.
 		# This fails, if rake-compiler-dock is running on a Windows box.
@@ -184,6 +184,7 @@ class CrossLibrary < OpenStruct
 				"--host=#{host_platform}",
 				'--with-openssl',
 				'--without-zlib',
+				'--without-icu',
 			]
 
 			chdir( static_postgresql_builddir ) do
