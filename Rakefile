@@ -1,5 +1,8 @@
 # -*- rake -*-
 
+# Enable english error messages, as some specs depend on them
+ENV["LANG"] = "C"
+
 require 'rbconfig'
 require 'pathname'
 require 'tmpdir'
