@@ -185,7 +185,7 @@ pg_bin_enc_timestamp(t_pg_coder *this, VALUE value, char *out, VALUE *intermedia
 		ts = rb_time_timespec(*intermediate);
 		/* PostgreSQL's timestamp is based on year 2000 and Ruby's time is based on 1970.
 			* Adjust the 30 years difference. */
-		timestamp = (ts.tv_sec - 10957L * 24L * 3600L) * 1000000 + (ts.tv_nsec / 1000);
+		timestamp = ((int64_t)ts.tv_sec - 10957L * 24L * 3600L) * 1000000 + ((int64_t)ts.tv_nsec / 1000);
 
 		if( this->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
 			/* send as local time */
