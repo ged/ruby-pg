@@ -795,26 +795,26 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 	cur_ptr = input_line;
 	line_end_ptr = input_line + len;
 
-	if (cur_ptr + 11 <= line_end_ptr && memcmp(cur_ptr, BinarySignature, 11) == 0){
+	if (line_end_ptr - cur_ptr >= 11 && memcmp(cur_ptr, BinarySignature, 11) == 0){
 		/* binary COPY header signature detected -> just drop it */
 		int ext_bytes;
 		cur_ptr += 11;
 
 		/* read flags */
-		if (cur_ptr + 4 > line_end_ptr) goto length_error;
+		if (line_end_ptr - cur_ptr < 4 ) goto length_error;
 		cur_ptr += 4;
 
 		/* read header extensions */
-		if (cur_ptr + 4 > line_end_ptr) goto length_error;
+		if (line_end_ptr - cur_ptr < 4 ) goto length_error;
 		ext_bytes = read_nbo32(cur_ptr);
 		if (ext_bytes < 0) goto length_error;
 		cur_ptr += 4;
-		if (cur_ptr + ext_bytes > line_end_ptr) goto length_error;
+		if (line_end_ptr - cur_ptr < ext_bytes ) goto length_error;
 		cur_ptr += ext_bytes;
 	}
 
 	/* read row header */
-	if (cur_ptr + 2 > line_end_ptr) goto length_error;
+	if (line_end_ptr - cur_ptr < 2 ) goto length_error;
 	nfields = read_nbo16(cur_ptr);
 	cur_ptr += 2;
 
@@ -830,7 +830,7 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 			VALUE field_value;
 
 			/* read field size */
-			if (cur_ptr + 4 > line_end_ptr) goto length_error;
+			if (line_end_ptr - cur_ptr < 4 ) goto length_error;
 			input_len = read_nbo32(cur_ptr);
 			cur_ptr += 4;
 
@@ -839,7 +839,7 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 				/* NULL indicator */
 				rb_ary_push(array, Qnil);
 			} else {
-				if (cur_ptr + input_len > line_end_ptr) goto length_error;
+				if (line_end_ptr - cur_ptr < input_len ) goto length_error;
 
 				/* copy input data to field_str */
 				PG_RB_STR_ENSURE_CAPA( field_str, input_len, output_ptr, end_capa_ptr );
