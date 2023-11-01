@@ -307,7 +307,8 @@ EOT
 				@unix_socket = @test_dir.to_s
 			rescue => err
 				$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
-				$stderr.puts "See #{@logfile} for details."
+				$stderr.puts "See #{@logfile} for details:"
+				$stderr.puts File.read(@logfile) if File.exist?(@logfile)
 				$stderr.puts err.backtrace if $DEBUG
 				fail
 			end
