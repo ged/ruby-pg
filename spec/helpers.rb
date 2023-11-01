@@ -203,8 +203,11 @@ module PG::TestingHelpers
 
 			# Eliminate the noise of creating/tearing down the database by
 			# redirecting STDERR/STDOUT to a logfile
-			logfh = File.open( logpath, File::WRONLY|File::CREAT|File::APPEND )
-			system( *cmd, [STDOUT, STDERR] => logfh )
+			File.open( logpath, File::WRONLY|File::CREAT|File::APPEND ) do |logfh|
+				# Seek manually on Windows to the end of the log file, otherwise the content is overwritten.
+				logfh.seek(0, :END) if RUBY_PLATFORM =~ /mingw|mswin/
+				system( *cmd, [STDOUT, STDERR] => logfh )
+			end
 
 			raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
 		end
