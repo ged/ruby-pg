@@ -11,4 +11,5 @@ group :development, :test do
   gem "rake-compiler-dock", "~> 1.0"
   gem "rdoc", "~> 6.4"
   gem "rspec", "~> 3.5"
+  gem "mini_portile2", "~> 2.1"
 end
