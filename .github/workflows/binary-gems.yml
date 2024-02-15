@@ -23,7 +23,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.2"
+          ruby-version: "3.3"
       - run: bundle install
 
       - name: Create a dummy cert to satisfy the build
@@ -50,11 +50,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            ruby: "3.2"
+            ruby: "3.3"
             platform: "x64-mingw-ucrt"
             PGVERSION: 16.0-1-windows-x64
           - os: windows-latest
-            ruby: "3.1.3-1"
+            ruby: "3.1.4-1"
             platform: "x86-mingw32"
             PGVERSION: 10.20-1-windows
           - os: windows-latest
