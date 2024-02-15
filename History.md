@@ -1,3 +1,11 @@
+## v1.5.5 [2024-02-15] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Explicitly retype timespec fields to int64_t to fix compatibility with 32bit arches. [#547](https://github.com/ged/ruby-pg/pull/547)
+- Fix possible buffer overflows in PG::BinaryDecoder::CopyRow on 32 bit systems. [#548](https://github.com/ged/ruby-pg/pull/548)
+- Add binary Windows gems for Ruby 3.3.
+- Update Windows fat binary gem to OpenSSL-3.2.1 and PostgreSQL-16.2.
+
+
 ## v1.5.4 [2023-09-01] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Fix compiling the pg extension with MSVC 2022. [#535](https://github.com/ged/ruby-pg/pull/535)
