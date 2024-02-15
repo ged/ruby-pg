@@ -12,7 +12,12 @@ describe "PG::Type derivations" do
 	let!(:textdec_boolean) { PG::TextDecoder::Boolean.new }
 	let!(:textenc_float) { PG::TextEncoder::Float.new }
 	let!(:textdec_float) { PG::TextDecoder::Float.new }
-	let!(:textenc_numeric) { PG::TextEncoder::Numeric.new }
+	let!(:textenc_numeric) do
+		begin
+			PG::TextEncoder::Numeric.new
+		rescue LoadError
+		end
+	end
 	let!(:textenc_string) { PG::TextEncoder::String.new }
 	let!(:textdec_string) { PG::TextDecoder::String.new }
 	let!(:textenc_timestamp) { PG::TextEncoder::TimestampWithoutTimeZone.new }
@@ -366,7 +371,7 @@ describe "PG::Type derivations" do
 				expect( textenc_float.encode(-Float::NAN) ).to eq( Float::NAN.to_s )
 			end
 
-			it "should encode various inputs to numeric format" do
+			it "should encode various inputs to numeric format", :bigdecimal do
 				expect( textenc_numeric.encode(0) ).to eq( "0" )
 				expect( textenc_numeric.encode(1) ).to eq( "1" )
 				expect( textenc_numeric.encode(-12345678901234567890123) ).to eq( "-12345678901234567890123" )
