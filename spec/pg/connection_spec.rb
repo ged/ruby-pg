@@ -1690,6 +1690,23 @@ describe PG::Connection do
 		conn.close
 	end
 
+	it "refreshs DNS address while conn.reset", :without_transaction, :ipv6 do
+		set_etc_hosts "::1"
+		conn = described_class.connect( "postgres://rubypg_test/test" )
+		conn.exec("select 1")
+
+		set_etc_hosts "127.0.0.1"
+		conn.reset
+		conn.exec("select 1")
+
+		set_etc_hosts "::2"
+		expect do
+			conn.reset
+			conn.exec("select 1")
+		end.to raise_error(PG::Error)
+	end
+
+
 	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction do
 		conn = PG.connect( @conninfo )
 		io = conn.socket_io
