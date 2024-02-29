@@ -705,6 +705,11 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 	config.filter_run_excluding( :ipv6 ) if Addrinfo.getaddrinfo("localhost", nil, nil, :STREAM).size < 2
 	config.filter_run_excluding( :ractor ) unless defined?(Ractor)
+	begin
+		require "bigdecimal"
+	rescue LoadError
+		config.filter_run_excluding( :bigdecimal )
+	end
 
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|

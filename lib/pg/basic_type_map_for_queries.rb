@@ -166,6 +166,12 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 				@textarray_encoder
 	end
 
+	begin
+		require "bigdecimal"
+		has_bigdecimal = true
+	rescue LoadError
+	end
+
 	DEFAULT_TYPE_MAP = PG.make_shareable({
 		TrueClass => [1, 'bool', 'bool'],
 		FalseClass => [1, 'bool', 'bool'],
@@ -173,7 +179,6 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		# to unnecessary type conversions on server side.
 		Integer => [0, 'int8'],
 		Float => [0, 'float8'],
-		BigDecimal => [0, 'numeric'],
 		Time => [0, 'timestamptz'],
 		# We use text format and no type OID for IPAddr, because setting the OID can lead
 		# to unnecessary inet/cidr conversions on the server side.
@@ -181,7 +186,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Hash => [0, 'json'],
 		Array => :get_array_type,
 		BinaryData => [1, 'bytea'],
-	})
+	}.merge(has_bigdecimal ? {BigDecimal => [0, 'numeric']} : {}))
 	private_constant :DEFAULT_TYPE_MAP
 
 	DEFAULT_ARRAY_TYPE_MAP = PG.make_shareable({
@@ -190,9 +195,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Integer => [0, '_int8'],
 		String => [0, '_text'],
 		Float => [0, '_float8'],
-		BigDecimal => [0, '_numeric'],
 		Time => [0, '_timestamptz'],
 		IPAddr => [0, '_inet'],
-	})
+	}.merge(has_bigdecimal ? {BigDecimal => [0, '_numeric']} : {}))
 	private_constant :DEFAULT_ARRAY_TYPE_MAP
 end

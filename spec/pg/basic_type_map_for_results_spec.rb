@@ -253,7 +253,7 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do numeric type conversions" do
+			it "should do numeric type conversions", :bigdecimal do
 				[0].each do |format|
 					small = '123456790123.12'
 					large = ('123456790'*10) << '.' << ('012345679')

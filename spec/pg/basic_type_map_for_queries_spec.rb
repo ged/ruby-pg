@@ -54,7 +54,7 @@ describe 'Basic type mapping' do
 			args = []
 			pr = proc { |*a| args << a }
 			PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: pr)
-			expect( args.last ).to eq( ['bytea', 1] )
+			expect( args.first ).to eq( ["bool", 1] )
 		end
 
 		it "raises UndefinedEncoder for undefined types" do
@@ -113,12 +113,11 @@ describe 'Basic type mapping' do
 
 		it "should do default array-as-array param encoding" do
 			expect( basic_type_mapping.encode_array_as).to eq(:array)
-			res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5,$6", [
+			res = @conn.exec_params( "SELECT $1,$2,$3,$4,$5", [
 					[1, 2, 3], # Integer -> bigint[]
 					[[1, 2], [3, nil]], # Integer two dimensions -> bigint[]
 					[1.11, 2.21], # Float -> double precision[]
 					['/,"'.gsub("/", "\\"), nil, 'abcäöü'], # String -> text[]
-					[BigDecimal("123.45")], # BigDecimal -> numeric[]
 					[IPAddr.new('1234::5678')], # IPAddr -> inet[]
 				], nil, basic_type_mapping )
 
@@ -127,11 +126,23 @@ describe 'Basic type mapping' do
 					'{{1,2},{3,NULL}}',
 					'{1.11,2.21}',
 					'{"//,/"",NULL,abcäöü}'.gsub("/", "\\"),
-					'{123.45}',
 					'{1234::5678}',
 			]] )
 
-			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]', 'numeric[]', 'inet[]'] )
+			expect( result_typenames(res) ).to eq( ['bigint[]', 'bigint[]', 'double precision[]', 'text[]', 'inet[]'] )
+		end
+
+		it "should do bigdecimal array-as-array param encoding", :bigdecimal do
+			expect( basic_type_mapping.encode_array_as).to eq(:array)
+			res = @conn.exec_params( "SELECT $1", [
+					[BigDecimal("123.45")], # BigDecimal -> numeric[]
+				], nil, basic_type_mapping )
+
+			expect( res.values ).to eq( [[
+					'{123.45}',
+			]] )
+
+			expect( result_typenames(res) ).to eq( ['numeric[]'] )
 		end
 
 		it "should do default array-as-array param encoding with Time objects" do
@@ -205,7 +216,7 @@ describe 'Basic type mapping' do
 			end
 		end
 
-		it "should do bigdecimal param encoding" do
+		it "should do bigdecimal param encoding", :bigdecimal do
 			large = ('123456790'*10) << '.' << ('012345679')
 			res = @conn.exec_params( "SELECT $1::numeric,$2::numeric",
 				[BigDecimal('1'), BigDecimal(large)], nil, basic_type_mapping )

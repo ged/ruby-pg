@@ -225,7 +225,11 @@ class PG::BasicTypeRegistry
 		alias_type    0, 'int8', 'int2'
 		alias_type    0, 'oid',  'int2'
 
-		register_type 0, 'numeric', PG::TextEncoder::Numeric, PG::TextDecoder::Numeric
+		begin
+			require "bigdecimal"
+			register_type 0, 'numeric', PG::TextEncoder::Numeric, PG::TextDecoder::Numeric
+		rescue LoadError
+		end
 		register_type 0, 'text', PG::TextEncoder::String, PG::TextDecoder::String
 		alias_type 0, 'varchar', 'text'
 		alias_type 0, 'char', 'text'
