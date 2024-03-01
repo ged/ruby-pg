@@ -563,6 +563,27 @@ pgconn_sync_reset( VALUE self )
 	return self;
 }
 
+static VALUE
+pgconn_reset_start2( VALUE self, VALUE conninfo )
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	/* Close old connection */
+	pgconn_close_socket_io( self );
+	PQfinish( this->pgconn );
+
+	/* Start new connection */
+	this->pgconn = gvl_PQconnectStart( StringValueCStr(conninfo) );
+
+	if( this->pgconn == NULL )
+		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate PGconn structure");
+
+	if ( PQstatus(this->pgconn) == CONNECTION_BAD )
+		pg_raise_conn_error( rb_eConnectionBad, self, "%s", PQerrorMessage(this->pgconn));
+
+	return Qnil;
+}
+
 /*
  * call-seq:
  *    conn.reset_start() -> nil
@@ -4468,6 +4489,7 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "finished?", pgconn_finished_p, 0);
 	rb_define_method(rb_cPGconn, "sync_reset", pgconn_sync_reset, 0);
 	rb_define_method(rb_cPGconn, "reset_start", pgconn_reset_start, 0);
+	rb_define_private_method(rb_cPGconn, "reset_start2", pgconn_reset_start2, 1);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
 

@@ -565,7 +565,12 @@ class PG::Connection
 	# Resets the backend connection. This method closes the
 	# backend connection and tries to re-connect.
 	def reset
-		reset_start
+		iopts = conninfo_hash.compact
+		if iopts[:host] && !iopts[:host].empty? && PG.library_version >= 100000
+			iopts = self.class.send(:resolve_hosts, iopts)
+		end
+		conninfo = self.class.parse_connect_args( iopts );
+		reset_start2(conninfo)
 		async_connect_or_reset(:reset_poll)
 		self
 	end
@@ -773,6 +778,40 @@ class PG::Connection
 		alias setdb new
 		alias setdblogin new
 
+		# Resolve DNS in Ruby to avoid blocking state while connecting.
+		# Multiple comma-separated values are generated, if the hostname resolves to both IPv4 and IPv6 addresses.
+		# This requires PostgreSQL-10+, so no DNS resolving is done on earlier versions.
+		private def resolve_hosts(iopts)
+			ihosts = iopts[:host].split(",", -1)
+			iports = iopts[:port].split(",", -1)
+			iports = [nil] if iports.size == 0
+			iports = iports * ihosts.size if iports.size == 1
+			raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihosts.size} hosts" if iports.size != ihosts.size
+
+			dests = ihosts.each_with_index.flat_map do |mhost, idx|
+				unless host_is_named_pipe?(mhost)
+					if Fiber.respond_to?(:scheduler) &&
+								Fiber.scheduler &&
+								RUBY_VERSION < '3.1.'
+
+						# Use a second thread to avoid blocking of the scheduler.
+						# `TCPSocket.gethostbyname` isn't fiber aware before ruby-3.1.
+						hostaddrs = Thread.new{ Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue [''] }.value
+					else
+						hostaddrs = Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue ['']
+					end
+				else
+					# No hostname to resolve (UnixSocket)
+					hostaddrs = [nil]
+				end
+				hostaddrs.map { |hostaddr| [hostaddr, mhost, iports[idx]] }
+			end
+			iopts.merge(
+				hostaddr: dests.map{|d| d[0] }.join(","),
+				host: dests.map{|d| d[1] }.join(","),
+				port: dests.map{|d| d[2] }.join(","))
+		end
+
 		private def connect_to_hosts(*args)
 			option_string = parse_connect_args(*args)
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
@@ -782,37 +821,7 @@ class PG::Connection
 				# hostaddr is provided -> no need to resolve hostnames
 
 			elsif iopts[:host] && !iopts[:host].empty? && PG.library_version >= 100000
-				# Resolve DNS in Ruby to avoid blocking state while connecting.
-				# Multiple comma-separated values are generated, if the hostname resolves to both IPv4 and IPv6 addresses.
-				# This requires PostgreSQL-10+, so no DNS resolving is done on earlier versions.
-				ihosts = iopts[:host].split(",", -1)
-				iports = iopts[:port].split(",", -1)
-				iports = [nil] if iports.size == 0
-				iports = iports * ihosts.size if iports.size == 1
-				raise PG::ConnectionBad, "could not match #{iports.size} port numbers to #{ihosts.size} hosts" if iports.size != ihosts.size
-
-				dests = ihosts.each_with_index.flat_map do |mhost, idx|
-					unless host_is_named_pipe?(mhost)
-						if Fiber.respond_to?(:scheduler) &&
-									Fiber.scheduler &&
-									RUBY_VERSION < '3.1.'
-
-							# Use a second thread to avoid blocking of the scheduler.
-							# `TCPSocket.gethostbyname` isn't fiber aware before ruby-3.1.
-							hostaddrs = Thread.new{ Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue [''] }.value
-						else
-							hostaddrs = Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue ['']
-						end
-					else
-						# No hostname to resolve (UnixSocket)
-						hostaddrs = [nil]
-					end
-					hostaddrs.map { |hostaddr| [hostaddr, mhost, iports[idx]] }
-				end
-				iopts.merge!(
-					hostaddr: dests.map{|d| d[0] }.join(","),
-					host: dests.map{|d| d[1] }.join(","),
-					port: dests.map{|d| d[2] }.join(","))
+				iopts = resolve_hosts(iopts)
 			else
 				# No host given
 			end
