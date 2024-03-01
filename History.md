@@ -1,3 +1,11 @@
+## v1.5.6 [2024-03-01] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Renew address resolution (DNS) in conn.reset. [#558](https://github.com/ged/ruby-pg/pull/558)
+  This is important, if DNS is used for load balancing, etc.
+- Make bigdecimal an optional dependency. [#556](https://github.com/ged/ruby-pg/pull/556)
+  It's a gem in ruby-3.4+, so that users shouldn't be forced to use it.
+
+
 ## v1.5.5 [2024-02-15] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Explicitly retype timespec fields to int64_t to fix compatibility with 32bit arches. [#547](https://github.com/ged/ruby-pg/pull/547)
