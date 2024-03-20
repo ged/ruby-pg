@@ -158,6 +158,7 @@ have_func 'timegm'
 have_func 'rb_gc_adjust_memory_usage' # since ruby-2.4
 have_func 'rb_gc_mark_movable' # since ruby-2.7
 have_func 'rb_io_wait' # since ruby-3.0
+have_func 'rb_io_descriptor' # since ruby-3.1
 
 # unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
 have_header 'unistd.h'

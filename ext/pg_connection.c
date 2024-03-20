@@ -2266,6 +2266,17 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
+#ifndef HAVE_RB_IO_DESCRIPTOR
+static int
+rb_io_descriptor(VALUE io)
+{
+	Check_Type(io, T_FILE);
+	rb_io_t *fptr = RFILE(io)->fptr;
+	rb_io_check_closed(fptr);
+	return fptr->fd;
+}
+#endif
+
 #if defined(_WIN32)
 
 /* We use a specialized implementation of rb_io_wait() on Windows.
@@ -2286,7 +2297,6 @@ int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
 
 static VALUE
 pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
-	rb_io_t *fptr;
 	struct timeval ptimeout;
 
 	struct timeval aborttime={0,0}, currtime, waittime;
@@ -2297,7 +2307,6 @@ pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
 	long w32_events = 0;
 	DWORD wait_ret;
 
-	GetOpenFile((io), fptr);
 	if( !NIL_P(timeout) ){
 		ptimeout.tv_sec = (time_t)(NUM2DBL(timeout));
 		ptimeout.tv_usec = (time_t)((NUM2DBL(timeout) - (double)ptimeout.tv_sec) * 1e6);
@@ -2311,7 +2320,7 @@ pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
 	if(rb_events & PG_RUBY_IO_PRIORITY) w32_events |= FD_OOB;
 
 	for(;;) {
-		if ( WSAEventSelect(_get_osfhandle(fptr->fd), hEvent, w32_events) == SOCKET_ERROR ) {
+		if ( WSAEventSelect(_get_osfhandle(rb_io_descriptor(io)), hEvent, w32_events) == SOCKET_ERROR ) {
 			WSACloseEvent( hEvent );
 			rb_raise( rb_eConnectionBad, "WSAEventSelect socket error: %d", WSAGetLastError() );
 		}
@@ -2384,16 +2393,14 @@ typedef enum {
 
 static VALUE
 pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
-	rb_io_t *fptr;
 	struct timeval waittime;
 	int res;
 
-	GetOpenFile((io), fptr);
 	if( !NIL_P(timeout) ){
 		waittime.tv_sec = (time_t)(NUM2DBL(timeout));
 		waittime.tv_usec = (time_t)((NUM2DBL(timeout) - (double)waittime.tv_sec) * 1e6);
 	}
-	res = rb_wait_for_single_fd(fptr->fd, NUM2UINT(events), NIL_P(timeout) ? NULL : &waittime);
+	res = rb_wait_for_single_fd(rb_io_descriptor(io), NUM2UINT(events), NIL_P(timeout) ? NULL : &waittime);
 
 	return UINT2NUM(res);
 }
