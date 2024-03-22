@@ -130,6 +130,8 @@ jobs:
       - name: Run specs
         env:
           PG_DEBUG: 0
+          # Temprary fix only for Truffleruby-24.0.0:
+          TRUFFLERUBYOPT: --experimental-options --keep-handles-alive
         run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
 
       - name: Print logs if job failed
