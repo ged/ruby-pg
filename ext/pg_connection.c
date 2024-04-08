@@ -33,8 +33,8 @@ static VALUE pgconn_async_flush(VALUE self);
 #ifdef __GNUC__
 __attribute__((format(printf, 3, 4)))
 #endif
-static void
-pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...)
+NORETURN( static void
+pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...))
 {
 	VALUE msg, error;
 	va_list ap;
