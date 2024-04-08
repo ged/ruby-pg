@@ -515,9 +515,9 @@ static VALUE
 pgconn_connect_poll(VALUE self)
 {
 	PostgresPollingStatusType status;
-	status = gvl_PQconnectPoll(pg_get_pgconn(self));
 
 	pgconn_close_socket_io(self);
+	status = gvl_PQconnectPoll(pg_get_pgconn(self));
 
 	return INT2FIX((int)status);
 }
@@ -615,9 +615,9 @@ static VALUE
 pgconn_reset_poll(VALUE self)
 {
 	PostgresPollingStatusType status;
-	status = gvl_PQresetPoll(pg_get_pgconn(self));
 
 	pgconn_close_socket_io(self);
+	status = gvl_PQresetPoll(pg_get_pgconn(self));
 
 	return INT2FIX((int)status);
 }

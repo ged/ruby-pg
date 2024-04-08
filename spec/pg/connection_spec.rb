@@ -577,6 +577,21 @@ describe PG::Connection do
 			conn.close
 		end
 
+		it "doesn't notify the wrong thread about closed socket (Bug #564)" do
+			10.times do
+				10.times.map do
+					Thread.new do
+						Thread.current.report_on_exception = false
+						expect do
+							threaded_conn = PG.connect( @conninfo + " sslcert=tmp_test_specs/data/ruby-pg-ca-cert" )
+							res = threaded_conn.exec("SELECT 1")
+							threaded_conn.close
+						end.not_to raise_error
+					end
+				end.each(&:join)
+			end
+		end
+
 		it "can use conn.reset_start to restart the connection" do
 			ios = IO.pipe
 			conn = described_class.connect_start( @conninfo )
