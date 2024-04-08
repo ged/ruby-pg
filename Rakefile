@@ -47,7 +47,7 @@ CrossLibraries = [
 	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
-	['x86_64-linux', 'linux-x86_64', 'x86_64-redhat-linux'],
+	['x86_64-linux-gnu', 'linux-x86_64', 'x86_64-redhat-linux-gnu'],
 ].map do |platform, openssl_config, toolchain|
 	CrossLibrary.new platform, openssl_config, toolchain
 end
@@ -103,7 +103,7 @@ CrossLibraries.each do |xlib|
 			#{ "sudo yum install -y perl-IPC-Cmd &&" if platform =~ /linux/ }
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKE="make -j`nproc`" RUBY_CC_VERSION=3.2.0:3.1.0:3.0.0:2.7.0:2.6.0:2.5.0
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKE="make -j`nproc`" RUBY_CC_VERSION=3.3.0:3.2.0:3.1.0:3.0.0:2.7.0:2.6.0:2.5.0
 		EOT
 	end
 	desc "Build the native binary gems"
