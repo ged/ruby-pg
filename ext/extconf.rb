@@ -9,6 +9,8 @@ if ENV['MAINTAINER_MODE']
 		' -ggdb' <<
 		' -DDEBUG' <<
 		' -pedantic'
+	$LDFLAGS <<
+		' -ggdb'
 end
 
 if pgdir = with_config( 'pg' )
