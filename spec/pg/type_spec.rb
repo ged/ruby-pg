@@ -1257,7 +1257,7 @@ describe "PG::Type derivations" do
 								.to eq( nil )
 					end
 
-					it "should raise an error at grabage COPY format" do
+					it "should raise an error at garbage COPY format" do
 						expect{ decoder.decode("123\t \0\\\t\\") }
 								.to raise_error(ArgumentError, /premature.*at position: 7$/)
 					end

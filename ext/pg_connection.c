@@ -2363,7 +2363,7 @@ static VALUE
 pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
 #if defined(HAVE_RUBY_FIBER_SCHEDULER_H)
 	/* We don't support Fiber.scheduler on Windows ruby-3.0 because there is no fast way to check whether a scheduler is active.
-	 * Fortunatelly ruby-3.1 offers a C-API for it.
+	 * Fortunately ruby-3.1 offers a C-API for it.
 	 */
 	VALUE scheduler = rb_fiber_scheduler_current();
 
@@ -3169,7 +3169,7 @@ pgconn_async_get_last_result(VALUE self)
  * Returns:
  * * +nil+  when the connection is already idle
  * * +true+  when some results have been discarded
- * * +false+  when a failure occured and the connection was closed
+ * * +false+  when a failure occurred and the connection was closed
  *
  */
 static VALUE

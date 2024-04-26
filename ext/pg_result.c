@@ -664,7 +664,7 @@ pgresult_verbose_error_message(VALUE self, VALUE verbosity, VALUE show_context)
  * An example:
  *
  *   begin
- *       conn.exec( "SELECT * FROM nonexistant_table" )
+ *       conn.exec( "SELECT * FROM nonexistent_table" )
  *   rescue PG::Error => err
  *       p [
  *           err.result.error_field( PG::Result::PG_DIAG_SEVERITY ),
@@ -684,7 +684,7 @@ pgresult_verbose_error_message(VALUE self, VALUE verbosity, VALUE show_context)
  *
  * Outputs:
  *
- *   ["ERROR", "42P01", "relation \"nonexistant_table\" does not exist", nil, nil,
+ *   ["ERROR", "42P01", "relation \"nonexistent_table\" does not exist", nil, nil,
  *    "15", nil, nil, nil, "path/to/parse_relation.c", "857", "parserOpenTable"]
  */
 static VALUE

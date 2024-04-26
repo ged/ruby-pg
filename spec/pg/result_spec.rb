@@ -322,7 +322,7 @@ describe PG::Result do
 	it "encapsulates errors in a PG::Error object" do
 		exception = nil
 		begin
-			@conn.exec( "SELECT * FROM nonexistant_table" )
+			@conn.exec( "SELECT * FROM nonexistent_table" )
 		rescue PG::Error => err
 			exception = err
 		end
@@ -334,7 +334,7 @@ describe PG::Result do
 		expect( result.error_field(PG::PG_DIAG_SQLSTATE) ).to eq( '42P01' )
 		expect(
 			result.error_field(PG::PG_DIAG_MESSAGE_PRIMARY)
-		).to eq( 'relation "nonexistant_table" does not exist' )
+		).to eq( 'relation "nonexistent_table" does not exist' )
 		expect( result.error_field(PG::PG_DIAG_MESSAGE_DETAIL) ).to be_nil()
 		expect( result.error_field(PG::PG_DIAG_MESSAGE_HINT) ).to be_nil()
 		expect( result.error_field(PG::PG_DIAG_STATEMENT_POSITION) ).to eq( '15' )
@@ -353,7 +353,7 @@ describe PG::Result do
 	it "encapsulates PG_DIAG_SEVERITY_NONLOCALIZED error in a PG::Error object", :postgresql_96 do
 		result = nil
 		begin
-			@conn.exec( "SELECT * FROM nonexistant_table" )
+			@conn.exec( "SELECT * FROM nonexistent_table" )
 		rescue PG::Error => err
 			result = err.result
 		end
@@ -627,11 +627,11 @@ describe PG::Result do
 	end
 
 	it "can be manually checked for failed result status (async API)" do
-		@conn.send_query( "SELECT * FROM nonexistant_table" )
+		@conn.send_query( "SELECT * FROM nonexistent_table" )
 		res = @conn.get_result
 		expect {
 			res.check
-		}.to raise_error( PG::Error, /relation "nonexistant_table" does not exist/ )
+		}.to raise_error( PG::Error, /relation "nonexistent_table" does not exist/ )
 	end
 
 	it "can return the values of a single field" do
@@ -661,20 +661,20 @@ describe PG::Result do
 		expect{ res.tuple("x") }.to raise_error(TypeError)
 	end
 
-	it "raises a proper exception for a nonexistant table" do
+	it "raises a proper exception for a nonexistent table" do
 		expect {
-			@conn.exec( "SELECT * FROM nonexistant_table" )
-		}.to raise_error( PG::UndefinedTable, /relation "nonexistant_table" does not exist/ )
+			@conn.exec( "SELECT * FROM nonexistent_table" )
+		}.to raise_error( PG::UndefinedTable, /relation "nonexistent_table" does not exist/ )
 	end
 
 	it "raises a more generic exception for an unknown SQLSTATE" do
 		old_error = PG::ERROR_CLASSES.delete('42P01')
 		begin
 			expect {
-				@conn.exec( "SELECT * FROM nonexistant_table" )
+				@conn.exec( "SELECT * FROM nonexistent_table" )
 			}.to raise_error{|error|
 				expect( error ).to be_an_instance_of(PG::SyntaxErrorOrAccessRuleViolation)
-				expect( error.to_s ).to match(/relation "nonexistant_table" does not exist/)
+				expect( error.to_s ).to match(/relation "nonexistent_table" does not exist/)
 			}
 		ensure
 			PG::ERROR_CLASSES['42P01'] = old_error
@@ -686,10 +686,10 @@ describe PG::Result do
 		old_error2 = PG::ERROR_CLASSES.delete('42')
 		begin
 			expect {
-				@conn.exec( "SELECT * FROM nonexistant_table" )
+				@conn.exec( "SELECT * FROM nonexistent_table" )
 			}.to raise_error{|error|
 				expect( error ).to be_an_instance_of(PG::ServerError)
-				expect( error.to_s ).to match(/relation "nonexistant_table" does not exist/)
+				expect( error.to_s ).to match(/relation "nonexistent_table" does not exist/)
 			}
 		ensure
 			PG::ERROR_CLASSES['42P01'] = old_error1
@@ -697,10 +697,10 @@ describe PG::Result do
 		end
 	end
 
-	it "raises a proper exception for a nonexistant schema" do
+	it "raises a proper exception for a nonexistent schema" do
 		expect {
-			@conn.exec( "DROP SCHEMA nonexistant_schema" )
-		}.to raise_error( PG::InvalidSchemaName, /schema "nonexistant_schema" does not exist/ )
+			@conn.exec( "DROP SCHEMA nonexistent_schema" )
+		}.to raise_error( PG::InvalidSchemaName, /schema "nonexistent_schema" does not exist/ )
 	end
 
 	it "the raised result is nil in case of a connection error" do

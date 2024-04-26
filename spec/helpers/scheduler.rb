@@ -196,7 +196,7 @@ class Scheduler
 
 		Fiber.yield
 	ensure
-		# Remove from @waiting in the case event occured before the timeout expired:
+		# Remove from @waiting in the case event occurred before the timeout expired:
 		@waiting.delete(fiber) if duration
 		@readable.delete(io) if readable
 		@writable.delete(io) if writable

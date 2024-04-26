@@ -493,7 +493,7 @@ class PG::Connection
 	# See also #copy_data.
 	#
 	def put_copy_data(buffer, encoder=nil)
-		# sync_put_copy_data does a non-blocking attept to flush data.
+		# sync_put_copy_data does a non-blocking attempt to flush data.
 		until res=sync_put_copy_data(buffer, encoder)
 			# It didn't flush immediately and allocation of more buffering memory failed.
 			# Wait for all data sent by doing a blocking flush.
