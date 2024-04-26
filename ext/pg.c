@@ -543,7 +543,7 @@ Init_pg_ext(void)
 	/* Result#result_error_field argument constant
 	 *
 	 * The SQLSTATE code for the error.
-	 * The SQLSTATE code identities the type of error that has occurred; it can be used by front-end applications to perform specific operations (such as error handling) in response to a particular database error.
+	 * The SQLSTATE code identifies the type of error that has occurred; it can be used by front-end applications to perform specific operations (such as error handling) in response to a particular database error.
 	 * For a list of the possible SQLSTATE codes, see Appendix A.
 	 * This field is not localizable, and is always present.
 	 */

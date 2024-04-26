@@ -171,7 +171,14 @@ class PG::BasicTypeRegistry
 	include Checker
 
 	def initialize
-		# The key of these hashes maps to the `typname` column from the table pg_type.
+		# @coders_by_name has a content of
+		#    Array< Hash< Symbol: Hash< String: Coder > > >
+		#
+		# The layers are:
+		#   * index of Array is 0 (text) and 1 (binary)
+		#   * Symbol key in the middle Hash is :encoder and :decoder
+		#   * String key in the inner Hash corresponds to the `typname` column in the table pg_type
+		#   * Coder value in the inner Hash is the associated coder object
 		@coders_by_name = []
 	end
 
