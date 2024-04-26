@@ -198,7 +198,7 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 		char *ptr1;
 		char *ptr2;
 		long strlen;
-		int backslashs;
+		int backslashes;
 		VALUE subint;
 		VALUE entry;
 
@@ -249,19 +249,19 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 					ptr2 = current_out + strlen;
 
 					/* count required backlashs */
-					for(backslashs = 0; ptr1 != ptr2; ptr1++) {
+					for(backslashes = 0; ptr1 != ptr2; ptr1++) {
 						/* Escape backslash itself, newline, carriage return, and the current delimiter character. */
 						if(*ptr1 == '"' || *ptr1 == '\\'){
-							backslashs++;
+							backslashes++;
 						}
 					}
 
 					ptr1 = current_out + strlen;
-					ptr2 = current_out + strlen + backslashs;
+					ptr2 = current_out + strlen + backslashes;
 					current_out = ptr2;
 
 					/* Then store the escaped string on the final position, walking
-					 * right to left, until all backslashs are placed. */
+					 * right to left, until all backslashes are placed. */
 					while( ptr1 != ptr2 ) {
 						*--ptr2 = *--ptr1;
 						if(*ptr1 == '"' || *ptr1 == '\\'){

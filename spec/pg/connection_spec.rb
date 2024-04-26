@@ -414,7 +414,7 @@ describe PG::Connection do
 		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=wrong"
 		error_match = if RUBY_PLATFORM=~/mingw|mswin/
 			# It's a long standing issue of libpq, that the error text is not correctly returned when both client and server are running on Windows.
-			# Instead a "Connection refused" is retured.
+			# Instead a "Connection refused" is returned.
 			/authenti.*testusermd5|Connection refused|server closed the connection unexpectedly/i
 		else
 			/authenti.*testusermd5/i
@@ -1705,7 +1705,7 @@ describe PG::Connection do
 		conn.close
 	end
 
-	it "refreshs DNS address while conn.reset", :without_transaction, :ipv6 do
+	it "refreshes DNS address while conn.reset", :without_transaction, :ipv6 do
 		set_etc_hosts "::1"
 		conn = described_class.connect( "postgres://rubypg_test/test" )
 		conn.exec("select 1")
@@ -2071,7 +2071,7 @@ describe PG::Connection do
 		end
 
 		describe "send_flush_request" do
-			it "flushs all results" do
+			it "flushes all results" do
 				@conn.enter_pipeline_mode
 				@conn.send_query_params "select 1", []
 				@conn.send_flush_request

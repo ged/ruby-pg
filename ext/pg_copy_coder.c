@@ -235,7 +235,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 		char *ptr1;
 		char *ptr2;
 		int strlen;
-		int backslashs;
+		int backslashes;
 		VALUE subint;
 		VALUE entry;
 
@@ -286,19 +286,19 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					ptr2 = current_out + strlen;
 
 					/* count required backlashs */
-					for(backslashs = 0; ptr1 != ptr2; ptr1++) {
+					for(backslashes = 0; ptr1 != ptr2; ptr1++) {
 						/* Escape backslash itself, newline, carriage return, and the current delimiter character. */
 						if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
-							backslashs++;
+							backslashes++;
 						}
 					}
 
 					ptr1 = current_out + strlen;
-					ptr2 = current_out + strlen + backslashs;
+					ptr2 = current_out + strlen + backslashes;
 					current_out = ptr2;
 
 					/* Then store the escaped string on the final position, walking
-					 * right to left, until all backslashs are placed. */
+					 * right to left, until all backslashes are placed. */
 					while( ptr1 != ptr2 ) {
 						*--ptr2 = *--ptr1;
 						if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
@@ -391,7 +391,7 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 
 		switch(TYPE(entry)){
 			case T_NIL:
-				/* 4 bytes for -1 indicationg a NULL value */
+				/* 4 bytes for -1 indicating a NULL value */
 				PG_RB_STR_ENSURE_CAPA( *intermediate, 4, current_out, end_capa_ptr );
 				write_nbo32(-1, current_out);
 				current_out += 4;

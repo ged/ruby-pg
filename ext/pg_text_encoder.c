@@ -437,7 +437,7 @@ quote_array_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 	t_pg_composite_coder *this = _this;
 	char *ptr1;
 	char *ptr2;
-	int backslashs = 0;
+	int backslashes = 0;
 	int needquote;
 
 	/* count data plus backslashes; detect chars needing quotes */
@@ -454,7 +454,7 @@ quote_array_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 
 		if (ch == '"' || ch == '\\'){
 			needquote = 1;
-			backslashs++;
+			backslashes++;
 		} else if (ch == '{' || ch == '}' || ch == this->delimiter ||
 					ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f'){
 			needquote = 1;
@@ -463,12 +463,12 @@ quote_array_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 
 	if( needquote ){
 		ptr1 = p_in + strlen;
-		ptr2 = p_out + strlen + backslashs + 2;
+		ptr2 = p_out + strlen + backslashes + 2;
 		/* Write end quote */
 		*--ptr2 = '"';
 
 		/* Then store the escaped string on the final position, walking
-			* right to left, until all backslashs are placed. */
+			* right to left, until all backslashes are placed. */
 		while( ptr1 != p_in ) {
 			*--ptr2 = *--ptr1;
 			if(*ptr2 == '"' || *ptr2 == '\\'){
@@ -477,7 +477,7 @@ quote_array_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 		}
 		/* Write start quote */
 		*p_out = '"';
-		return strlen + backslashs + 2;
+		return strlen + backslashes + 2;
 	} else {
 		if( p_in != p_out )
 			memcpy( p_out, p_in, strlen );
@@ -692,22 +692,22 @@ static int
 quote_literal_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 	char *ptr1;
 	char *ptr2;
-	int backslashs = 0;
+	int backslashes = 0;
 
 	/* count required backlashs */
 	for(ptr1 = p_in; ptr1 != p_in + strlen; ptr1++) {
 		if (*ptr1 == '\''){
-			backslashs++;
+			backslashes++;
 		}
 	}
 
 	ptr1 = p_in + strlen;
-	ptr2 = p_out + strlen + backslashs + 2;
+	ptr2 = p_out + strlen + backslashes + 2;
 	/* Write end quote */
 	*--ptr2 = '\'';
 
 	/* Then store the escaped string on the final position, walking
-		* right to left, until all backslashs are placed. */
+		* right to left, until all backslashes are placed. */
 	while( ptr1 != p_in ) {
 		*--ptr2 = *--ptr1;
 		if(*ptr2 == '\''){
@@ -716,7 +716,7 @@ quote_literal_buffer( void *_this, char *p_in, int strlen, char *p_out ){
 	}
 	/* Write start quote */
 	*p_out = '\'';
-	return strlen + backslashs + 2;
+	return strlen + backslashes + 2;
 }
 
 

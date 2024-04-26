@@ -92,7 +92,7 @@ Removed:
 Repository:
 
 - `rake test` tries to find PostgreSQL server commands by pg_config [#503](https://github.com/ged/ruby-pg/pull/503)
-  So there's no need to set the PATH manuelly any longer.
+  So there's no need to set the PATH manually any longer.
 
 
 ## v1.4.6 [2023-02-26] Lars Kanis <lars@greiz-reinsdorf.de>
@@ -161,7 +161,7 @@ Added:
 Bugfixes:
 
 - Try IPv6 and IPv4 addresses, if DNS resolves to both. [#452](https://github.com/ged/ruby-pg/pull/452)
-- Re-add block-call semantics to PG::Connection.new accidently removed in pg-1.3.0. [#454](https://github.com/ged/ruby-pg/pull/454)
+- Re-add block-call semantics to PG::Connection.new accidentally removed in pg-1.3.0. [#454](https://github.com/ged/ruby-pg/pull/454)
 - Handle client error after all data consumed in #copy_data for output. [#455](https://github.com/ged/ruby-pg/pull/455)
 - Avoid spurious keyword argument warning on Ruby 2.7. [#456](https://github.com/ged/ruby-pg/pull/456)
 - Change connection setup to respect connect_timeout parameter. [#459](https://github.com/ged/ruby-pg/pull/459)
@@ -200,7 +200,7 @@ Bugfixes:
 
 - Don't leak IO in case of connection errors. [#439](https://github.com/ged/ruby-pg/pull/439)
   Previously it was kept open until the PG::Connection was garbage collected.
-- Fix a performance regession in conn.get_result noticed in single row mode. [#442](https://github.com/ged/ruby-pg/pull/442)
+- Fix a performance regression in conn.get_result noticed in single row mode. [#442](https://github.com/ged/ruby-pg/pull/442)
 - Fix occasional error Errno::EBADF (Bad file descriptor) while connecting. [#444](https://github.com/ged/ruby-pg/pull/444)
 - Fix compatibility of res.stream_each* methods with Fiber.scheduler. [#446](https://github.com/ged/ruby-pg/pull/446)
 - Remove FL_TEST and FL_SET, which are MRI-internal. [#437](https://github.com/ged/ruby-pg/pull/437)
@@ -286,7 +286,7 @@ Type cast enhancements:
 - Add PG::BasicTypeMapForQueries::BinaryData for encoding of bytea columns. [#348](https://github.com/ged/ruby-pg/pull/348)
 - Reduce time to build coder maps and permit to reuse them for several type maps per PG::BasicTypeRegistry::CoderMapsBundle.new(conn) . [#376](https://github.com/ged/ruby-pg/pull/376)
 - Make BasicTypeRegistry a class and use a global default instance of it.
-  Now a local type registry can be instanciated and given to the type map, to avoid changing shared global states.
+  Now a local type registry can be instantiated and given to the type map, to avoid changing shared global states.
 - Allow PG::BasicTypeMapForQueries to take a Proc as callback for undefined types.
 
 Other Enhancements:
