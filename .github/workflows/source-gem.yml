@@ -120,6 +120,7 @@ jobs:
           wget https://get.enterprisedb.com/postgresql/postgresql-$PGVERSION-binaries.zip && \
           sudo mkdir -p /Library/PostgreSQL && \
           sudo unzip postgresql-$PGVERSION-binaries.zip -d /Library/PostgreSQL/$PGVER && \
+          sudo mv /Library/PostgreSQL/$PGVER/pgsql/* /Library/PostgreSQL/$PGVER/ && \
           echo /Library/PostgreSQL/$PGVER/bin >> $GITHUB_PATH
 
       - run: gem update --system 3.3.26
