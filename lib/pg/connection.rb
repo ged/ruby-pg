@@ -306,6 +306,11 @@ class PG::Connection
 		rollback = false
 		exec "BEGIN"
 		yield(self)
+	rescue PG::RollbackTransaction
+		rollback = true
+		cancel if transaction_status == PG::PQTRANS_ACTIVE
+		block
+		exec "ROLLBACK"
 	rescue Exception
 		rollback = true
 		cancel if transaction_status == PG::PQTRANS_ACTIVE
