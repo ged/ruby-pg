@@ -41,7 +41,7 @@ sure it is started. A native Docker installation is best on Linux.
 
 Then run:
 
-	rake gem:windows
+	rake gem:native
 
 This will download a docker image suited for building windows gems, and it
 will download and build OpenSSL and PostgreSQL. Finally the gem is built

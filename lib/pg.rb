@@ -6,7 +6,7 @@
 module PG
 
 	# Is this file part of a fat binary gem with bundled libpq?
-	bundled_libpq_path = File.join(__dir__, RUBY_PLATFORM.gsub(/^i386-/, "x86-"))
+	bundled_libpq_path = File.expand_path("../ports/#{RUBY_PLATFORM.gsub(/^i386-/, "x86-")}/lib", __dir__)
 	if File.exist?(bundled_libpq_path)
 		POSTGRESQL_LIB_PATH = bundled_libpq_path
 	else
@@ -23,6 +23,7 @@ module PG
 
 	add_dll_path = proc do |path, &block|
 		if RUBY_PLATFORM =~/(mswin|mingw)/i && path && File.exist?(path)
+			BUNDLED_LIBPQ_WITH_UNIXSOCKET = false
 			begin
 				require 'ruby_installer/runtime'
 				RubyInstaller::Runtime.add_dll_directory(path, &block)
@@ -32,7 +33,17 @@ module PG
 				block.call
 				ENV['PATH'] = old_path
 			end
+		elsif RUBY_PLATFORM =~/(linux)/i && bundled_libpq_path && File.exist?(bundled_libpq_path)
+			BUNDLED_LIBPQ_WITH_UNIXSOCKET = true
+
+			# Load dependent libpq.so into the process, so that it is already present,
+			# when pg_ext.so is loaded.
+			# This ensures, that the shared library is loaded when the path is different between build and run time (e.g. fat binary gems).
+			require 'fiddle'
+			Fiddle.dlopen(File.join(bundled_libpq_path, "libpq.so.5"))
+			block.call
 		else
+			BUNDLED_LIBPQ_WITH_UNIXSOCKET = false
 			# No need to set a load path manually - it's set as library rpath.
 			block.call
 		end
@@ -40,12 +51,12 @@ module PG
 
 	# Add a load path to the one retrieved from pg_config
 	add_dll_path.call(POSTGRESQL_LIB_PATH) do
-		if bundled_libpq_path
-			# It's a Windows binary gem, try the <major>.<minor> subdirectory
+		begin
+			# Try the <major>.<minor> subdirectory for fat binary gems
 			major_minor = RUBY_VERSION[ /^(\d+\.\d+)/ ] or
 				raise "Oops, can't extract the major/minor version from #{RUBY_VERSION.dump}"
 			require "#{major_minor}/pg_ext"
-		else
+		rescue LoadError
 			require 'pg_ext'
 		end
 	end
