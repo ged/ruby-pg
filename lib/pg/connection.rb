@@ -166,7 +166,10 @@ class PG::Connection
 	#     conn.put_copy_data ['more', 'data', 'to', 'copy']
 	#   end
 	#
-	# Also PG::BinaryEncoder::CopyRow can be used to send data in binary format to the server.
+        # All 4 CopyRow classes can take a type map to specify how the columns are mapped to and from the database format.
+        # For details see the particular CopyRow class description.
+        #
+	# PG::BinaryEncoder::CopyRow can be used to send data in binary format to the server.
 	# In this case copy_data generates the header and trailer data automatically:
 	#   enco = PG::BinaryEncoder::CopyRow.new
 	#   conn.copy_data "COPY my_table FROM STDIN (FORMAT binary)", enco do
