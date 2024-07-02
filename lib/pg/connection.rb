@@ -168,10 +168,18 @@ class PG::Connection
 	#
 	# Also PG::BinaryEncoder::CopyRow can be used to send data in binary format to the server.
 	# In this case copy_data generates the header and trailer data automatically:
-	#   enco = PG::BinaryEncoder::CopyRow.new
+	# A complete list of column types can be found under PG::BinaryEncoder documentation.
+	#   type_map = PG::TypeMapByColumn.new([
+	#     PG::BinaryEncoder::String.new,
+	#     PG::BinaryEncoder::String.new,
+	#     PG::BinaryEncoder::String.new,
+	#     PG::BinaryEncoder::String.new,
+	#     PG::BinaryEncoder::TimeStampUtc.new,
+	#   ])
+	#   enco = PG::BinaryEncoder::CopyRow.new( type_map: type_map )
 	#   conn.copy_data "COPY my_table FROM STDIN (FORMAT binary)", enco do
-	#     conn.put_copy_data ['some', 'data', 'to', 'copy']
-	#     conn.put_copy_data ['more', 'data', 'to', 'copy']
+	#     conn.put_copy_data ['some', 'data', 'to', 'copy', Time.now]
+	#     conn.put_copy_data ['more', 'data', 'to', 'copy', Time.now]
 	#   end
 	#
 	# Example with CSV output format:
