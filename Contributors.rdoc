@@ -1,4 +1,3 @@
-
 Thanks to all the great people that have contributed code, suggestions, and patches through the
 years. If you contribute a patch, please include a patch for this file that adds your name to the
 list.
@@ -43,4 +42,5 @@ list.
 * Chris White <cwprogram@live.com>
 * Aaron Patterson <aaron.patterson@gmail.com>
 * Tim Felgentreff <timfelgentreff@gmail.com>
+* Daniel Lo <wilburlo@gmail.com>
 
