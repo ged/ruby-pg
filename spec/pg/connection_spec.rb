@@ -692,7 +692,7 @@ describe PG::Connection do
 				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
 			end
 			if RUBY_ENGINE == "truffleruby"
-				skip "TcpGateSwitcher transfers wrong data on Truffleruby"
+				skip "TcpGateSwitcher responds with Errno::EPIPE: Broken pipe on Truffleruby"
 			end
 
 			run_with_gate(200) do |conn, gate|
@@ -721,10 +721,6 @@ describe PG::Connection do
 		end
 
 		it "needs to flush data after send_query" do
-			if RUBY_ENGINE == "truffleruby"
-				skip "TcpGateSwitcher transfers wrong data on Truffleruby"
-			end
-
 			run_with_gate(200) do |conn, gate|
 				conn.setnonblocking(true)
 
