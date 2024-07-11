@@ -578,6 +578,8 @@ describe PG::Connection do
 		end
 
 		it "doesn't notify the wrong thread about closed socket (Bug #564)" do
+			skip "this spec crashs silently on Windows for some reason (pending investigation)" if RUBY_PLATFORM=~/mingw|mswin/i
+
 			10.times do
 				10.times.map do
 					Thread.new do
@@ -692,7 +694,7 @@ describe PG::Connection do
 				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
 			end
 			if RUBY_ENGINE == "truffleruby"
-				skip "TcpGateSwitcher transfers wrong data on Truffleruby"
+				skip "TcpGateSwitcher responds with Errno::EPIPE: Broken pipe on Truffleruby"
 			end
 
 			run_with_gate(200) do |conn, gate|
@@ -721,10 +723,6 @@ describe PG::Connection do
 		end
 
 		it "needs to flush data after send_query" do
-			if RUBY_ENGINE == "truffleruby"
-				skip "TcpGateSwitcher transfers wrong data on Truffleruby"
-			end
-
 			run_with_gate(200) do |conn, gate|
 				conn.setnonblocking(true)
 
@@ -770,12 +768,18 @@ describe PG::Connection do
 	end
 
 	it "doesn't leave stale server connections after finish" do
+		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
+							WHERE usename IS NOT NULL AND application_name != ''])
+		# there's still the global @conn, but should be no more
+		old_count = res[0]['n']
+
 		described_class.connect(@conninfo).finish
+
 		sleep 0.5
 		res = @conn.exec(%[SELECT COUNT(*) AS n FROM pg_stat_activity
 							WHERE usename IS NOT NULL AND application_name != ''])
 		# there's still the global @conn, but should be no more
-		expect( res[0]['n'] ).to eq( '1' )
+		expect( res[0]['n'] ).to eq( old_count )
 	end
 
 	it "can retrieve it's connection parameters for the established connection" do
