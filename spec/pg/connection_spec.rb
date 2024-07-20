@@ -939,6 +939,24 @@ describe PG::Connection do
 			end
 		end
 
+		it "rolls back a transaction if a PG::RollbackTransaction exception is raised" do
+			# abort the per-example transaction so we can test our own
+			@conn.exec( 'ROLLBACK' )
+			@conn.exec( "CREATE TABLE pie ( flavor TEXT )" )
+
+			begin
+				@conn.transaction do
+					@conn.exec( "INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')" )
+					raise PG::RollbackTransaction
+				end
+
+				res = @conn.exec( "SELECT * FROM pie" )
+				expect( res.ntuples ).to eq( 0 )
+			ensure
+				@conn.exec( "DROP TABLE pie" )
+			end
+		end
+
 		it "commits even if the block includes an early break/return" do
 			# abort the per-example transaction so we can test our own
 			@conn.exec( 'ROLLBACK' )
