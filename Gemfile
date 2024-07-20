@@ -11,6 +11,7 @@ group :development, :test do
   gem "rake-compiler-dock", "~> 1.0"
   gem "rdoc", "~> 6.4"
   gem "rspec", "~> 3.5"
+  gem "ostruct", "~> 0.5" # for Rakefile.cross
   # "bigdecimal" is a gem on ruby-3.4+ and it's optional for ruby-pg.
   # Specs should succeed without it, but 4 examples are then excluded.
   # gem "bigdecimal", "~> 3.0"
