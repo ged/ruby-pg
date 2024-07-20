@@ -31,8 +31,8 @@ class CrossLibrary < OpenStruct
 		self.host_platform              = toolchain
 
 		# Cross-compilation constants
-		self.openssl_version            = ENV['OPENSSL_VERSION'] || '3.2.1'
-		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '16.2'
+		self.openssl_version            = ENV['OPENSSL_VERSION'] || '3.3.1'
+		self.postgresql_version         = ENV['POSTGRESQL_VERSION'] || '16.3'
 
 		# Check if symlinks work in the current working directory.
 		# This fails, if rake-compiler-dock is running on a Windows box.
@@ -291,7 +291,7 @@ CrossLibraries.each do |xlib|
 		RakeCompilerDock.sh <<-EOT, platform: platform
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKE="make -j`nproc`" RUBY_CC_VERSION=3.3.0:3.2.0:3.1.0:3.0.0:2.7.0:2.6.0:2.5.0
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=3.3.0:3.2.0:3.1.0:3.0.0:2.7.0:2.6.0:2.5.0
 		EOT
 	end
 	desc "Build the windows binary gems"
