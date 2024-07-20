@@ -1,3 +1,14 @@
+## v1.5.7 [2024-07-20] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Remove deprecated use of fptr->fd.[#562](https://github.com/ged/ruby-pg/pull/562)
+  Direct access is disallowed since ruby-3.4.
+- Make `pgconn_connect_poll` close the socket prior to calling `PQconnectPoll`. [#564](https://github.com/ged/ruby-pg/pull/564)
+  This could result in an exception while connectiing when used multi threaded.
+- Fix several typos and improve spelling in documentation and code. [#566](https://github.com/ged/ruby-pg/pull/566)
+- Add missing PG::RollbackTransaction as an option to exit conn.transaction. [#560](https://github.com/ged/ruby-pg/pull/560)
+  Usage like in rails: https://api.rubyonrails.org/classes/ActiveRecord/Rollback.html
+
+
 ## v1.5.6 [2024-03-01] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Renew address resolution (DNS) in conn.reset. [#558](https://github.com/ged/ruby-pg/pull/558)
