@@ -14,5 +14,7 @@ group :development, :test do
   gem "ostruct", "~> 0.5" # for Rakefile.cross
   # "bigdecimal" is a gem on ruby-3.4+ and it's optional for ruby-pg.
   # Specs should succeed without it, but 4 examples are then excluded.
+  # With bigdecimal commented out here, corresponding tests are omitted on ruby-3.4+ but are executed on ruby < 3.4.
+  # That way we can check both situations in CI.
   # gem "bigdecimal", "~> 3.0"
 end
