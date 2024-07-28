@@ -233,7 +233,7 @@ class PG::BasicTypeRegistry
 		alias_type    0, 'oid',  'int2'
 
 		begin
-			require "bigdecimal"
+			PG.require_bigdecimal_without_warning
 			register_type 0, 'numeric', PG::TextEncoder::Numeric, PG::TextDecoder::Numeric
 		rescue LoadError
 		end

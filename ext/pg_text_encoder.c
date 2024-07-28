@@ -377,7 +377,7 @@ init_pg_text_encoder_numeric(VALUE rb_mPG_TextDecoder)
 {
 	s_str_F = rb_str_freeze(rb_str_new_cstr("F"));
 	rb_global_variable(&s_str_F);
-	rb_require("bigdecimal");
+	rb_funcall(rb_mPG, rb_intern("require_bigdecimal_without_warning"), 0);
 	s_cBigDecimal = rb_const_get(rb_cObject, rb_intern("BigDecimal"));
 
 	/* dummy = rb_define_class_under( rb_mPG_TextEncoder, "Numeric", rb_cPG_SimpleEncoder ); */
