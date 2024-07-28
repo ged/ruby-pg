@@ -586,7 +586,7 @@ describe PG::Connection do
 						Thread.current.report_on_exception = false
 						expect do
 							threaded_conn = PG.connect( @conninfo + " sslcert=tmp_test_specs/data/ruby-pg-ca-cert" )
-							res = threaded_conn.exec("SELECT 1")
+							threaded_conn.exec("SELECT 1")
 							threaded_conn.close
 						end.not_to raise_error
 					end
