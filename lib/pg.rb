@@ -126,4 +126,14 @@ module PG
 		Warning.extend(TruffleFixWarn)
 	end
 
+	# Ruby-3.4+ prints a warning, if bigdecimal is required but not in the Gemfile.
+	# But it's a false positive, since we enable bigdecimal depending features only if it's available.
+	# And most people don't need these features.
+	def self.require_bigdecimal_without_warning
+		oldverb, $VERBOSE = $VERBOSE, nil
+		require "bigdecimal"
+	ensure
+		$VERBOSE = oldverb
+	end
+
 end # module PG

@@ -711,7 +711,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :ipv6 ) if Addrinfo.getaddrinfo("localhost", nil, nil, :STREAM).size < 2
 	config.filter_run_excluding( :ractor ) unless defined?(Ractor)
 	begin
-		require "bigdecimal"
+		PG.require_bigdecimal_without_warning
 	rescue LoadError
 		config.filter_run_excluding( :bigdecimal )
 	end

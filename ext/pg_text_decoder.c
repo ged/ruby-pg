@@ -174,7 +174,7 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 static VALUE
 init_pg_text_decoder_numeric(VALUE rb_mPG_TextDecoder)
 {
-	rb_require("bigdecimal");
+	rb_funcall(rb_mPG, rb_intern("require_bigdecimal_without_warning"), 0);
 	s_id_BigDecimal = rb_intern("BigDecimal");
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Numeric", rb_cPG_SimpleDecoder ); */
