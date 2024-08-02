@@ -212,6 +212,7 @@ pg_copycoder_type_map_get(VALUE self)
  *
  * See also PG::TextDecoder::CopyRow for the decoding direction with
  * PG::Connection#get_copy_data .
+ * And see PG::BinaryEncoder::CopyRow for an encoder of the COPY binary format.
  */
 static int
 pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
@@ -358,6 +359,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
  *
  * See also PG::BinaryDecoder::CopyRow for the decoding direction with
  * PG::Connection#get_copy_data .
+ * And see PG::TextEncoder::CopyRow for an encoder of the COPY text format.
  */
 static int
 pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
@@ -496,6 +498,7 @@ GetDecimalFromHex(char hex)
  *
  * See also PG::TextEncoder::CopyRow for the encoding direction with
  * PG::Connection#put_copy_data .
+ * And see PG::BinaryDecoder::CopyRow for a decoder of the COPY binary format.
  */
 /*
  * Parse the current line into separate attributes (fields),
@@ -763,6 +766,7 @@ static const char BinarySignature[11] = "PGCOPY\n\377\r\n\0";
  *
  * See also PG::BinaryEncoder::CopyRow for the encoding direction with
  * PG::Connection#put_copy_data .
+ * And see PG::TextDecoder::CopyRow for a decoder of the COPY text format.
  */
 static VALUE
 pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tuple, int _field, int enc_idx)
