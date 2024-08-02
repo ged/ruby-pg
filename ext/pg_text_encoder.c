@@ -345,6 +345,8 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
  *
  * It converts Integer, Float and BigDecimal objects.
  * All other objects are expected to respond to +to_s+.
+ *
+ * As soon as this class is used, it requires the 'bigdecimal' gem.
  */
 static int
 pg_text_enc_numeric(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, int enc_idx)

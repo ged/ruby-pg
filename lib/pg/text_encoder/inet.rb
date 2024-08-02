@@ -5,6 +5,9 @@ require 'ipaddr'
 
 module PG
 	module TextEncoder
+		# This is a encoder class for conversion of Ruby IPAddr values to PostgreSQL inet type.
+		#
+		# As soon as this class is used, it requires the ruby standard library 'ipaddr'.
 		class Inet < SimpleEncoder
 			def encode(value)
 				case value

@@ -233,6 +233,8 @@ j2date(int jd, int *year, int *month, int *day)
  *
  * This is a decoder class for conversion of PostgreSQL binary date
  * to Ruby Date objects.
+ *
+ * As soon as this class is used, it requires the ruby standard library 'date'.
  */
 static VALUE
 pg_bin_dec_date(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)

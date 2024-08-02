@@ -5,6 +5,9 @@ require 'date'
 
 module PG
 	module TextDecoder
+		# This is a decoder class for conversion of PostgreSQL date type to Ruby Date values.
+		#
+		# As soon as this class is used, it requires the ruby standard library 'date'.
 		class Date < SimpleDecoder
 			def decode(string, tuple=nil, field=nil)
 				if string =~ /\A(\d{4})-(\d\d)-(\d\d)\z/

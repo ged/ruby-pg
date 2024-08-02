@@ -163,6 +163,8 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
  * This is a decoder class for conversion of PostgreSQL numeric types
  * to Ruby BigDecimal objects.
  *
+ * As soon as this class is used, it requires the 'bigdecimal' gem.
+ *
  */
 static VALUE
 pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
@@ -811,6 +813,7 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
  * This is a decoder class for conversion of PostgreSQL inet type
  * to Ruby IPAddr values.
  *
+ * As soon as this class is used, it requires the ruby standard library 'ipaddr'.
  */
 static VALUE
 pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
