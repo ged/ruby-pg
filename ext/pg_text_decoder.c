@@ -973,9 +973,9 @@ init_pg_text_decoder(void)
 	s_id_utc = rb_intern("utc");
 	s_id_getlocal = rb_intern("getlocal");
 
-	s_nan = rb_eval_string("0.0/0.0");
+	s_nan = rb_const_get(rb_cFloat, rb_intern("NAN"));
 	rb_global_variable(&s_nan);
-	s_pos_inf = rb_eval_string("1.0/0.0");
+	s_pos_inf = rb_const_get(rb_cFloat, rb_intern("INFINITY"));
 	rb_global_variable(&s_pos_inf);
 	s_neg_inf = rb_eval_string("-1.0/0.0");
 	rb_global_variable(&s_neg_inf);
