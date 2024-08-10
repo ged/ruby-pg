@@ -340,7 +340,7 @@ record_isspace(char ch)
  *   conn.exec("SELECT * FROM my_table").map_types!(PG::TypeMapByColumn.new([deco]*2)).to_a
  *   # => [{"v1"=>[2.0, 3.0], "v2"=>[4.0, 5.0]}, {"v1"=>[6.0, 7.0], "v2"=>[8.0, 9.0]}]
  *
- * It's more very convenient to use the PG::BasicTypeRegistry, which is based on database OIDs.
+ * It's more convenient to use the PG::BasicTypeRegistry, which is based on database OIDs.
  *   # Fetch a NULL record of our type to retrieve the OIDs of the two fields "r" and "i"
  *   oids = conn.exec( "SELECT (NULL::complex).*" )
  *   # Build a type map (PG::TypeMapByColumn) for decoding the "complex" type
