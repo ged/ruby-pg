@@ -93,31 +93,31 @@ describe 'Basic type mapping' do
 				@conn.type_map_for_results = PG::TypeMapAllStrings.new.freeze
 			end
 
-			it "should do boolean type conversions" do
-				[1, 0].each do |format|
+			[1, 0].each do |format|
+				it "should do format #{format} boolean type conversions" do
 					res = @conn.exec_params( "SELECT true::BOOLEAN, false::BOOLEAN, NULL::BOOLEAN", [], format )
 					expect( res.values ).to eq( [[true, false, nil]] )
 				end
 			end
 
-			it "should do binary type conversions" do
-				[1, 0].each do |format|
+			[1, 0].each do |format|
+				it "should do format #{format} binary type conversions" do
 					res = @conn.exec_params( "SELECT E'\\\\000\\\\377'::BYTEA", [], format )
 					expect( res.values ).to eq( [[["00ff"].pack("H*")]] )
 					expect( res.values[0][0].encoding ).to eq( Encoding::ASCII_8BIT )
 				end
 			end
 
-			it "should do integer type conversions" do
-				[1, 0].each do |format|
+			[1, 0].each do |format|
+				it "should do format #{format} integer type conversions" do
 					res = @conn.exec_params( "SELECT -8999::INT2, -899999999::INT4, -8999999999999999999::INT8", [], format )
 					expect( res.values ).to eq( [[-8999, -899999999, -8999999999999999999]] )
 				end
 			end
 
-			it "should do string type conversions" do
-				@conn.internal_encoding = 'utf-8'
-				[1, 0].each do |format|
+			[1, 0].each do |format|
+				it "should do format #{format} string type conversions" do
+					@conn.internal_encoding = 'utf-8'
 					res = @conn.exec_params( "SELECT 'abcäöü'::TEXT, 'colname'::name", [], format )
 					expect( res.values ).to eq( [['abcäöü', 'colname']] )
 					expect( [res.ftype(0), res.ftype(1)] ).to eq( [25, 19] )
@@ -125,8 +125,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do float type conversions" do
-				[1, 0].each do |format|
+			[1, 0].each do |format|
+				it "should do format #{format} float type conversions" do
 					res = @conn.exec_params( "SELECT -8.999e3::FLOAT4,
 														8.999e10::FLOAT4,
 														-8999999999e-99::FLOAT8,
@@ -253,8 +253,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do numeric type conversions", :bigdecimal do
-				[0].each do |format|
+			[0].each do |format|
+				it "should do format #{format} numeric type conversions", :bigdecimal do
 					small = '123456790123.12'
 					large = ('123456790'*10) << '.' << ('012345679')
 					numerics = [
@@ -274,8 +274,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do JSON conversions", :postgresql_94 do
-				[0].each do |format|
+			[0].each do |format|
+				it "should do format #{format} JSON conversions", :postgresql_94 do
 					['JSON', 'JSONB'].each do |type|
 						res = @conn.exec_params( "SELECT CAST('123' AS #{type}),
 																			CAST('12.3' AS #{type}),
@@ -295,8 +295,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do array type conversions" do
-				[0].each do |format|
+			[0].each do |format|
+				it "should do format #{format} array type conversions" do
 					res = @conn.exec_params( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
 															CAST('{1,2,3}' AS INT4[]),
 															CAST('{1,2,3}' AS INT8[]),
@@ -316,8 +316,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do inet type conversions" do
-				[0].each do |format|
+			[0].each do |format|
+				it "should do format #{format} inet type conversions" do
 					vals = [
 						'1.2.3.4',
 						'0.0.0.0/0',
@@ -346,8 +346,8 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			it "should do cidr type conversions" do
-				[0].each do |format|
+			[0].each do |format|
+				it "should do format #{format} cidr type conversions" do
 					vals = [
 						'0.0.0.0/0',
 						'1.0.0.0/8',
