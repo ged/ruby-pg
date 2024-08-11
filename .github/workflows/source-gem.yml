@@ -1,6 +1,4 @@
 name: Source gem
-
-name: CI
 on:
   workflow_dispatch:
   schedule:
