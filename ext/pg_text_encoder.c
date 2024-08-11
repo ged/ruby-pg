@@ -119,6 +119,10 @@ pg_text_enc_boolean(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 int
 pg_coder_enc_to_s(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
+	/* Attention:
+	 * In contrast to all other encoders, the "this" pointer of this encoder can be NULL.
+	 * This is because it is used as a fall-back if no encoder is defined.
+	 */
 	VALUE str = rb_obj_as_string(value);
 	if( ENCODING_GET(str) == enc_idx ){
 		*intermediate = str;
