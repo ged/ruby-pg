@@ -317,6 +317,16 @@ describe 'Basic type mapping' do
 			end
 
 			[0].each do |format|
+				it "should do format #{format} anonymous record type conversions" do
+					res = @conn.exec_params( "SELECT 6, ROW(123, 'str', true, null), 7
+						", [], format )
+					expect( res.getvalue(0,0) ).to eq( 6 )
+					expect( res.getvalue(0,1) ).to eq( ["123", "str", "t", nil] )
+					expect( res.getvalue(0,2) ).to eq( 7 )
+				end
+			end
+
+			[0].each do |format|
 				it "should do format #{format} inet type conversions" do
 					vals = [
 						'1.2.3.4',

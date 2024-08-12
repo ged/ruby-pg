@@ -278,6 +278,7 @@ class PG::BasicTypeRegistry
 		register_type 0, 'inet', PG::TextEncoder::Inet, PG::TextDecoder::Inet
 		alias_type 0, 'cidr', 'inet'
 
+		register_type 0, 'record', PG::TextEncoder::Record, PG::TextDecoder::Record
 
 
 		register_type 1, 'int2', PG::BinaryEncoder::Int2, PG::BinaryDecoder::Integer
