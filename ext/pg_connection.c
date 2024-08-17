@@ -3135,7 +3135,9 @@ pgconn_async_get_last_result(VALUE self)
 	for(;;) {
 		int status;
 
-		/* wait for input (without blocking) before reading each result */
+		/* Wait for input before reading each result.
+		 * That way we support the ruby-3.x IO scheduler and don't block other ruby threads.
+		 */
 		wait_socket_readable(self, NULL, get_result_readable);
 
 		cur = gvl_PQgetResult(conn);
