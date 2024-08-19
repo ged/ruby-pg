@@ -62,7 +62,7 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
-	it "connects using without host but envirinment variables", :postgresql_12, :unix_socket do
+	it "connects with environment variables", :postgresql_12, :unix_socket do
 		run_with_scheduler do
 			vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
