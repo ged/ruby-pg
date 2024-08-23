@@ -825,6 +825,14 @@ class PG::Connection
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
+			if PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET && iopts[:host].to_s.empty?
+				# Many distors patch the hardcoded default UnixSocket path in libpq to /var/run/postgresql instead of /tmp .
+				# We simply try them all.
+				iopts[:host] = "/var/run/postgresql"  # Ubuntu, Debian, Fedora, Opensuse
+					",/run/postgresql" # Alpine, Archlinux, Gentoo
+					",/tmp" # Stock PostgreSQL
+			end
+
 			if iopts[:hostaddr]
 				# hostaddr is provided -> no need to resolve hostnames
 
