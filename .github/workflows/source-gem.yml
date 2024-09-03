@@ -89,7 +89,7 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
 
       - name: Download gem from build job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: source-gem
 
