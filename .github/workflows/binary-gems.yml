@@ -39,7 +39,7 @@ jobs:
       - name: Upload binary gem
         uses: actions/upload-artifact@v4
         with:
-          name: binary-gem
+          name: binary-gem-${{ matrix.platform }}
           path: pkg/*.gem
 
   job_test_binary:
@@ -87,7 +87,7 @@ jobs:
       - name: Download gem from build job
         uses: actions/download-artifact@v4
         with:
-          name: binary-gem
+          name: binary-gem-${{ matrix.platform }}
 
       - name: Download PostgreSQL
         run: |
