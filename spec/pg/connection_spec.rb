@@ -1728,15 +1728,15 @@ describe PG::Connection do
 	end
 
 	it "refreshes DNS address while conn.reset", :without_transaction, :ipv6 do
-		set_etc_hosts "::1"
-		conn = described_class.connect( "postgres://rubypg_test/test" )
+		set_etc_hosts "::1", "rubypg_test1"
+		conn = described_class.connect( "postgres://rubypg_test1/test" )
 		conn.exec("select 1")
 
-		set_etc_hosts "127.0.0.1"
+		set_etc_hosts "127.0.0.1", "rubypg_test1"
 		conn.reset
 		conn.exec("select 1")
 
-		set_etc_hosts "::2"
+		set_etc_hosts "::2", "rubypg_test1"
 		expect do
 			conn.reset
 			conn.exec("select 1")
