@@ -155,7 +155,6 @@ class TcpGateScheduler < Scheduler
 						end
 						break if @transfer_until != :eof && (!read_str || read_str.bytesize < len)
 					end
-					@until_writeable = false
 					@pending_write = false
 				end
 
