@@ -573,7 +573,9 @@ class PG::Connection
 	# Resets the backend connection. This method closes the
 	# backend connection and tries to re-connect.
 	def reset
-		iopts = conninfo_hash.compact
+		# Use connection options from PG::Connection.new to reconnect with the same options but with renewed DNS resolution.
+		# Use conninfo_hash as a fallback when connect_start was used to create the connection object.
+		iopts = @iopts_for_reset || conninfo_hash.compact
 		if iopts[:host] && !iopts[:host].empty? && PG.library_version >= 100000
 			iopts = self.class.send(:resolve_hosts, iopts)
 		end
@@ -825,6 +827,7 @@ class PG::Connection
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
+			iopts_for_reset = iopts
 			if iopts[:hostaddr]
 				# hostaddr is provided -> no need to resolve hostnames
 
@@ -838,6 +841,8 @@ class PG::Connection
 
 			raise PG::ConnectionBad, conn.error_message if conn.status == PG::CONNECTION_BAD
 
+			# save the connection options for conn.reset
+			conn.instance_variable_set(:@iopts_for_reset, iopts_for_reset)
 			conn.send(:async_connect_or_reset, :connect_poll)
 			conn
 		end

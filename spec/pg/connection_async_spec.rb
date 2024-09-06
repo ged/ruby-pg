@@ -135,4 +135,25 @@ describe PG::Connection do
 		end
 	end
 
+	it "doesn't duplicate hosts in conn.reset", :without_transaction, :ipv6, :postgresql_10 do
+		set_etc_hosts "::1", "rubypg_test2 rubypg_test_ipv6"
+		set_etc_hosts "127.0.0.1", "rubypg_test2 rubypg_test_ipv4"
+		conn = described_class.connect( "postgres://rubypg_test2/test" )
+		conn.exec("select 1")
+		expect( conn.conninfo_hash[:host] ).to eq( "rubypg_test2,rubypg_test2" )
+		expect( conn.conninfo_hash[:hostaddr] ).to eq( "::1,127.0.0.1" )
+		expect( conn.conninfo_hash[:port] ).to eq( "#{@port},#{@port}" )
+		expect( conn.host ).to eq( "rubypg_test2" )
+		expect( conn.hostaddr ).to eq( "::1" )
+		expect( conn.port ).to eq( @port )
+
+		conn.reset
+		conn.exec("select 2")
+		expect( conn.conninfo_hash[:host] ).to eq( "rubypg_test2,rubypg_test2" )
+		expect( conn.conninfo_hash[:hostaddr] ).to eq( "::1,127.0.0.1" )
+		expect( conn.conninfo_hash[:port] ).to eq( "#{@port},#{@port}" )
+		expect( conn.host ).to eq( "rubypg_test2" )
+		expect( conn.hostaddr ).to eq( "::1" )
+		expect( conn.port ).to eq( @port )
+	end
 end

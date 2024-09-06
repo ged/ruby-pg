@@ -678,8 +678,8 @@ EOT
 	end
 
 	# Append or change 'rubypg_test' host entry in /etc/hosts to a given IP address
-	def set_etc_hosts(hostaddr)
-		system "sudo --non-interactive sed -i '/.* rubypg_test$/{h;s/.*/#{hostaddr} rubypg_test/};${x;/^$/{s//#{hostaddr} rubypg_test/;H};x}' /etc/hosts" or skip("unable to change /etc/hosts file")
+	def set_etc_hosts(hostaddr, hostname)
+		system "sudo --non-interactive sed -i '/.* #{hostname}$/{h;s/.*/#{hostaddr} #{hostname}/};${x;/^$/{s//#{hostaddr} #{hostname}/;H};x}' /etc/hosts" or skip("unable to change /etc/hosts file")
 	end
 end
 
