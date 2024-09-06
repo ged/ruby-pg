@@ -1,3 +1,9 @@
+## v1.5.8 [2024-09-06] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Fix host list duplication every time conn.reset is used. [#586](https://github.com/ged/ruby-pg/pull/586)
+- Add default decoder for anonymous record types to BasicTypeRegistry [#579](https://github.com/ged/ruby-pg/pull/579)
+
+
 ## v1.5.7 [2024-07-28] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Remove deprecated use of fptr->fd.[#562](https://github.com/ged/ruby-pg/pull/562)
