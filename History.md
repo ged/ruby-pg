@@ -2,6 +2,7 @@
 
 - Fix host list duplication every time conn.reset is used. [#586](https://github.com/ged/ruby-pg/pull/586)
 - Add default decoder for anonymous record types to BasicTypeRegistry [#579](https://github.com/ged/ruby-pg/pull/579)
+- Update Windows fat binary gem to OpenSSL-3.3.2 and PostgreSQL-16.4.
 
 
 ## v1.5.7 [2024-07-28] Lars Kanis <lars@greiz-reinsdorf.de>
@@ -14,6 +15,7 @@
 - Add missing PG::RollbackTransaction as an option to exit conn.transaction. [#560](https://github.com/ged/ruby-pg/pull/560)
   Usage like in rails: https://api.rubyonrails.org/classes/ActiveRecord/Rollback.html
 - Don't print a warning when bigdecimal is required on ruby-3.4+ [#574](https://github.com/ged/ruby-pg/pull/574)
+- Update Windows fat binary gem to OpenSSL-3.3.1 and PostgreSQL-16.3.
 
 
 ## v1.5.6 [2024-03-01] Lars Kanis <lars@greiz-reinsdorf.de>
