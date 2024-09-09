@@ -653,8 +653,6 @@ class PG::Connection
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
 
 		if (timeo = conninfo_hash[:connect_timeout].to_i) && timeo > 0
-			# Lowest timeout is 2 seconds - like in libpq
-			timeo = [timeo, 2].max
 			host_count = conninfo_hash[:host].to_s.count(",") + 1
 			stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
 		end
