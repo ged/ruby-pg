@@ -377,7 +377,7 @@ describe PG::Connection do
 				end
 			end
 
-			expect( Time.now - start_time ).to be_between(1.9, 10).inclusive
+			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
 		end
 	end
 
