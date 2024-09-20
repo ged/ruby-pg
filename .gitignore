@@ -20,3 +20,4 @@
 /vendor/
 /lib/libpq.dll
 /lib/pg/postgresql_lib_path.rb
+/test_trace.out
