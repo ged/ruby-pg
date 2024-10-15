@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require 'pg' unless defined?( PG )
-require 'io/wait' unless ::IO.public_instance_methods(false).include?(:wait_readable)
+require 'io/wait' unless ::IO.public_instance_methods(false).include?(:wait_readable) # for ruby < 3.0
 require 'socket'
 
 # The PostgreSQL connection class. The interface for this class is based on
