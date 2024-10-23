@@ -132,7 +132,7 @@ describe PG::TypeMapByColumn do
 		hash_param_nil = { value: nil, type: 17, format: 1 }
 		res = @conn.exec_params( "SELECT $1::text, $2::text",
 					[ hash_param_bin, hash_param_nil ], 0, col_map )
-		expect( res.values ).to eq( [["{:value=>\"\\x00\\xFF\", :type=>17, :format=>1}", "{:value=>nil, :type=>17, :format=>1}"]] )
+		expect( res.values ).to eq( [[{value:"\x00\xFF".b, type:17, format:1}.inspect, {value:nil, type:17, format:1}.inspect]] )
 	end
 
 	it "shouldn't allow param mappings with different number of fields" do
