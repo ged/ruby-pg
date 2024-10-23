@@ -117,7 +117,7 @@ class PG::Connection
 		return str
 	end
 
-	BinarySignature = "PGCOPY\n\377\r\n\0".b
+	BinarySignature = "PGCOPY\n\377\r\n\0"
 	private_constant :BinarySignature
 
 	#  call-seq:

@@ -29,7 +29,7 @@ describe 'Basic type mapping' do
 			Ractor.make_shareable(basic_type_mapping)
 		end
 
-		it "should be usable with Ractor", :ractor do
+		it "should be usable with Ractor in text format", :ractor do
 			vals = Ractor.new(@conninfo) do |conninfo|
 				conn = PG.connect(conninfo)
 				basic_type_mapping = PG::BasicTypeMapBasedOnResult.new(conn)
@@ -50,6 +50,29 @@ describe 'Basic type mapping' do
 			end.take
 
 			expect( vals ).to eq( [['b', '234', '{2,3}']] )
+		end
+
+		it "should be usable with Ractor in binary format", :ractor do
+			vals = Ractor.new(@conninfo) do |conninfo|
+				conn = PG.connect(conninfo)
+				basic_type_mapping = PG::BasicTypeMapBasedOnResult.new(conn)
+				conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT)" )
+
+				# Retrieve table OIDs per empty result set.
+				res = conn.exec( "SELECT * FROM copytable LIMIT 0", [], 1)
+				tm = basic_type_mapping.build_column_map( res )
+				row_encoder = PG::BinaryEncoder::CopyRow.new type_map: tm
+
+				conn.copy_data( "COPY copytable FROM STDIN WITH (FORMAT binary)", row_encoder ) do |res|
+					conn.put_copy_data ['b', 234]
+				end
+				res = conn.exec( "SELECT * FROM copytable" )
+				res.values
+			ensure
+				conn&.finish
+			end.take
+
+			expect( vals ).to eq( [['b', '234']] )
 		end
 
 		context "with usage of result oids for bind params encoder selection" do
