@@ -1,3 +1,14 @@
+## v1.5.9 [2024-10-24] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Enable thread safety in static OpenSSL build for Windows. [#595](https://github.com/ged/ruby-pg/pull/595)
+- Remove raising `conect_timeout` from 1 to 2 seconds. [#590](https://github.com/ged/ruby-pg/pull/590)
+- Fix binary copy_data in Ractor context. [#594](https://github.com/ged/ruby-pg/pull/594)
+- Exclude CI files and hidden files from built gem. [#591](https://github.com/ged/ruby-pg/pull/591)
+  This is to simplify security inspection.
+- Update error classes to PostgreSQL-17.
+- Update Windows fat binary gem to OpenSSL-3.4.0 and PostgreSQL-17.0.
+
+
 ## v1.5.8 [2024-09-06] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Fix host list duplication every time conn.reset is used. [#586](https://github.com/ged/ruby-pg/pull/586)
