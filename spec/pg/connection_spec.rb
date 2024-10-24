@@ -588,8 +588,6 @@ describe PG::Connection do
 		end
 
 		it "doesn't notify the wrong thread about closed socket (Bug #564)" do
-			skip "this spec crashs silently on Windows for some reason (pending investigation)" if RUBY_PLATFORM=~/mingw|mswin/i
-
 			10.times do
 				10.times.map do
 					Thread.new do
