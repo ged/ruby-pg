@@ -1556,6 +1556,17 @@ describe PG::Connection do
 		end
 	end
 
+	it "can connect concurrently in parallel threads", :postgresql_95 do
+		res = 5.times.map do |idx|
+			Thread.new do
+				PG.connect(@conninfo) do |conn|
+					[conn.ssl_in_use?, conn.exec("select 82").getvalue(0, 0)]
+				end
+			end
+		end.map(&:value)
+		expect( res ).to eq( [[true, "82"]] * 5 )
+	end
+
 	describe "deprecated password encryption method" do
 		it "can encrypt password for a given user" do
 			expect( described_class.encrypt_password("postgres", "postgres") ).to match( /\S+/ )

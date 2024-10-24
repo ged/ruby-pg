@@ -118,7 +118,7 @@ class CrossLibrary < OpenStruct
 		self.cmd_prelude = [
 			"env",
 			"CROSS_COMPILE=#{host_platform}-",
-			"CFLAGS=-DDSO_WIN32",
+			"CFLAGS=-DDSO_WIN32 -DOPENSSL_THREADS",
 		]
 
 
@@ -126,7 +126,7 @@ class CrossLibrary < OpenStruct
 		file openssl_makefile => static_openssl_builddir do |t|
 			chdir( static_openssl_builddir ) do
 				cmd = cmd_prelude.dup
-				cmd << "./Configure" << "-static" << openssl_config
+				cmd << "./Configure" << "threads" << "-static" << openssl_config
 
 				run( *cmd )
 			end
@@ -192,7 +192,7 @@ class CrossLibrary < OpenStruct
 				cmd << "CFLAGS=-L#{static_openssl_builddir}"
 				cmd << "LDFLAGS=-L#{static_openssl_builddir}"
 				cmd << "LDFLAGS_SL=-L#{static_openssl_builddir}"
-				cmd << "LIBS=-lwsock32 -lgdi32 -lws2_32 -lcrypt32"
+				cmd << "LIBS=-lssl -lwsock32 -lgdi32 -lws2_32 -lcrypt32"
 				cmd << "CPPFLAGS=-I#{static_openssl_builddir}/include"
 
 				run( *cmd )
