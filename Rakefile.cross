@@ -206,6 +206,10 @@ class CrossLibrary < OpenStruct
 			chdir( static_postgresql_srcdir + "common" ) do
 				sh 'make', "-j#{NUM_CPUS}"
 			end
+			# Work around missing dependency to errorcodes.h in PostgreSQL-17.0
+			chdir( static_postgresql_srcdir + "backend" + "utils" ) do
+				sh 'make', "-j#{NUM_CPUS}"
+			end
 			chdir( static_postgresql_srcdir + "port" ) do
 				sh 'make', "-j#{NUM_CPUS}"
 			end
