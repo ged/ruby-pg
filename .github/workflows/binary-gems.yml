@@ -52,7 +52,7 @@ jobs:
           - os: windows-latest
             ruby: "3.3"
             platform: "x64-mingw-ucrt"
-            PGVERSION: 16.0-1-windows-x64
+            PGVERSION: 17.0-1-windows-x64
           - os: windows-latest
             ruby: "3.1.4-1"
             platform: "x86-mingw32"
