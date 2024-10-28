@@ -23,7 +23,7 @@ else
 	$stderr.puts "Calling libpq with GVL locked"
 end
 
-if enable_config("cross-build")
+if gem_platform=with_config("cross-build")
 	gem 'mini_portile2', '~>2.1'
 	require 'mini_portile2'
 
@@ -122,7 +122,7 @@ if enable_config("cross-build")
 		end
 
 		recipe.configure_options << "CFLAGS=#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
-		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 #{"-lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/}"
+		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 #{"-Wl,-soname,libpq-ruby-pg.so.1 -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/}"
 		recipe.configure_options << "LIBS=-lkrb5 -lcom_err -lk5crypto -lkrb5support -lresolv" if RUBY_PLATFORM =~ /linux/
 		recipe.configure_options << "LIBS=-lssl -lwsock32 -lgdi32 -lws2_32 -lcrypt32" if RUBY_PLATFORM =~ /mingw|mswin/
 		recipe.configure_options << "CPPFLAGS=-I#{openssl_recipe.path}/include"
@@ -130,8 +130,14 @@ if enable_config("cross-build")
 		recipe.cook_and_activate
 	end
 
+	# Use our own library name for libpq to avoid loading of system libpq by accident.
+	FileUtils.ln_sf File.join(postgresql_recipe.port_path, "lib/libpq.so.5"),
+			File.join(postgresql_recipe.port_path, "lib/libpq-ruby-pg.so.1")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc"
+	# Find libpq in the ports directory coming from lib/3.3
+	# It is shared between all compiled ruby versions.
+	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'"
 	# Don't use pg_config for cross build, but --with-pg-* path options
 	dir_config('pg', "#{postgresql_recipe.path}/include", "#{postgresql_recipe.path}/lib")
 else

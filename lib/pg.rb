@@ -34,12 +34,7 @@ module PG
 			end
 		elsif RUBY_PLATFORM =~/(linux)/i && bundled_libpq_path && File.exist?(bundled_libpq_path)
 			BUNDLED_LIBPQ_WITH_UNIXSOCKET = true
-
-			# Load dependent libpq.so into the process, so that it is already present,
-			# when pg_ext.so is loaded.
-			# This ensures, that the shared library is loaded when the path is different between build and run time (e.g. fat binary gems).
-			require 'fiddle'
-			Fiddle.dlopen(File.join(bundled_libpq_path, "libpq.so.5"))
+			# libpq is found by a relative rpath in the cross compiled extension dll
 			block.call
 		else
 			BUNDLED_LIBPQ_WITH_UNIXSOCKET = false

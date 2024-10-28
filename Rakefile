@@ -65,7 +65,7 @@ Rake::ExtensionTask.new do |ext|
 	ext.cross_config_options += CrossLibraries.map do |xlib|
 		{
 			xlib.platform => [
-				"--enable-cross-build",
+				"--with-cross-build=#{xlib.platform}",
 				"--with-openssl-platform=#{xlib.openssl_config}",
 				"--with-toolchain=#{xlib.toolchain}",
 			]
@@ -74,7 +74,7 @@ Rake::ExtensionTask.new do |ext|
 
 	# Add libpq.dll/.so to fat binary gemspecs
 	ext.cross_compiling do |spec|
-		spec.files << "ports/#{spec.platform.to_s}/lib/libpq.so.5" if spec.platform.to_s =~ /linux/
+		spec.files << "ports/#{spec.platform.to_s}/lib/libpq-ruby-pg.so.1" if spec.platform.to_s =~ /linux/
 		spec.files << "ports/#{spec.platform.to_s}/lib/libpq.dll" if spec.platform.to_s =~ /mingw|mswin/
 	end
 end
