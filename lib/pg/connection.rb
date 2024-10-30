@@ -860,8 +860,8 @@ class PG::Connection
 			if PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET && iopts[:host].to_s.empty?
 				# Many distors patch the hardcoded default UnixSocket path in libpq to /var/run/postgresql instead of /tmp .
 				# We simply try them all.
-				iopts[:host] = "/var/run/postgresql"  # Ubuntu, Debian, Fedora, Opensuse
-					",/run/postgresql" # Alpine, Archlinux, Gentoo
+				iopts[:host] = "/var/run/postgresql" + # Ubuntu, Debian, Fedora, Opensuse
+					",/run/postgresql" + # Alpine, Archlinux, Gentoo
 					",/tmp" # Stock PostgreSQL
 			end
 

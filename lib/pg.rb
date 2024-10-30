@@ -6,7 +6,9 @@
 module PG
 
 	# Is this file part of a fat binary gem with bundled libpq?
-	bundled_libpq_path = Dir[File.expand_path("../ports/#{RUBY_PLATFORM.gsub(/^i386-/, "x86-")}*/lib", __dir__)].first
+	# This path must be enabled by add_dll_directory on Windows.
+	gplat = Gem::Platform.local
+	bundled_libpq_path = Dir[File.expand_path("../ports/#{gplat.cpu}-#{gplat.os}*/lib", __dir__)].first
 	if bundled_libpq_path
 		POSTGRESQL_LIB_PATH = bundled_libpq_path
 	else
@@ -21,7 +23,7 @@ module PG
 	end
 
 	add_dll_path = proc do |path, &block|
-		if RUBY_PLATFORM =~/(mswin|mingw)/i && path && File.exist?(path)
+		if RUBY_PLATFORM =~/(mswin|mingw)/i && path
 			BUNDLED_LIBPQ_WITH_UNIXSOCKET = false
 			begin
 				require 'ruby_installer/runtime'
@@ -32,14 +34,11 @@ module PG
 				block.call
 				ENV['PATH'] = old_path
 			end
-		elsif RUBY_PLATFORM =~/(linux)/i && bundled_libpq_path && File.exist?(bundled_libpq_path)
-			BUNDLED_LIBPQ_WITH_UNIXSOCKET = true
-			# libpq is found by a relative rpath in the cross compiled extension dll
-			block.call
 		else
-			BUNDLED_LIBPQ_WITH_UNIXSOCKET = false
-			# No need to set a load path manually - it's set as library rpath.
+			# libpq is found by a relative rpath in the cross compiled extension dll
+			# or by the system library loader
 			block.call
+			BUNDLED_LIBPQ_WITH_UNIXSOCKET = RUBY_PLATFORM=~/linux/i && PG::IS_BINARY_GEM
 		end
 	end
 

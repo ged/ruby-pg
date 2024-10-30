@@ -8,7 +8,7 @@ on:
     - cron: "0 5 * * 3" # At 05:00 on Wednesday # https://crontab.guru/#0_5_*_*_3
 
 jobs:
-  job_build_x64:
+  rcd_build:
     name: Build
     runs-on: ubuntu-latest
     strategy:
@@ -18,7 +18,7 @@ jobs:
           - platform: "x64-mingw-ucrt"
           - platform: "x64-mingw32"
           - platform: "x86-mingw32"
-          - platform: "x86_64-linux-gnu"
+          - platform: "x86_64-linux"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
@@ -45,7 +45,7 @@ jobs:
 
   job_test_binary:
     name: Test
-    needs: job_build_x64
+    needs: rcd_build
     strategy:
       fail-fast: false
       matrix:
@@ -63,7 +63,7 @@ jobs:
             PGVERSION: 16.6-1-windows-x64
           - os: ubuntu-latest
             ruby: "3.2"
-            platform: "x86_64-linux-gnu"
+            platform: "x86_64-linux"
 
     runs-on: ${{ matrix.os }}
     env:
@@ -132,3 +132,33 @@ jobs:
           ridk enable
           find "$(ruby -e"puts RbConfig::CONFIG[%q[libdir]]")" -name mkmf.log -print0 | xargs -0 cat
           find -name setup.log  -print0 | xargs -0 cat
+
+
+  job_binary_multiarch:
+    name: multiarch (${{matrix.platform}} on ${{matrix.from_image}} ${{matrix.image_platform}})
+    needs: rcd_build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - from_image: fedora:39
+            image_platform: linux/x86_64
+            gem_platform: x86_64-linux
+            dockerfile: centos
+          - from_image: alpine
+            image_platform: linux/x86_64
+            gem_platform: x86_64-linux
+            dockerfile: alpine
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download gem-${{ matrix.gem_platform }}
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-gem-${{ matrix.gem_platform }}
+      - name: Build image and Run tests
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          docker build --rm --platform ${{matrix.image_platform}} --build-arg from_image=${{matrix.from_image}} -t ruby-test -f spec/env/Dockerfile.${{matrix.dockerfile}} .
+          docker run --rm -t --network=host -v `pwd`:/build ruby-test

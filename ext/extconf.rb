@@ -140,6 +140,8 @@ if gem_platform=with_config("cross-build")
 	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'"
 	# Don't use pg_config for cross build, but --with-pg-* path options
 	dir_config('pg', "#{postgresql_recipe.path}/include", "#{postgresql_recipe.path}/lib")
+
+	$defs.push( "-DPG_IS_BINARY_GEM")
 else
 	# Native build
 

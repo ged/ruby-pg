@@ -47,7 +47,7 @@ CrossLibraries = [
 	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
-	['x86_64-linux-gnu', 'linux-x86_64', 'x86_64-redhat-linux-gnu'],
+	['x86_64-linux', 'linux-x86_64', 'x86_64-redhat-linux-gnu'],
 ].map do |platform, openssl_config, toolchain|
 	CrossLibrary.new platform, openssl_config, toolchain
 end
