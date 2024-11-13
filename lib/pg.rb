@@ -110,6 +110,7 @@ module PG
 	require 'pg/exceptions'
 	require 'pg/coder'
 	require 'pg/type_map_by_column'
+	require 'pg/aws_iam_auth'
 	require 'pg/connection'
 	require 'pg/result'
 	require 'pg/tuple'

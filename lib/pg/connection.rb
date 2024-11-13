@@ -825,6 +825,7 @@ class PG::Connection
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
+			password_from_iam(iopts)
 			iopts_for_reset = iopts
 			if iopts[:hostaddr]
 				# hostaddr is provided -> no need to resolve hostnames
@@ -843,6 +844,13 @@ class PG::Connection
 			conn.instance_variable_set(:@iopts_for_reset, iopts_for_reset)
 			conn.send(:async_connect_or_reset, :connect_poll)
 			conn
+		end
+
+		private def password_from_iam(iopts)
+			if ENV['PG_USE_IAM_AUTHENTICATION'] == 'true'
+				aws = PG::AwsIamAuth.instance
+				iopts[:password] = aws.password(iopts[:user], iopts[:host], iopts[:port], ENV['AWS_REGION'])
+			end
 		end
 
 		private def host_is_named_pipe?(host_string)

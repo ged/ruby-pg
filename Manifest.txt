@@ -43,6 +43,7 @@ ext/vc/pg.sln
 ext/vc/pg_18/pg.vcproj
 ext/vc/pg_19/pg_19.vcproj
 lib/pg.rb
+lib/pg/aws_iam_auth.rb
 lib/pg/basic_type_mapping.rb
 lib/pg/binary_decoder.rb
 lib/pg/coder.rb
