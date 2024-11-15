@@ -831,7 +831,6 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 
 		for( fieldno = 0; fieldno < nfields; fieldno++){
 			long input_len;
-			VALUE field_value;
 
 			/* read field size */
 			if (line_end_ptr - cur_ptr < 4 ) goto length_error;
@@ -843,6 +842,7 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 				/* NULL indicator */
 				rb_ary_push(array, Qnil);
 			} else {
+				VALUE field_value;
 				if (line_end_ptr - cur_ptr < input_len ) goto length_error;
 
 				/* copy input data to field_str */
