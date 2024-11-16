@@ -3,7 +3,10 @@
 
 require 'pg'
 require 'time'
-
+unless defined?(ObjectSpace.memsize_of)
+	require "objspace"
+	DATA_OBJ_MEMSIZE = ObjectSpace.memsize_of(Object.new)
+end
 
 describe "PG::Type derivations" do
 	let!(:textenc_int) { PG::TextEncoder::Integer.new name: 'Integer', oid: 23 }
