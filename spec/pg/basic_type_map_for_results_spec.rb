@@ -295,7 +295,7 @@ describe 'Basic type mapping' do
 				end
 			end
 
-			[0].each do |format|
+			[0, 1].each do |format|
 				it "should do format #{format} array type conversions" do
 					res = @conn.exec_params( "SELECT CAST('{1,2,3}' AS INT2[]), CAST('{{1,2},{3,4}}' AS INT2[][]),
 															CAST('{1,2,3}' AS INT4[]),

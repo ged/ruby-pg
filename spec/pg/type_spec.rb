@@ -630,6 +630,8 @@ describe "PG::Type derivations" do
 			let!(:textenc_string_array_with_delimiter) { PG::TextEncoder::Array.new elements_type: textenc_string, delimiter: ';' }
 			let!(:textdec_string_array_with_delimiter) { PG::TextDecoder::Array.new elements_type: textdec_string, delimiter: ';' }
 			let!(:textdec_bytea_array) { PG::TextDecoder::Array.new elements_type: textdec_bytea }
+			let!(:binarydec_array) { PG::BinaryDecoder::Array.new }
+			let!(:binarydec_int_array) { PG::BinaryDecoder::Array.new elements_type: PG::BinaryDecoder::Integer.new }
 
 			#
 			# Array parser specs are thankfully borrowed from here:
@@ -638,8 +640,14 @@ describe "PG::Type derivations" do
 			describe '#decode' do
 				context 'one dimensional arrays' do
 					context 'empty' do
-						it 'returns an empty array' do
+						it 'returns an empty array from text' do
 							expect( textdec_string_array.decode(%[{}]) ).to eq( [] )
+						end
+
+						it 'returns an empty array from binary' do
+							# binary '{}'::TEXT[]
+							b = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19"
+							expect( binarydec_array.decode(b) ).to eq( [] )
 						end
 					end
 
@@ -714,7 +722,7 @@ describe "PG::Type derivations" do
 								expect( textdec_string_array.decode(%({1,2,3}x)) ).to eq(['1','2','3'])
 								expect( textdec_string_array.decode(%({{1,2},{2,3})) ).to eq([['1','2'],['2','3']])
 								expect( textdec_string_array.decode(%({{1,2},{2,3}}x)) ).to eq([['1','2'],['2','3']])
-								expect( textdec_string_array.decode(%({[1,2},{2,3}}})) ).to eq(['[1','2'])
+								expect( textdec_string_array.decode(%({[1,2},{2,3}}})) ).to eq(["[1",'2'])
 							end
 						end
 
@@ -766,11 +774,11 @@ describe "PG::Type derivations" do
 						it 'returns an array of strings with a sub array and a quoted }' do
 							expect( textdec_string_array.decode(%[{1,{"2,}3",NULL},4}]) ).to eq( ['1',['2,}3',nil],'4'] )
 						end
-						it 'returns an array of strings with a sub array and a quoted {' do
-							expect( textdec_string_array.decode(%[{1,{"2,{3"},4}]) ).to eq( ['1',['2,{3'],'4'] )
+						it "returns an array of strings with a sub array and a quoted {" do
+							expect( textdec_string_array.decode(%[{1,{"2,{3"},4}]) ).to eq( ['1',["2,{3"],'4'] )
 						end
-						it 'returns an array of strings with a sub array and a quoted { and escaped quote' do
-							expect( textdec_string_array.decode(%[{1,{"2\\",{3"},4}]) ).to eq( ['1',['2",{3'],'4'] )
+						it "returns an array of strings with a sub array and a quoted { and escaped quote" do
+							expect( textdec_string_array.decode(%[{1,{"2\\",{3"},4}]) ).to eq( ['1',["2\",{3"],'4'] )
 						end
 						it 'returns an array of strings with a sub array with empty strings' do
 							expect( textdec_string_array.decode(%[{1,{""},4,{""}}]) ).to eq( ['1',[''],'4',['']] )
@@ -792,6 +800,76 @@ describe "PG::Type derivations" do
 					end
 					it 'returns an array of strings with sub arrays' do
 						expect( textdec_string_array.decode(%[{1,{2,{3,4}},{NULL,6},7}]) ).to eq( ['1',['2',['3','4']],[nil,'6'],'7'] )
+					end
+
+					# '[-1:1][-2:-2][-3:-2]={{{5,6}},{{6,7}},{{NULL,5}}}'::INT[]
+					let!(:bin_int_array_data) do
+						[	"00000003" + "00000001" + "00000017" +
+							"00000003" + "ffffffff" +
+							"00000001" + "fffffffe" +
+							"00000002" + "fffffffd" +
+							"00000004" + "00000005" +
+							"00000004" + "00000006" +
+							"00000004" + "00000006" +
+							"00000004" + "00000007" +
+							"ffffffff" +
+							"00000004" + "00000005"
+						].pack("H*")
+					end
+
+					# '[-1:1][-2:-2][-3:-2]={{{5,6}},{{6,7}},{{5,NULL}}}'::TEXT[]
+					let!(:bin_text_array_data) do
+						[	"00000003" + "00000001" + "00000019" +
+							"00000003" + "ffffffff" +
+							"00000001" + "fffffffe" +
+							"00000002" + "fffffffd" +
+							"00000001" + "35" +
+							"00000001" + "36" +
+							"00000002" + "3622" +
+							"00000001" + "37" +
+							"ffffffff" +
+							"00000001" + "35"
+						].pack("H*")
+					end
+
+					it 'can decode binary int[]' do
+						expect( binarydec_int_array.decode(bin_int_array_data) ).to eq( [[[5, 6]], [[6, 7]], [[nil, 5]]] )
+					end
+					it 'can decode binary text[]' do
+						expect( binarydec_array.decode(bin_text_array_data) ).to eq( [[["5", "6"]], [["6\"", "7"]], [[nil, "5"]]] )
+					end
+					it 'raises error when binary array is incomplete' do
+						(0 ... bin_int_array_data.bytesize).each do |i|
+							expect do
+								binarydec_int_array.decode(bin_int_array_data[0, i])
+							end.to raise_error(ArgumentError, /premature/)
+						end
+					end
+					it 'raises error when binary array has additonal bytes' do
+						expect do
+							binarydec_int_array.decode(bin_int_array_data + "\0")
+						end.to raise_error(ArgumentError, /trailing/)
+					end
+					it 'raises error when binary array has invalid dimensions' do
+						d = ["00000007" + "00000001" + "00000019"].pack("H*")
+						expect do
+							binarydec_int_array.decode(d)
+						end.to raise_error(ArgumentError, /dimensions/)
+					end
+					it 'raises error when binary array has invalid flags' do
+						d = ["00000000" + "00000002" + "00000019"].pack("H*")
+						expect do
+							binarydec_int_array.decode(d)
+						end.to raise_error(ArgumentError, /flags/)
+					end
+					it 'raises error when binary array has invalid flags' do
+						d = ["00000002" + "00000000" + "00000019" +
+								 "00010000" + "ffffffff" +
+								 "00010000" + "fffffffe"
+						    ].pack("H*")
+						expect do
+							binarydec_int_array.decode(d)
+						end.to raise_error(ArgumentError, /array size/)
 					end
 				end
 
