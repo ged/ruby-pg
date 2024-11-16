@@ -162,6 +162,7 @@ pg_bin_dec_array(t_pg_coder *conv, const char *input_line, int len, int tuple, i
 	/* Current field */
 	VALUE field_str;
 
+	int32_t nitems32;
 	int i;
 	int ndim;
 	int nitems;
@@ -185,7 +186,7 @@ pg_bin_dec_array(t_pg_coder *conv, const char *input_line, int len, int tuple, i
 	/* read number of dimensions */
 	if (line_end_ptr - cur_ptr < 4 ) goto length_error;
 	ndim = read_nbo32(cur_ptr);
-	if (ndim < 1 || ndim > MAXDIM) {
+	if (ndim < 0 || ndim > MAXDIM) {
 		rb_raise( rb_eArgError, "unsupported number of array dimensions: %d", ndim );
 	}
 	cur_ptr += 4;
@@ -202,18 +203,24 @@ pg_bin_dec_array(t_pg_coder *conv, const char *input_line, int len, int tuple, i
 	if (line_end_ptr - cur_ptr < 4 ) goto length_error;
 	cur_ptr += 4;
 
-	nitems = 1;
+	nitems32 = ndim == 0 ? 0 : 1;
 	for (i = 0; i < ndim; i++) {
+		int64_t prod;
+
 		/* read size of dimensions and ignore lower bound */
 		if (line_end_ptr - cur_ptr < 8 ) goto length_error;
 		dim_sizes[i] = read_nbo32(cur_ptr);
-		nitems *= dim_sizes[i];
-		/* TODO: check nitems to not overflow */
+		prod = (int64_t) nitems32 * (int64_t) dim_sizes[i];
+		nitems32 = (int32_t) prod;
+		if (dim_sizes[i] < 0 || (int64_t) nitems32 != prod) {
+			rb_raise( rb_eArgError, "unsupported array size: %" PRId64, prod );
+		}
 		cur_ptr += 8;
 	}
+	nitems = (int)nitems32;
 
 	dim = 0;
-	arrays[dim] = rb_ary_new2(dim_sizes[dim]);
+	arrays[dim] = rb_ary_new2(ndim == 0 ? 0 : dim_sizes[dim]);
 	for (i = 0; i < nitems; i++) {
 		int input_len;
 
