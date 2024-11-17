@@ -127,7 +127,7 @@ class PG::BasicTypeRegistry
 			@maps = [
 				[0, :encoder, PG::TextEncoder::Array],
 				[0, :decoder, PG::TextDecoder::Array],
-				[1, :encoder, nil],
+				[1, :encoder, PG::BinaryEncoder::Array],
 				[1, :decoder, PG::BinaryDecoder::Array],
 			].inject([]) do |h, (format, direction, arraycoder)|
 				coders = registry.coders_for(format, direction) || {}

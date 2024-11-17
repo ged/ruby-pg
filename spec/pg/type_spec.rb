@@ -632,6 +632,7 @@ describe "PG::Type derivations" do
 			let!(:textdec_bytea_array) { PG::TextDecoder::Array.new elements_type: textdec_bytea }
 			let!(:binarydec_array) { PG::BinaryDecoder::Array.new }
 			let!(:binarydec_int_array) { PG::BinaryDecoder::Array.new elements_type: PG::BinaryDecoder::Integer.new }
+			let!(:binaryenc_array) { PG::BinaryEncoder::Array.new }
 
 			#
 			# Array parser specs are thankfully borrowed from here:
@@ -817,7 +818,7 @@ describe "PG::Type derivations" do
 						].pack("H*")
 					end
 
-					# '[-1:1][-2:-2][-3:-2]={{{5,6}},{{6,7}},{{5,NULL}}}'::TEXT[]
+					# '[-1:1][-2:-2][-3:-2]={{{5,6"}},{{6,7}},{{5,NULL}}}'::TEXT[]
 					let!(:bin_text_array_data) do
 						[	"00000003" + "00000001" + "00000019" +
 							"00000003" + "ffffffff" +
@@ -901,13 +902,51 @@ describe "PG::Type derivations" do
 					it 'encodes an array of float8 with sub arrays' do
 						expect( textenc_float_array.encode([1000.11,[-0.00000221,[3.31,-441]],[nil,6.61],-7.71]) ).to match(Regexp.new(%[^{1000.1*,{-2.2*e-*6,{3.3*,-441.0}},{NULL,6.6*},-7.7*}$].gsub(/([\.\+\{\}\,])/, "\\\\\\1").gsub(/\*/, "\\d*")))
 					end
+
+					let!(:binaryenc_int4_array) { PG::BinaryEncoder::Array.new elements_type: PG::BinaryEncoder::Int4.new(oid: 0x17) }
+
+					it 'encodes an array of int4 with sub arrays' do
+						exp = ["00000003" + "00000001" + "00000017" +
+							"00000003" + "00000001" +
+							"00000001" + "00000001" +
+							"00000002" + "00000001" +
+							"00000004" + "00000005" +
+							"00000004" + "00000006" +
+							"00000004" + "00000006" +
+							"00000004" + "00000007" +
+							"ffffffff" +
+							"00000004" + "00000005"
+						].pack("H*")
+
+						expect( binaryenc_int4_array.encode([[[5,6]],[[6,7]],[[nil,5]]]) ).to eq( exp )
+					end
+
+					let!(:binaryenc_text_array) { PG::BinaryEncoder::Array.new elements_type: PG::BinaryEncoder::String.new(oid: 0x19) }
+
+					it 'encodes an array of text with sub arrays' do
+						exp =["00000003" + "00000001" + "00000019" +
+							"00000003" + "00000001" +
+							"00000001" + "00000001" +
+							"00000002" + "00000001" +
+							"00000001" + "35" +
+							"00000001" + "36" +
+							"00000002" + "3622" +
+							"00000001" + "37" +
+							"ffffffff" +
+							"00000001" + "35"
+						].pack("H*")
+
+						expect( binaryenc_text_array.encode([[[5,6]],[["6\"",7]],[[nil,5]]]) ).to eq( exp )
+					end
 				end
+
 				context 'two dimensional arrays' do
 					it 'encodes an array of timestamps with sub arrays' do
 						expect( textenc_timestamp_array.encode([Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59.99)]]) ).
 								to eq( %[{2014-12-31 00:00:00.000000000,{NULL,2016-01-02 23:23:59.990000000}}] )
 					end
 				end
+
 				context 'one dimensional array' do
 					it 'can encode empty arrays' do
 						expect( textenc_int_array.encode([]) ).to eq( '{}' )
@@ -918,6 +957,38 @@ describe "PG::Type derivations" do
 					end
 					it 'respects a different delimiter' do
 						expect( textenc_string_array_with_delimiter.encode(['a','b,','c']) ).to eq( '{a;b,;c}' )
+					end
+
+					it 'encodes an array' do
+						exp =["00000001" + "00000001" + "00000000" +
+							"00000002" + "00000001" +
+							"ffffffff" +
+							"00000002" + "3622"
+						].pack("H*")
+
+						expect( binaryenc_array.encode([nil, "6\""]) ).to eq( exp )
+					end
+				end
+
+				context 'other dimensional array' do
+					it 'encodes an empty array as zero dimensions' do
+						exp =["00000000" + "00000001" + "00000000"].pack("H*")
+						expect( binaryenc_array.encode([]) ).to eq( exp )
+					end
+					it 'encodes a 6 dimensional array' do
+						exp =["00000006" + "00000001" + "00000000" +
+							"00000001" + "00000001" +
+							"00000001" + "00000001" +
+							"00000001" + "00000001" +
+							"00000001" + "00000001" +
+							"00000001" + "00000001" +
+							"00000001" + "00000001" +
+							"ffffffff"
+						].pack("H*")
+						expect( binaryenc_array.encode([[[[[[nil]]]]]]) ).to eq( exp )
+					end
+					it 'raises an error at too many dimensions' do
+						expect{ binaryenc_array.encode([[[[[[[nil]]]]]]]) }.to raise_error( ArgumentError, /number of array dimensions/)
 					end
 				end
 
