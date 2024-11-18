@@ -117,11 +117,11 @@ describe 'Basic type mapping' do
 					row_encoder = nsp::CopyRow.new type_map: tm
 
 					@conn.copy_data( "COPY copytable FROM STDIN WITH (FORMAT #{ format==1 ? "binary" : "text" })", row_encoder ) do |res|
-						@conn.put_copy_data ['a', 123, [5,4,3]]
+						@conn.put_copy_data ['a', 123, [[5,4],[3,2]]]
 						@conn.put_copy_data ['b', 234, [2,3]]
 					end
 					res = @conn.exec( "SELECT * FROM copytable" )
-					expect( res.values ).to eq( [['a', '123', '{5,4,3}'], ['b', '234', '{2,3}']] )
+					expect( res.values ).to eq( [['a', '123', '{{5,4},{3,2}}'], ['b', '234', '{2,3}']] )
 				end
 			end
 

@@ -399,7 +399,7 @@ describe 'Basic type mapping' do
 		context "with usage of result oids for copy decoder selection" do
 			it "can type cast #copy_data text output with decoder" do
 				@conn.exec( "CREATE TEMP TABLE copytable (t TEXT, i INT, ai INT[])" )
-				@conn.exec( "INSERT INTO copytable VALUES ('a', 123, '{5,4,3}'), ('b', 234, '{2,3}')" )
+				@conn.exec( "INSERT INTO copytable VALUES ('a', 123, '{{5,4},{3,2}}'), ('b', 234, '{2,3}')" )
 
 				# Retrieve table OIDs per empty result.
 				res = @conn.exec( "SELECT * FROM copytable LIMIT 0" )
@@ -412,7 +412,7 @@ describe 'Basic type mapping' do
 						rows << row
 					end
 				end
-				expect( rows ).to eq( [['a', 123, [5,4,3]], ['b', 234, [2,3]]] )
+				expect( rows ).to eq( [['a', 123, [[5,4],[3,2]]], ['b', 234, [2,3]]] )
 			end
 
 			it "can type cast #copy_data binary output with decoder" do
