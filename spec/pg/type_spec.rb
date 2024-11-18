@@ -851,8 +851,14 @@ describe "PG::Type derivations" do
 							binarydec_int_array.decode(bin_int_array_data + "\0")
 						end.to raise_error(ArgumentError, /trailing/)
 					end
-					it 'raises error when binary array has invalid dimensions' do
+					it 'raises error when binary array has too many dimensions' do
 						d = ["00000007" + "00000001" + "00000019"].pack("H*")
+						expect do
+							binarydec_int_array.decode(d)
+						end.to raise_error(ArgumentError, /dimensions/)
+					end
+					it 'raises error when binary array has invalid dimensions' do
+						d = ["ffffffff" + "00000001" + "00000019"].pack("H*")
 						expect do
 							binarydec_int_array.decode(d)
 						end.to raise_error(ArgumentError, /dimensions/)
@@ -987,8 +993,14 @@ describe "PG::Type derivations" do
 						].pack("H*")
 						expect( binaryenc_array.encode([[[[[[nil]]]]]]) ).to eq( exp )
 					end
-					it 'raises an error at too many dimensions' do
+					it 'raises an error on too many dimensions' do
 						expect{ binaryenc_array.encode([[[[[[[nil]]]]]]]) }.to raise_error( ArgumentError, /number of array dimensions/)
+					end
+					it 'raises an error on changed dimensions' do
+						expect{ binaryenc_array.encode([[1], 2]) }.to raise_error( ArgumentError, /Array instead of 2 /)
+					end
+					it 'raises an error on varying array sizes' do
+						expect{ binaryenc_array.encode([[1], [2,3]]) }.to raise_error( ArgumentError, /varying number /)
 					end
 				end
 

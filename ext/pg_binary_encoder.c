@@ -441,7 +441,14 @@ pg_bin_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, 
 
 				/* traverse tree down */
 				while (dim < ndim - 1) {
-					arrays[dim + 1] = rb_ary_entry(arrays[dim], dimpos[dim]);
+					VALUE array = rb_ary_entry(arrays[dim], dimpos[dim]);
+					if (TYPE(array) != T_ARRAY) {
+						rb_raise( rb_eArgError, "expected Array instead of %+"PRIsVALUE" in dimension %d", array, dim + 1 );
+					}
+					if (dim_sizes[dim + 1] != RARRAY_LEN(array)) {
+						rb_raise( rb_eArgError, "varying number of array elements (%d and %d) in dimension %d", dim_sizes[dim + 1], RARRAY_LENINT(array), dim + 1 );
+					}
+					arrays[dim + 1] = array;
 					dim++;
 				}
 
