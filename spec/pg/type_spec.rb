@@ -839,6 +839,18 @@ describe "PG::Type derivations" do
 					it 'can decode binary text[]' do
 						expect( binarydec_array.decode(bin_text_array_data) ).to eq( [[["5", "6"]], [["6\"", "7"]], [[nil, "5"]]] )
 					end
+					it 'can decode binary text[] with 6 dimensions' do
+						d = ["00000006" + "00000001" + "00000019" +
+							"00000001" + "ffffffff" +
+							"00000001" + "fffffffe" +
+							"00000001" + "fffffffd" +
+							"00000001" + "ffffffff" +
+							"00000001" + "fffffffe" +
+							"00000001" + "fffffffd" +
+							"ffffffff"
+						].pack("H*")
+						expect( binarydec_array.decode(d) ).to eq( [[[[[[nil]]]]]] )
+					end
 					it 'raises error when binary array is incomplete' do
 						(0 ... bin_int_array_data.bytesize).each do |i|
 							expect do
