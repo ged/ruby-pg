@@ -271,14 +271,13 @@ pg_bin_enc_date(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, i
 			case T_FALSE:
 				write_nbo32(PG_INT32_MIN, out);
 				return 4;
+		} {
+			VALUE year = rb_funcall(value, s_id_year, 0);
+			VALUE month = rb_funcall(value, s_id_month, 0);
+			VALUE day = rb_funcall(value, s_id_day, 0);
+			int jday = date2j(NUM2INT(year), NUM2INT(month), NUM2INT(day)) - POSTGRES_EPOCH_JDATE;
+			write_nbo32(jday, out);
 		}
-
-		VALUE year = rb_funcall(value, s_id_year, 0);
-		VALUE month = rb_funcall(value, s_id_month, 0);
-		VALUE day = rb_funcall(value, s_id_day, 0);
-		int jday = date2j(NUM2INT(year), NUM2INT(month), NUM2INT(day)) - POSTGRES_EPOCH_JDATE;
-		write_nbo32(jday, out);
-
 	}else{
 		/* first call -> determine the required length */
 		if(TYPE(value) == T_STRING){

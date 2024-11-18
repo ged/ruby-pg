@@ -2271,8 +2271,9 @@ pgconn_notifies(VALUE self)
 static int
 rb_io_descriptor(VALUE io)
 {
+	rb_io_t *fptr;
 	Check_Type(io, T_FILE);
-	rb_io_t *fptr = RFILE(io)->fptr;
+	fptr = RFILE(io)->fptr;
 	rb_io_check_closed(fptr);
 	return fptr->fd;
 }
