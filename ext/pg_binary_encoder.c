@@ -305,6 +305,201 @@ pg_bin_enc_date(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, i
 }
 
 /*
+ * Maximum number of array subscripts (arbitrary limit)
+ */
+#define MAXDIM 6
+
+/*
+ * Document-class: PG::BinaryEncoder::Array < PG::CompositeEncoder
+ *
+ * This is the encoder class for PostgreSQL array types in binary format.
+ *
+ * All values are encoded according to the #elements_type
+ * accessor. Sub-arrays are encoded recursively.
+ *
+ * This encoder expects an Array of values or sub-arrays as input.
+ * Other values are passed through as byte string without interpretation.
+ *
+ * The accessors needs_quotation and delimiter are ignored for binary encoding.
+ *
+ */
+static int
+pg_bin_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+{
+	if (TYPE(value) == T_ARRAY) {
+		t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+		t_pg_coder_enc_func enc_func = pg_coder_enc_func(this->elem);
+		int dim_sizes[MAXDIM];
+		int ndim = 1;
+		int nitems = 1;
+		VALUE el1 = value;
+
+		if (RARRAY_LEN(value) == 0) {
+			nitems = 0;
+			ndim = 0;
+			dim_sizes[0] = 0;
+		} else {
+			/* Determine number of dimensions, sizes of dimensions and number of items */
+			while(1) {
+				VALUE el2;
+
+				dim_sizes[ndim-1] = RARRAY_LENINT(el1);
+				nitems *= dim_sizes[ndim-1];
+				el2 = rb_ary_entry(el1, 0);
+				if (TYPE(el2) == T_ARRAY) {
+					ndim++;
+					if (ndim > MAXDIM)
+						rb_raise( rb_eArgError, "unsupported number of array dimensions: >%d", ndim );
+				} else {
+					break;
+				}
+				el1 = el2;
+			}
+		}
+
+		if(out){
+			/* Second encoder pass -> write data to `out` */
+			int dimpos[MAXDIM];
+			VALUE arrays[MAXDIM];
+			int dim = 0;
+			int item_idx = 0;
+			int i;
+			char *orig_out = out;
+			Oid elem_oid = this->elem ? this->elem->oid : 0;
+
+			write_nbo32(ndim, out); out += 4;
+			write_nbo32(1 /* flags */, out); out += 4;
+			write_nbo32(elem_oid, out); out += 4;
+			for (i = 0; i < ndim; i++) {
+				dimpos[i] = 0;
+				write_nbo32(dim_sizes[i], out); out += 4;
+				write_nbo32(1 /* offset */, out); out += 4;
+			}
+			arrays[0] = value;
+
+			while(1) {
+				/* traverse tree down */
+				while (dim < ndim - 1) {
+					arrays[dim + 1] = rb_ary_entry(arrays[dim], dimpos[dim]);
+					dim++;
+				}
+
+				for (i = 0; i < dim_sizes[dim]; i++) {
+					VALUE item = rb_ary_entry(arrays[dim], i);
+
+					if (NIL_P(item)) {
+						write_nbo32(-1, out); out += 4;
+					} else {
+						/* Encoded string is returned in subint */
+						int strlen;
+						VALUE is_one_pass = rb_ary_entry(*intermediate, item_idx++);
+						VALUE subint = rb_ary_entry(*intermediate, item_idx++);
+
+						if (is_one_pass == Qtrue) {
+							strlen = RSTRING_LENINT(subint);
+							memcpy( out + 4, RSTRING_PTR(subint), strlen);
+						} else {
+							strlen = enc_func(this->elem, item, out + 4, &subint, enc_idx);
+						}
+						write_nbo32(strlen, out);
+						out += 4 /* length */ + strlen;
+					}
+				}
+
+				/* traverse tree up and go to next sibling array */
+				do {
+					if (dim > 0) {
+						dimpos[dim] = 0;
+						dim--;
+						dimpos[dim]++;
+					} else {
+						goto finished2;
+					}
+				} while (dimpos[dim] >= dim_sizes[dim]);
+			}
+			finished2:
+			return (int)(out - orig_out);
+
+		} else {
+			/* First encoder pass -> determine required buffer space for `out` */
+
+			int dimpos[MAXDIM];
+			VALUE arrays[MAXDIM];
+			int dim = 0;
+			int item_idx = 0;
+			int i;
+			int size_sum = 0;
+
+			*intermediate = rb_ary_new2(nitems);
+
+			for (i = 0; i < MAXDIM; i++) {
+				dimpos[i] = 0;
+			}
+			arrays[0] = value;
+
+			while(1) {
+
+				/* traverse tree down */
+				while (dim < ndim - 1) {
+					VALUE array = rb_ary_entry(arrays[dim], dimpos[dim]);
+					if (TYPE(array) != T_ARRAY) {
+						rb_raise( rb_eArgError, "expected Array instead of %+"PRIsVALUE" in dimension %d", array, dim + 1 );
+					}
+					if (dim_sizes[dim + 1] != RARRAY_LEN(array)) {
+						rb_raise( rb_eArgError, "varying number of array elements (%d and %d) in dimension %d", dim_sizes[dim + 1], RARRAY_LENINT(array), dim + 1 );
+					}
+					arrays[dim + 1] = array;
+					dim++;
+				}
+
+				for (i = 0; i < dim_sizes[dim]; i++) {
+					VALUE item = rb_ary_entry(arrays[dim], i);
+
+					if (NIL_P(item)) {
+						size_sum += 4 /* length bytes = -1 */;
+					} else {
+						VALUE subint;
+						int strlen = enc_func(this->elem, item, NULL, &subint, enc_idx);
+
+						/* Gather all intermediate values of elements into an array, which is returned as intermediate for the array encoder */
+						if( strlen == -1 ){
+							/* Encoded string is returned in subint */
+							rb_ary_store(*intermediate, item_idx++, Qtrue);
+							rb_ary_store(*intermediate, item_idx++, subint);
+
+							strlen = RSTRING_LENINT(subint);
+						} else {
+							/* Two passes necessary */
+							rb_ary_store(*intermediate, item_idx++, Qfalse);
+							rb_ary_store(*intermediate, item_idx++, subint);
+						}
+						size_sum += 4 /* length bytes */ + strlen;
+					}
+				}
+
+				/* traverse tree up and go to next sibling array */
+				do {
+					if (dim > 0) {
+						dimpos[dim] = 0;
+						dim--;
+						dimpos[dim]++;
+					} else {
+						goto finished1;
+					}
+				} while (dimpos[dim] >= dim_sizes[dim]);
+			}
+			finished1:;
+
+			return 4 /* ndim */ + 4 /* flags */ + 4 /* oid */ +
+				ndim * (4 /* dim size */ + 4 /* dim offset */) +
+				size_sum;
+		}
+	} else {
+		return pg_coder_enc_to_s( conv, value, out, intermediate, enc_idx );
+	}
+}
+
+/*
  * Document-class: PG::BinaryEncoder::FromBase64 < PG::CompositeEncoder
  *
  * This is an encoder class for conversion of base64 encoded data
@@ -381,6 +576,8 @@ init_pg_binary_encoder(void)
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Date", rb_cPG_SimpleEncoder ); */
 	pg_define_coder( "Date", pg_bin_enc_date, rb_cPG_SimpleEncoder, rb_mPG_BinaryEncoder );
 
+	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "Array", rb_cPG_CompositeEncoder ); */
+	pg_define_coder( "Array", pg_bin_enc_array, rb_cPG_CompositeEncoder, rb_mPG_BinaryEncoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryEncoder, "FromBase64", rb_cPG_CompositeEncoder ); */
 	pg_define_coder( "FromBase64", pg_bin_enc_from_base64, rb_cPG_CompositeEncoder, rb_mPG_BinaryEncoder );
 }

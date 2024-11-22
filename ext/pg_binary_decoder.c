@@ -133,6 +133,154 @@ pg_bin_dec_to_base64(t_pg_coder *conv, const char *val, int len, int tuple, int 
 	return out_value;
 }
 
+/*
+ * Maximum number of array subscripts (arbitrary limit)
+ */
+#define MAXDIM 6
+
+/*
+ * Document-class: PG::BinaryDecoder::Array < PG::CompositeDecoder
+ *
+ * This is a decoder class for conversion of binary array types.
+ *
+ * It returns an Array with possibly an arbitrary number of sub-Arrays.
+ * All values are decoded according to the #elements_type accessor.
+ * Sub-arrays are decoded recursively.
+ *
+ * This decoder simply ignores any dimension decorations preceding the array values.
+ * It returns all array values as regular ruby Array with a zero based index, regardless of the index given in the dimension decoration.
+ *
+ * An array decoder which respects dimension decorations is waiting to be implemented.
+ *
+ */
+static VALUE
+pg_bin_dec_array(t_pg_coder *conv, const char *input_line, int len, int tuple, int field, int enc_idx)
+{
+	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(this->elem, this->comp.format);
+
+	/* Current field */
+	VALUE field_str;
+
+	int32_t nitems32;
+	int i;
+	int ndim;
+	int nitems;
+	int flags;
+	int dim;
+	int dim_sizes[MAXDIM];
+	VALUE arrays[MAXDIM];
+	char *output_ptr;
+	const char *cur_ptr;
+	const char *line_end_ptr;
+	char *end_capa_ptr;
+
+	/* Allocate a new string with embedded capacity and realloc later with
+	 * exponential growing size when needed. */
+	PG_RB_STR_NEW( field_str, output_ptr, end_capa_ptr );
+
+	/* set pointer variables for loop */
+	cur_ptr = input_line;
+	line_end_ptr = input_line + len;
+
+	/* read number of dimensions */
+	if (line_end_ptr - cur_ptr < 4 ) goto length_error;
+	ndim = read_nbo32(cur_ptr);
+	if (ndim < 0 || ndim > MAXDIM) {
+		rb_raise( rb_eArgError, "unsupported number of array dimensions: %d", ndim );
+	}
+	cur_ptr += 4;
+
+	/* read flags */
+	if (line_end_ptr - cur_ptr < 4 ) goto length_error;
+	flags = read_nbo32(cur_ptr);
+	if (flags != 0 && flags != 1) {
+		rb_raise( rb_eArgError, "unsupported binary array flags: %d", flags );
+	}
+	cur_ptr += 4;
+
+	/* ignore element OID */
+	if (line_end_ptr - cur_ptr < 4 ) goto length_error;
+	cur_ptr += 4;
+
+	nitems32 = ndim == 0 ? 0 : 1;
+	for (i = 0; i < ndim; i++) {
+		int64_t prod;
+
+		/* read size of dimensions and ignore lower bound */
+		if (line_end_ptr - cur_ptr < 8 ) goto length_error;
+		dim_sizes[i] = read_nbo32(cur_ptr);
+		prod = (int64_t) nitems32 * (int64_t) dim_sizes[i];
+		nitems32 = (int32_t) prod;
+		if (dim_sizes[i] < 0 || (int64_t) nitems32 != prod) {
+			rb_raise( rb_eArgError, "unsupported array size: %" PRId64, prod );
+		}
+		cur_ptr += 8;
+	}
+	nitems = (int)nitems32;
+
+	dim = 0;
+	arrays[dim] = rb_ary_new2(ndim == 0 ? 0 : dim_sizes[dim]);
+	for (i = 0; i < nitems; i++) {
+		int input_len;
+
+		/* traverse dimensions down */
+		while (dim < ndim - 1) {
+			dim++;
+			arrays[dim] = rb_ary_new2(dim_sizes[dim]);
+			rb_ary_push(arrays[dim - 1], arrays[dim]);
+		}
+
+		/* read element length */
+		if (line_end_ptr - cur_ptr < 4 ) goto length_error;
+		input_len = read_nbo32(cur_ptr);
+		cur_ptr += 4;
+
+		/* convert and put element into array */
+		if (input_len < 0) {
+			if (input_len != -1) goto length_error;
+			/* NULL indicator */
+			rb_ary_push(arrays[dim], Qnil);
+		} else {
+			VALUE field_value;
+			if (line_end_ptr - cur_ptr < input_len ) goto length_error;
+
+			/* copy input data to field_str */
+			PG_RB_STR_ENSURE_CAPA( field_str, input_len, output_ptr, end_capa_ptr );
+			memcpy(output_ptr, cur_ptr, input_len);
+			cur_ptr += input_len;
+			output_ptr += input_len;
+			/* convert field_str through the type map */
+			rb_str_set_len( field_str, output_ptr - RSTRING_PTR(field_str) );
+			field_value = dec_func(this->elem, RSTRING_PTR(field_str), input_len, tuple, field, enc_idx);
+
+			rb_ary_push(arrays[dim], field_value);
+
+			if( field_value == field_str ){
+				/* Our output string will be send to the user, so we can not reuse
+				* it for the next field. */
+				PG_RB_STR_NEW( field_str, output_ptr, end_capa_ptr );
+			}
+		}
+
+		/* Reset the pointer to the start of the output/buffer string. */
+		output_ptr = RSTRING_PTR(field_str);
+
+		/* traverse dimensions up */
+		while (RARRAY_LEN(arrays[dim]) >= dim_sizes[dim] && dim > 0) {
+			dim--;
+		}
+	}
+
+	if (cur_ptr < line_end_ptr)
+		rb_raise( rb_eArgError, "trailing data after binary array data at position: %ld", (long)(cur_ptr - input_line) + 1 );
+
+	return arrays[0];
+
+length_error:
+	rb_raise( rb_eArgError, "premature end of binary array data at position: %ld", (long)(cur_ptr - input_line) + 1 );
+}
+
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
 
@@ -305,6 +453,8 @@ init_pg_binary_decoder(void)
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Timestamp", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Timestamp", pg_bin_dec_timestamp, rb_cPG_SimpleDecoder, rb_mPG_BinaryDecoder );
 
+	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Array", rb_cPG_CompositeDecoder ); */
+	pg_define_coder( "Array", pg_bin_dec_array, rb_cPG_CompositeDecoder, rb_mPG_BinaryDecoder );
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "ToBase64", rb_cPG_CompositeDecoder ); */
 	pg_define_coder( "ToBase64", pg_bin_dec_to_base64, rb_cPG_CompositeDecoder, rb_mPG_BinaryDecoder );
 }
