@@ -79,7 +79,7 @@ $INSTALLFILES = {
 	"./postgresql_lib_path.rb" => "$(RUBYLIBDIR)/pg/"
 }
 
-if RUBY_VERSION >= '2.3.0' && /solaris/ =~ RUBY_PLATFORM
+if /solaris/ =~ RUBY_PLATFORM
 	append_cppflags( '-D__EXTENSIONS__' )
 end
 
@@ -144,26 +144,19 @@ if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
 	end
 end
 
-have_func 'PQconninfo', 'libpq-fe.h' or
+have_func 'PQencryptPasswordConn', 'libpq-fe.h' or # since PostgreSQL-10
 	abort "Your PostgreSQL is too old. Either install an older version " +
-	      "of this gem or upgrade your database to at least PostgreSQL-9.3."
+	      "of this gem or upgrade your database to at least PostgreSQL-10."
 # optional headers/functions
-have_func 'PQsslAttribute', 'libpq-fe.h' # since PostgreSQL-9.5
-have_func 'PQresultVerboseErrorMessage', 'libpq-fe.h' # since PostgreSQL-9.6
-have_func 'PQencryptPasswordConn', 'libpq-fe.h' # since PostgreSQL-10
 have_func 'PQresultMemorySize', 'libpq-fe.h' # since PostgreSQL-12
 have_func 'PQenterPipelineMode', 'libpq-fe.h' do |src| # since PostgreSQL-14
   # Ensure header files fit as well
   src + " int con(){ return PGRES_PIPELINE_SYNC; }"
 end
 have_func 'timegm'
-have_func 'rb_gc_adjust_memory_usage' # since ruby-2.4
-have_func 'rb_gc_mark_movable' # since ruby-2.7
 have_func 'rb_io_wait' # since ruby-3.0
 have_func 'rb_io_descriptor' # since ruby-3.1
 
-# unistd.h confilicts with ruby/win32.h when cross compiling for win32 and ruby 1.9.1
-have_header 'unistd.h'
 have_header 'inttypes.h'
 have_header('ruby/fiber/scheduler.h') if RUBY_PLATFORM=~/mingw|mswin/
 

@@ -40,7 +40,7 @@ static const rb_data_type_t pg_tmir_type = {
 		pg_typemap_mark,
 		RUBY_TYPED_DEFAULT_FREE,
 		pg_tmir_memsize,
-		pg_compact_callback(pg_tmir_compact),
+		pg_tmir_compact,
 	},
 	&pg_typemap_type,
 	0,

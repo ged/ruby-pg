@@ -51,7 +51,7 @@ static const rb_data_type_t pg_copycoder_type = {
 		pg_copycoder_mark,
 		RUBY_TYPED_DEFAULT_FREE,
 		pg_copycoder_memsize,
-		pg_compact_callback(pg_copycoder_compact),
+		pg_copycoder_compact,
 	},
 	&pg_coder_type,
 	0,

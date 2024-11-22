@@ -275,7 +275,7 @@ describe 'Basic type mapping' do
 			end
 
 			[0].each do |format|
-				it "should do format #{format} JSON conversions", :postgresql_94 do
+				it "should do format #{format} JSON conversions" do
 					['JSON', 'JSONB'].each do |type|
 						res = @conn.exec_params( "SELECT CAST('123' AS #{type}),
 																			CAST('12.3' AS #{type}),

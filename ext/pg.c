@@ -451,14 +451,12 @@ Init_pg_ext(void)
 	rb_define_const(rb_mPGconstants, "PQERRORS_SQLSTATE", INT2FIX(PQERRORS_SQLSTATE));
 #endif
 
-#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
 	/* See Connection#set_error_context_visibility */
 	rb_define_const(rb_mPGconstants, "PQSHOW_CONTEXT_NEVER", INT2FIX(PQSHOW_CONTEXT_NEVER));
 	/* See Connection#set_error_context_visibility */
 	rb_define_const(rb_mPGconstants, "PQSHOW_CONTEXT_ERRORS", INT2FIX(PQSHOW_CONTEXT_ERRORS));
 	/* See Connection#set_error_context_visibility */
 	rb_define_const(rb_mPGconstants, "PQSHOW_CONTEXT_ALWAYS", INT2FIX(PQSHOW_CONTEXT_ALWAYS));
-#endif
 
 	/******     PG::Connection CLASS CONSTANTS: Check Server Status ******/
 
@@ -530,16 +528,14 @@ Init_pg_ext(void)
 	 */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SEVERITY", INT2FIX(PG_DIAG_SEVERITY));
 
-#ifdef PG_DIAG_SEVERITY_NONLOCALIZED
 	/* Result#result_error_field argument constant
 	 *
 	 * The severity; the field contents are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE, DEBUG, INFO, or LOG (in a notice message).
 	 * This is identical to the PG_DIAG_SEVERITY field except that the contents are never localized.
 	 *
-	 * Available since PostgreSQL-9.6
 	 */
 	rb_define_const(rb_mPGconstants, "PG_DIAG_SEVERITY_NONLOCALIZED", INT2FIX(PG_DIAG_SEVERITY_NONLOCALIZED));
-#endif
+
 	/* Result#result_error_field argument constant
 	 *
 	 * The SQLSTATE code for the error.

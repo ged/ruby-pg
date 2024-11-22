@@ -47,9 +47,9 @@ jobs:
             PGVERSION: 17.0-1-windows-x64
             PGVER: "17"
           - os: windows
-            ruby: "2.5"
-            PGVERSION: 9.4.26-1-windows-x64
-            PGVER: "9.4"
+            ruby: "2.7"
+            PGVERSION: 10.20-1-windows-x64
+            PGVER: "10"
           - os: windows
             ruby: "mswin"
             PGVERSION: 17.0-1-windows-x64
@@ -62,8 +62,8 @@ jobs:
             PGVER: "12"
           - os: ubuntu
             os_ver: "20.04"
-            ruby: "2.5"
-            PGVER: "9.3"
+            ruby: "2.7"
+            PGVER: "10"
           - os: ubuntu
             ruby: "truffleruby"
             PGVER: "13"

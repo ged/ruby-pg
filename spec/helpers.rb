@@ -700,10 +700,6 @@ RSpec.configure do |config|
 		config.filter_run_excluding :windows
 	end
 
-	config.filter_run_excluding( :postgresql_94 ) if PG.library_version <  90400
-	config.filter_run_excluding( :postgresql_95 ) if PG.library_version <  90500
-	config.filter_run_excluding( :postgresql_96 ) if PG.library_version <  90600
-	config.filter_run_excluding( :postgresql_10 ) if PG.library_version < 100000
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
 	config.filter_run_excluding( :postgresql_14 ) if PG.library_version < 140000
 	config.filter_run_excluding( :unix_socket ) if RUBY_PLATFORM=~/mingw|mswin/i

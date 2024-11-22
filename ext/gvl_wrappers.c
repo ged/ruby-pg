@@ -5,10 +5,6 @@
 
 #include "pg.h"
 
-#ifndef HAVE_PQENCRYPTPASSWORDCONN
-char *PQencryptPasswordConn(PGconn *conn, const char *passwd, const char *user, const char *algorithm){return NULL;}
-#endif
-
 #ifdef ENABLE_GVL_UNLOCK
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_WRAPPER_STRUCT );
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_SKELETON );

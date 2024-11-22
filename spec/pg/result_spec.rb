@@ -350,7 +350,7 @@ describe PG::Result do
 		).to match( /^parserOpenTable$|^RangeVarGetRelid$/ )
 	end
 
-	it "encapsulates PG_DIAG_SEVERITY_NONLOCALIZED error in a PG::Error object", :postgresql_96 do
+	it "encapsulates PG_DIAG_SEVERITY_NONLOCALIZED error in a PG::Error object" do
 		result = nil
 		begin
 			@conn.exec( "SELECT * FROM nonexistent_table" )
@@ -395,7 +395,7 @@ describe PG::Result do
 		expect( res.result_error_message ).to match(/"xyz"/)
 	end
 
-	it "provides a verbose error message", :postgresql_96 do
+	it "provides a verbose error message" do
 		@conn.send_query("SELECT xyz")
 		res = @conn.get_result; @conn.get_result
 		# PQERRORS_TERSE should give a single line result

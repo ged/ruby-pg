@@ -15,7 +15,7 @@
 #       pg_tmbo_mark,
 #       RUBY_TYPED_DEFAULT_FREE,
 #       pg_tmbo_memsize,
-#   //    pg_compact_callback(pg_tmbo_compact),
+#   //    pg_tmbo_compact,
 #     },
 #
 # This should result in a segmentation fault aborting the whole process.

@@ -228,7 +228,7 @@ static const rb_data_type_t pg_tmbc_type = {
 		pg_tmbc_mark,
 		pg_tmbc_free,
 		pg_tmbc_memsize,
-		pg_compact_callback(pg_tmbc_compact),
+		pg_tmbc_compact,
 	},
 	&pg_typemap_type,
 	0,

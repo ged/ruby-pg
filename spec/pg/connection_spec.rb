@@ -404,7 +404,7 @@ describe PG::Connection do
 			@dbms&.teardown
 		end
 
-		it "honors target_session_attrs requirements", :postgresql_10 do
+		it "honors target_session_attrs requirements" do
 			uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=read-write"
 			PG.connect(uri) do |conn|
 				expect( conn.port ).to eq( @port )
@@ -417,7 +417,7 @@ describe PG::Connection do
 		end
 	end
 
-	it "stops hosts iteration on authentication errors", :without_transaction, :ipv6, :postgresql_10 do
+	it "stops hosts iteration on authentication errors", :without_transaction, :ipv6 do
 		@conn.exec("DROP USER IF EXISTS testusermd5")
 		@conn.exec("CREATE USER testusermd5 PASSWORD 'secret'")
 
@@ -559,7 +559,7 @@ describe PG::Connection do
 			res = @conn2.query("SELECT 4")
 		end
 
-		it "can work with changing IO while connection setup", :postgresql_95 do
+		it "can work with changing IO while connection setup" do
 			# The file_no of the socket IO can change while connecting.
 			# This can happen when alternative hosts are tried,
 			# while GSS authentication
@@ -835,7 +835,7 @@ describe PG::Connection do
 		expect( new ).to eq( PG::PQERRORS_TERSE )
 	end
 
-	it "can set error context visibility", :postgresql_96 do
+	it "can set error context visibility" do
 		old = @conn.set_error_context_visibility( PG::PQSHOW_CONTEXT_NEVER )
 		new = @conn.set_error_context_visibility( old )
 		expect( new ).to eq( PG::PQSHOW_CONTEXT_NEVER )
@@ -1525,21 +1525,21 @@ describe PG::Connection do
 
 	describe "connection information related to SSL" do
 
-		it "can retrieve connection's ssl state", :postgresql_95 do
+		it "can retrieve connection's ssl state" do
 			expect( @conn.ssl_in_use? ).to be true
 		end
 
-		it "can retrieve connection's ssl attribute_names", :postgresql_95 do
+		it "can retrieve connection's ssl attribute_names" do
 			expect( @conn.ssl_attribute_names ).to be_a(Array)
 		end
 
-		it "can retrieve a single ssl connection attribute", :postgresql_95 do
+		it "can retrieve a single ssl connection attribute" do
 			expect( @conn.ssl_attribute('dbname') ).to eq( nil )
 			expect( @conn.ssl_attribute('protocol') ).to match( /^TLSv/ )
 			expect( @conn.ssl_attribute('key_bits') ).to match( /^\d+$/ )
 		end
 
-		it "can retrieve all connection's ssl attributes", :postgresql_95 do
+		it "can retrieve all connection's ssl attributes" do
 			expect( @conn.ssl_attributes ).to be_a_kind_of( Hash )
 		end
 	end
@@ -1554,7 +1554,7 @@ describe PG::Connection do
 		end
 	end
 
-	it "can connect concurrently in parallel threads", :postgresql_95 do
+	it "can connect concurrently in parallel threads" do
 		res = 5.times.map do |idx|
 			Thread.new do
 				PG.connect(@conninfo) do |conn|
@@ -1583,7 +1583,7 @@ describe PG::Connection do
 		end
 	end
 
-	describe "password encryption method", :postgresql_10 do
+	describe "password encryption method" do
 		it "can encrypt without algorithm" do
 			expect( @conn.encrypt_password("postgres", "postgres") ).to match( /\S+/ )
 			expect( @conn.encrypt_password("postgres", "postgres", nil) ).to match( /\S+/ )

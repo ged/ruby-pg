@@ -356,21 +356,18 @@ class PG::Connection
 		end
 	end
 
-	# Method 'ssl_attribute' was introduced in PostgreSQL 9.5.
-	if self.instance_methods.find{|m| m.to_sym == :ssl_attribute }
-		# call-seq:
-		#   conn.ssl_attributes -> Hash<String,String>
-		#
-		# Returns SSL-related information about the connection as key/value pairs
-		#
-		# The available attributes varies depending on the SSL library being used,
-		# and the type of connection.
-		#
-		# See also #ssl_attribute
-		def ssl_attributes
-			ssl_attribute_names.each.with_object({}) do |n,h|
-				h[n] = ssl_attribute(n)
-			end
+	# call-seq:
+	#   conn.ssl_attributes -> Hash<String,String>
+	#
+	# Returns SSL-related information about the connection as key/value pairs
+	#
+	# The available attributes varies depending on the SSL library being used,
+	# and the type of connection.
+	#
+	# See also #ssl_attribute
+	def ssl_attributes
+		ssl_attribute_names.each.with_object({}) do |n,h|
+			h[n] = ssl_attribute(n)
 		end
 	end
 
@@ -921,14 +918,9 @@ class PG::Connection
 			:set_client_encoding => [:async_set_client_encoding, :sync_set_client_encoding],
 			:client_encoding= => [:async_set_client_encoding, :sync_set_client_encoding],
 			:cancel => [:async_cancel, :sync_cancel],
+			:encrypt_password => [:async_encrypt_password, :sync_encrypt_password],
 		}
 		private_constant :REDIRECT_METHODS
-
-		if PG::Connection.instance_methods.include? :async_encrypt_password
-			REDIRECT_METHODS.merge!({
-				:encrypt_password => [:async_encrypt_password, :sync_encrypt_password],
-			})
-		end
 		PG.make_shareable(REDIRECT_METHODS)
 
 		def async_send_api=(enable)

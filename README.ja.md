@@ -12,7 +12,7 @@
 
 Pgは[PostgreSQL
 RDBMS](http://www.postgresql.org/)へのRubyのインターフェースです。[PostgreSQL
-9.3以降](http://www.postgresql.org/support/versioning/)で動作します。
+10以降](http://www.postgresql.org/support/versioning/)で動作します。
 
 簡単な使用例は次の通りです。
 ```ruby
@@ -41,8 +41,8 @@ Actionsのビルド状況](https://github.com/ged/ruby-pg/actions/workflows/sour
 
 ## 要件
 
-* Ruby 2.5かそれより新しいバージョン
-* PostgreSQL 9.3.xかそれ以降のバージョン（ヘッダー付属のもの、例えば-devの名前のパッケージ）。
+* Ruby 2.7かそれより新しいバージョン
+* PostgreSQL 10.xかそれ以降のバージョン（ヘッダー付属のもの、例えば-devの名前のパッケージ）。
 
 それより前のバージョンのRubyやPostgreSQLでも通常は同様に動作しますが、定期的なテストはされていません。
 

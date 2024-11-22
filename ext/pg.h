@@ -76,14 +76,7 @@ typedef long suseconds_t;
 	#define PG_MAX_COLUMNS 4000
 #endif
 
-#ifdef HAVE_RB_GC_MARK_MOVABLE
-#define pg_compact_callback(x) (x)
 #define pg_gc_location(x) x = rb_gc_location(x)
-#else
-#define rb_gc_mark_movable(x) rb_gc_mark(x)
-#define pg_compact_callback(x) {(x)}
-#define pg_gc_location(x) UNUSED(x)
-#endif
 
 /* For compatibility with ruby < 3.0 */
 #ifndef RUBY_TYPED_FROZEN_SHAREABLE
