@@ -112,7 +112,7 @@ msgstr ""
 #. type: Bullet: '* '
 #: ../README.md:44
 #, markdown-text
-msgid "Ruby 2.5 or newer"
+msgid "Ruby 2.7 or newer"
 msgstr ""
 
 #. type: Bullet: '* '

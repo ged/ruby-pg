@@ -41,7 +41,7 @@ Actionsのビルド状況](https://github.com/ged/ruby-pg/actions/workflows/sour
 
 ## 要件
 
-* Ruby 2.5かそれより新しいバージョン
+* Ruby 2.7かそれより新しいバージョン
 * PostgreSQL 10.xかそれ以降のバージョン（ヘッダー付属のもの、例えば-devの名前のパッケージ）。
 
 それより前のバージョンのRubyやPostgreSQLでも通常は同様に動作しますが、定期的なテストはされていません。

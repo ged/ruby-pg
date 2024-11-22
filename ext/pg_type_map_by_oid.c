@@ -190,7 +190,7 @@ static const rb_data_type_t pg_tmbo_type = {
 		pg_tmbo_mark,
 		RUBY_TYPED_DEFAULT_FREE,
 		pg_tmbo_memsize,
-		pg_compact_callback(pg_tmbo_compact),
+		pg_tmbo_compact,
 	},
 	&pg_typemap_type,
 	0,

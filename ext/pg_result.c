@@ -147,9 +147,7 @@ pgresult_clear( void *_this )
 	t_pg_result *this = (t_pg_result *)_this;
 	if( this->pgresult && !this->autoclear ){
 		PQclear(this->pgresult);
-#ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
 		rb_gc_adjust_memory_usage(-this->result_size);
-#endif
 	}
 	this->result_size = 0;
 	this->nfields = -1;
@@ -180,7 +178,7 @@ static const rb_data_type_t pgresult_type = {
 		pgresult_gc_mark,
 		pgresult_gc_free,
 		pgresult_memsize,
-		pg_compact_callback(pgresult_gc_compact),
+		pgresult_gc_compact,
 	},
 	0, 0,
 	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
@@ -253,9 +251,7 @@ pg_new_result(PGresult *result, VALUE rb_pgconn)
 	 */
 	this->result_size = pgresult_approx_size(result);
 
-#ifdef HAVE_RB_GC_ADJUST_MEMORY_USAGE
 	rb_gc_adjust_memory_usage(this->result_size);
-#endif
 
 	return self;
 }

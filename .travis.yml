@@ -17,7 +17,7 @@ matrix:
       script: |
         docker run --rm -t --network=host ruby-pg
 
-    - rvm: "2.5"
+    - rvm: "2.7"
       env:
         - "PGVERSION=10"
       # Use Ubuntu-16.04 which provides openssl-1.0.0, which isn't available in 20.04

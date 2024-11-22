@@ -230,7 +230,7 @@ static const rb_data_type_t pg_connection_type = {
 		pgconn_gc_mark,
 		pgconn_gc_free,
 		pgconn_memsize,
-		pg_compact_callback(pgconn_gc_compact),
+		pgconn_gc_compact,
 	},
 	0,
 	0,

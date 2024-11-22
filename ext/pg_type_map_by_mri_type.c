@@ -130,7 +130,7 @@ static const rb_data_type_t pg_tmbmt_type = {
 		pg_tmbmt_mark,
 		RUBY_TYPED_DEFAULT_FREE,
 		pg_tmbmt_memsize,
-		pg_compact_callback(pg_tmbmt_compact),
+		pg_tmbmt_compact,
 	},
 	&pg_typemap_type,
 	0,

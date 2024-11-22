@@ -58,7 +58,7 @@ jobs:
             platform: "x86-mingw32"
             PGVERSION: 10.20-1-windows
           - os: windows-latest
-            ruby: "2.5"
+            ruby: "2.7"
             platform: "x64-mingw32"
             PGVERSION: 10.20-1-windows
 

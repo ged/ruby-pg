@@ -33,7 +33,7 @@ const rb_data_type_t pg_typemap_type = {
 		pg_typemap_mark,
 		RUBY_TYPED_DEFAULT_FREE,
 		pg_typemap_memsize,
-		pg_compact_callback(pg_typemap_compact),
+		pg_typemap_compact,
 	},
 	0,
 	0,

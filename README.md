@@ -39,7 +39,7 @@ A small example usage:
 
 ## Requirements
 
-* Ruby 2.5 or newer
+* Ruby 2.7 or newer
 * PostgreSQL 10.x or later (with headers, -dev packages, etc).
 
 It usually works with earlier versions of Ruby/PostgreSQL as well, but those are
