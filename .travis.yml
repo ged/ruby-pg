@@ -19,8 +19,8 @@ matrix:
 
     - rvm: "2.5"
       env:
-        - "PGVERSION=9.3"
-      # Use Ubuntu-16.04 since postgresql-9.3 depends on openssl-1.0.0, which isn't available in 20.04
+        - "PGVERSION=10"
+      # Use Ubuntu-16.04 which provides openssl-1.0.0, which isn't available in 20.04
       dist: xenial
     - rvm: ruby-head
       env:

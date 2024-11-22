@@ -419,7 +419,6 @@ pgconn_s_conninfo_parse(VALUE self, VALUE conninfo)
 }
 
 
-#ifdef HAVE_PQENCRYPTPASSWORDCONN
 static VALUE
 pgconn_sync_encrypt_password(int argc, VALUE *argv, VALUE self)
 {
@@ -443,7 +442,6 @@ pgconn_sync_encrypt_password(int argc, VALUE *argv, VALUE self)
 
 	return rval;
 }
-#endif
 
 
 /*
@@ -760,7 +758,6 @@ pgconn_options(VALUE self)
  *
  * Returns the connection options used by a live connection.
  *
- * Available since PostgreSQL-9.3
  */
 static VALUE
 pgconn_conninfo( VALUE self )
@@ -2703,7 +2700,6 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
 	return INT2FIX(PQsetErrorVerbosity(conn, verbosity));
 }
 
-#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
 /*
  * call-seq:
  *    conn.set_error_context_visibility( context_visibility ) -> Integer
@@ -2723,7 +2719,6 @@ pgconn_set_error_verbosity(VALUE self, VALUE in_verbosity)
  *
  * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-control.html#LIBPQ-PQSETERRORCONTEXTVISIBILITY].
  *
- * Available since PostgreSQL-9.6
  */
 static VALUE
 pgconn_set_error_context_visibility(VALUE self, VALUE in_context_visibility)
@@ -2732,7 +2727,6 @@ pgconn_set_error_context_visibility(VALUE self, VALUE in_context_visibility)
 	PGContextVisibility context_visibility = NUM2INT(in_context_visibility);
 	return INT2FIX(PQsetErrorContextVisibility(conn, context_visibility));
 }
-#endif
 
 /*
  * call-seq:
@@ -3509,14 +3503,12 @@ pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
 }
 
 
-#ifdef HAVE_PQSSLATTRIBUTE
 /*
  * call-seq:
  *    conn.ssl_in_use? -> Boolean
  *
  * Returns +true+ if the connection uses SSL/TLS, +false+ if not.
  *
- * Available since PostgreSQL-9.5
  */
 static VALUE
 pgconn_ssl_in_use(VALUE self)
@@ -3550,7 +3542,6 @@ pgconn_ssl_in_use(VALUE self)
  *
  * See also #ssl_attribute_names and the {corresponding libpq function}[https://www.postgresql.org/docs/current/libpq-status.html#LIBPQ-PQSSLATTRIBUTE].
  *
- * Available since PostgreSQL-9.5
  */
 static VALUE
 pgconn_ssl_attribute(VALUE self, VALUE attribute_name)
@@ -3569,7 +3560,6 @@ pgconn_ssl_attribute(VALUE self, VALUE attribute_name)
  *
  * See also #ssl_attribute
  *
- * Available since PostgreSQL-9.5
  */
 static VALUE
 pgconn_ssl_attribute_names(VALUE self)
@@ -3584,8 +3574,6 @@ pgconn_ssl_attribute_names(VALUE self)
 	return ary;
 }
 
-
-#endif
 
 
 #ifdef HAVE_PQENTERPIPELINEMODE
@@ -4592,9 +4580,7 @@ init_pg_connection(void)
 
 	/******     PG::Connection INSTANCE METHODS: Control Functions     ******/
 	rb_define_method(rb_cPGconn, "set_error_verbosity", pgconn_set_error_verbosity, 1);
-#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
 	rb_define_method(rb_cPGconn, "set_error_context_visibility", pgconn_set_error_context_visibility, 1 );
-#endif
 	rb_define_method(rb_cPGconn, "trace", pgconn_trace, 1);
 	rb_define_method(rb_cPGconn, "untrace", pgconn_untrace, 0);
 
@@ -4616,15 +4602,11 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "sync_get_last_result", pgconn_sync_get_last_result, 0);
 	rb_define_method(rb_cPGconn, "get_last_result", pgconn_async_get_last_result, 0);
 	rb_define_alias(rb_cPGconn, "async_get_last_result", "get_last_result");
-#ifdef HAVE_PQENCRYPTPASSWORDCONN
 	rb_define_method(rb_cPGconn, "sync_encrypt_password", pgconn_sync_encrypt_password, -1);
-#endif
 
-#ifdef HAVE_PQSSLATTRIBUTE
 	rb_define_method(rb_cPGconn, "ssl_in_use?", pgconn_ssl_in_use, 0);
 	rb_define_method(rb_cPGconn, "ssl_attribute", pgconn_ssl_attribute, 1);
 	rb_define_method(rb_cPGconn, "ssl_attribute_names", pgconn_ssl_attribute_names, 0);
-#endif
 
 #ifdef HAVE_PQENTERPIPELINEMODE
 	rb_define_method(rb_cPGconn, "pipeline_status", pgconn_pipeline_status, 0);

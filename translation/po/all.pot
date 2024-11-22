@@ -56,7 +56,7 @@ msgstr ""
 #, markdown-text
 msgid ""
 "Pg is the Ruby interface to the [PostgreSQL "
-"RDBMS](http://www.postgresql.org/).  It works with [PostgreSQL 9.3 and "
+"RDBMS](http://www.postgresql.org/).  It works with [PostgreSQL 10 and "
 "later](http://www.postgresql.org/support/versioning/)."
 msgstr ""
 
@@ -118,7 +118,7 @@ msgstr ""
 #. type: Bullet: '* '
 #: ../README.md:44
 #, markdown-text
-msgid "PostgreSQL 9.3.x or later (with headers, -dev packages, etc)."
+msgid "PostgreSQL 10.x or later (with headers, -dev packages, etc)."
 msgstr ""
 
 #. type: Plain text

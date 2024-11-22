@@ -613,14 +613,12 @@ pgresult_error_message(VALUE self)
 	return ret;
 }
 
-#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
 /*
  * call-seq:
  *    res.verbose_error_message( verbosity, show_context ) -> String
  *
  * Returns a reformatted version of the error message associated with a PGresult object.
  *
- * Available since PostgreSQL-9.6
  */
 static VALUE
 pgresult_verbose_error_message(VALUE self, VALUE verbosity, VALUE show_context)
@@ -639,7 +637,6 @@ pgresult_verbose_error_message(VALUE self, VALUE verbosity, VALUE show_context)
 
 	return ret;
 }
-#endif
 
 /*
  * call-seq:
@@ -1707,10 +1704,8 @@ init_pg_result(void)
 	rb_define_singleton_method(rb_cPGresult, "res_status", pgresult_s_res_status, 1);
 	rb_define_method(rb_cPGresult, "error_message", pgresult_error_message, 0);
 	rb_define_alias( rb_cPGresult, "result_error_message", "error_message");
-#ifdef HAVE_PQRESULTVERBOSEERRORMESSAGE
 	rb_define_method(rb_cPGresult, "verbose_error_message", pgresult_verbose_error_message, 2);
 	rb_define_alias( rb_cPGresult, "result_verbose_error_message", "verbose_error_message");
-#endif
 	rb_define_method(rb_cPGresult, "error_field", pgresult_error_field, 1);
 	rb_define_alias( rb_cPGresult, "result_error_field", "error_field" );
 	rb_define_method(rb_cPGresult, "clear", pg_result_clear, 0);

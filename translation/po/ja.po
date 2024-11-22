@@ -65,11 +65,11 @@ msgstr "説明"
 #: ../README.md:15
 msgid ""
 "Pg is the Ruby interface to the [PostgreSQL RDBMS](http://www.postgresql."
-"org/).  It works with [PostgreSQL 9.3 and later](http://www.postgresql.org/"
+"org/).  It works with [PostgreSQL 10 and later](http://www.postgresql.org/"
 "support/versioning/)."
 msgstr ""
 "Pgは[PostgreSQL RDBMS](http://www.postgresql.org/)へのRubyのインターフェース"
-"です。[PostgreSQL 9.3以降](http://www.postgresql.org/support/versioning/)で動"
+"です。[PostgreSQL 10以降](http://www.postgresql.org/support/versioning/)で動"
 "作します。"
 
 #. type: Plain text
@@ -149,9 +149,9 @@ msgstr "Ruby 2.5かそれより新しいバージョン"
 
 #. type: Bullet: '* '
 #: ../README.md:44
-msgid "PostgreSQL 9.3.x or later (with headers, -dev packages, etc)."
+msgid "PostgreSQL 10.x or later (with headers, -dev packages, etc)."
 msgstr ""
-"PostgreSQL 9.3.xかそれ以降のバージョン（ヘッダー付属のもの、例えば-devの名前"
+"PostgreSQL 10.xかそれ以降のバージョン（ヘッダー付属のもの、例えば-devの名前"
 "のパッケージ）。"
 
 #. type: Plain text

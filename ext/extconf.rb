@@ -144,13 +144,10 @@ if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
 	end
 end
 
-have_func 'PQconninfo', 'libpq-fe.h' or
+have_func 'PQencryptPasswordConn', 'libpq-fe.h' or # since PostgreSQL-10
 	abort "Your PostgreSQL is too old. Either install an older version " +
-	      "of this gem or upgrade your database to at least PostgreSQL-9.3."
+	      "of this gem or upgrade your database to at least PostgreSQL-10."
 # optional headers/functions
-have_func 'PQsslAttribute', 'libpq-fe.h' # since PostgreSQL-9.5
-have_func 'PQresultVerboseErrorMessage', 'libpq-fe.h' # since PostgreSQL-9.6
-have_func 'PQencryptPasswordConn', 'libpq-fe.h' # since PostgreSQL-10
 have_func 'PQresultMemorySize', 'libpq-fe.h' # since PostgreSQL-12
 have_func 'PQenterPipelineMode', 'libpq-fe.h' do |src| # since PostgreSQL-14
   # Ensure header files fit as well

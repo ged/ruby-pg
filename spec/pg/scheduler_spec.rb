@@ -246,7 +246,7 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
-	it "can encrypt_password", :postgresql_10 do
+	it "can encrypt_password" do
 		run_with_scheduler do |conn|
 			res = conn.encrypt_password "passw", "myuser"
 			expect( res ).to  match( /\S+/ )

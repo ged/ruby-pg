@@ -89,7 +89,7 @@ describe 'Basic type mapping' do
 				expect( res.values ).to eq( [['a', '123', '{5,4,3}', '\x00ff27'], ['b', '234', '{2,3}', '\x220a0d']] )
 			end
 
-			it "can do JSON conversions", :postgresql_94 do
+			it "can do JSON conversions" do
 				['JSON', 'JSONB'].each do |type|
 					sql = "SELECT CAST('123' AS #{type}),
 						CAST('12.3' AS #{type}),

@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["ged@FaerieMUD.org", "lars@greiz-reinsdorf.de"]
 
   spec.summary       = "Pg is the Ruby interface to the PostgreSQL RDBMS"
-  spec.description   = "Pg is the Ruby interface to the PostgreSQL RDBMS. It works with PostgreSQL 9.3 and later."
+  spec.description   = "Pg is the Ruby interface to the PostgreSQL RDBMS. It works with PostgreSQL 10 and later."
   spec.homepage      = "https://github.com/ged/ruby-pg"
   spec.license       = "BSD-2-Clause"
   spec.required_ruby_version = ">= 2.5"
