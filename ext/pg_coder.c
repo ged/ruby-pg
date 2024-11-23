@@ -175,7 +175,7 @@ static VALUE
 pg_coder_encode(int argc, VALUE *argv, VALUE self)
 {
 	VALUE res;
-	VALUE intermediate;
+	VALUE intermediate = Qnil;
 	VALUE value;
 	int len, len2;
 	int enc_idx;
@@ -212,8 +212,6 @@ pg_coder_encode(int argc, VALUE *argv, VALUE self)
 			rb_obj_classname( self ), len, len2 );
 	}
 	rb_str_set_len( res, len2 );
-
-	RB_GC_GUARD(intermediate);
 
 	return res;
 }
