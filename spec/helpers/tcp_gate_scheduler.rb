@@ -148,12 +148,12 @@ class TcpGateScheduler < Scheduler
 						rescue IO::WaitReadable, Errno::EINTR
 							@internal_io.wait_readable
 							retry
-						rescue EOFError, Errno::ECONNRESET
+						rescue EOFError, Errno::ECONNRESET, Errno::ECONNABORTED
 							puts "write_eof from #{write_fds}"
 							@external_io.close_write
 							break
 						end
-						break if @transfer_until != :eof && (!read_str || read_str.bytesize < len)
+						break if @transfer_until != :eof && (!read_str || read_str.empty?)
 					end
 					@pending_write = false
 				end
