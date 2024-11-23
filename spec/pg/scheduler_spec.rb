@@ -264,11 +264,3 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 end
-
-# Do not wait for threads doing blocking calls at the process shutdown.
-# Instead exit immediately after printing the rspec report, if we know there are pending IO calls, which do not react on ruby interrupts.
-END{
-	if $scheduler_timeout
-		exit!(1)
-	end
-}
