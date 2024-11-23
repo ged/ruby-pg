@@ -8,7 +8,7 @@
 # If a call does IO but doesn't handle non-blocking state, the test will block and can be caught by an external timeout.
 #
 #
-#   PG.connect                    TcpGateSwitcher
+#   PG.connect       intern       TcpGateSwitcher        extern
 #    port:5444        .--------------------------------------.
 #        .--start/stop---------------> T                     |         DB
 #  .-----|-----.      |                | /                   |      .------.
@@ -95,10 +95,12 @@ class TcpGateSwitcher
 				begin
 					read_str = @internal_io.read_nonblock(65536)
 					print_data("write-transfer #{write_fds}", read_str)
+					# Workaround for sporadic "SSL error: ssl/tls alert bad record mac"
+					sleep 0.001 if RUBY_ENGINE=="truffleruby"
 					@external_io.write(read_str)
 				rescue IO::WaitReadable, Errno::EINTR
 					@internal_io.wait_readable
-				rescue EOFError, Errno::ECONNRESET
+				rescue EOFError, Errno::ECONNRESET, Errno::EPIPE
 					puts "write_eof from #{write_fds}"
 					@external_io.close_write
 					break

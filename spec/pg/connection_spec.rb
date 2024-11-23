@@ -701,9 +701,6 @@ describe PG::Connection do
 			unless RUBY_PLATFORM =~ /i386-mingw|x86_64-darwin|x86_64-linux/
 				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
 			end
-			if RUBY_ENGINE == "truffleruby"
-				skip "TcpGateSwitcher responds with Errno::EPIPE: Broken pipe on Truffleruby"
-			end
 
 			run_with_gate(200) do |conn, gate|
 				conn.setnonblocking(true)
