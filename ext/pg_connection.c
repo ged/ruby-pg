@@ -1583,6 +1583,7 @@ pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
  * * +PGRES_FATAL_ERROR+
  * * +PGRES_COPY_BOTH+
  * * +PGRES_SINGLE_TUPLE+
+ * * +PGRES_TUPLES_CHUNK+
  * * +PGRES_PIPELINE_SYNC+
  * * +PGRES_PIPELINE_ABORTED+
  */
@@ -1807,14 +1808,11 @@ pgconn_escape_identifier(VALUE self, VALUE string)
  * (column names, types, etc) that an ordinary Result object for the query
  * would have.
  *
- * *Caution:* While processing a query, the server may return some rows and
- * then encounter an error, causing the query to be aborted. Ordinarily, pg
- * discards any such rows and reports only the error. But in single-row mode,
- * those rows will have already been returned to the application. Hence, the
- * application will see some Result objects followed by an Error raised in get_result.
- * For proper transactional behavior, the application must be designed to discard
- * or undo whatever has been done with the previously-processed rows, if the query
- * ultimately fails.
+ * *Caution:* While processing a query, the server may return some rows and then encounter an error, causing the query to be aborted.
+ * Ordinarily, pg discards any such rows and reports only the error.
+ * But in single-row or chunked mode, some rows may have already been returned to the application.
+ * Hence, the application will see some PGRES_SINGLE_TUPLE or PGRES_TUPLES_CHUNK PG::Result objects followed by a PG::Error raised in get_result.
+ * For proper transactional behavior, the application must be designed to discard or undo whatever has been done with the previously-processed rows, if the query ultimately fails.
  *
  * Example:
  *   conn.send_query( "your SQL command" )
@@ -1838,6 +1836,43 @@ pgconn_set_single_row_mode(VALUE self)
 
 	return self;
 }
+
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+/*
+ * call-seq:
+ *    conn.set_chunked_rows_mode -> self
+ *
+ * Select chunked mode for the currently-executing query.
+ *
+ * This function is similar to set_single_row_mode, except that it specifies retrieval of up to +chunk_size+ rows per PGresult, not necessarily just one row.
+ * This function can only be called immediately after send_query or one of its sibling functions, before any other operation on the connection such as consume_input or get_result.
+ * If called at the correct time, the function activates chunked mode for the current query.
+ * Otherwise the mode stays unchanged and the function raises an error.
+ * In any case, the mode reverts to normal after completion of the current query.
+ *
+ * Example:
+ *   conn.send_query( "your SQL command" )
+ *   conn.set_chunked_rows_mode(10)
+ *   loop do
+ *     res = conn.get_result or break
+ *     res.check
+ *     res.each do |row|
+ *       # do something with the received max. 10 rows
+ *     end
+ *   end
+ */
+static VALUE
+pgconn_set_chunked_rows_mode(VALUE self, VALUE chunk_size)
+{
+	PGconn *conn = pg_get_pgconn(self);
+
+	rb_check_frozen(self);
+	if( PQsetChunkedRowsMode(conn, NUM2INT(chunk_size)) == 0 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
+	return self;
+}
+#endif
 
 static VALUE pgconn_send_query_params(int argc, VALUE *argv, VALUE self);
 
@@ -4546,6 +4581,9 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "escape_bytea", pgconn_s_escape_bytea, 1);
 	rb_define_method(rb_cPGconn, "unescape_bytea", pgconn_s_unescape_bytea, 1);
 	rb_define_method(rb_cPGconn, "set_single_row_mode", pgconn_set_single_row_mode, 0);
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+	rb_define_method(rb_cPGconn, "set_chunked_rows_mode", pgconn_set_chunked_rows_mode, 1);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: Asynchronous Command Processing     ******/
 	rb_define_method(rb_cPGconn, "send_query", pgconn_send_query, -1);
