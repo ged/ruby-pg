@@ -320,6 +320,9 @@ pg_result_check( VALUE self )
 #ifdef HAVE_PQENTERPIPELINEMODE
 		case PGRES_PIPELINE_SYNC:
 #endif
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+		case PGRES_TUPLES_CHUNK:
+#endif
 			return self;
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
@@ -545,6 +548,7 @@ static void pgresult_init_fnames(VALUE self)
  * * +PGRES_FATAL_ERROR+
  * * +PGRES_COPY_BOTH+
  * * +PGRES_SINGLE_TUPLE+
+ * * +PGRES_TUPLES_CHUNK+
  * * +PGRES_PIPELINE_SYNC+
  * * +PGRES_PIPELINE_ABORTED+
  *
@@ -1521,6 +1525,9 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 					return self;
 				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
 			case PGRES_SINGLE_TUPLE:
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+			case PGRES_TUPLES_CHUNK:
+#endif
 				break;
 			default:
 				pg_result_check( self );
@@ -1565,7 +1572,7 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
  * wrapping each row into a dedicated result object, it delivers data in nearly
  * the same speed as with ordinary results.
  *
- * The base result must be in status PGRES_SINGLE_TUPLE.
+ * The base result must be in status PGRES_SINGLE_TUPLE or PGRES_TUPLES_CHUNK.
  * It iterates over all tuples until the status changes to PGRES_TUPLES_OK.
  * A PG::Error is raised for any errors from the server.
  *

@@ -504,6 +504,10 @@ Init_pg_ext(void)
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
 	/* Result#result_status constant - Single tuple from larger resultset. */
 	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+	/* Result#result_status constant - tuple chunk from larger resultset. */
+	rb_define_const(rb_mPGconstants, "PGRES_TUPLES_CHUNK", INT2FIX(PGRES_TUPLES_CHUNK));
+#endif
 
 #ifdef HAVE_PQENTERPIPELINEMODE
 	/* Result#result_status constant - The PG::Result represents a synchronization point in pipeline mode, requested by Connection#pipeline_sync.

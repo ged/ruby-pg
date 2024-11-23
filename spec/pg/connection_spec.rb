@@ -2044,6 +2044,67 @@ describe PG::Connection do
 
 	end
 
+	describe "set_chunked_rows_mode", :postgresql_17 do
+
+		it "raises an error when called at the wrong time" do
+			expect {
+				@conn.set_chunked_rows_mode(2)
+			}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
+		end
+
+		it "should work in single row mode" do
+			@conn.send_query( "SELECT generate_series(1,12)" )
+			@conn.set_chunked_rows_mode(3)
+
+			results = []
+			loop do
+				@conn.block
+				res = @conn.get_result or break
+				results << res
+			end
+			expect( results.length ).to eq( 5 )
+			results[0..-2].each do |res|
+				expect( res.result_status ).to eq( PG::PGRES_TUPLES_CHUNK )
+				values = res.field_values('generate_series')
+				expect( values.length ).to eq( 3 )
+				expect( values.first.to_i ).to be > 0
+			end
+			expect( results.last.result_status ).to eq( PG::PGRES_TUPLES_OK )
+			expect( results.last.ntuples ).to eq( 0 )
+		end
+
+		it "should receive rows before entire query is finished" do
+			@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, pg_sleep(10);" )
+			@conn.set_chunked_rows_mode(4)
+
+			start_time = Time.now
+			res = @conn.get_result
+			res.check
+
+			expect( (Time.now - start_time) ).to be < 9
+			expect( res.values ).to eq([["0", nil], ["1", nil], ["2", nil], ["3", nil]])
+			@conn.cancel
+		end
+
+		it "should receive rows before entire query fails" do
+			@conn.exec( "CREATE FUNCTION errfunc() RETURNS int AS $$ BEGIN RAISE 'test-error'; END; $$ LANGUAGE plpgsql;" )
+			@conn.send_query( "SELECT generate_series(0,999), NULL UNION ALL SELECT 1000, errfunc();" )
+			@conn.set_chunked_rows_mode(5)
+
+			first_result = nil
+			expect do
+				loop do
+					res = @conn.get_result or break
+					res.check
+					first_result ||= res
+				end
+			end.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
+			expect( first_result.kind_of?(PG::Result) ).to be_truthy
+			expect( first_result.result_status ).to eq( PG::PGRES_TUPLES_CHUNK )
+		end
+
+	end
+
 	context "pipeline mode", :postgresql_14 do
 
 		describe "pipeline_status" do

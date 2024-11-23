@@ -128,189 +128,191 @@ describe PG::Result do
 		expect( res.each.to_a ).to eq [{:a=>'1', :b=>'2'}]
 	end
 
-	context "result streaming in single row mode" do
-		let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
+	[[:single, nil, [:set_single_row_mode]], [:chunked, :postgresql_17, [:set_chunked_rows_mode, 3]]].each do |mode_name, guard, row_mode|
+		context "result streaming in #{mode_name} row mode", guard do
+			let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 
-		it "can iterate over all rows as Hash" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
-			@conn.set_single_row_mode
-			expect(
-				@conn.get_result.stream_each.to_a
-			).to eq(
-				[{'a'=>"2"}, {'a'=>"3"}, {'a'=>"4"}]
-			)
-			expect(
-				@conn.get_result.enum_for(:stream_each).to_a
-			).to eq(
-				[{'b'=>"1", 'c'=>"5"}, {'b'=>"1", 'c'=>"6"}]
-			)
-			expect( @conn.get_result ).to be_nil
-		end
+			it "can iterate over all rows as Hash" do
+				@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
+				@conn.send(*row_mode)
+				expect(
+					@conn.get_result.stream_each.to_a
+				).to eq(
+					[{'a'=>"2"}, {'a'=>"3"}, {'a'=>"4"}]
+				)
+				expect(
+					@conn.get_result.enum_for(:stream_each).to_a
+				).to eq(
+					[{'b'=>"1", 'c'=>"5"}, {'b'=>"1", 'c'=>"6"}]
+				)
+				expect( @conn.get_result ).to be_nil
+			end
 
-		it "can iterate over all rows as Hash with symbols and typemap" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a" )
-			@conn.set_single_row_mode
-			res = @conn.get_result.field_names_as(:symbol)
-			res.type_map = PG::TypeMapByColumn.new [textdec_int]
-			expect(
-				res.stream_each.to_a
-			).to eq(
-				[{:a=>2}, {:a=>3}, {:a=>4}]
-			)
-			expect( @conn.get_result ).to be_nil
-		end
+			it "can iterate over all rows as Hash with symbols and typemap" do
+				@conn.send_query( "SELECT generate_series(2,4) AS a" )
+				@conn.send(*row_mode)
+				res = @conn.get_result.field_names_as(:symbol)
+				res.type_map = PG::TypeMapByColumn.new [textdec_int]
+				expect(
+					res.stream_each.to_a
+				).to eq(
+					[{:a=>2}, {:a=>3}, {:a=>4}]
+				)
+				expect( @conn.get_result ).to be_nil
+			end
 
-		it "keeps last result on error while iterating stream_each" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a" )
-			@conn.set_single_row_mode
-			res = @conn.get_result
-			expect do
-				res.stream_each_row do
-					raise ZeroDivisionError
-				end
-			end.to raise_error(ZeroDivisionError)
-			expect( res.values ).to eq([["2"]])
-		end
+			it "keeps last result on error while iterating stream_each" do
+				@conn.send_query( "SELECT generate_series(2,6) AS a" )
+				@conn.send(*row_mode)
+				res = @conn.get_result
+				expect do
+					res.stream_each_row do
+						raise ZeroDivisionError
+					end
+				end.to raise_error(ZeroDivisionError)
+				expect( res.values ).to eq(mode_name==:single ? [["2"]] : [["2"], ["3"], ["4"]])
+			end
 
-		it "can iterate over all rows as Array" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
-			@conn.set_single_row_mode
-			expect(
-				@conn.get_result.enum_for(:stream_each_row).to_a
-			).to eq(
-				[["2"], ["3"], ["4"]]
-			)
-			expect(
-				@conn.get_result.stream_each_row.to_a
-			).to eq(
-				[["1", "5"], ["1", "6"]]
-			)
-			expect( @conn.get_result ).to be_nil
-		end
+			it "can iterate over all rows as Array" do
+				@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
+				@conn.send(*row_mode)
+				expect(
+					@conn.get_result.enum_for(:stream_each_row).to_a
+				).to eq(
+					[["2"], ["3"], ["4"]]
+				)
+				expect(
+					@conn.get_result.stream_each_row.to_a
+				).to eq(
+					[["1", "5"], ["1", "6"]]
+				)
+				expect( @conn.get_result ).to be_nil
+			end
 
-		it "keeps last result on error while iterating stream_each_row" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a" )
-			@conn.set_single_row_mode
-			res = @conn.get_result
-			expect do
-				res.stream_each_row do
-					raise ZeroDivisionError
-				end
-			end.to raise_error(ZeroDivisionError)
-			expect( res.values ).to eq([["2"]])
-		end
+			it "keeps last result on error while iterating stream_each_row" do
+				@conn.send_query( "SELECT generate_series(2,6) AS a" )
+				@conn.send(*row_mode)
+				res = @conn.get_result
+				expect do
+					res.stream_each_row do
+						raise ZeroDivisionError
+					end
+				end.to raise_error(ZeroDivisionError)
+				expect( res.values ).to eq(mode_name==:single ? [["2"]] : [["2"], ["3"], ["4"]])
+			end
 
-		it "can iterate over all rows as PG::Tuple" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
-			@conn.set_single_row_mode
-			tuples = @conn.get_result.stream_each_tuple.to_a
-			expect( tuples[0][0] ).to eq( "2" )
-			expect( tuples[1]["a"] ).to eq( "3" )
-			expect( tuples.size ).to eq( 3 )
+			it "can iterate over all rows as PG::Tuple" do
+				@conn.send_query( "SELECT generate_series(2,4) AS a; SELECT 1 AS b, generate_series(5,6) AS c" )
+				@conn.send(*row_mode)
+				tuples = @conn.get_result.stream_each_tuple.to_a
+				expect( tuples[0][0] ).to eq( "2" )
+				expect( tuples[1]["a"] ).to eq( "3" )
+				expect( tuples.size ).to eq( 3 )
 
-			tuples = @conn.get_result.enum_for(:stream_each_tuple).to_a
-			expect( tuples[-1][-1] ).to eq( "6" )
-			expect( tuples[-2]["b"] ).to eq( "1" )
-			expect( tuples.size ).to eq( 2 )
+				tuples = @conn.get_result.enum_for(:stream_each_tuple).to_a
+				expect( tuples[-1][-1] ).to eq( "6" )
+				expect( tuples[-2]["b"] ).to eq( "1" )
+				expect( tuples.size ).to eq( 2 )
 
-			expect( @conn.get_result ).to be_nil
-		end
+				expect( @conn.get_result ).to be_nil
+			end
 
-		it "clears result on error while iterating stream_each_tuple" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a" )
-			@conn.set_single_row_mode
-			res = @conn.get_result
-			expect do
-				res.stream_each_tuple do
-					raise ZeroDivisionError
-				end
-			end.to raise_error(ZeroDivisionError)
-			expect( res.cleared? ).to eq(true)
-		end
+			it "clears result on error while iterating stream_each_tuple" do
+				@conn.send_query( "SELECT generate_series(2,4) AS a" )
+				@conn.send(*row_mode)
+				res = @conn.get_result
+				expect do
+					res.stream_each_tuple do
+						raise ZeroDivisionError
+					end
+				end.to raise_error(ZeroDivisionError)
+				expect( res.cleared? ).to eq(true)
+			end
 
-		it "should reuse field names in stream_each_tuple" do
-			@conn.send_query( "SELECT generate_series(2,3) AS a" )
-			@conn.set_single_row_mode
-			tuple1, tuple2 = *@conn.get_result.stream_each_tuple.to_a
-			expect( tuple1.keys[0].object_id ).to eq(tuple2.keys[0].object_id)
-		end
+			it "should reuse field names in stream_each_tuple" do
+				@conn.send_query( "SELECT generate_series(2,3) AS a" )
+				@conn.send(*row_mode)
+				tuple1, tuple2 = *@conn.get_result.stream_each_tuple.to_a
+				expect( tuple1.keys[0].object_id ).to eq(tuple2.keys[0].object_id)
+			end
 
-		it "can iterate over all rows as PG::Tuple with symbols and typemap" do
-			@conn.send_query( "SELECT generate_series(2,4) AS a" )
-			@conn.set_single_row_mode
-			res = @conn.get_result.field_names_as(:symbol)
-			res.type_map = PG::TypeMapByColumn.new [textdec_int]
-			tuples = res.stream_each_tuple.to_a
-			expect( tuples[0][0] ).to eq( 2 )
-			expect( tuples[1][:a] ).to eq( 3 )
-			expect( @conn.get_result ).to be_nil
-		end
+			it "can iterate over all rows as PG::Tuple with symbols and typemap" do
+				@conn.send_query( "SELECT generate_series(2,4) AS a" )
+				@conn.send(*row_mode)
+				res = @conn.get_result.field_names_as(:symbol)
+				res.type_map = PG::TypeMapByColumn.new [textdec_int]
+				tuples = res.stream_each_tuple.to_a
+				expect( tuples[0][0] ).to eq( 2 )
+				expect( tuples[1][:a] ).to eq( 3 )
+				expect( @conn.get_result ).to be_nil
+			end
 
-		it "can handle commands not returning tuples" do
-			@conn.send_query( "CREATE TEMP TABLE test_single_row_mode (a int)" )
-			@conn.set_single_row_mode
-			res1 = @conn.get_result
-			res2 = res1.stream_each_tuple { raise "this shouldn't be called" }
-			expect( res2 ).to be_equal( res1 )
-			expect( @conn.get_result ).to be_nil
-			@conn.exec( "DROP TABLE test_single_row_mode" )
-		end
+			it "can handle commands not returning tuples" do
+				@conn.send_query( "CREATE TEMP TABLE test_single_row_mode (a int)" )
+				@conn.send(*row_mode)
+				res1 = @conn.get_result
+				res2 = res1.stream_each_tuple { raise "this shouldn't be called" }
+				expect( res2 ).to be_equal( res1 )
+				expect( @conn.get_result ).to be_nil
+				@conn.exec( "DROP TABLE test_single_row_mode" )
+			end
 
-		it "complains when not in single row mode" do
-			@conn.send_query( "SELECT generate_series(2,4)" )
-			expect{
-				@conn.get_result.stream_each_row.to_a
-			}.to raise_error(PG::InvalidResultStatus, /not in single row mode/)
-		end
+			it "complains when not in single row mode" do
+				@conn.send_query( "SELECT generate_series(2,4)" )
+				expect{
+					@conn.get_result.stream_each_row.to_a
+				}.to raise_error(PG::InvalidResultStatus, /not in single row mode/)
+			end
 
-		it "complains when intersected with get_result" do
-			@conn.send_query( "SELECT 1" )
-			@conn.set_single_row_mode
-			expect{
-				@conn.get_result.stream_each_row.each{ @conn.get_result }
-			}.to raise_error(PG::NoResultError, /no result received/)
-		end
+			it "complains when intersected with get_result" do
+				@conn.send_query( "SELECT 1" )
+				@conn.send(*row_mode)
+				expect{
+					@conn.get_result.stream_each_row.each{ @conn.get_result }
+				}.to raise_error(PG::NoResultError, /no result received/)
+			end
 
-		it "raises server errors" do
-			@conn.send_query( "SELECT 0/0" )
-			expect{
-				@conn.get_result.stream_each_row.to_a
-			}.to raise_error(PG::DivisionByZero)
-		end
+			it "raises server errors" do
+				@conn.send_query( "SELECT 0/0" )
+				expect{
+					@conn.get_result.stream_each_row.to_a
+				}.to raise_error(PG::DivisionByZero)
+			end
 
-		it "raises an error if result number of fields change" do
-			@conn.send_query( "SELECT 1" )
-			@conn.set_single_row_mode
-			res = @conn.get_result
-			expect{
-				res.stream_each_row do
-					@conn.discard_results
-					@conn.send_query("SELECT 2,3");
-					@conn.set_single_row_mode
-				end
-			}.to raise_error(PG::InvalidChangeOfResultFields, /from 1 to 2 /)
-			expect( res.cleared? ).to be true
-		end
+			it "raises an error if result number of fields change" do
+				@conn.send_query( "SELECT 1" )
+				@conn.send(*row_mode)
+				res = @conn.get_result
+				expect{
+					res.stream_each_row do
+						@conn.discard_results
+						@conn.send_query("SELECT 2,3");
+						@conn.send(*row_mode)
+					end
+				}.to raise_error(PG::InvalidChangeOfResultFields, /from 1 to 2 /)
+				expect( res.cleared? ).to be true
+			end
 
-		it "raises an error if there is a timeout during streaming" do
-			@conn.exec( "SET local statement_timeout = 20" )
+			it "raises an error if there is a timeout during streaming" do
+				@conn.exec( "SET local statement_timeout = 20" )
 
-			@conn.send_query( "SELECT 1, true UNION ALL SELECT 2, (pg_sleep(0.1) IS NULL)" )
-			@conn.set_single_row_mode
-			expect{
-				@conn.get_result.stream_each_row do |row|
-					# No-op
-				end
-			}.to raise_error(PG::QueryCanceled, /statement timeout/)
-		end
+				@conn.send_query( "SELECT 1, true UNION ALL SELECT 2, (pg_sleep(0.1) IS NULL)" )
+				@conn.send(*row_mode)
+				expect{
+					@conn.get_result.stream_each_row do |row|
+						# No-op
+					end
+				}.to raise_error(PG::QueryCanceled, /statement timeout/)
+			end
 
-		it "should deny streaming when frozen" do
-			@conn.send_query( "SELECT 1" )
-			@conn.set_single_row_mode
-			res = @conn.get_result.freeze
-			expect{
-				res.stream_each_row
-			}.to raise_error(FrozenError)
+			it "should deny streaming when frozen" do
+				@conn.send_query( "SELECT 1" )
+				@conn.send(*row_mode)
+				res = @conn.get_result.freeze
+				expect{
+					res.stream_each_row
+				}.to raise_error(FrozenError)
+			end
 		end
 	end
 
