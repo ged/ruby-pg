@@ -231,7 +231,7 @@ pg_text_enc_integer(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
  *
  */
 static int
-pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
+pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate1, int enc_idx)
 {
 	if(out){
 		double dvalue = NUM2DBL(value);
@@ -239,7 +239,6 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		int neg = 0;
 		int exp2i, exp10i, i;
 		unsigned long long ll, remainder, oldval;
-		VALUE intermediate;
 
 		/* Cast to the same strings as value.to_s . */
 		if( isinf(dvalue) ){
@@ -283,6 +282,7 @@ pg_text_enc_float(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 
 		if( exp10i <= -5 || exp10i >= 15 ) {
 			/* Write the float in exponent format (1.23e45) */
+			VALUE intermediate;
 
 			/* write fraction digits from right to left */
 			for( i = MAX_DOUBLE_DIGITS; i > 1; i--){

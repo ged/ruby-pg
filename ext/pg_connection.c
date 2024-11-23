@@ -1297,7 +1297,7 @@ alloc_query_params(struct query_params_data *paramsData)
 				paramsData->lengths[i] = 0;
 			} else {
 				t_pg_coder_enc_func enc_func = pg_coder_enc_func( conv );
-				VALUE intermediate;
+				VALUE intermediate = Qnil;
 
 				/* 1st pass for retiving the required memory space */
 				int len = enc_func(conv, param_value, NULL, &intermediate, paramsData->enc_idx);
@@ -1337,8 +1337,6 @@ alloc_query_params(struct query_params_data *paramsData)
 						required_pool_size += len;
 					}
 				}
-
-				RB_GC_GUARD(intermediate);
 			}
 		}
 	}
@@ -2566,7 +2564,7 @@ pgconn_sync_put_copy_data(int argc, VALUE *argv, VALUE self)
 	VALUE value;
 	VALUE buffer = Qnil;
 	VALUE encoder;
-	VALUE intermediate;
+	VALUE intermediate = Qnil;
 	t_pg_coder *p_coder = NULL;
 
 	rb_scan_args( argc, argv, "11", &value, &encoder );
@@ -2605,7 +2603,6 @@ pgconn_sync_put_copy_data(int argc, VALUE *argv, VALUE self)
 	if(ret == -1)
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
 
-	RB_GC_GUARD(intermediate);
 	RB_GC_GUARD(buffer);
 
 	return (ret) ? Qtrue : Qfalse;
