@@ -2,19 +2,19 @@
 
 # This is a special scheduler for testing compatibility to Fiber.scheduler of functions using a TCP connection.
 #
-# It works as a gate between the client and the server.
+# It works as a gatekeeper between the client and the server.
 # Data is transferred only, when the scheduler receives wait_io requests.
-# The TCP communication in a C extension can be verified in a (mostly) timing insensitive way.
-# If a call does IO but doesn't call the scheduler, the test will block and can be caught by an external timeout.
+# The TCP communication in a C extension can be verified in a timing insensitive way.
+# If a call waits for IO but doesn't call the scheduler, the test will block and can be caught by an external timeout.
 #
-#   PG.connect
-#    port:5444                    TcpGateScheduler                     DB
+#   PG.connect       intern                              extern
+#    port:5444        side        TcpGateScheduler        side         DB
 #  -------------      ----------------------------------------      --------
 #  | scheduler |      | TCPServer                  TCPSocket |      |      |
 #  |   specs   |----->|  port 5444                  port 5432|----->|Server|
 #  -------------  ^   |                                      |      | port |
-#                 '-------  wait_readable:  <-send data--    |      | 5432 |
-#           observe fd|     wait_writable:  --send data->    |      --------
+#                 '-------  wait_readable:  <--read data--   |      | 5432 |
+#           observe fd|     wait_writable:  --write data->   |      --------
 #                     ----------------------------------------
 
 module Helpers
