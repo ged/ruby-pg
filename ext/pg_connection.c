@@ -1511,6 +1511,19 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 	return rb_pgresult;
 }
 
+static VALUE
+pgconn_sync_describe_close_prepared_portal(VALUE self, VALUE name, PGresult *(*func)(PGconn *, const char *))
+{
+	PGresult *result;
+	VALUE rb_pgresult;
+	t_pg_connection *this = pg_get_connection_safe( self );
+	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx);
+	result = func(this->pgconn, stmt);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
+	return rb_pgresult;
+}
+
 /*
  * call-seq:
  *    conn.sync_describe_prepared( statement_name ) -> PG::Result
@@ -1522,20 +1535,7 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	PGresult *result;
-	VALUE rb_pgresult;
-	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt;
-	if(NIL_P(stmt_name)) {
-		stmt = NULL;
-	}
-	else {
-		stmt = pg_cstr_enc(stmt_name, this->enc_idx);
-	}
-	result = gvl_PQdescribePrepared(this->pgconn, stmt);
-	rb_pgresult = pg_new_result(result, self);
-	pg_result_check(rb_pgresult);
-	return rb_pgresult;
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQdescribePrepared);
 }
 
 
@@ -1550,22 +1550,43 @@ pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
 {
-	PGresult *result;
-	VALUE rb_pgresult;
-	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt;
-	if(NIL_P(stmt_name)) {
-		stmt = NULL;
-	}
-	else {
-		stmt = pg_cstr_enc(stmt_name, this->enc_idx);
-	}
-	result = gvl_PQdescribePortal(this->pgconn, stmt);
-	rb_pgresult = pg_new_result(result, self);
-	pg_result_check(rb_pgresult);
-	return rb_pgresult;
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQdescribePortal);
 }
 
+
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+/*
+ * call-seq:
+ *    conn.sync_close_prepared( stmt_name ) -> PG::Result
+ *
+ * This function has the same behavior as #async_close_prepared, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #close_prepared instead, unless you have a good reason to do so.
+ *
+ * Available since PostgreSQL-17.
+ */
+static VALUE
+pgconn_sync_close_prepared(VALUE self, VALUE stmt_name)
+{
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQclosePrepared);
+}
+
+/*
+ * call-seq:
+ *    conn.sync_close_portal( portal_name ) -> PG::Result
+ *
+ * This function has the same behavior as #async_close_portal, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #close_portal instead, unless you have a good reason to do so.
+ *
+ * Available since PostgreSQL-17.
+ */
+static VALUE
+pgconn_sync_close_portal(VALUE self, VALUE stmt_name)
+{
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQclosePortal);
+}
+#endif
 
 /*
  * call-seq:
@@ -1899,7 +1920,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
 		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx)) == 0)
-			pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+			pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQuery %s", PQerrorMessage(this->pgconn));
 
 		pgconn_wait_for_flush( self );
 		return Qnil;
@@ -1974,7 +1995,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	free_query_params( &paramsData );
 
 	if(result == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQueryParams %s", PQerrorMessage(this->pgconn));
 
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2035,7 +2056,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	xfree(paramTypes);
 
 	if(result == 0) {
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendPrepare %s", PQerrorMessage(this->pgconn));
 	}
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2101,7 +2122,21 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	free_query_params( &paramsData );
 
 	if(result == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQueryPrepared %s", PQerrorMessage(this->pgconn));
+
+	pgconn_wait_for_flush( self );
+	return Qnil;
+}
+
+
+static VALUE
+pgconn_send_describe_close_prepared_portal(VALUE self, VALUE name, int (*func)(PGconn *, const char *), const char *funame)
+{
+	t_pg_connection *this = pg_get_connection_safe( self );
+	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx);
+	/* returns 0 on failure */
+	if(func(this->pgconn, stmt) == 0)
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s %s", funame, PQerrorMessage(this->pgconn));
 
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2117,13 +2152,9 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	t_pg_connection *this = pg_get_connection_safe( self );
-	/* returns 0 on failure */
-	if(gvl_PQsendDescribePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
-
-	pgconn_wait_for_flush( self );
-	return Qnil;
+	return pgconn_send_describe_close_prepared_portal(
+		self, stmt_name, gvl_PQsendDescribePrepared,
+		"PQsendDescribePrepared");
 }
 
 
@@ -2137,15 +2168,47 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_send_describe_portal(VALUE self, VALUE portal)
 {
-	t_pg_connection *this = pg_get_connection_safe( self );
-	/* returns 0 on failure */
-	if(gvl_PQsendDescribePortal(this->pgconn, pg_cstr_enc(portal, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
-
-	pgconn_wait_for_flush( self );
-	return Qnil;
+	return pgconn_send_describe_close_prepared_portal(
+		self, portal, gvl_PQsendDescribePortal,
+		"PQsendDescribePortal");
 }
 
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+/*
+ * call-seq:
+ *    conn.send_close_prepared( statement_name ) -> nil
+ *
+ * Asynchronously send _command_ to the server. Does not block.
+ * Use in combination with +conn.get_result+.
+ *
+ * Available since PostgreSQL-17.
+ */
+static VALUE
+pgconn_send_close_prepared(VALUE self, VALUE stmt_name)
+{
+	return pgconn_send_describe_close_prepared_portal(
+		self, stmt_name, gvl_PQsendClosePrepared,
+		"PQsendClosePrepared");
+}
+
+
+/*
+ * call-seq:
+ *    conn.send_close_portal( portal_name ) -> nil
+ *
+ * Asynchronously send _command_ to the server. Does not block.
+ * Use in combination with +conn.get_result+.
+ *
+ * Available since PostgreSQL-17.
+ */
+static VALUE
+pgconn_send_close_portal(VALUE self, VALUE portal)
+{
+	return pgconn_send_describe_close_prepared_portal(
+		self, portal, gvl_PQsendClosePortal,
+		"PQsendClosePortal");
+}
+#endif
 
 static VALUE
 pgconn_sync_get_result(VALUE self)
@@ -3488,6 +3551,21 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 	return rb_pgresult;
 }
 
+static VALUE
+pgconn_async_describe_close_prepared_potral(VALUE self, VALUE name, VALUE
+(*func)(VALUE, VALUE))
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	func( self, name );
+	rb_pgresult = pgconn_async_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
 
 /*
  * call-seq:
@@ -3500,16 +3578,7 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_async_describe_portal(VALUE self, VALUE portal)
 {
-	VALUE rb_pgresult = Qnil;
-
-	pgconn_discard_results( self );
-	pgconn_send_describe_portal( self, portal );
-	rb_pgresult = pgconn_async_get_last_result( self );
-
-	if ( rb_block_given_p() ) {
-		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
-	}
-	return rb_pgresult;
+	return pgconn_async_describe_close_prepared_potral(self, portal, pgconn_send_describe_portal);
 }
 
 
@@ -3524,18 +3593,57 @@ pgconn_async_describe_portal(VALUE self, VALUE portal)
 static VALUE
 pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	VALUE rb_pgresult = Qnil;
-
-	pgconn_discard_results( self );
-	pgconn_send_describe_prepared( self, stmt_name );
-	rb_pgresult = pgconn_async_get_last_result( self );
-
-	if ( rb_block_given_p() ) {
-		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
-	}
-	return rb_pgresult;
+	return pgconn_async_describe_close_prepared_potral(self, stmt_name, pgconn_send_describe_prepared);
 }
 
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+/*
+ * call-seq:
+ *    conn.close_prepared( statement_name ) -> PG::Result
+ *
+ * Submits a request to close the specified prepared statement, and waits for completion.
+ * close_prepared allows an application to close a previously prepared statement.
+ * Closing a statement releases all of its associated resources on the server and allows its name to be reused.
+ * It's the same as using the +DEALLOCATE+ SQL statement, but on a lower protocol level.
+ *
+ * +statement_name+ can be "" or +nil+ to reference the unnamed statement.
+ * It is fine if no statement exists with this name, in that case the operation is a no-op.
+ * On success, a PG::Result with status PGRES_COMMAND_OK is returned.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQCLOSEPREPARED].
+ *
+ * Available since PostgreSQL-17.
+ */
+static VALUE
+pgconn_async_close_prepared(VALUE self, VALUE stmt_name)
+{
+	return pgconn_async_describe_close_prepared_potral(self, stmt_name, pgconn_send_close_prepared);
+}
+
+/*
+ * call-seq:
+ *    conn.close_portal( portal_name ) -> PG::Result
+ *
+ * Submits a request to close the specified portal, and waits for completion.
+ *
+ * close_portal allows an application to trigger a close of a previously created portal.
+ * Closing a portal releases all of its associated resources on the server and allows its name to be reused.
+ * (pg does not provide any direct access to portals, but you can use this function to close a cursor created with a DECLARE CURSOR SQL command.)
+ *
+ * +portal_name+ can be "" or +nil+ to reference the unnamed portal.
+ * It is fine if no portal exists with this name, in that case the operation is a no-op.
+ * On success, a PG::Result with status PGRES_COMMAND_OK is returned.
+ *
+ * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQCLOSEPORTAL].
+ *
+ * Available since PostgreSQL-17.
+ */
+static VALUE
+pgconn_async_close_portal(VALUE self, VALUE portal)
+{
+	return pgconn_async_describe_close_prepared_potral(self, portal, pgconn_send_close_portal);
+}
+#endif
 
 /*
  * call-seq:
@@ -4559,6 +4667,10 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "sync_exec_prepared", pgconn_sync_exec_prepared, -1);
 	rb_define_method(rb_cPGconn, "sync_describe_prepared", pgconn_sync_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "sync_describe_portal", pgconn_sync_describe_portal, 1);
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+	rb_define_method(rb_cPGconn, "sync_close_prepared", pgconn_sync_close_prepared, 1);
+	rb_define_method(rb_cPGconn, "sync_close_portal", pgconn_sync_close_portal, 1);
+#endif
 
 	rb_define_method(rb_cPGconn, "exec", pgconn_async_exec, -1);
 	rb_define_method(rb_cPGconn, "exec_params", pgconn_async_exec_params, -1);
@@ -4566,6 +4678,10 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "exec_prepared", pgconn_async_exec_prepared, -1);
 	rb_define_method(rb_cPGconn, "describe_prepared", pgconn_async_describe_prepared, 1);
 	rb_define_method(rb_cPGconn, "describe_portal", pgconn_async_describe_portal, 1);
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+	rb_define_method(rb_cPGconn, "close_prepared", pgconn_async_close_prepared, 1);
+	rb_define_method(rb_cPGconn, "close_portal", pgconn_async_close_portal, 1);
+#endif
 
 	rb_define_alias(rb_cPGconn, "async_exec", "exec");
 	rb_define_alias(rb_cPGconn, "async_query", "async_exec");
@@ -4574,6 +4690,10 @@ init_pg_connection(void)
 	rb_define_alias(rb_cPGconn, "async_exec_prepared", "exec_prepared");
 	rb_define_alias(rb_cPGconn, "async_describe_prepared", "describe_prepared");
 	rb_define_alias(rb_cPGconn, "async_describe_portal", "describe_portal");
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+	rb_define_alias(rb_cPGconn, "async_close_prepared", "close_prepared");
+	rb_define_alias(rb_cPGconn, "async_close_portal", "close_portal");
+#endif
 
 	rb_define_method(rb_cPGconn, "make_empty_pgresult", pgconn_make_empty_pgresult, 1);
 	rb_define_method(rb_cPGconn, "escape_string", pgconn_s_escape, 1);

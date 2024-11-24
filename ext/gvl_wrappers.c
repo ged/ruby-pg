@@ -5,6 +5,14 @@
 
 #include "pg.h"
 
+
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
+PGresult *PQclosePrepared(PGconn *conn, const char *stmtName){return NULL;}
+PGresult *PQclosePortal(PGconn *conn, const char *portalName){return NULL;}
+int PQsendClosePrepared(PGconn *conn, const char *stmtName){return 0;}
+int PQsendClosePortal(PGconn *conn, const char *portalName){return 0;}
+#endif
+
 #ifdef ENABLE_GVL_UNLOCK
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_WRAPPER_STRUCT );
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_SKELETON );

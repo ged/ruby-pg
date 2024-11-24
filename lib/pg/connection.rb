@@ -921,6 +921,12 @@ class PG::Connection
 			:encrypt_password => [:async_encrypt_password, :sync_encrypt_password],
 		}
 		private_constant :REDIRECT_METHODS
+		if PG::Connection.instance_methods.include? :async_close_prepared
+			REDIRECT_METHODS.merge!({
+				:close_prepared => [:async_close_prepared, :sync_close_prepared],
+				:close_portal => [:async_close_portal, :sync_close_portal],
+			})
+		end
 		PG.make_shareable(REDIRECT_METHODS)
 
 		def async_send_api=(enable)
