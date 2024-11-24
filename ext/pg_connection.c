@@ -1511,6 +1511,19 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 	return rb_pgresult;
 }
 
+static VALUE
+pgconn_sync_describe_close_prepared_portal(VALUE self, VALUE name, PGresult *(*func)(PGconn *, const char *))
+{
+	PGresult *result;
+	VALUE rb_pgresult;
+	t_pg_connection *this = pg_get_connection_safe( self );
+	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx);
+	result = func(this->pgconn, stmt);
+	rb_pgresult = pg_new_result(result, self);
+	pg_result_check(rb_pgresult);
+	return rb_pgresult;
+}
+
 /*
  * call-seq:
  *    conn.sync_describe_prepared( statement_name ) -> PG::Result
@@ -1522,20 +1535,7 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	PGresult *result;
-	VALUE rb_pgresult;
-	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt;
-	if(NIL_P(stmt_name)) {
-		stmt = NULL;
-	}
-	else {
-		stmt = pg_cstr_enc(stmt_name, this->enc_idx);
-	}
-	result = gvl_PQdescribePrepared(this->pgconn, stmt);
-	rb_pgresult = pg_new_result(result, self);
-	pg_result_check(rb_pgresult);
-	return rb_pgresult;
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQdescribePrepared);
 }
 
 
@@ -1550,20 +1550,7 @@ pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
 {
-	PGresult *result;
-	VALUE rb_pgresult;
-	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt;
-	if(NIL_P(stmt_name)) {
-		stmt = NULL;
-	}
-	else {
-		stmt = pg_cstr_enc(stmt_name, this->enc_idx);
-	}
-	result = gvl_PQdescribePortal(this->pgconn, stmt);
-	rb_pgresult = pg_new_result(result, self);
-	pg_result_check(rb_pgresult);
-	return rb_pgresult;
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQdescribePortal);
 }
 
 
@@ -1581,14 +1568,7 @@ pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_close_prepared(VALUE self, VALUE stmt_name)
 {
-	PGresult *result;
-	VALUE rb_pgresult;
-	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt = NIL_P(stmt_name) ? NULL : pg_cstr_enc(stmt_name, this->enc_idx);
-	result = gvl_PQclosePrepared(this->pgconn, stmt);
-	rb_pgresult = pg_new_result(result, self);
-	pg_result_check(rb_pgresult);
-	return rb_pgresult;
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQclosePrepared);
 }
 
 /*
@@ -1604,14 +1584,7 @@ pgconn_sync_close_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_close_portal(VALUE self, VALUE stmt_name)
 {
-	PGresult *result;
-	VALUE rb_pgresult;
-	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt = NIL_P(stmt_name) ? NULL : pg_cstr_enc(stmt_name, this->enc_idx);
-	result = gvl_PQclosePortal(this->pgconn, stmt);
-	rb_pgresult = pg_new_result(result, self);
-	pg_result_check(rb_pgresult);
-	return rb_pgresult;
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQclosePortal);
 }
 #endif
 
@@ -2155,6 +2128,20 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	return Qnil;
 }
 
+
+static VALUE
+pgconn_send_describe_close_prepared_portal(VALUE self, VALUE name, int (*func)(PGconn *, const char *), const char *funame)
+{
+	t_pg_connection *this = pg_get_connection_safe( self );
+	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx);
+	/* returns 0 on failure */
+	if(func(this->pgconn, stmt) == 0)
+		pg_raise_conn_error( rb_eUnableToSend, self, "%s %s", funame, PQerrorMessage(this->pgconn));
+
+	pgconn_wait_for_flush( self );
+	return Qnil;
+}
+
 /*
  * call-seq:
  *    conn.send_describe_prepared( statement_name ) -> nil
@@ -2165,13 +2152,9 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	t_pg_connection *this = pg_get_connection_safe( self );
-	/* returns 0 on failure */
-	if(gvl_PQsendDescribePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendDescribePrepared %s", PQerrorMessage(this->pgconn));
-
-	pgconn_wait_for_flush( self );
-	return Qnil;
+	return pgconn_send_describe_close_prepared_portal(
+		self, stmt_name, gvl_PQsendDescribePrepared,
+		"PQsendDescribePrepared");
 }
 
 
@@ -2185,13 +2168,9 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_send_describe_portal(VALUE self, VALUE portal)
 {
-	t_pg_connection *this = pg_get_connection_safe( self );
-	/* returns 0 on failure */
-	if(gvl_PQsendDescribePortal(this->pgconn, pg_cstr_enc(portal, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendDescribePortal %s", PQerrorMessage(this->pgconn));
-
-	pgconn_wait_for_flush( self );
-	return Qnil;
+	return pgconn_send_describe_close_prepared_portal(
+		self, portal, gvl_PQsendDescribePortal,
+		"PQsendDescribePortal");
 }
 
 #ifdef HAVE_PQSETCHUNKEDROWSMODE
@@ -2207,13 +2186,9 @@ pgconn_send_describe_portal(VALUE self, VALUE portal)
 static VALUE
 pgconn_send_close_prepared(VALUE self, VALUE stmt_name)
 {
-	t_pg_connection *this = pg_get_connection_safe( self );
-	/* returns 0 on failure */
-	if(gvl_PQsendClosePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendClosePrepared %s", PQerrorMessage(this->pgconn));
-
-	pgconn_wait_for_flush( self );
-	return Qnil;
+	return pgconn_send_describe_close_prepared_portal(
+		self, stmt_name, gvl_PQsendClosePrepared,
+		"PQsendClosePrepared");
 }
 
 
@@ -2229,13 +2204,9 @@ pgconn_send_close_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_send_close_portal(VALUE self, VALUE portal)
 {
-	t_pg_connection *this = pg_get_connection_safe( self );
-	/* returns 0 on failure */
-	if(gvl_PQsendClosePortal(this->pgconn, pg_cstr_enc(portal, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendClosePortal %s", PQerrorMessage(this->pgconn));
-
-	pgconn_wait_for_flush( self );
-	return Qnil;
+	return pgconn_send_describe_close_prepared_portal(
+		self, portal, gvl_PQsendClosePortal,
+		"PQsendClosePortal");
 }
 #endif
 
@@ -3580,6 +3551,21 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 	return rb_pgresult;
 }
 
+static VALUE
+pgconn_async_describe_close_prepared_potral(VALUE self, VALUE name, VALUE
+(*func)(VALUE, VALUE))
+{
+	VALUE rb_pgresult = Qnil;
+
+	pgconn_discard_results( self );
+	func( self, name );
+	rb_pgresult = pgconn_async_get_last_result( self );
+
+	if ( rb_block_given_p() ) {
+		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
+	}
+	return rb_pgresult;
+}
 
 /*
  * call-seq:
@@ -3592,16 +3578,7 @@ pgconn_async_exec_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_async_describe_portal(VALUE self, VALUE portal)
 {
-	VALUE rb_pgresult = Qnil;
-
-	pgconn_discard_results( self );
-	pgconn_send_describe_portal( self, portal );
-	rb_pgresult = pgconn_async_get_last_result( self );
-
-	if ( rb_block_given_p() ) {
-		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
-	}
-	return rb_pgresult;
+	return pgconn_async_describe_close_prepared_potral(self, portal, pgconn_send_describe_portal);
 }
 
 
@@ -3616,16 +3593,7 @@ pgconn_async_describe_portal(VALUE self, VALUE portal)
 static VALUE
 pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	VALUE rb_pgresult = Qnil;
-
-	pgconn_discard_results( self );
-	pgconn_send_describe_prepared( self, stmt_name );
-	rb_pgresult = pgconn_async_get_last_result( self );
-
-	if ( rb_block_given_p() ) {
-		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
-	}
-	return rb_pgresult;
+	return pgconn_async_describe_close_prepared_potral(self, stmt_name, pgconn_send_describe_prepared);
 }
 
 #ifdef HAVE_PQSETCHUNKEDROWSMODE
@@ -3648,16 +3616,7 @@ pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_async_close_prepared(VALUE self, VALUE stmt_name)
 {
-	VALUE rb_pgresult = Qnil;
-
-	pgconn_discard_results( self );
-	pgconn_send_close_prepared( self, stmt_name );
-	rb_pgresult = pgconn_async_get_last_result( self );
-
-	if ( rb_block_given_p() ) {
-		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
-	}
-	return rb_pgresult;
+	return pgconn_async_describe_close_prepared_potral(self, stmt_name, pgconn_send_close_prepared);
 }
 
 /*
@@ -3677,16 +3636,7 @@ pgconn_async_close_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_async_close_portal(VALUE self, VALUE portal)
 {
-	VALUE rb_pgresult = Qnil;
-
-	pgconn_discard_results( self );
-	pgconn_send_close_portal( self, portal );
-	rb_pgresult = pgconn_async_get_last_result( self );
-
-	if ( rb_block_given_p() ) {
-		return rb_ensure( rb_yield, rb_pgresult, pg_result_clear, rb_pgresult );
-	}
-	return rb_pgresult;
+	return pgconn_async_describe_close_prepared_potral(self, portal, pgconn_send_close_portal);
 }
 #endif
 
