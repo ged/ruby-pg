@@ -149,6 +149,12 @@
 #define FOR_EACH_PARAM_OF_PQdescribePortal(param) \
 	param(PGconn *, conn)
 
+#define FOR_EACH_PARAM_OF_PQclosePrepared(param) \
+	param(PGconn *, conn)
+
+#define FOR_EACH_PARAM_OF_PQclosePortal(param) \
+	param(PGconn *, conn)
+
 #define FOR_EACH_PARAM_OF_PQgetResult(param)
 
 #define FOR_EACH_PARAM_OF_PQputCopyData(param) \
@@ -196,6 +202,12 @@
 #define FOR_EACH_PARAM_OF_PQsendDescribePortal(param) \
 	param(PGconn *, conn)
 
+#define FOR_EACH_PARAM_OF_PQsendClosePrepared(param) \
+	param(PGconn *, conn)
+
+#define FOR_EACH_PARAM_OF_PQsendClosePortal(param) \
+	param(PGconn *, conn)
+
 #define FOR_EACH_PARAM_OF_PQsetClientEncoding(param) \
 	param(PGconn *, conn)
 
@@ -225,6 +237,8 @@
 	function(PQprepare, GVL_TYPE_NONVOID, PGresult *, const Oid *, paramTypes) \
 	function(PQdescribePrepared, GVL_TYPE_NONVOID, PGresult *, const char *, stmtName) \
 	function(PQdescribePortal, GVL_TYPE_NONVOID, PGresult *, const char *, portalName) \
+	function(PQclosePrepared, GVL_TYPE_NONVOID, PGresult *, const char *, stmtName) \
+	function(PQclosePortal, GVL_TYPE_NONVOID, PGresult *, const char *, portalName) \
 	function(PQgetResult, GVL_TYPE_NONVOID, PGresult *, PGconn *, conn) \
 	function(PQputCopyData, GVL_TYPE_NONVOID, int, int, nbytes) \
 	function(PQputCopyEnd, GVL_TYPE_NONVOID, int, const char *, errormsg) \
@@ -236,6 +250,8 @@
 	function(PQsendQueryPrepared, GVL_TYPE_NONVOID, int, int, resultFormat) \
 	function(PQsendDescribePrepared, GVL_TYPE_NONVOID, int, const char *, stmt) \
 	function(PQsendDescribePortal, GVL_TYPE_NONVOID, int, const char *, portal) \
+	function(PQsendClosePrepared, GVL_TYPE_NONVOID, int, const char *, stmt) \
+	function(PQsendClosePortal, GVL_TYPE_NONVOID, int, const char *, portal) \
 	function(PQsetClientEncoding, GVL_TYPE_NONVOID, int, const char *, encoding) \
 	function(PQisBusy, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQencryptPasswordConn, GVL_TYPE_NONVOID, char *, const char *, algorithm) \

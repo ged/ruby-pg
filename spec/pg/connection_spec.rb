@@ -2369,12 +2369,29 @@ describe PG::Connection do
 				@conn.prepare("weiß2", "VALUES(123)")
 				r = @conn.describe_prepared("weiß2".encode("utf-16be"))
 				expect( r.nfields ).to eq( 1 )
+				expect { @conn.prepare("weiß2", "VALUES(123)") }.to raise_error(PG::DuplicatePstatement)
 			end
 
 			it "should convert strings to #describe_portal" do
 				@conn.exec "DECLARE cörsör CURSOR FOR VALUES(1,2,3)"
 				r = @conn.describe_portal("cörsör".encode("utf-16le"))
 				expect( r.nfields ).to eq( 3 )
+			end
+
+			it "should convert strings to #close_prepared", :postgresql_17 do
+				@conn.prepare("weiß5", "VALUES(123)")
+				r = @conn.close_prepared("weiß5".encode("utf-16be"))
+				expect( r.nfields ).to eq( 0 )
+				@conn.prepare("weiß5", "VALUES(123)")
+				r = @conn.close_prepared("weiß5".encode("utf-16be"))
+			end
+
+			it "should convert strings to #close_portal", :postgresql_17 do
+				@conn.exec "DECLARE cörsör5 CURSOR FOR VALUES(1,2,3)"
+				r = @conn.close_portal("cörsör5".encode("utf-16le"))
+				expect( r.nfields ).to eq( 0 )
+				@conn.exec "DECLARE cörsör5 CURSOR FOR VALUES(1,2,3)"
+				r = @conn.close_portal("cörsör5".encode("utf-16le"))
 			end
 
 			it "should convert query string to #send_query" do
