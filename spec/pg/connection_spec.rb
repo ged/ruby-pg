@@ -1988,7 +1988,7 @@ describe PG::Connection do
 		it "raises an error when called at the wrong time" do
 			expect {
 				@conn.set_single_row_mode
-			}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
+			}.to raise_error(PG::Error, /PQsetSingleRowMode/){|err| expect(err).to have_attributes(connection: @conn) }
 		end
 
 		it "should work in single row mode" do
@@ -2049,7 +2049,13 @@ describe PG::Connection do
 		it "raises an error when called at the wrong time" do
 			expect {
 				@conn.set_chunked_rows_mode(2)
-			}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
+			}.to raise_error(PG::Error, /PQsetChunkedRowsMode/){|err| expect(err).to have_attributes(connection: @conn) }
+		end
+
+		it "raises an error when called with wrong arguments" do
+			expect { @conn.set_chunked_rows_mode(:nonint) }.to raise_error(TypeError)
+			expect { @conn.set_chunked_rows_mode(0) }.to raise_error(PG::Error, /PQsetChunkedRowsMode/)
+			expect { @conn.set_chunked_rows_mode(-2) }.to raise_error(PG::Error)
 		end
 
 		it "should work in single row mode" do

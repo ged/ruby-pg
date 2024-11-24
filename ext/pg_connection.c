@@ -1832,7 +1832,7 @@ pgconn_set_single_row_mode(VALUE self)
 
 	rb_check_frozen(self);
 	if( PQsetSingleRowMode(conn) == 0 )
-		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "PQsetSingleRowMode %s", PQerrorMessage(conn));
 
 	return self;
 }
@@ -1860,6 +1860,8 @@ pgconn_set_single_row_mode(VALUE self)
  *       # do something with the received max. 10 rows
  *     end
  *   end
+ *
+ * Available since PostgreSQL-17
  */
 static VALUE
 pgconn_set_chunked_rows_mode(VALUE self, VALUE chunk_size)
@@ -1868,7 +1870,7 @@ pgconn_set_chunked_rows_mode(VALUE self, VALUE chunk_size)
 
 	rb_check_frozen(self);
 	if( PQsetChunkedRowsMode(conn, NUM2INT(chunk_size)) == 0 )
-		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+		pg_raise_conn_error( rb_ePGerror, self, "PQsetChunkedRowsMode %s", PQerrorMessage(conn));
 
 	return self;
 }
