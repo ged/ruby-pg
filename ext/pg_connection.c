@@ -3604,8 +3604,9 @@ pgconn_async_describe_prepared(VALUE self, VALUE stmt_name)
  * Submits a request to close the specified prepared statement, and waits for completion.
  * close_prepared allows an application to close a previously prepared statement.
  * Closing a statement releases all of its associated resources on the server and allows its name to be reused.
+ * It's the same as using the +DEALLOCATE+ SQL statement, but on a lower protocol level.
  *
- * statement_name can be "" or +nil+ to reference the unnamed statement.
+ * +statement_name+ can be "" or +nil+ to reference the unnamed statement.
  * It is fine if no statement exists with this name, in that case the operation is a no-op.
  * On success, a PG::Result with status PGRES_COMMAND_OK is returned.
  *
@@ -3628,6 +3629,10 @@ pgconn_async_close_prepared(VALUE self, VALUE stmt_name)
  * close_portal allows an application to trigger a close of a previously created portal.
  * Closing a portal releases all of its associated resources on the server and allows its name to be reused.
  * (pg does not provide any direct access to portals, but you can use this function to close a cursor created with a DECLARE CURSOR SQL command.)
+ *
+ * +portal_name+ can be "" or +nil+ to reference the unnamed portal.
+ * It is fine if no portal exists with this name, in that case the operation is a no-op.
+ * On success, a PG::Result with status PGRES_COMMAND_OK is returned.
  *
  * See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PQCLOSEPORTAL].
  *
