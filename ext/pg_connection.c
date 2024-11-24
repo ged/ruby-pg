@@ -1947,7 +1947,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
 		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx)) == 0)
-			pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+			pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQuery %s", PQerrorMessage(this->pgconn));
 
 		pgconn_wait_for_flush( self );
 		return Qnil;
@@ -2022,7 +2022,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	free_query_params( &paramsData );
 
 	if(result == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQueryParams %s", PQerrorMessage(this->pgconn));
 
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2083,7 +2083,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	xfree(paramTypes);
 
 	if(result == 0) {
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendPrepare %s", PQerrorMessage(this->pgconn));
 	}
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2149,7 +2149,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	free_query_params( &paramsData );
 
 	if(result == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQueryPrepared %s", PQerrorMessage(this->pgconn));
 
 	pgconn_wait_for_flush( self );
 	return Qnil;
@@ -2168,7 +2168,7 @@ pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 	t_pg_connection *this = pg_get_connection_safe( self );
 	/* returns 0 on failure */
 	if(gvl_PQsendDescribePrepared(this->pgconn, pg_cstr_enc(stmt_name, this->enc_idx)) == 0)
-		pg_raise_conn_error( rb_eUnableToSend, self, "%s", PQerrorMessage(this->pgconn));
+		pg_raise_conn_error( rb_eUnableToSend, self, "PQsendDescribePrepared %s", PQerrorMessage(this->pgconn));
 
 	pgconn_wait_for_flush( self );
 	return Qnil;
