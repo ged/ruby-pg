@@ -66,7 +66,7 @@ jobs:
             PGVER: "10"
           - os: ubuntu
             ruby: "truffleruby"
-            PGVER: "13"
+            PGVER: "14"
           - os: ubuntu
             ruby: "truffleruby-head"
             PGVER: "17"
