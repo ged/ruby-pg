@@ -263,4 +263,20 @@ context "with a Fiber scheduler", :scheduler do
 			expect( ping ).to eq( PG::PQPING_OK )
 		end
 	end
+
+	it "can send a pipeline_sync message", :postgresql_14 do
+		run_with_scheduler(99) do |conn|
+			conn.enter_pipeline_mode
+			1000.times do |idx|
+				# This doesn't fail on sync_pipeline_sync, since PQpipelineSync() tries to flush, but doesn't wait for writablility.
+				conn.pipeline_sync
+			end
+			1000.times do
+				expect( conn.get_result.result_status ).to eq( PG::PGRES_PIPELINE_SYNC )
+			end
+			expect( conn.get_result ).to be_nil
+			expect( conn.get_result ).to be_nil
+			conn.exit_pipeline_mode
+		end
+	end
 end
