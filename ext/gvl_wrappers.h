@@ -208,6 +208,10 @@
 #define FOR_EACH_PARAM_OF_PQsendClosePortal(param) \
 	param(PGconn *, conn)
 
+#define FOR_EACH_PARAM_OF_PQpipelineSync(param)
+
+#define FOR_EACH_PARAM_OF_PQsendPipelineSync(param)
+
 #define FOR_EACH_PARAM_OF_PQsetClientEncoding(param) \
 	param(PGconn *, conn)
 
@@ -252,6 +256,8 @@
 	function(PQsendDescribePortal, GVL_TYPE_NONVOID, int, const char *, portal) \
 	function(PQsendClosePrepared, GVL_TYPE_NONVOID, int, const char *, stmt) \
 	function(PQsendClosePortal, GVL_TYPE_NONVOID, int, const char *, portal) \
+	function(PQpipelineSync, GVL_TYPE_NONVOID, int, PGconn *, conn) \
+	function(PQsendPipelineSync, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQsetClientEncoding, GVL_TYPE_NONVOID, int, const char *, encoding) \
 	function(PQisBusy, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQencryptPasswordConn, GVL_TYPE_NONVOID, char *, const char *, algorithm) \

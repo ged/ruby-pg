@@ -60,7 +60,7 @@ jobs:
           - os: windows-latest
             ruby: "2.7"
             platform: "x64-mingw32"
-            PGVERSION: 10.20-1-windows
+            PGVERSION: 16.6-1-windows-x64
 
     runs-on: ${{ matrix.os }}
     env:

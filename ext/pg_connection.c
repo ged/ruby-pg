@@ -3751,6 +3751,8 @@ pgconn_pipeline_status(VALUE self)
  * Raises PG::Error and has no effect if the connection is not currently idle, i.e., it has a result ready, or it is waiting for more input from the server, etc.
  * This function does not actually send anything to the server, it just changes the libpq connection state.
  *
+ * See the {PostgreSQL documentation}[https://www.postgresql.org/docs/17/libpq-pipeline-mode.html#LIBPQ-PIPELINE-MODE].
+ *
  * Available since PostgreSQL-14
  */
 static VALUE
@@ -3789,29 +3791,55 @@ pgconn_exit_pipeline_mode(VALUE self)
 
 /*
  * call-seq:
- *    conn.pipeline_sync -> nil
+ *    conn.sync_pipeline_sync -> nil
  *
- * Marks a synchronization point in a pipeline by sending a sync message and flushing the send buffer.
- * This serves as the delimiter of an implicit transaction and an error recovery point; see Section 34.5.1.3 of the PostgreSQL documentation.
- *
- * Raises PG::Error if the connection is not in pipeline mode or sending a sync message failed.
+ * This function has the same behavior as #async_pipeline_sync, but is implemented using the synchronous command processing API of libpq.
+ * See #async_exec for the differences between the two API variants.
+ * It's not recommended to use explicit sync or async variants but #pipeline_sync instead, unless you have a good reason to do so.
  *
  * Available since PostgreSQL-14
  */
 static VALUE
-pgconn_pipeline_sync(VALUE self)
+pgconn_sync_pipeline_sync(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	int res = PQpipelineSync(conn);
+	int res = gvl_PQpipelineSync(conn);
 	if( res != 1 )
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 
 	return Qnil;
 }
 
+
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
 /*
  * call-seq:
- *    conn.pipeline_sync -> nil
+ *    conn.send_pipeline_sync -> nil
+ *
+ * Marks a synchronization point in a pipeline by sending a sync message without flushing the send buffer.
+ *
+ * This serves as the delimiter of an implicit transaction and an error recovery point.
+ * Raises PG::Error if the connection is not in pipeline mode or sending a sync message failed.
+ * Note that the message is not itself flushed to the server automatically; use flush if necessary.
+ *
+ * Available since PostgreSQL-17
+ */
+static VALUE
+pgconn_send_pipeline_sync(VALUE self)
+{
+	PGconn *conn = pg_get_pgconn(self);
+	int res = gvl_PQsendPipelineSync(conn);
+	if( res != 1 )
+		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
+
+	return Qnil;
+}
+#endif
+
+
+/*
+ * call-seq:
+ *    conn.send_flush_request -> nil
  *
  * Sends a request for the server to flush its output buffer.
  *
@@ -4769,8 +4797,11 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "pipeline_status", pgconn_pipeline_status, 0);
 	rb_define_method(rb_cPGconn, "enter_pipeline_mode", pgconn_enter_pipeline_mode, 0);
 	rb_define_method(rb_cPGconn, "exit_pipeline_mode", pgconn_exit_pipeline_mode, 0);
-	rb_define_method(rb_cPGconn, "pipeline_sync", pgconn_pipeline_sync, 0);
+	rb_define_method(rb_cPGconn, "sync_pipeline_sync", pgconn_sync_pipeline_sync, 0);
 	rb_define_method(rb_cPGconn, "send_flush_request", pgconn_send_flush_request, 0);
+#ifdef HAVE_PQSETCHUNKEDROWSMODE
+	rb_define_method(rb_cPGconn, "send_pipeline_sync", pgconn_send_pipeline_sync, 0);
+#endif
 #endif
 
 	/******     PG::Connection INSTANCE METHODS: Large Object Support     ******/

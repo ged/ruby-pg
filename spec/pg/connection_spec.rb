@@ -2173,6 +2173,11 @@ describe PG::Connection do
 					@conn.pipeline_sync
 				}.to raise_error(PG::Error){|err| expect(err).to have_attributes(connection: @conn) }
 			end
+
+			it "has send_pipeline_sync method", :postgresql_17 do
+				expect( @conn.respond_to?(:send_pipeline_sync) ).to be_truthy
+				expect( @conn.respond_to?(:async_pipeline_sync) ).to be_truthy
+			end
 		end
 
 		describe "send_flush_request" do

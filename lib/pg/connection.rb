@@ -536,6 +536,25 @@ class PG::Connection
 	end
 	alias async_put_copy_end put_copy_end
 
+	if method_defined? :send_pipeline_sync
+		# call-seq:
+		#    conn.pipeline_sync
+		#
+		# Marks a synchronization point in a pipeline by sending a sync message and flushing the send buffer.
+		# This serves as the delimiter of an implicit transaction and an error recovery point.
+		#
+		# See enter_pipeline_mode
+		#
+		# Raises PG::Error if the connection is not in pipeline mode or sending a sync message failed.
+		#
+		# Available since PostgreSQL-14
+		def pipeline_sync(*args)
+			send_pipeline_sync(*args)
+			flush
+		end
+		alias async_pipeline_sync pipeline_sync
+	end
+
 	if method_defined? :sync_encrypt_password
 		# call-seq:
 		#    conn.encrypt_password( password, username, algorithm=nil ) -> String
@@ -894,14 +913,29 @@ class PG::Connection
 		private_constant :REDIRECT_CLASS_METHODS
 
 		# These methods are affected by PQsetnonblocking
-		REDIRECT_SEND_METHODS = PG.make_shareable({
+		REDIRECT_SEND_METHODS = {
 			:isnonblocking => [:async_isnonblocking, :sync_isnonblocking],
 			:nonblocking? => [:async_isnonblocking, :sync_isnonblocking],
 			:put_copy_data => [:async_put_copy_data, :sync_put_copy_data],
 			:put_copy_end => [:async_put_copy_end, :sync_put_copy_end],
 			:flush => [:async_flush, :sync_flush],
-		})
+		}
 		private_constant :REDIRECT_SEND_METHODS
+		if PG::Connection.instance_methods.include? :sync_pipeline_sync
+			if PG::Connection.instance_methods.include? :send_pipeline_sync
+				# PostgreSQL-17+
+				REDIRECT_SEND_METHODS.merge!({
+					:pipeline_sync => [:async_pipeline_sync, :sync_pipeline_sync],
+				})
+			else
+				# PostgreSQL-14+
+				REDIRECT_SEND_METHODS.merge!({
+					:pipeline_sync => [:sync_pipeline_sync, :sync_pipeline_sync],
+				})
+			end
+		end
+		PG.make_shareable(REDIRECT_SEND_METHODS)
+
 		REDIRECT_METHODS = {
 			:exec => [:async_exec, :sync_exec],
 			:query => [:async_exec, :sync_exec],
