@@ -23,6 +23,10 @@ else
 			end
 		end
 
+		it "fails to return a socket before connecting started" do
+			expect{ conn.socket_io }.to raise_error( PG::ConnectionBad, /PQcancelSocket/ )
+		end
+
 		it "has #status" do
 			expect( conn.status ).to eq( PG::CONNECTION_ALLOCATED )
 		end
