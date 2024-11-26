@@ -116,10 +116,8 @@ typedef struct {
 	/* enable automatic flushing of send data at the end of send_query calls */
 	unsigned int flush_data : 1;
 
-#if defined(_WIN32)
 	/* File descriptor to be used for rb_w32_unwrap_io_handle() */
 	int ruby_sd;
-#endif
 } t_pg_connection;
 
 typedef struct pg_coder t_pg_coder;
@@ -349,6 +347,9 @@ VALUE pgconn_block                                     _(( int, VALUE *, VALUE )
 __attribute__((format(printf, 3, 4)))
 #endif
 NORETURN(void pg_raise_conn_error                      _(( VALUE klass, VALUE self, const char *format, ...)));
+VALUE pg_wrap_socket_io                                _(( int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd ));
+void pg_unwrap_socket_io                               _(( VALUE self, VALUE *p_socket_io, int ruby_sd ));
+
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
 VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));

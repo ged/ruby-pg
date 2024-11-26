@@ -93,6 +93,20 @@ pg_get_pgconn( VALUE self )
 }
 
 
+void
+pg_unwrap_socket_io( VALUE self, VALUE *p_socket_io, int ruby_sd )
+{
+	if ( RTEST(*p_socket_io) ) {
+#if defined(_WIN32)
+		if( rb_w32_unwrap_io_handle(ruby_sd) )
+			pg_raise_conn_error( rb_eConnectionBad, self, "Could not unwrap win32 socket handle");
+#endif
+		rb_funcall( *p_socket_io, rb_intern("close"), 0 );
+	}
+
+	RB_OBJ_WRITE(self, p_socket_io, Qnil);
+}
+
 
 /*
  * Close the associated socket IO object if there is one.
@@ -101,17 +115,7 @@ static void
 pgconn_close_socket_io( VALUE self )
 {
 	t_pg_connection *this = pg_get_connection( self );
-	VALUE socket_io = this->socket_io;
-
-	if ( RTEST(socket_io) ) {
-#if defined(_WIN32)
-		if( rb_w32_unwrap_io_handle(this->ruby_sd) )
-			pg_raise_conn_error( rb_eConnectionBad, self, "Could not unwrap win32 socket handle");
-#endif
-		rb_funcall( socket_io, rb_intern("close"), 0 );
-	}
-
-	RB_OBJ_WRITE(self, &this->socket_io, Qnil);
+	pg_unwrap_socket_io( self, &this->socket_io, this->ruby_sd);
 }
 
 
@@ -914,6 +918,35 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
+
+VALUE
+pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
+{
+	int ruby_sd;
+	VALUE cSocket;
+	VALUE socket_io = *p_socket_io;
+
+	#ifdef _WIN32
+		ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
+		if( ruby_sd == -1 )
+			pg_raise_conn_error( rb_eConnectionBad, self, "Could not wrap win32 socket handle");
+
+		*p_ruby_sd = ruby_sd;
+	#else
+		*p_ruby_sd = ruby_sd = sd;
+	#endif
+
+	cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+	socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
+
+	/* Disable autoclose feature */
+	rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
+
+	RB_OBJ_WRITE(self, p_socket_io, socket_io);
+
+	return socket_io;
+}
+
 /*
  * call-seq:
  *    conn.socket_io() -> IO
@@ -931,37 +964,17 @@ pgconn_socket(VALUE self)
 static VALUE
 pgconn_socket_io(VALUE self)
 {
-	int sd;
-	int ruby_sd;
 	t_pg_connection *this = pg_get_connection_safe( self );
-	VALUE cSocket;
-	VALUE socket_io = this->socket_io;
 
-	if ( !RTEST(socket_io) ) {
+	if ( !RTEST(this->socket_io) ) {
+		int sd;
 		if( (sd = PQsocket(this->pgconn)) < 0){
 			pg_raise_conn_error( rb_eConnectionBad, self, "PQsocket() can't get socket descriptor");
 		}
-
-		#ifdef _WIN32
-			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
-			if( ruby_sd == -1 )
-				pg_raise_conn_error( rb_eConnectionBad, self, "Could not wrap win32 socket handle");
-
-			this->ruby_sd = ruby_sd;
-		#else
-			ruby_sd = sd;
-		#endif
-
-		cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
-		socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
-
-		/* Disable autoclose feature */
-		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
-
-		RB_OBJ_WRITE(self, &this->socket_io, socket_io);
+		return pg_wrap_socket_io( sd, self, &this->socket_io, &this->ruby_sd);
 	}
 
-	return socket_io;
+	return this->socket_io;
 }
 
 /*

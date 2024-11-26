@@ -20,10 +20,8 @@ typedef struct {
 	/* Cached IO object for the socket descriptor */
 	VALUE socket_io;
 
-#if defined(_WIN32)
 	/* File descriptor to be used for rb_w32_unwrap_io_handle() */
 	int ruby_sd;
-#endif
 } t_pg_cancon;
 
 
@@ -118,17 +116,7 @@ static void
 pg_cancon_close_socket_io( VALUE self )
 {
 	t_pg_cancon *this = pg_cancon_get_this( self );
-	VALUE socket_io = this->socket_io;
-
-	if ( RTEST(socket_io) ) {
-#if defined(_WIN32)
-		if( rb_w32_unwrap_io_handle(this->ruby_sd) )
-			pg_raise_conn_error( rb_eConnectionBad, self, "Could not unwrap win32 socket handle");
-#endif
-		rb_funcall( socket_io, rb_intern("close"), 0 );
-	}
-
-	RB_OBJ_WRITE(self, &this->socket_io, Qnil);
+	pg_unwrap_socket_io( self, &this->socket_io, this->ruby_sd);
 }
 
 VALUE
@@ -245,37 +233,17 @@ pg_cancon_status(VALUE self)
 static VALUE
 pg_cancon_socket_io(VALUE self)
 {
-	int sd;
-	int ruby_sd;
 	t_pg_cancon *this = pg_cancon_get_this( self );
-	VALUE cSocket;
-	VALUE socket_io = this->socket_io;
 
-	if ( !RTEST(socket_io) ) {
+	if ( !RTEST(this->socket_io) ) {
+		int sd;
 		if( (sd = PQcancelSocket(this->pg_cancon)) < 0){
 			pg_raise_conn_error( rb_eConnectionBad, self, "PQcancelSocket() can't get socket descriptor");
 		}
-
-		#ifdef _WIN32
-			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
-			if( ruby_sd == -1 )
-				pg_raise_conn_error( rb_eConnectionBad, self, "Could not wrap win32 socket handle");
-
-			this->ruby_sd = ruby_sd;
-		#else
-			ruby_sd = sd;
-		#endif
-
-		cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
-		socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
-
-		/* Disable autoclose feature */
-		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
-
-		RB_OBJ_WRITE(self, &this->socket_io, socket_io);
+		return pg_wrap_socket_io( sd, self, &this->socket_io, &this->ruby_sd);
 	}
 
-	return socket_io;
+	return this->socket_io;
 }
 
 /*
