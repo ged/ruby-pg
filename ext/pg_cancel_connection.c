@@ -126,6 +126,8 @@ pg_cancon_initialize(VALUE self, VALUE rb_conn)
 	PGconn *conn = pg_get_pgconn(rb_conn);
 
 	this->pg_cancon = PQcancelCreate(conn);
+	if (this->pg_cancon == NULL)
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQcancelCreate failed");
 
 	return self;
 }
