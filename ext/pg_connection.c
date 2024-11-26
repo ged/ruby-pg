@@ -608,7 +608,7 @@ pgconn_reset_start(VALUE self)
  *    conn.reset_poll -> Integer
  *
  * Checks the status of a connection reset operation.
- * See #connect_start and #connect_poll for
+ * See Connection.connect_start and #connect_poll for
  * usage information and return values.
  */
 static VALUE
@@ -953,7 +953,7 @@ pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
  *
  * Fetch an IO object created from the Connection's underlying socket.
  * This object can be used per <tt>socket_io.wait_readable</tt>, <tt>socket_io.wait_writable</tt> or for <tt>IO.select</tt> to wait for events while running asynchronous API calls.
- * <tt>IO#wait_*able</tt> is is <tt>Fiber.scheduler</tt> compatible in contrast to <tt>IO.select</tt>.
+ * <tt>IO#wait_*able</tt> is <tt>Fiber.scheduler</tt> compatible in contrast to <tt>IO.select</tt>.
  *
  * The IO object can change while the connection is established, but is memorized afterwards.
  * So be sure not to cache the IO object, but repeat calling <tt>conn.socket_io</tt> instead.

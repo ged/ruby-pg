@@ -135,7 +135,7 @@ static const rb_data_type_t pg_tuple_type = {
  * Document-method: allocate
  *
  * call-seq:
- *   PG::VeryTuple.allocate -> obj
+ *   PG::Tuple.allocate -> obj
  */
 static VALUE
 pg_tuple_s_allocate( VALUE klass )

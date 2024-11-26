@@ -620,6 +620,9 @@ class PG::Connection
 		#
 		# Returns +nil+ on success, or a string containing the
 		# error message if a failure occurs.
+		#
+		# On PostgreSQL-17+ client libaray the class PG::CancelConnection is used.
+		# On older client library a pure ruby implementation is used.
 		def cancel
 			cancon = PG::CancelConnection.new(self)
 			cancon.async_connect_timeout = conninfo_hash[:connect_timeout]
