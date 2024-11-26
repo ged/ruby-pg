@@ -21,6 +21,10 @@
 #	include RUBY_EXTCONF_H
 #endif
 
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
+typedef struct pg_cancel_conn PGcancelConn;
+#endif
+
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
 
@@ -217,6 +221,10 @@
 
 #define FOR_EACH_PARAM_OF_PQisBusy(param)
 
+#define FOR_EACH_PARAM_OF_PQcancelBlocking(param)
+#define FOR_EACH_PARAM_OF_PQcancelStart(param)
+#define FOR_EACH_PARAM_OF_PQcancelPoll(param)
+
 #define FOR_EACH_PARAM_OF_PQencryptPasswordConn(param) \
 	param(PGconn *, conn) \
 	param(const char *, passwd) \
@@ -260,6 +268,9 @@
 	function(PQsendPipelineSync, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQsetClientEncoding, GVL_TYPE_NONVOID, int, const char *, encoding) \
 	function(PQisBusy, GVL_TYPE_NONVOID, int, PGconn *, conn) \
+	function(PQcancelBlocking, GVL_TYPE_NONVOID, int, PGcancelConn *, conn) \
+	function(PQcancelStart, GVL_TYPE_NONVOID, int, PGcancelConn *, conn) \
+	function(PQcancelPoll, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGcancelConn *, conn) \
 	function(PQencryptPasswordConn, GVL_TYPE_NONVOID, char *, const char *, algorithm) \
 	function(PQcancel, GVL_TYPE_NONVOID, int, int, errbufsize);
 

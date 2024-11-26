@@ -111,6 +111,7 @@ module PG
 	require 'pg/coder'
 	require 'pg/type_map_by_column'
 	require 'pg/connection'
+	require 'pg/cancel_connection'
 	require 'pg/result'
 	require 'pg/tuple'
 	autoload :VERSION, 'pg/version'

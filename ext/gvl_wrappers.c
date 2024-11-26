@@ -12,6 +12,9 @@ PGresult *PQclosePortal(PGconn *conn, const char *portalName){return NULL;}
 int PQsendClosePrepared(PGconn *conn, const char *stmtName){return 0;}
 int PQsendClosePortal(PGconn *conn, const char *portalName){return 0;}
 int PQsendPipelineSync(PGconn *conn){return 0;}
+int PQcancelBlocking(PGcancelConn *cancelConn){return 0;}
+int PQcancelStart(PGcancelConn *cancelConn){return 0;}
+PostgresPollingStatusType PQcancelPoll(PGcancelConn *cancelConn){return PGRES_POLLING_FAILED;}
 #endif
 #ifndef HAVE_PQENTERPIPELINEMODE
 int PQpipelineSync(PGconn *conn){return 0;}

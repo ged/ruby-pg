@@ -305,6 +305,7 @@ void init_pg_text_decoder                              _(( void ));
 void init_pg_binary_encoder                            _(( void ));
 void init_pg_binary_decoder                            _(( void ));
 void init_pg_tuple                                     _(( void ));
+void init_pg_cancon                                    _(( void ));
 VALUE lookup_error_class                               _(( const char * ));
 VALUE pg_bin_dec_bytea                                 _(( t_pg_coder*, const char *, int, int, int, int ));
 VALUE pg_text_dec_string                               _(( t_pg_coder*, const char *, int, int, int, int ));
@@ -344,6 +345,10 @@ void pg_typemap_compact                                _(( void * ));
 PGconn *pg_get_pgconn                                  _(( VALUE ));
 t_pg_connection *pg_get_connection                     _(( VALUE ));
 VALUE pgconn_block                                     _(( int, VALUE *, VALUE ));
+#ifdef __GNUC__
+__attribute__((format(printf, 3, 4)))
+#endif
+NORETURN(void pg_raise_conn_error                      _(( VALUE klass, VALUE self, const char *format, ...)));
 
 VALUE pg_new_result                                    _(( PGresult *, VALUE ));
 VALUE pg_new_result_autoclear                          _(( PGresult *, VALUE ));

@@ -30,11 +30,8 @@ static VALUE pgconn_async_flush(VALUE self);
 /*
  * Convenience function to raise connection errors
  */
-#ifdef __GNUC__
-__attribute__((format(printf, 3, 4)))
-#endif
-NORETURN( static void
-pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...))
+void
+pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...)
 {
 	VALUE msg, error;
 	va_list ap;
@@ -981,6 +978,7 @@ pgconn_backend_pid(VALUE self)
 	return INT2NUM(PQbackendPID(pg_get_pgconn(self)));
 }
 
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 typedef struct
 {
 	struct sockaddr_storage addr;
@@ -1025,6 +1023,7 @@ pgconn_backend_key(VALUE self)
 
 	return INT2NUM(be_key);
 }
+#endif
 
 /*
  * call-seq:
@@ -2299,6 +2298,7 @@ pgconn_sync_flush(VALUE self)
 	return (ret) ? Qfalse : Qtrue;
 }
 
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 static VALUE
 pgconn_sync_cancel(VALUE self)
 {
@@ -2320,6 +2320,7 @@ pgconn_sync_cancel(VALUE self)
 	PQfreeCancel(cancel);
 	return retval;
 }
+#endif
 
 
 /*
@@ -4683,7 +4684,9 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
 	rb_define_method(rb_cPGconn, "socket_io", pgconn_socket_io, 0);
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 	rb_define_method(rb_cPGconn, "backend_key", pgconn_backend_key, 0);
+#endif
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);
 	/* rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0); */
@@ -4753,7 +4756,9 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "discard_results", pgconn_discard_results, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Cancelling Queries in Progress     ******/
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 	rb_define_method(rb_cPGconn, "sync_cancel", pgconn_sync_cancel, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: NOTIFY     ******/
 	rb_define_method(rb_cPGconn, "notifies", pgconn_notifies, 0);
