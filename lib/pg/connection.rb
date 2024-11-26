@@ -602,110 +602,144 @@ class PG::Connection
 	end
 	alias async_reset reset
 
-	# call-seq:
-	#    conn.cancel() -> String
-	#
-	# Requests cancellation of the command currently being
-	# processed.
-	#
-	# Returns +nil+ on success, or a string containing the
-	# error message if a failure occurs.
-	def cancel
-		be_pid = backend_pid
-		be_key = backend_key
-		cancel_request = [0x10, 1234, 5678, be_pid, be_key].pack("NnnNN")
+	if defined?(PG::CancelConnection)
+		# PostgreSQL-17+
 
-		if Fiber.respond_to?(:scheduler) && Fiber.scheduler && RUBY_PLATFORM =~ /mingw|mswin/
-			# Ruby's nonblocking IO is not really supported on Windows.
-			# We work around by using threads and explicit calls to wait_readable/wait_writable.
-			cl = Thread.new(socket_io.remote_address) { |ra| ra.connect }.value
-			begin
-				cl.write_nonblock(cancel_request)
-			rescue IO::WaitReadable, Errno::EINTR
-				cl.wait_writable
-				retry
-			end
-			begin
-				cl.read_nonblock(1)
-			rescue IO::WaitReadable, Errno::EINTR
-				cl.wait_readable
-				retry
-			rescue EOFError
-			end
-		else
-			cl = socket_io.remote_address.connect
-			# Send CANCEL_REQUEST_CODE and parameters
-			cl.write(cancel_request)
-			# Wait for the postmaster to close the connection, which indicates that it's processed the request.
-			cl.read(1)
+		def sync_cancel
+			cancon = PG::CancelConnection.new(self)
+			cancon.sync_cancel
+		rescue PG::Error => err
+			err.to_s
 		end
 
-		cl.close
-		nil
-	rescue SystemCallError => err
-		err.to_s
+		# call-seq:
+		#    conn.cancel() -> String
+		#
+		# Requests cancellation of the command currently being
+		# processed.
+		#
+		# Returns +nil+ on success, or a string containing the
+		# error message if a failure occurs.
+		#
+		# On PostgreSQL-17+ client libaray the class PG::CancelConnection is used.
+		# On older client library a pure ruby implementation is used.
+		def cancel
+			cancon = PG::CancelConnection.new(self)
+			cancon.async_connect_timeout = conninfo_hash[:connect_timeout]
+			cancon.async_cancel
+		rescue PG::Error => err
+			err.to_s
+		end
+
+	else
+
+		# PostgreSQL < 17
+
+		def cancel
+			be_pid = backend_pid
+			be_key = backend_key
+			cancel_request = [0x10, 1234, 5678, be_pid, be_key].pack("NnnNN")
+
+			if Fiber.respond_to?(:scheduler) && Fiber.scheduler && RUBY_PLATFORM =~ /mingw|mswin/
+				# Ruby's nonblocking IO is not really supported on Windows.
+				# We work around by using threads and explicit calls to wait_readable/wait_writable.
+				cl = Thread.new(socket_io.remote_address) { |ra| ra.connect }.value
+				begin
+					cl.write_nonblock(cancel_request)
+				rescue IO::WaitReadable, Errno::EINTR
+					cl.wait_writable
+					retry
+				end
+				begin
+					cl.read_nonblock(1)
+				rescue IO::WaitReadable, Errno::EINTR
+					cl.wait_readable
+					retry
+				rescue EOFError
+				end
+			else
+				cl = socket_io.remote_address.connect
+				# Send CANCEL_REQUEST_CODE and parameters
+				cl.write(cancel_request)
+				# Wait for the postmaster to close the connection, which indicates that it's processed the request.
+				cl.read(1)
+			end
+
+			cl.close
+			nil
+		rescue SystemCallError => err
+			err.to_s
+		end
 	end
 	alias async_cancel cancel
 
+	module Pollable
+		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
+		private def polling_loop(poll_meth, connect_timeout)
+			if (timeo = connect_timeout.to_i) && timeo > 0
+				host_count = conninfo_hash[:host].to_s.count(",") + 1
+				stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
+			end
+
+			poll_status = PG::PGRES_POLLING_WRITING
+			until poll_status == PG::PGRES_POLLING_OK ||
+					poll_status == PG::PGRES_POLLING_FAILED
+
+				# Set single timeout to parameter "connect_timeout" but
+				# don't exceed total connection time of number-of-hosts * connect_timeout.
+				timeout = [timeo, stop_time - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min if stop_time
+				event = if !timeout || timeout >= 0
+					# If the socket needs to read, wait 'til it becomes readable to poll again
+					case poll_status
+					when PG::PGRES_POLLING_READING
+						if defined?(IO::READABLE) # ruby-3.0+
+							socket_io.wait(IO::READABLE | IO::PRIORITY, timeout)
+						else
+							IO.select([socket_io], nil, [socket_io], timeout)
+						end
+
+					# ...and the same for when the socket needs to write
+					when PG::PGRES_POLLING_WRITING
+						if defined?(IO::WRITABLE) # ruby-3.0+
+							# Use wait instead of wait_readable, since connection errors are delivered as
+							# exceptional/priority events on Windows.
+							socket_io.wait(IO::WRITABLE | IO::PRIORITY, timeout)
+						else
+							# io#wait on ruby-2.x doesn't wait for priority, so fallback to IO.select
+							IO.select(nil, [socket_io], [socket_io], timeout)
+						end
+					end
+				end
+				# connection to server at "localhost" (127.0.0.1), port 5433 failed: timeout expired (PG::ConnectionBad)
+				# connection to server on socket "/var/run/postgresql/.s.PGSQL.5433" failed: No such file or directory
+				unless event
+					if self.class.send(:host_is_named_pipe?, host)
+						connhost = "on socket \"#{host}\""
+					elsif respond_to?(:hostaddr)
+						connhost = "at \"#{host}\" (#{hostaddr}), port #{port}"
+					else
+						connhost = "at \"#{host}\", port #{port}"
+					end
+					raise PG::ConnectionBad.new("connection to server #{connhost} failed: timeout expired", connection: self)
+				end
+
+				# Check to see if it's finished or failed yet
+				poll_status = send( poll_meth )
+			end
+
+			unless status == PG::CONNECTION_OK
+				msg = error_message
+				finish
+				raise PG::ConnectionBad.new(msg, connection: self)
+			end
+		end
+	end
+
+	include Pollable
+
 	private def async_connect_or_reset(poll_meth)
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
-
-		if (timeo = conninfo_hash[:connect_timeout].to_i) && timeo > 0
-			host_count = conninfo_hash[:host].to_s.count(",") + 1
-			stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
-		end
-
-		poll_status = PG::PGRES_POLLING_WRITING
-		until poll_status == PG::PGRES_POLLING_OK ||
-				poll_status == PG::PGRES_POLLING_FAILED
-
-			# Set single timeout to parameter "connect_timeout" but
-			# don't exceed total connection time of number-of-hosts * connect_timeout.
-			timeout = [timeo, stop_time - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min if stop_time
-			event = if !timeout || timeout >= 0
-				# If the socket needs to read, wait 'til it becomes readable to poll again
-				case poll_status
-				when PG::PGRES_POLLING_READING
-					if defined?(IO::READABLE) # ruby-3.0+
-						socket_io.wait(IO::READABLE | IO::PRIORITY, timeout)
-					else
-						IO.select([socket_io], nil, [socket_io], timeout)
-					end
-
-				# ...and the same for when the socket needs to write
-				when PG::PGRES_POLLING_WRITING
-					if defined?(IO::WRITABLE) # ruby-3.0+
-						# Use wait instead of wait_readable, since connection errors are delivered as
-						# exceptional/priority events on Windows.
-						socket_io.wait(IO::WRITABLE | IO::PRIORITY, timeout)
-					else
-						# io#wait on ruby-2.x doesn't wait for priority, so fallback to IO.select
-						IO.select(nil, [socket_io], [socket_io], timeout)
-					end
-				end
-			end
-			# connection to server at "localhost" (127.0.0.1), port 5433 failed: timeout expired (PG::ConnectionBad)
-			# connection to server on socket "/var/run/postgresql/.s.PGSQL.5433" failed: No such file or directory
-			unless event
-				if self.class.send(:host_is_named_pipe?, host)
-					connhost = "on socket \"#{host}\""
-				elsif respond_to?(:hostaddr)
-					connhost = "at \"#{host}\" (#{hostaddr}), port #{port}"
-				else
-					connhost = "at \"#{host}\", port #{port}"
-				end
-				raise PG::ConnectionBad.new("connection to server #{connhost} failed: timeout expired", connection: self)
-			end
-
-			# Check to see if it's finished or failed yet
-			poll_status = send( poll_meth )
-		end
-
-		unless status == PG::CONNECTION_OK
-			msg = error_message
-			finish
-			raise PG::ConnectionBad.new(msg, connection: self)
-		end
+		polling_loop(poll_meth, conninfo_hash[:connect_timeout])
 
 		# Set connection to nonblocking to handle all blocking states in ruby.
 		# That way a fiber scheduler is able to handle IO requests.

@@ -30,11 +30,8 @@ static VALUE pgconn_async_flush(VALUE self);
 /*
  * Convenience function to raise connection errors
  */
-#ifdef __GNUC__
-__attribute__((format(printf, 3, 4)))
-#endif
-NORETURN( static void
-pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...))
+void
+pg_raise_conn_error( VALUE klass, VALUE self, const char *format, ...)
 {
 	VALUE msg, error;
 	va_list ap;
@@ -96,6 +93,20 @@ pg_get_pgconn( VALUE self )
 }
 
 
+void
+pg_unwrap_socket_io( VALUE self, VALUE *p_socket_io, int ruby_sd )
+{
+	if ( RTEST(*p_socket_io) ) {
+#if defined(_WIN32)
+		if( rb_w32_unwrap_io_handle(ruby_sd) )
+			pg_raise_conn_error( rb_eConnectionBad, self, "Could not unwrap win32 socket handle");
+#endif
+		rb_funcall( *p_socket_io, rb_intern("close"), 0 );
+	}
+
+	RB_OBJ_WRITE(self, p_socket_io, Qnil);
+}
+
 
 /*
  * Close the associated socket IO object if there is one.
@@ -104,17 +115,7 @@ static void
 pgconn_close_socket_io( VALUE self )
 {
 	t_pg_connection *this = pg_get_connection( self );
-	VALUE socket_io = this->socket_io;
-
-	if ( RTEST(socket_io) ) {
-#if defined(_WIN32)
-		if( rb_w32_unwrap_io_handle(this->ruby_sd) )
-			pg_raise_conn_error( rb_eConnectionBad, self, "Could not unwrap win32 socket handle");
-#endif
-		rb_funcall( socket_io, rb_intern("close"), 0 );
-	}
-
-	RB_OBJ_WRITE(self, &this->socket_io, Qnil);
+	pg_unwrap_socket_io( self, &this->socket_io, this->ruby_sd);
 }
 
 
@@ -607,7 +608,7 @@ pgconn_reset_start(VALUE self)
  *    conn.reset_poll -> Integer
  *
  * Checks the status of a connection reset operation.
- * See #connect_start and #connect_poll for
+ * See Connection.connect_start and #connect_poll for
  * usage information and return values.
  */
 static VALUE
@@ -917,13 +918,42 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
+
+VALUE
+pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
+{
+	int ruby_sd;
+	VALUE cSocket;
+	VALUE socket_io = *p_socket_io;
+
+	#ifdef _WIN32
+		ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
+		if( ruby_sd == -1 )
+			pg_raise_conn_error( rb_eConnectionBad, self, "Could not wrap win32 socket handle");
+
+		*p_ruby_sd = ruby_sd;
+	#else
+		*p_ruby_sd = ruby_sd = sd;
+	#endif
+
+	cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+	socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
+
+	/* Disable autoclose feature */
+	rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
+
+	RB_OBJ_WRITE(self, p_socket_io, socket_io);
+
+	return socket_io;
+}
+
 /*
  * call-seq:
  *    conn.socket_io() -> IO
  *
  * Fetch an IO object created from the Connection's underlying socket.
  * This object can be used per <tt>socket_io.wait_readable</tt>, <tt>socket_io.wait_writable</tt> or for <tt>IO.select</tt> to wait for events while running asynchronous API calls.
- * <tt>IO#wait_*able</tt> is is <tt>Fiber.scheduler</tt> compatible in contrast to <tt>IO.select</tt>.
+ * <tt>IO#wait_*able</tt> is <tt>Fiber.scheduler</tt> compatible in contrast to <tt>IO.select</tt>.
  *
  * The IO object can change while the connection is established, but is memorized afterwards.
  * So be sure not to cache the IO object, but repeat calling <tt>conn.socket_io</tt> instead.
@@ -934,37 +964,17 @@ pgconn_socket(VALUE self)
 static VALUE
 pgconn_socket_io(VALUE self)
 {
-	int sd;
-	int ruby_sd;
 	t_pg_connection *this = pg_get_connection_safe( self );
-	VALUE cSocket;
-	VALUE socket_io = this->socket_io;
 
-	if ( !RTEST(socket_io) ) {
+	if ( !RTEST(this->socket_io) ) {
+		int sd;
 		if( (sd = PQsocket(this->pgconn)) < 0){
 			pg_raise_conn_error( rb_eConnectionBad, self, "PQsocket() can't get socket descriptor");
 		}
-
-		#ifdef _WIN32
-			ruby_sd = rb_w32_wrap_io_handle((HANDLE)(intptr_t)sd, O_RDWR|O_BINARY|O_NOINHERIT);
-			if( ruby_sd == -1 )
-				pg_raise_conn_error( rb_eConnectionBad, self, "Could not wrap win32 socket handle");
-
-			this->ruby_sd = ruby_sd;
-		#else
-			ruby_sd = sd;
-		#endif
-
-		cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
-		socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
-
-		/* Disable autoclose feature */
-		rb_funcall( socket_io, s_id_autoclose_set, 1, Qfalse );
-
-		RB_OBJ_WRITE(self, &this->socket_io, socket_io);
+		return pg_wrap_socket_io( sd, self, &this->socket_io, &this->ruby_sd);
 	}
 
-	return socket_io;
+	return this->socket_io;
 }
 
 /*
@@ -981,6 +991,7 @@ pgconn_backend_pid(VALUE self)
 	return INT2NUM(PQbackendPID(pg_get_pgconn(self)));
 }
 
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 typedef struct
 {
 	struct sockaddr_storage addr;
@@ -1025,6 +1036,7 @@ pgconn_backend_key(VALUE self)
 
 	return INT2NUM(be_key);
 }
+#endif
 
 /*
  * call-seq:
@@ -2299,6 +2311,7 @@ pgconn_sync_flush(VALUE self)
 	return (ret) ? Qfalse : Qtrue;
 }
 
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 static VALUE
 pgconn_sync_cancel(VALUE self)
 {
@@ -2320,6 +2333,7 @@ pgconn_sync_cancel(VALUE self)
 	PQfreeCancel(cancel);
 	return retval;
 }
+#endif
 
 
 /*
@@ -4683,7 +4697,9 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);
 	rb_define_method(rb_cPGconn, "socket_io", pgconn_socket_io, 0);
 	rb_define_method(rb_cPGconn, "backend_pid", pgconn_backend_pid, 0);
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 	rb_define_method(rb_cPGconn, "backend_key", pgconn_backend_key, 0);
+#endif
 	rb_define_method(rb_cPGconn, "connection_needs_password", pgconn_connection_needs_password, 0);
 	rb_define_method(rb_cPGconn, "connection_used_password", pgconn_connection_used_password, 0);
 	/* rb_define_method(rb_cPGconn, "getssl", pgconn_getssl, 0); */
@@ -4753,7 +4769,9 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "discard_results", pgconn_discard_results, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Cancelling Queries in Progress     ******/
+#ifndef HAVE_PQSETCHUNKEDROWSMODE
 	rb_define_method(rb_cPGconn, "sync_cancel", pgconn_sync_cancel, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: NOTIFY     ******/
 	rb_define_method(rb_cPGconn, "notifies", pgconn_notifies, 0);

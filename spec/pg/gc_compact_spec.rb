@@ -51,6 +51,12 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 		CPYENC = PG::TextEncoder::CopyRow.new type_map: TM3
 		RECENC = PG::TextEncoder::Record.new type_map: TM3
 
+		if defined?(PG::CancelConnection)
+			CANCON = PG::CancelConnection.new(CONN2)
+			CANCON.start
+			CANCON.socket_io
+		end
+
 		begin
 			# Use GC.verify_compaction_references instead of GC.compact .
 			# This has the advantage that all movable objects are actually moved.
@@ -99,6 +105,10 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 
 	it "should compact PG::RecordCoder" do
 		expect( RECENC.encode([34]) ).to eq( '("34")' )
+	end
+
+	it "should compact PG::CancelConnection", :postgresql_17 do
+		expect( CANCON.socket_io ).to be_kind_of( IO )
 	end
 
 	after :all do

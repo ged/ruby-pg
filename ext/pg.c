@@ -404,6 +404,10 @@ Init_pg_ext(void)
 	/* Checking if server is in standby mode. Available since PostgreSQL-14. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_STANDBY", INT2FIX(CONNECTION_CHECK_STANDBY));
 #endif
+#if PG_MAJORVERSION_NUM >= 17
+	/* Waiting for connection attempt to be started. Available since PostgreSQL-17. */
+	rb_define_const(rb_mPGconstants, "CONNECTION_ALLOCATED", INT2FIX(CONNECTION_ALLOCATED));
+#endif
 
 	/******     PG::Connection CLASS CONSTANTS: Nonblocking connection polling status     ******/
 
@@ -689,4 +693,5 @@ Init_pg_ext(void)
 	init_pg_copycoder();
 	init_pg_recordcoder();
 	init_pg_tuple();
+	init_pg_cancon();
 }
