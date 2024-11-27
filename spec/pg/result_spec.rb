@@ -296,7 +296,7 @@ describe PG::Result do
 			it "raises an error if there is a timeout during streaming" do
 				@conn.exec( "SET local statement_timeout = 20" )
 
-				@conn.send_query( "SELECT 1, true UNION ALL SELECT 2, (pg_sleep(0.1) IS NULL)" )
+				@conn.send_query( "SELECT 1, true UNION ALL SELECT 2, (pg_sleep(0.3) IS NULL)" )
 				@conn.send(*row_mode)
 				expect{
 					@conn.get_result.stream_each_row do |row|
