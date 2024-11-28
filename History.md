@@ -1,3 +1,29 @@
+## v1.6.0.rc1 [2024-11-28] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Added:
+
+- Add fat binary gem for platform `x86_64-linux`.
+  [#551](https://github.com/ged/ruby-pg/pull/551#issuecomment-2504715762)
+- Add PG::BinaryDecoder::Array and PG::BinaryEncoder::Array to parse and encode PostgreSQL arrays in binary format.
+  [#603](https://github.com/ged/ruby-pg/pull/603)
+- Add support for new query cancel functions of PostgreSQL-17.
+  This adds the new class `PG::CancelConnection` which provides the ability to cancel a query per blocking or per non-blocking functions.
+  If the new functions are available they are used and the older are no longer compiled in.
+  This way we can get rid of reading out the internal `PGcancel` struct by `Connection#backend_key`.
+  [#614](https://github.com/ged/ruby-pg/pull/614)
+- Add Connection#set_chunked_rows_mode [#610](https://github.com/ged/ruby-pg/pull/610)
+- Add PG::Connection#close_prepared, PG::Connection#close_portal, PG::Connection#send_close_prepared and PG::Connection#send_close_portal which are new in PostgreSQL-17.
+  [#611](https://github.com/ged/ruby-pg/pull/611)
+- Add Connection#send_pipeline_sync, async_pipeline_sync and release GVL at PQ(sendP|P)ipelineSync.
+  [#612](https://github.com/ged/ruby-pg/pull/612)
+
+Removed:
+
+- Drop support of Ruby < 2.7 [#606](https://github.com/ged/ruby-pg/pull/606)
+- Drop support of PostgreSQL < 10 [#606](https://github.com/ged/ruby-pg/pull/606)
+- Remove workaround for Truffleruby < 21.3.0 [#613](https://github.com/ged/ruby-pg/pull/613)
+
+
 ## v1.5.9 [2024-10-24] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Enable thread safety in static OpenSSL build for Windows. [#595](https://github.com/ged/ruby-pg/pull/595)
