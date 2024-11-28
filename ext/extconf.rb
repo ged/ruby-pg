@@ -1,7 +1,6 @@
 require 'pp'
 require 'mkmf'
 
-
 if ENV['MAINTAINER_MODE']
 	$stderr.puts "Maintainer mode enabled."
 	$CFLAGS <<
@@ -24,12 +23,125 @@ else
 	$stderr.puts "Calling libpq with GVL locked"
 end
 
-if enable_config("windows-cross")
+if gem_platform=with_config("cross-build")
+	gem 'mini_portile2', '~>2.1'
+	require 'mini_portile2'
+
+	OPENSSL_VERSION = ENV['OPENSSL_VERSION'] || '3.4.0'
+	OPENSSL_SOURCE_URI = "http://www.openssl.org/source/openssl-#{OPENSSL_VERSION}.tar.gz"
+
+	KRB5_VERSION = ENV['KRB5_VERSION'] || '1.21.3'
+	KRB5_SOURCE_URI = "http://kerberos.org/dist/krb5/#{KRB5_VERSION[/^(\d+\.\d+)/]}/krb5-#{KRB5_VERSION}.tar.gz"
+
+	POSTGRESQL_VERSION = ENV['POSTGRESQL_VERSION'] || '17.2'
+	POSTGRESQL_SOURCE_URI = "http://ftp.postgresql.org/pub/source/v#{POSTGRESQL_VERSION}/postgresql-#{POSTGRESQL_VERSION}.tar.bz2"
+
+	class BuildRecipe < MiniPortile
+		def initialize(name, version, files)
+			super(name, version)
+			self.files = files
+			rootdir = File.expand_path('../..', __FILE__)
+			self.target = File.join(rootdir, "ports")
+			self.patch_files = Dir[File.join(target, "patches", self.name, self.version, "*.patch")].sort
+		end
+
+		def port_path
+			"#{target}/#{RUBY_PLATFORM}"
+		end
+
+		def cook_and_activate
+			checkpoint = File.join(self.target, "#{self.name}-#{self.version}-#{RUBY_PLATFORM}.installed")
+			unless File.exist?(checkpoint)
+				self.cook
+				FileUtils.touch checkpoint
+			end
+			self.activate
+			self
+		end
+	end
+
+	openssl_platform = with_config("openssl-platform")
+	toolchain = with_config("toolchain")
+
+	openssl_recipe = BuildRecipe.new("openssl", OPENSSL_VERSION, [OPENSSL_SOURCE_URI]).tap do |recipe|
+		class << recipe
+			attr_accessor :openssl_platform
+			def configure
+				envs = []
+				envs << "CFLAGS=-DDSO_WIN32 -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /mingw|mswin/
+				envs << "CFLAGS=-fPIC -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /linux/
+				execute('configure', ['env', *envs, "./Configure", openssl_platform, "threads", "-static", "CROSS_COMPILE=#{host}-", configure_prefix], altlog: "config.log")
+			end
+			def compile
+				execute('compile', "#{make_cmd} build_libs")
+			end
+			def install
+				execute('install', "#{make_cmd} install_dev")
+			end
+		end
+
+		recipe.openssl_platform = openssl_platform
+		recipe.host = toolchain
+		recipe.cook_and_activate
+	end
+
+	if RUBY_PLATFORM =~ /linux/
+		krb5_recipe = BuildRecipe.new("krb5", KRB5_VERSION, [KRB5_SOURCE_URI]).tap do |recipe|
+			class << recipe
+				def work_path
+					File.join(super, "src")
+				end
+			end
+			# We specify -fcommon to get around duplicate definition errors in recent gcc.
+			# See https://github.com/cockroachdb/cockroach/issues/49734
+			recipe.configure_options << "CFLAGS=-fcommon#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
+			recipe.configure_options << "--without-keyutils"
+			recipe.host = toolchain
+			recipe.cook_and_activate
+		end
+	end
+
+	postgresql_recipe = BuildRecipe.new("postgresql", POSTGRESQL_VERSION, [POSTGRESQL_SOURCE_URI]).tap do |recipe|
+		class << recipe
+			def configure_defaults
+				[
+					"--target=#{host}",
+					"--host=#{host}",
+					'--with-openssl',
+					*(RUBY_PLATFORM=~/linux/ ? ['--with-gssapi'] : []),
+					'--without-zlib',
+					'--without-icu',
+				]
+			end
+			def compile
+				execute 'compile include', "#{make_cmd} -C src/include install"
+				execute 'compile interfaces', "#{make_cmd} -C src/interfaces install"
+			end
+			def install
+			end
+		end
+
+		recipe.configure_options << "CFLAGS=#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
+		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 #{"-Wl,-soname,libpq-ruby-pg.so.1 -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/}"
+		recipe.configure_options << "LIBS=-lkrb5 -lcom_err -lk5crypto -lkrb5support -lresolv" if RUBY_PLATFORM =~ /linux/
+		recipe.configure_options << "LIBS=-lssl -lwsock32 -lgdi32 -lws2_32 -lcrypt32" if RUBY_PLATFORM =~ /mingw|mswin/
+		recipe.configure_options << "CPPFLAGS=-I#{openssl_recipe.path}/include"
+		recipe.host = toolchain
+		recipe.cook_and_activate
+	end
+
+	# Use our own library name for libpq to avoid loading of system libpq by accident.
+	FileUtils.ln_sf File.join(postgresql_recipe.port_path, "lib/libpq.so.5"),
+			File.join(postgresql_recipe.port_path, "lib/libpq-ruby-pg.so.1")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc"
+	# Find libpq in the ports directory coming from lib/3.3
+	# It is shared between all compiled ruby versions.
+	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'"
 	# Don't use pg_config for cross build, but --with-pg-* path options
-	dir_config 'pg'
+	dir_config('pg', "#{postgresql_recipe.path}/include", "#{postgresql_recipe.path}/lib")
 
+	$defs.push( "-DPG_IS_BINARY_GEM")
 else
 	# Native build
 

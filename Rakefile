@@ -31,8 +31,8 @@ CLEAN.include( PKGDIR.to_s, TMPDIR.to_s )
 CLEAN.include "lib/*/libpq.dll"
 CLEAN.include "lib/pg_ext.*"
 CLEAN.include "lib/pg/postgresql_lib_path.rb"
-
-load 'Rakefile.cross'
+CLEAN.include "ports/*.installed"
+CLEAN.include "ports/*mingw*", "ports/*linux*"
 
 Bundler::GemHelper.install_tasks
 $gem_spec = Bundler.load_gemspec(GEMSPEC)
@@ -40,6 +40,16 @@ $gem_spec = Bundler.load_gemspec(GEMSPEC)
 desc "Turn on warnings and debugging in the build."
 task :maint do
 	ENV['MAINTAINER_MODE'] = 'yes'
+end
+
+CrossLibrary = Struct.new :platform, :openssl_config, :toolchain
+CrossLibraries = [
+	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
+	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
+	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
+	['x86_64-linux', 'linux-x86_64', 'x86_64-redhat-linux-gnu'],
+].map do |platform, openssl_config, toolchain|
+	CrossLibrary.new platform, openssl_config, toolchain
 end
 
 # Rake-compiler task
@@ -50,24 +60,57 @@ Rake::ExtensionTask.new do |ext|
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
 	ext.cross_compile  = true
-	ext.cross_platform = CrossLibraries.map(&:for_platform)
+	ext.cross_platform = CrossLibraries.map(&:platform)
 
-	ext.cross_config_options += CrossLibraries.map do |lib|
+	ext.cross_config_options += CrossLibraries.map do |xlib|
 		{
-			lib.for_platform => [
-				"--enable-windows-cross",
-				"--with-pg-include=#{lib.static_postgresql_incdir}",
-				"--with-pg-lib=#{lib.static_postgresql_libdir}",
-				# libpq-fe.h resides in src/interfaces/libpq/ before make install
-				"--with-opt-include=#{lib.static_postgresql_libdir}",
+			xlib.platform => [
+				"--with-cross-build=#{xlib.platform}",
+				"--with-openssl-platform=#{xlib.openssl_config}",
+				"--with-toolchain=#{xlib.toolchain}",
 			]
 		}
 	end
 
-	# Add libpq.dll to windows binary gemspec
+	# Add libpq.dll/.so to fat binary gemspecs
 	ext.cross_compiling do |spec|
-		spec.files << "lib/#{spec.platform}/libpq.dll"
+		spec.files << "ports/#{spec.platform.to_s}/lib/libpq-ruby-pg.so.1" if spec.platform.to_s =~ /linux/
+		spec.files << "ports/#{spec.platform.to_s}/lib/libpq.dll" if spec.platform.to_s =~ /mingw|mswin/
 	end
+end
+
+task 'gem:native:prepare' do
+	require 'io/console'
+	require 'rake_compiler_dock'
+
+	# Copy gem signing key and certs to be accessible from the docker container
+	mkdir_p 'build/gem'
+	sh "cp ~/.gem/gem-*.pem build/gem/ || true"
+	sh "bundle package"
+	begin
+		OpenSSL::PKey.read(File.read(File.expand_path("~/.gem/gem-private_key.pem")), ENV["GEM_PRIVATE_KEY_PASSPHRASE"] || "")
+	rescue OpenSSL::PKey::PKeyError
+		ENV["GEM_PRIVATE_KEY_PASSPHRASE"] = STDIN.getpass("Enter passphrase of gem signature key: ")
+		retry
+	end
+end
+
+CrossLibraries.each do |xlib|
+	platform = xlib.platform
+	desc "Build fat binary gem for platform #{platform}"
+	task "gem:native:#{platform}" => ['gem:native:prepare'] do
+		RakeCompilerDock.sh <<-EOT, platform: platform
+			#{ "sudo yum install -y perl-IPC-Cmd bison flex &&" if platform =~ /linux/ }
+			#{ # remove nm on Linux to suppress PostgreSQL's check for exit which raises thread_exit as a false positive:
+				"sudo mv `which nm` `which nm`.bak && sudo mv `which nm` `which nm`.bak &&" if platform =~ /linux/ }
+			#{ "sudo apt-get update && sudo apt-get install -y bison flex &&" if platform =~ /mingw/ }
+			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
+			bundle install --local &&
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=3.3.0:3.2.0:3.1.0:3.0.0:2.7.0
+		EOT
+	end
+	desc "Build the native binary gems"
+	multitask 'gem:native' => "gem:native:#{platform}"
 end
 
 RSpec::Core::RakeTask.new(:spec).rspec_opts = "--profile -cfdoc"

@@ -698,7 +698,7 @@ describe PG::Connection do
 		end
 
 		it "rejects to send lots of COPY data" do
-			unless RUBY_PLATFORM =~ /i386-mingw|x86_64-darwin|x86_64-linux/
+			unless RUBY_PLATFORM =~ /i386-mingw|x86_64-darwin|x86_64-linux$/
 				skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
 			end
 

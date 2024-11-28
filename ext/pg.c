@@ -671,6 +671,12 @@ Init_pg_ext(void)
 	/* PostgreSQL compiled in default port */
 	rb_define_const(rb_mPGconstants, "DEF_PGPORT", INT2FIX(DEF_PGPORT));
 
+#ifdef PG_IS_BINARY_GEM
+	rb_define_const(rb_mPG, "IS_BINARY_GEM", Qtrue);
+#else
+	rb_define_const(rb_mPG, "IS_BINARY_GEM", Qfalse);
+#endif
+
 	/* Add the constants to the toplevel namespace */
 	rb_include_module( rb_mPG, rb_mPGconstants );
 
