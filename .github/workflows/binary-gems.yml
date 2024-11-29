@@ -162,3 +162,26 @@ jobs:
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
           docker build --rm --platform ${{matrix.image_platform}} --build-arg from_image=${{matrix.from_image}} -t ruby-test -f spec/env/Dockerfile.${{matrix.dockerfile}} .
           docker run --rm -t --network=host -v `pwd`:/build ruby-test
+
+  job_binary_yugabyte:
+    name: yugabyte (${{matrix.gem_platform}}
+    needs: rcd_build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gem_platform: x86_64-linux
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download gem-${{ matrix.gem_platform }}
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-gem-${{ matrix.gem_platform }}
+      - name: Build image and Run tests
+        run: |
+          sudo apt-get install -y docker-compose
+          cp -v  pg-*.gem   misc/yugabyte/
+          cd misc/yugabyte
+          docker-compose up --abort-on-container-exit  --exit-code-from pg
