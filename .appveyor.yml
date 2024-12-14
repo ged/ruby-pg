@@ -24,8 +24,6 @@ install:
 
         $env:PATH = 'C:/Program Files/PostgreSQL/' + $env:PGVER + '/bin;' + $env:PATH
         $env:PATH = 'C:/Program Files (x86)/PostgreSQL/' + $env:PGVER + '/bin;' + $env:PATH
-      } else {
-        c:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed `${MINGW_PACKAGE_PREFIX}-postgresql"
       }
   - echo %PATH%
   - pg_config

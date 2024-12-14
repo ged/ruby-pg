@@ -19,6 +19,8 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/ged/ruby-pg"
   spec.metadata["changelog_uri"] = "https://github.com/ged/ruby-pg/blob/master/History.md"
   spec.metadata["documentation_uri"] = "http://deveiate.org/code/pg"
+  # https://github.com/oneclick/rubyinstaller2/wiki/For-gem-developers#msys2-library-dependency
+  spec.metadata["msys2_mingw_dependencies"] = "postgresql"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
