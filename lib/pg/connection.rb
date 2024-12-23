@@ -680,6 +680,7 @@ class PG::Connection
 				host_count = conninfo_hash[:host].to_s.count(",") + 1
 				stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
 			end
+			connection_attempts = 1
 
 			poll_status = PG::PGRES_POLLING_WRITING
 			until poll_status == PG::PGRES_POLLING_OK ||
@@ -720,7 +721,13 @@ class PG::Connection
 					else
 						connhost = "at \"#{host}\", port #{port}"
 					end
-					raise PG::ConnectionBad.new("connection to server #{connhost} failed: timeout expired", connection: self)
+					if connection_attempts < host_count.to_i
+						connection_attempts += 1
+						new_conninfo_hash = rotate_hosts(conninfo_hash.compact)
+						send(:reset_start2, self.class.send(:parse_connect_args, new_conninfo_hash))
+					else
+						raise PG::ConnectionBad.new("connection to server #{connhost} failed: timeout expired", connection: self)
+					end
 				end
 
 				# Check to see if it's finished or failed yet
@@ -732,6 +739,13 @@ class PG::Connection
 				finish
 				raise PG::ConnectionBad.new(msg, connection: self)
 			end
+		end
+
+		private def rotate_hosts(conninfo_hash)
+			conninfo_hash[:host] = conninfo_hash[:host].split(",").rotate.join(",") if conninfo_hash[:host]
+			conninfo_hash[:port] = conninfo_hash[:port].split(",").rotate.join(",") if conninfo_hash[:port]
+			conninfo_hash[:hostaddr] = conninfo_hash[:hostaddr].split(",").rotate.join(",") if conninfo_hash[:hostaddr]
+			conninfo_hash
 		end
 	end
 
