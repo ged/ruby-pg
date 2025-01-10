@@ -47,7 +47,7 @@ CrossLibraries = [
 	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
-	['x86_64-linux', 'linux-x86_64', 'x86_64-redhat-linux-gnu'],
+	['x86_64-linux', 'linux-x86_64', 'x86_64-linux-gnu'],
 ].map do |platform, openssl_config, toolchain|
 	CrossLibrary.new platform, openssl_config, toolchain
 end
@@ -100,13 +100,12 @@ CrossLibraries.each do |xlib|
 	desc "Build fat binary gem for platform #{platform}"
 	task "gem:native:#{platform}" => ['gem:native:prepare'] do
 		RakeCompilerDock.sh <<-EOT, platform: platform
-			#{ "sudo yum install -y perl-IPC-Cmd bison flex &&" if platform =~ /linux/ }
 			#{ # remove nm on Linux to suppress PostgreSQL's check for exit which raises thread_exit as a false positive:
-				"sudo mv `which nm` `which nm`.bak && sudo mv `which nm` `which nm`.bak &&" if platform =~ /linux/ }
-			#{ "sudo apt-get update && sudo apt-get install -y bison flex &&" if platform =~ /mingw/ }
+				"sudo mv `which nm` `which nm`.bak &&" if platform =~ /linux/ }
+			sudo apt-get update && sudo apt-get install -y bison flex &&
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=3.3.0:3.2.0:3.1.0:3.0.0:2.7.0
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=3.4.1:3.3.5:3.2.6:3.1.6:3.0.7:2.7.8
 		EOT
 	end
 	desc "Build the native binary gems"
