@@ -1,11 +1,20 @@
 name: Binary gems
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
   schedule:
     - cron: "0 5 * * 3" # At 05:00 on Wednesday # https://crontab.guru/#0_5_*_*_3
+  push:
+    branches:
+      - master
+    tags:
+      - "*.*.*"
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - "*"
+permissions:
+  contents: read
 
 jobs:
   rcd_build:
