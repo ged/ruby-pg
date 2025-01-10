@@ -206,6 +206,7 @@ typedef struct {
 	t_pg_coder comp;
 	t_pg_coder *elem;
 	int needs_quotation;
+	int dimensions;
 	char delimiter;
 } t_pg_composite_coder;
 

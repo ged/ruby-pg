@@ -96,6 +96,9 @@ if gem_platform=with_config("cross-build")
 			# See https://github.com/cockroachdb/cockroach/issues/49734
 			recipe.configure_options << "CFLAGS=-fcommon#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
 			recipe.configure_options << "--without-keyutils"
+			recipe.configure_options << "krb5_cv_attr_constructor_destructor=yes"
+			recipe.configure_options << "ac_cv_func_regcomp=yes"
+			recipe.configure_options << "ac_cv_printf_positional=yes"
 			recipe.host = toolchain
 			recipe.cook_and_activate
 		end
@@ -111,6 +114,8 @@ if gem_platform=with_config("cross-build")
 					*(RUBY_PLATFORM=~/linux/ ? ['--with-gssapi'] : []),
 					'--without-zlib',
 					'--without-icu',
+					'--without-readline',
+					'ac_cv_search_gss_store_cred_into=',
 				]
 			end
 			def compile
@@ -135,6 +140,8 @@ if gem_platform=with_config("cross-build")
 			File.join(postgresql_recipe.port_path, "lib/libpq-ruby-pg.so.1")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc"
+	# Avoid: "libpq.so: undefined reference to `dlopen'" in cross-ruby-2.7.8
+	$LDFLAGS << " -Wl,--no-as-needed"
 	# Find libpq in the ports directory coming from lib/3.3
 	# It is shared between all compiled ruby versions.
 	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'"

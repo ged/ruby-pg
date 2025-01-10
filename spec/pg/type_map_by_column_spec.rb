@@ -182,6 +182,12 @@ describe PG::TypeMapByColumn do
 		expect{ PG::TypeMapByColumn.new( [123] ) }.to raise_error(TypeError, /wrong argument type (Integer|Fixnum)/)
 	end
 
+	it "should raise an error for invalid input when used as type_map" do
+		map = PG::TypeMapByColumn.new([PG::TextEncoder::Integer.new])
+		record_encoder = PG::TextEncoder::Record.new(type_map: map)
+		expect{ record_encoder.encode(123) }.to raise_error(TypeError)
+	end
+
 	it "shouldn't allow result mappings with different number of fields" do
 		res = @conn.exec( "SELECT 1" )
 		expect{ res.type_map = PG::TypeMapByColumn.new([]) }.to raise_error(ArgumentError, /mapped columns/)

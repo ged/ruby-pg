@@ -956,12 +956,74 @@ describe "PG::Type derivations" do
 
 						expect( binaryenc_text_array.encode([[[5,6]],[["6\"",7]],[[nil,5]]]) ).to eq( exp )
 					end
+
+					let!(:binaryenc_array_array) { PG::BinaryEncoder::Array.new elements_type: PG::BinaryEncoder::Array.new(elements_type: PG::BinaryEncoder::Int4.new(oid: 0x17), dimensions: 1), dimensions: 2 }
+
+					it 'encodes an array in an array of int4' do
+						exp = ["00000002" + "00000001" + "00000000" +
+						      "00000003" + "00000001" + "00000001" + "00000001" +
+
+						      "00000024" +
+						      "00000001" + "00000001" + "00000017" +
+						      "00000002" + "00000001" +
+						      "00000004" + "00000005" +
+						      "00000004" + "00000006" +
+
+						      "00000024" +
+						      "00000001" + "00000001" + "00000017" +
+						      "00000002" + "00000001" +
+						      "00000004" + "00000006" +
+						      "00000004" + "00000007" +
+
+						      "00000020" +
+						      "00000001" + "00000001" + "00000017" +
+						      "00000002" + "00000001" +
+						      "ffffffff" +
+						      "00000004" + "00000005"
+						      ].pack("H*")
+
+						expect( binaryenc_array_array.encode([[[5,6]],[[6,7]],[[nil,5]]]) ).to eq( exp )
+					end
 				end
 
 				context 'two dimensional arrays' do
 					it 'encodes an array of timestamps with sub arrays' do
 						expect( textenc_timestamp_array.encode([Time.new(2014,12,31),[nil, Time.new(2016,01,02, 23, 23, 59.99)]]) ).
 								to eq( %[{2014-12-31 00:00:00.000000000,{NULL,2016-01-02 23:23:59.990000000}}] )
+					end
+
+					context 'with dimensions' do
+						let!(:textenc_array_2dim) { textenc_string_array.dup.tap{|a| a.dimensions = 2} }
+						let!(:binaryenc_array_2dim) { binaryenc_array.dup.tap{|a| a.dimensions = 2} }
+
+						it 'encodes binary int array' do
+							binaryenc_array_2dim.encode([[1]])
+						end
+						it 'encodes text int array' do
+							expect( textenc_array_2dim.encode([[1]]) ).to eq( "{{1}}" )
+						end
+						it 'encodes empty array' do
+							binaryenc_array_2dim.encode([[]])
+						end
+						it 'encodes text empty array' do
+							expect( textenc_array_2dim.encode([[]]) ).to eq( "{{}}" )
+						end
+						it 'raises an error on 1 dim binary array input to int4' do
+							expect{ binaryenc_array_2dim.encode([1]) }.to raise_error( ArgumentError, /less array dimensions.*1.*2/)
+						end
+						it 'raises an error on 1 dim text array input to int4' do
+							expect{ textenc_array_2dim.encode([1]) }.to raise_error( ArgumentError, /less array dimensions.*1.*2/)
+						end
+
+						it 'raises an error on 0 dim array input to int4' do
+							expect{ binaryenc_array_2dim.encode([]) }.to raise_error( ArgumentError, /less array dimensions.*0.*2/)
+						end
+						it 'raises an error on 0 dim text array input to int4' do
+							expect{ textenc_array_2dim.encode([]) }.to raise_error( ArgumentError, /less array dimensions.*1.*2/)
+						end
+						it 'raises an error on 1 dim text array nil input' do
+							expect{ textenc_array_2dim.encode([nil]) }.to raise_error( ArgumentError, /less array dimensions.*1.*2/)
+						end
 					end
 				end
 
@@ -985,6 +1047,37 @@ describe "PG::Type derivations" do
 						].pack("H*")
 
 						expect( binaryenc_array.encode([nil, "6\""]) ).to eq( exp )
+					end
+
+					context 'with dimensions' do
+						let!(:textenc_array_1dim) { textenc_int_array.dup.tap{|a| a.dimensions = 1} }
+						let!(:binaryenc_array_1dim) { binaryenc_array.dup.tap{|a| a.dimensions = 1} }
+
+						it 'encodes an array' do
+							exp =["00000001" + "00000001" + "00000000" +
+							      "00000002" + "00000001" +
+							     "ffffffff" +
+							     "00000002" + "3622"
+							     ].pack("H*")
+
+							expect( binaryenc_array_1dim.encode([nil, "6\""]) ).to eq( exp )
+						end
+						it 'encodes an empty binary array' do
+							exp =["00000000" + "00000001" + "00000000"
+							     ].pack("H*")
+							expect( binaryenc_array_1dim.encode([]) ).to eq( exp )
+						end
+						it 'encodes an empty text array' do
+							expect( textenc_array_1dim.encode([]) ).to eq( "{}" )
+						end
+
+						let!(:binaryenc_int4_array_1dim) { PG::BinaryEncoder::Array.new elements_type: PG::BinaryEncoder::Int4.new, dimensions: 1 }
+						it 'raises an error on binary array input to int4' do
+							expect{ binaryenc_int4_array_1dim.encode([[1]]) }.to raise_error( NoMethodError, /to_i/)
+						end
+						it 'raises an error on text array input to int4' do
+							expect{ textenc_array_1dim.encode([[1]]) }.to raise_error( NoMethodError, /to_i/)
+						end
 					end
 				end
 
@@ -1091,7 +1184,8 @@ describe "PG::Type derivations" do
 			it "should respond to to_h" do
 				expect( textenc_int_array.to_h ).to eq( {
 					name: nil, oid: 0, format: 0, flags: 0,
-					elements_type: textenc_int, needs_quotation: false, delimiter: ','
+					elements_type: textenc_int, needs_quotation: false, delimiter: ',',
+					dimensions: nil
 				} )
 			end
 
@@ -1107,6 +1201,7 @@ describe "PG::Type derivations" do
 				expect( t.needs_quotation? ).to eq( true )
 				expect( t.delimiter ).to eq( ',' )
 				expect( t.elements_type ).to be_nil
+				expect( t.dimensions ).to be_nil
 			end
 
 			it "should deny changes when frozen" do
@@ -1117,6 +1212,7 @@ describe "PG::Type derivations" do
 				expect{ t.needs_quotation = true }.to raise_error(FrozenError)
 				expect{ t.delimiter = ","  }.to raise_error(FrozenError)
 				expect{ t.elements_type = nil }.to raise_error(FrozenError)
+				expect{ t.dimensions = 1 }.to raise_error(FrozenError)
 			end
 
 			it "should be shareable for Ractor", :ractor do
