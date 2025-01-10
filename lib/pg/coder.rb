@@ -76,12 +76,13 @@ module PG
 				elements_type: elements_type,
 				needs_quotation: needs_quotation?,
 				delimiter: delimiter,
+				dimensions: dimensions,
 			}
 		end
 
 		def inspect
 			str = super
-			str[-1,0] = " elements_type=#{elements_type.inspect} #{needs_quotation? ? 'needs' : 'no'} quotation"
+			str[-1,0] = " elements_type=#{elements_type.inspect} #{needs_quotation? ? 'needs' : 'no'} quotation#{dimensions && " #{dimensions} dimensions"}"
 			str
 		end
 	end

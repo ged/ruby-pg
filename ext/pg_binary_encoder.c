@@ -320,6 +320,9 @@ pg_bin_enc_date(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, i
  * This encoder expects an Array of values or sub-arrays as input.
  * Other values are passed through as byte string without interpretation.
  *
+ * It is possible to enforce a number of dimensions to be encoded by #dimensions= .
+ * Deeper nested arrays are then passed to the elements encoder and less nested arrays raise an ArgumentError.
+ *
  * The accessors needs_quotation and delimiter are ignored for binary encoding.
  *
  */
@@ -346,7 +349,8 @@ pg_bin_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, 
 				dim_sizes[ndim-1] = RARRAY_LENINT(el1);
 				nitems *= dim_sizes[ndim-1];
 				el2 = rb_ary_entry(el1, 0);
-				if (TYPE(el2) == T_ARRAY) {
+				if ( (this->dimensions < 0 || ndim < this->dimensions) &&
+						TYPE(el2) == T_ARRAY) {
 					ndim++;
 					if (ndim > MAXDIM)
 						rb_raise( rb_eArgError, "unsupported number of array dimensions: >%d", ndim );
@@ -355,6 +359,9 @@ pg_bin_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, 
 				}
 				el1 = el2;
 			}
+		}
+		if( this->dimensions >= 0 && (ndim==0 ? 1 : ndim) != this->dimensions ){
+			rb_raise(rb_eArgError, "less array dimensions to encode (%d) than expected (%d)", ndim, this->dimensions);
 		}
 
 		if(out){
