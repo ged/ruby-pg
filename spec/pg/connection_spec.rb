@@ -374,10 +374,10 @@ describe PG::Connection do
 			start_time = Time.now
 			expect {
 				described_class.connect(
-																host: 'localhost',
-																port: 54320,
-																connect_timeout: 1,
-																dbname: "test")
+					host: 'localhost',
+					port: 54320,
+					connect_timeout: 1,
+					dbname: "test")
 			}.to raise_error do |error|
 				expect( error ).to be_an( PG::ConnectionBad )
 				expect( error.message ).to match( /timeout expired/ )
@@ -387,6 +387,20 @@ describe PG::Connection do
 				end
 			end
 
+			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+		end
+	end
+
+	it "succeeds with second host after connect_timeout" do
+		TCPServer.open( 'localhost', 54320 ) do |serv|
+			start_time = Time.now
+			conn = described_class.connect(
+				host: 'localhost,localhost,localhost',
+				port: "54320,#{@port},54320",
+				connect_timeout: 1,
+				dbname: "test")
+
+			expect( conn.port ).to eq( @port )
 			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
 		end
 	end
