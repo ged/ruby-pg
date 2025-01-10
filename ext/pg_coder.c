@@ -135,6 +135,7 @@ pg_composite_encoder_allocate( VALUE klass )
 	this->elem = NULL;
 	this->needs_quotation = 1;
 	this->delimiter = ',';
+	this->dimensions = -1;
 	rb_iv_set( self, "@elements_type", Qnil );
 	return self;
 }
@@ -157,6 +158,7 @@ pg_composite_decoder_allocate( VALUE klass )
 	this->elem = NULL;
 	this->needs_quotation = 1;
 	this->delimiter = ',';
+	this->dimensions = -1;
 	rb_iv_set( self, "@elements_type", Qnil );
 	return self;
 }
@@ -423,6 +425,49 @@ pg_coder_delimiter_get(VALUE self)
 
 /*
  * call-seq:
+ *    coder.dimensions = Integer
+ *    coder.dimensions = nil
+ *
+ * Set number of array dimensions to be encoded.
+ *
+ * This property ensures, that this number of dimensions is always encoded.
+ * If less dimensions than this number are in the given value, an ArgumentError is raised.
+ * If more dimensions than this number are in the value, the Array value is passed to the next encoder.
+ *
+ * Setting dimensions is especially useful, when a Record shall be encoded into an Array, since the Array encoder can not distinguish if the array shall be encoded as a higher dimension or as a record otherwise.
+ *
+ * The default is +nil+.
+ *
+ * See #dimensions
+ */
+static VALUE
+pg_coder_dimensions_set(VALUE self, VALUE dimensions)
+{
+	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
+	rb_check_frozen(self);
+	if(!NIL_P(dimensions) && NUM2INT(dimensions) < 0)
+		rb_raise( rb_eArgError, "dimensions must be nil or >= 0");
+	this->dimensions = NIL_P(dimensions) ? -1 : NUM2INT(dimensions);
+	return dimensions;
+}
+
+/*
+ * call-seq:
+ *    coder.dimensions -> Integer | nil
+ *
+ * Get number of enforced array dimensions or +nil+ if not set.
+ *
+ * See #dimensions=
+ */
+static VALUE
+pg_coder_dimensions_get(VALUE self)
+{
+	t_pg_composite_coder *this = RTYPEDDATA_DATA(self);
+	return this->dimensions < 0 ? Qnil : INT2NUM(this->dimensions);
+}
+
+/*
+ * call-seq:
  *    coder.elements_type = coder
  *
  * Specifies the PG::Coder object that is used to encode or decode
@@ -602,6 +647,8 @@ init_pg_coder(void)
 	 *
 	 * This is the base class for all type cast classes of PostgreSQL types,
 	 * that are made up of some sub type.
+	 *
+	 * See PG::TextEncoder::Array, PG::TextDecoder::Array, PG::BinaryEncoder::Array, PG::BinaryDecoder::Array, etc.
 	 */
 	rb_cPG_CompositeCoder = rb_define_class_under( rb_mPG, "CompositeCoder", rb_cPG_Coder );
 	rb_define_method( rb_cPG_CompositeCoder, "elements_type=", pg_coder_elements_type_set, 1 );
@@ -610,6 +657,8 @@ init_pg_coder(void)
 	rb_define_method( rb_cPG_CompositeCoder, "needs_quotation?", pg_coder_needs_quotation_get, 0 );
 	rb_define_method( rb_cPG_CompositeCoder, "delimiter=", pg_coder_delimiter_set, 1 );
 	rb_define_method( rb_cPG_CompositeCoder, "delimiter", pg_coder_delimiter_get, 0 );
+	rb_define_method( rb_cPG_CompositeCoder, "dimensions=", pg_coder_dimensions_set, 1 );
+	rb_define_method( rb_cPG_CompositeCoder, "dimensions", pg_coder_dimensions_get, 0 );
 
 	/* Document-class: PG::CompositeEncoder < PG::CompositeCoder */
 	rb_cPG_CompositeEncoder = rb_define_class_under( rb_mPG, "CompositeEncoder", rb_cPG_CompositeCoder );

@@ -537,13 +537,17 @@ quote_string(t_pg_coder *this, VALUE value, VALUE string, char *current_out, int
 }
 
 static char *
-write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE string, int quote, int enc_idx)
+write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE string, int quote, int enc_idx, int dimension)
 {
 	int i;
 
 	/* size of "{}" */
 	current_out = pg_rb_str_ensure_capa( string, 2, current_out, NULL );
 	*current_out++ = '{';
+
+	if( RARRAY_LEN(value) == 0 && this->dimensions >= 0 && dimension != this->dimensions ){
+		rb_raise(rb_eArgError, "less array dimensions to encode (%d) than expected (%d)", dimension, this->dimensions);
+	}
 
 	for( i=0; i<RARRAY_LEN(value); i++){
 		VALUE entry = rb_ary_entry(value, i);
@@ -554,17 +558,26 @@ write_array(t_pg_composite_coder *this, VALUE value, char *current_out, VALUE st
 		}
 
 		switch(TYPE(entry)){
-			case T_ARRAY:
-				current_out = write_array(this, entry, current_out, string, quote, enc_idx);
-			break;
 			case T_NIL:
+				if( this->dimensions >= 0 && dimension != this->dimensions ){
+					rb_raise(rb_eArgError, "less array dimensions to encode (%d) than expected (%d)", dimension, this->dimensions);
+				}
 				current_out = pg_rb_str_ensure_capa( string, 4, current_out, NULL );
 				*current_out++ = 'N';
 				*current_out++ = 'U';
 				*current_out++ = 'L';
 				*current_out++ = 'L';
 				break;
+			case T_ARRAY:
+				if( this->dimensions < 0 || dimension < this->dimensions ){
+					current_out = write_array(this, entry, current_out, string, quote, enc_idx, dimension+1);
+					break;
+				}
+				/* Number of dimensions reached -> handle array as normal value */
 			default:
+				if( this->dimensions >= 0 && dimension != this->dimensions ){
+					rb_raise(rb_eArgError, "less array dimensions to encode (%d) than expected (%d)", dimension, this->dimensions);
+				}
 				current_out = quote_string( this->elem, entry, string, current_out, quote, quote_array_buffer, this, enc_idx );
 		}
 	}
@@ -596,7 +609,7 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		VALUE out_str = rb_str_new(NULL, 0);
 		PG_ENCODING_SET_NOCHECK(out_str, enc_idx);
 
-		end_ptr = write_array(this, value, RSTRING_PTR(out_str), out_str, this->needs_quotation, enc_idx);
+		end_ptr = write_array(this, value, RSTRING_PTR(out_str), out_str, this->needs_quotation, enc_idx, 1);
 
 		rb_str_set_len( out_str, end_ptr - RSTRING_PTR(out_str) );
 		*intermediate = out_str;
