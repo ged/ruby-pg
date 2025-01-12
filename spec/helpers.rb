@@ -482,6 +482,19 @@ EOT
 		end
 	end
 
+	class ListenSocket
+		attr_reader :port
+		def initialize(host = 'localhost', accept: true)
+			TCPServer.open( host, 0 ) do |serv|
+				if accept
+					Thread.new { begin loop do serv.accept end rescue nil end }
+				end
+				@port = serv.local_address.ip_port
+				yield self
+			end
+		end
+	end
+
 	def check_for_lingering_connections( conn )
 		conn.exec( "SELECT * FROM pg_stat_activity" ) do |res|
 			conns = res.find_all {|row| row['pid'].to_i != conn.backend_pid && ["client backend", nil].include?(row["backend_type"]) }
