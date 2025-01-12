@@ -369,25 +369,25 @@ describe PG::Connection do
 		end
 	end
 
-	it "times out after connect_timeout seconds" do
+	it "times out after 2 * connect_timeout seconds on two connections" do
 		TCPServer.open( 'localhost', 54320 ) do |serv|
 			start_time = Time.now
 			expect {
 				described_class.connect(
-					host: 'localhost',
+					host: 'localhost,localhost',
 					port: 54320,
 					connect_timeout: 1,
 					dbname: "test")
 			}.to raise_error do |error|
 				expect( error ).to be_an( PG::ConnectionBad )
-				expect( error.message ).to match( /timeout expired/ )
+				expect( error.message ).to match( /timeout expired.*timeout expired/m )
 				if PG.library_version >= 120000
-					expect( error.message ).to match( /\"localhost\"/ )
+					expect( error.message ).to match( /\"localhost\".*\"localhost\"/m )
 					expect( error.message ).to match( /port 54320/ )
 				end
 			end
 
-			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+			expect( Time.now - start_time ).to be_between(1.9, 10).inclusive
 		end
 	end
 
