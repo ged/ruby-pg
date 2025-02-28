@@ -2325,7 +2325,7 @@ describe PG::Connection do
 
 			it "uses the previous string encoding for escaped string" do
 				original = "Möhre to 'scape".encode( "iso-8859-1" )
-				@conn.set_client_encoding( "euc_jp" )
+				@conn.set_client_encoding( "iso-8859-2" )
 				escaped  = described_class.escape( original )
 				expect( escaped.encoding ).to eq( Encoding::ISO8859_1 )
 				expect( escaped ).to eq( "Möhre to ''scape".encode(Encoding::ISO8859_1) )
