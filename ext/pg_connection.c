@@ -862,14 +862,18 @@ pgconn_protocol_version(VALUE self)
  * The number is formed by converting the major, minor, and revision
  * numbers into two-decimal-digit numbers and appending them together.
  * For example, version 7.4.2 will be returned as 70402, and version
- * 8.1 will be returned as 80100 (leading zeroes are not shown). Zero
- * is returned if the connection is bad.
+ * 8.1 will be returned as 80100 (leading zeroes are not shown).
  *
+ * PG::ConnectionBad is raised if the connection is bad.
  */
 static VALUE
 pgconn_server_version(VALUE self)
 {
-	return INT2NUM(PQserverVersion(pg_get_pgconn(self)));
+	int server_version = PQserverVersion(pg_get_pgconn(self));
+	if (server_version == 0) {
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQserverVersion() can't get server version");
+	}
+	return INT2NUM(server_version);
 }
 
 /*
