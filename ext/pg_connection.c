@@ -859,12 +859,20 @@ pgconn_protocol_version(VALUE self)
  * call-seq:
  *   conn.server_version -> Integer
  *
- * The number is formed by converting the major, minor, and revision
- * numbers into two-decimal-digit numbers and appending them together.
- * For example, version 7.4.2 will be returned as 70402, and version
- * 8.1 will be returned as 80100 (leading zeroes are not shown).
+ * Returns an integer representing the server version.
+ *
+ * Applications might use this function to determine the version of the database server they are connected to.
+ * The result is formed by multiplying the server's major version number by 10000 and adding the minor version number.
+ * For example, version 10.1 will be returned as 100001, and version 11.0 will be returned as 110000.
  *
  * PG::ConnectionBad is raised if the connection is bad.
+ *
+ * Prior to major version 10, PostgreSQL used three-part version numbers in which the first two parts together represented the major version.
+ * For those versions, PQserverVersion uses two digits for each part; for example version 9.1.5 will be returned as 90105, and version 9.2.0 will be returned as 90200.
+ *
+ * Therefore, for purposes of determining feature compatibility, applications should divide the result of PQserverVersion by 100 not 10000 to determine a logical major version number.
+ * In all release series, only the last two digits differ between minor releases (bug-fix releases).
+ *
  */
 static VALUE
 pgconn_server_version(VALUE self)
