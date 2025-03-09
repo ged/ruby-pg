@@ -250,7 +250,7 @@ module PG::TestingHelpers
 		attr_reader :pgdata
 
 		### Set up a PostgreSQL database instance for testing.
-		def initialize( name, port: 54321, postgresql_conf: '' )
+		def initialize( name, port: 23456, postgresql_conf: '' )
 			trace "Setting up test database for #{name}"
 			@name = name
 			@port = port
@@ -719,7 +719,7 @@ RSpec.configure do |config|
 		PG::TestingHelpers.stop_existing_postmasters
 
 		ENV['PGHOST'] = 'localhost'
-		ENV['PGPORT'] ||= "54321"
+		ENV['PGPORT'] ||= "23456"
 		port = ENV['PGPORT'].to_i
 		$pg_server = PG::TestingHelpers::PostgresServer.new("specs", port: port)
 		$pg_server.create_test_db
