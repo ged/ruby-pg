@@ -912,6 +912,30 @@ describe PG::Connection do
 		end
 	end
 
+	context :server_version do
+		it "should retrieve the server version" do
+			expect( @conn.server_version ).to be >= 100000
+		end
+
+		it "should raise an error on a bad connection" do
+			conn = PG::Connection.connect_start( @conninfo )
+			expect{ conn.server_version }.to raise_error(PG::ConnectionBad)
+			conn.finish
+		end
+	end
+
+	context :protocol_version do
+		it "should retrieve the wrie protocol version" do
+			expect( @conn.protocol_version ).to eq 3
+		end
+
+		it "should raise an error on a bad connection" do
+			conn = PG::Connection.connect_start( @conninfo )
+			conn.finish
+			expect{ conn.protocol_version }.to raise_error(PG::ConnectionBad)
+		end
+	end
+
 	it "allows a query to be cancelled" do
 		start = Time.now
 		@conn.set_notice_processor do |notice|

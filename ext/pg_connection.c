@@ -845,31 +845,52 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
  * call-seq:
  *   conn.protocol_version -> Integer
  *
- * The 3.0 protocol will normally be used when communicating with PostgreSQL 7.4
- * or later servers; pre-7.4 servers support only protocol 2.0. (Protocol 1.0 is
- * obsolete and not supported by libpq.)
+ * Interrogates the frontend/backend protocol being used.
+ *
+ * Applications might wish to use this function to determine whether certain features are supported.
+ * Currently, the only value is 3 (3.0 protocol).
+ * The protocol version will not change after connection startup is complete, but it could theoretically change during a connection reset.
+ * The 3.0 protocol is supported by PostgreSQL server versions 7.4 and above.
+ *
+ * PG::ConnectionBad is raised if the connection is bad.
  */
 static VALUE
 pgconn_protocol_version(VALUE self)
 {
-	return INT2NUM(PQprotocolVersion(pg_get_pgconn(self)));
+	int protocol_version = PQprotocolVersion(pg_get_pgconn(self));
+	if (protocol_version == 0) {
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQprotocolVersion() can't get protocol version");
+	}
+	return INT2NUM(protocol_version);
 }
 
 /*
  * call-seq:
  *   conn.server_version -> Integer
  *
- * The number is formed by converting the major, minor, and revision
- * numbers into two-decimal-digit numbers and appending them together.
- * For example, version 7.4.2 will be returned as 70402, and version
- * 8.1 will be returned as 80100 (leading zeroes are not shown). Zero
- * is returned if the connection is bad.
+ * Returns an integer representing the server version.
+ *
+ * Applications might use this function to determine the version of the database server they are connected to.
+ * The result is formed by multiplying the server's major version number by 10000 and adding the minor version number.
+ * For example, version 10.1 will be returned as 100001, and version 11.0 will be returned as 110000.
+ *
+ * PG::ConnectionBad is raised if the connection is bad.
+ *
+ * Prior to major version 10, PostgreSQL used three-part version numbers in which the first two parts together represented the major version.
+ * For those versions, PQserverVersion uses two digits for each part; for example version 9.1.5 will be returned as 90105, and version 9.2.0 will be returned as 90200.
+ *
+ * Therefore, for purposes of determining feature compatibility, applications should divide the result of PQserverVersion by 100 not 10000 to determine a logical major version number.
+ * In all release series, only the last two digits differ between minor releases (bug-fix releases).
  *
  */
 static VALUE
 pgconn_server_version(VALUE self)
 {
-	return INT2NUM(PQserverVersion(pg_get_pgconn(self)));
+	int server_version = PQserverVersion(pg_get_pgconn(self));
+	if (server_version == 0) {
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQserverVersion() can't get server version");
+	}
+	return INT2NUM(server_version);
 }
 
 /*
