@@ -845,14 +845,23 @@ pgconn_parameter_status(VALUE self, VALUE param_name)
  * call-seq:
  *   conn.protocol_version -> Integer
  *
- * The 3.0 protocol will normally be used when communicating with PostgreSQL 7.4
- * or later servers; pre-7.4 servers support only protocol 2.0. (Protocol 1.0 is
- * obsolete and not supported by libpq.)
+ * Interrogates the frontend/backend protocol being used.
+ *
+ * Applications might wish to use this function to determine whether certain features are supported.
+ * Currently, the only value is 3 (3.0 protocol).
+ * The protocol version will not change after connection startup is complete, but it could theoretically change during a connection reset.
+ * The 3.0 protocol is supported by PostgreSQL server versions 7.4 and above.
+ *
+ * PG::ConnectionBad is raised if the connection is bad.
  */
 static VALUE
 pgconn_protocol_version(VALUE self)
 {
-	return INT2NUM(PQprotocolVersion(pg_get_pgconn(self)));
+	int protocol_version = PQprotocolVersion(pg_get_pgconn(self));
+	if (protocol_version == 0) {
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQprotocolVersion() can't get protocol version");
+	}
+	return INT2NUM(protocol_version);
 }
 
 /*
