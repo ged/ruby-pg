@@ -126,12 +126,12 @@ if gem_platform=with_config("cross-build")
 			end
 		end
 
+		recipe.host = toolchain
 		recipe.configure_options << "CFLAGS=#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
-		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 #{"-Wl,-soname,libpq-ruby-pg.so.1 -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/}"
+		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 -L#{openssl_recipe.path}/lib-arm64 #{"-Wl,-soname,libpq-ruby-pg.so.1 -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/}"
 		recipe.configure_options << "LIBS=-lkrb5 -lcom_err -lk5crypto -lkrb5support -lresolv" if RUBY_PLATFORM =~ /linux/
 		recipe.configure_options << "LIBS=-lssl -lwsock32 -lgdi32 -lws2_32 -lcrypt32" if RUBY_PLATFORM =~ /mingw|mswin/
 		recipe.configure_options << "CPPFLAGS=-I#{openssl_recipe.path}/include"
-		recipe.host = toolchain
 		recipe.cook_and_activate
 	end
 
@@ -141,7 +141,7 @@ if gem_platform=with_config("cross-build")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc"
 	# Avoid: "libpq.so: undefined reference to `dlopen'" in cross-ruby-2.7.8
-	$LDFLAGS << " -Wl,--no-as-needed"
+	$LDFLAGS << " -Wl,--no-as-needed" if RUBY_PLATFORM !~ /aarch64/
 	# Find libpq in the ports directory coming from lib/3.3
 	# It is shared between all compiled ruby versions.
 	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'"

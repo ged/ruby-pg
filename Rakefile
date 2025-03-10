@@ -44,6 +44,7 @@ end
 
 CrossLibrary = Struct.new :platform, :openssl_config, :toolchain
 CrossLibraries = [
+	['aarch64-mingw-ucrt', 'mingwarm64', 'aarch64-w64-mingw32'],
 	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
