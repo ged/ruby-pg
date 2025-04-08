@@ -24,10 +24,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "x64-mingw-ucrt"
-          - platform: "x64-mingw32"
-          - platform: "x86-mingw32"
-          - platform: "x86_64-linux"
+          # - platform: "x64-mingw-ucrt"
+          # - platform: "x64-mingw32"
+          # - platform: "x86-mingw32"
+          # - platform: "x86_64-linux"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
