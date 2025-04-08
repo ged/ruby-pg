@@ -53,13 +53,17 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		@coder_maps = build_coder_maps(connection_or_coder_maps, registry: registry)
 		@array_encoders_by_klass = array_encoders_by_klass
 		@encode_array_as = :array
-		@if_undefined = if_undefined || method(:raise_undefined_type).to_proc
+		@if_undefined = if_undefined || UndefinedDefault
 		init_encoders
 	end
 
-	private def raise_undefined_type(oid_name, format)
-		raise UndefinedEncoder, "no encoder defined for type #{oid_name.inspect} format #{format}"
+	class UndefinedDefault
+		def self.call(oid_name, format)
+			raise UndefinedEncoder, "no encoder defined for type #{oid_name.inspect} format #{format}"
+		end
 	end
+
+	private_constant :UndefinedDefault
 
 	# Change the mechanism that is used to encode ruby array values
 	#
