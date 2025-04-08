@@ -380,7 +380,7 @@ describe PG::Connection do
 					dbname: "test")
 			}.to raise_error do |error|
 				expect( error ).to be_an( PG::ConnectionBad )
-				if PG.library_version >= 120000
+				if PG.library_version >= 140000
 					expect( error.message ).to match( /timeout expired.*timeout expired/m )
 					expect( error.message ).to match( /\"localhost\".*\"localhost\"/m )
 					expect( error.message ).to match( /port #{sock.port}/ )

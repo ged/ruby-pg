@@ -477,7 +477,7 @@ EOT
 
 	class ListenSocket
 		attr_reader :port
-		def initialize(host = '0.0.0.0', accept: true)
+		def initialize(host = 'localhost', accept: true)
 			TCPServer.open( host, 0 ) do |serv|
 
 				@port = serv.local_address.ip_port
