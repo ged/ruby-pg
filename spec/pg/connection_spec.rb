@@ -934,8 +934,8 @@ describe PG::Connection do
 
 		it "should raise an error on a bad connection" do
 			conn = PG::Connection.connect_start( @conninfo )
-			expect{ conn.server_version }.to raise_error(PG::ConnectionBad)
 			conn.finish
+			expect{ conn.server_version }.to raise_error(PG::ConnectionBad)
 		end
 	end
 
