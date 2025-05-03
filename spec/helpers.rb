@@ -484,11 +484,8 @@ EOT
 
 	class ListenSocket
 		attr_reader :port
-		def initialize(host = 'localhost', accept: true)
+		def initialize(host = '127.0.0.1')
 			TCPServer.open( host, 0 ) do |serv|
-				if accept
-					Thread.new { begin loop do serv.accept end rescue nil end }
-				end
 				@port = serv.local_address.ip_port
 				yield self
 			end

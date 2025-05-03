@@ -722,11 +722,12 @@ class PG::Connection
 						connhost = "at \"#{host}\", port #{port}"
 					end
 					connection_errors << "connection to server #{connhost} failed: timeout expired"
-					if connection_errors.count < host_count.to_i
-						new_conninfo_hash = rotate_hosts(conninfo_hash.compact)
-						send(:reset_start2, self.class.send(:parse_connect_args, new_conninfo_hash))
+					iopts = conninfo_hash.compact
+					if remove_current_host(iopts)
+						reset_start2(self.class.parse_connect_args(iopts))
 					else
-						raise PG::ConnectionBad.new(connection_errors.join("\n"), connection: self)
+						finish
+						raise PG::ConnectionBad.new(connection_errors.join("\n").b, connection: self)
 					end
 				end
 
@@ -737,15 +738,21 @@ class PG::Connection
 			unless status == PG::CONNECTION_OK
 				msg = error_message
 				finish
-				raise PG::ConnectionBad.new(msg, connection: self)
+				raise PG::ConnectionBad.new(connection_errors.map{|e| e + "\n" }.join.b + msg, connection: self)
 			end
 		end
 
-		private def rotate_hosts(conninfo_hash)
-			conninfo_hash[:host] = conninfo_hash[:host].split(",").rotate.join(",") if conninfo_hash[:host]
-			conninfo_hash[:port] = conninfo_hash[:port].split(",").rotate.join(",") if conninfo_hash[:port]
-			conninfo_hash[:hostaddr] = conninfo_hash[:hostaddr].split(",").rotate.join(",") if conninfo_hash[:hostaddr]
-			conninfo_hash
+		private def remove_current_host(conninfo_hash)
+			deleted = nil
+			%i[ host hostaddr port ].each do |sym|
+				if conninfo_hash[sym]
+					a = conninfo_hash[sym].split(",", -1)
+					d = a.delete_at(a.index(send(sym).to_s)) if a.size > 1
+					deleted ||= d
+					conninfo_hash[sym] = a.join(",")
+				end
+			end
+			deleted
 		end
 	end
 
