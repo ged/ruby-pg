@@ -377,7 +377,7 @@ describe PG::Connection do
 					described_class.connect(
 						hostaddr: '127.0.0.1,127.0.0.1,127.0.0.1',
 						port: "#{@port_down},#{sock.port},#{@port_down}",
-						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 3 : 1,
+						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 5 : 1,
 						dbname: "test")
 				}.to raise_error do |error|
 					expect( error ).to be_an( PG::ConnectionBad )
