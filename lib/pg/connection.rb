@@ -677,7 +677,7 @@ class PG::Connection
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
 		private def polling_loop(poll_meth, connect_timeout)
 			if (timeo = connect_timeout.to_i) && timeo > 0
-				host_count = conninfo_hash[:host].to_s.count(",") + 1
+				host_count = (conninfo_hash[:hostaddr].to_s.empty? ? conninfo_hash[:host] : conninfo_hash[:hostaddr]).to_s.count(",") + 1
 				stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
 			end
 			connection_errors = []
