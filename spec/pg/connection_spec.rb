@@ -369,7 +369,7 @@ describe PG::Connection do
 		end
 	end
 
-	it "returns timeout and connection refused together" do
+	it "raises after 'timeout' and two times 'connection refused'" do
 		with_env_vars(PGHOST: nil) do
 			PG::TestingHelpers::ListenSocket.new do |sock|
 				start_time = Time.now
@@ -377,13 +377,28 @@ describe PG::Connection do
 					described_class.connect(
 						hostaddr: '127.0.0.1,127.0.0.1,127.0.0.1',
 						port: "#{@port_down},#{sock.port},#{@port_down}",
-						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 3 : 1,
+						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 5 : 1,
 						dbname: "test")
 				}.to raise_error do |error|
 					expect( error ).to be_an( PG::ConnectionBad )
 					if PG.library_version >= 140000
 						expect( error.message ).to match( /127\.0\.0\.1.+#{sock.port}.+timeout expired/im )
-						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED).+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)/im )
+						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED|could not receive data from server: (Connection refused|Socket is not connected))(.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)|)/im )
+
+# Failure on Macos is either:
+#   connection to server at "127.0.0.1" (127.0.0.1), port 52806 failed: timeout expired
+#   connection to server at "127.0.0.1", port 23467 failed: could not receive data from server: Connection refused
+# or:
+#   connection to server at "127.0.0.1" (127.0.0.1), port 52899 failed: timeout expired
+#   connection to server at "127.0.0.1", port 23467 failed: Connection refused
+#   	Is the server running on that host and accepting TCP/IP connections?
+#   connection to server at "127.0.0.1", port 23467 failed: Connection refused
+#   	Is the server running on that host and accepting TCP/IP connections?
+#
+# and on Windows it is sometimes:
+#   connection to server at "127.0.0.1" (127.0.0.1), port 52806 failed: timeout expired
+#   connection to server at "127.0.0.1", port 23467 failed: could not receive data from server: Socket is not connected (0x00002749/10057)
+
 					end
 				end
 
