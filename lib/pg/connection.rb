@@ -677,9 +677,10 @@ class PG::Connection
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
 		private def polling_loop(poll_meth, connect_timeout)
 			if (timeo = connect_timeout.to_i) && timeo > 0
-				host_count = conninfo_hash[:host].to_s.count(",") + 1
+				host_count = (conninfo_hash[:hostaddr].to_s.empty? ? conninfo_hash[:host] : conninfo_hash[:hostaddr]).to_s.count(",") + 1
 				stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
 			end
+			connection_errors = []
 
 			poll_status = PG::PGRES_POLLING_WRITING
 			until poll_status == PG::PGRES_POLLING_OK ||
@@ -720,7 +721,15 @@ class PG::Connection
 					else
 						connhost = "at \"#{host}\", port #{port}"
 					end
-					raise PG::ConnectionBad.new("connection to server #{connhost} failed: timeout expired", connection: self)
+					connection_errors << "connection to server #{connhost} failed: timeout expired"
+					iopts = conninfo_hash.compact
+					if remove_current_host(iopts)
+						reset_start2(self.class.parse_connect_args(iopts))
+						sleep 0.1
+					else
+						finish
+						raise PG::ConnectionBad.new(connection_errors.join("\n").b, connection: self)
+					end
 				end
 
 				# Check to see if it's finished or failed yet
@@ -730,8 +739,21 @@ class PG::Connection
 			unless status == PG::CONNECTION_OK
 				msg = error_message
 				finish
-				raise PG::ConnectionBad.new(msg, connection: self)
+				raise PG::ConnectionBad.new(connection_errors.map{|e| e + "\n" }.join.b + msg, connection: self)
 			end
+		end
+
+		private def remove_current_host(conninfo_hash)
+			deleted = nil
+			%i[ host hostaddr port ].each do |sym|
+				if conninfo_hash[sym]
+					a = conninfo_hash[sym].split(",", -1)
+					d = a.delete_at(a.index(send(sym).to_s)) if a.size > 1
+					deleted ||= d
+					conninfo_hash[sym] = a.join(",")
+				end
+			end
+			deleted
 		end
 	end
 
@@ -857,7 +879,7 @@ class PG::Connection
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
-			if PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET && iopts[:host].to_s.empty?
+			if PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET && iopts[:host].to_s.empty? && iopts[:hostaddr].to_s.empty?
 				# Many distors patch the hardcoded default UnixSocket path in libpq to /var/run/postgresql instead of /tmp .
 				# We simply try them all.
 				iopts[:host] = "/var/run/postgresql" + # Ubuntu, Debian, Fedora, Opensuse
