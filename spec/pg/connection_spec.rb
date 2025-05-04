@@ -382,23 +382,7 @@ describe PG::Connection do
 				}.to raise_error do |error|
 					expect( error ).to be_an( PG::ConnectionBad )
 					if PG.library_version >= 140000
-						expect( error.message ).to match( /127\.0\.0\.1.+#{sock.port}.+timeout expired/im )
-						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED|could not receive data from server: (Connection refused|Socket is not connected))(.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)|)/im )
-
-# Failure on Macos is either:
-#   connection to server at "127.0.0.1" (127.0.0.1), port 52806 failed: timeout expired
-#   connection to server at "127.0.0.1", port 23467 failed: could not receive data from server: Connection refused
-# or:
-#   connection to server at "127.0.0.1" (127.0.0.1), port 52899 failed: timeout expired
-#   connection to server at "127.0.0.1", port 23467 failed: Connection refused
-#   	Is the server running on that host and accepting TCP/IP connections?
-#   connection to server at "127.0.0.1", port 23467 failed: Connection refused
-#   	Is the server running on that host and accepting TCP/IP connections?
-#
-# and on Windows it is sometimes:
-#   connection to server at "127.0.0.1" (127.0.0.1), port 52806 failed: timeout expired
-#   connection to server at "127.0.0.1", port 23467 failed: could not receive data from server: Socket is not connected (0x00002749/10057)
-
+						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED).+127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)/im )
 					end
 				end
 
@@ -412,7 +396,7 @@ describe PG::Connection do
 			start_time = Time.now
 			expect {
 				described_class.connect(
-					host: '127.0.0.1,127.0.0.1',
+					host: '127.0.0.1,localhost',
 					port: sock.port,
 					connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 3 : 1,
 					dbname: "test")
@@ -438,6 +422,8 @@ describe PG::Connection do
 
 			expect( conn.port ).to eq( @port )
 			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+		ensure
+			conn&.finish
 		end
 	end
 

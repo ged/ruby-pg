@@ -625,7 +625,6 @@ class PG::Connection
 		# On older client library a pure ruby implementation is used.
 		def cancel
 			cancon = PG::CancelConnection.new(self)
-			cancon.async_connect_timeout = conninfo_hash[:connect_timeout]
 			cancon.async_cancel
 		rescue PG::Error => err
 			err.to_s
@@ -675,20 +674,25 @@ class PG::Connection
 
 	module Pollable
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
-		private def polling_loop(poll_meth, connect_timeout)
+		private def polling_loop(poll_meth)
+			connect_timeout = conninfo_hash[:connect_timeout]
 			if (timeo = connect_timeout.to_i) && timeo > 0
 				host_count = (conninfo_hash[:hostaddr].to_s.empty? ? conninfo_hash[:host] : conninfo_hash[:hostaddr]).to_s.count(",") + 1
 				stop_time = timeo * host_count + Process.clock_gettime(Process::CLOCK_MONOTONIC)
 			end
+			iopts = conninfo_hash.compact
 			connection_errors = []
-
 			poll_status = PG::PGRES_POLLING_WRITING
+
 			until poll_status == PG::PGRES_POLLING_OK ||
 					poll_status == PG::PGRES_POLLING_FAILED
 
 				# Set single timeout to parameter "connect_timeout" but
 				# don't exceed total connection time of number-of-hosts * connect_timeout.
 				timeout = [timeo, stop_time - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min if stop_time
+
+				hostcnt = remove_current_host(iopts)
+
 				event = if !timeout || timeout >= 0
 					# If the socket needs to read, wait 'til it becomes readable to poll again
 					case poll_status
@@ -711,20 +715,17 @@ class PG::Connection
 						end
 					end
 				end
+
 				# connection to server at "localhost" (127.0.0.1), port 5433 failed: timeout expired (PG::ConnectionBad)
 				# connection to server on socket "/var/run/postgresql/.s.PGSQL.5433" failed: No such file or directory
 				unless event
-					if self.class.send(:host_is_named_pipe?, host)
-						connhost = "on socket \"#{host}\""
-					elsif respond_to?(:hostaddr)
-						connhost = "at \"#{host}\" (#{hostaddr}), port #{port}"
-					else
-						connhost = "at \"#{host}\", port #{port}"
-					end
-					connection_errors << "connection to server #{connhost} failed: timeout expired"
-					iopts = conninfo_hash.compact
-					if remove_current_host(iopts)
+					connection_errors << (error_message + "timeout expired")
+					if hostcnt > 0
 						reset_start2(self.class.parse_connect_args(iopts))
+						# Restart polling with waiting for writable.
+						# Otherwise "not connected" error is raised on Windows.
+						poll_status = PG::PGRES_POLLING_WRITING
+						next
 					else
 						finish
 						raise PG::ConnectionBad.new(connection_errors.join("\n").b, connection: self)
@@ -742,17 +743,39 @@ class PG::Connection
 			end
 		end
 
-		private def remove_current_host(conninfo_hash)
-			deleted = nil
-			%i[ host hostaddr port ].each do |sym|
-				if conninfo_hash[sym]
-					a = conninfo_hash[sym].split(",", -1)
-					d = a.delete_at(a.index(send(sym).to_s)) if a.size > 1
-					deleted ||= d
-					conninfo_hash[sym] = a.join(",")
-				end
+		# Remove the host to which the connection is currently established from the option hash.
+		# Affected options are:
+		# - :host
+		# - :hostaddr
+		# - :port
+		#
+		# Return the number of remaining hosts.
+		private def remove_current_host(iopts)
+			ihosts = iopts[:host]&.split(",", -1)
+			ihostaddrs = iopts[:hostaddr]&.split(",", -1)
+			iports = iopts[:port]&.split(",", -1)
+			iports = iports * (ihosts || ihostaddrs).size if iports&.size == 1
+
+			idx = (ihosts || ihostaddrs || iports).index.with_index do |_, i|
+				(ihosts ? ihosts[i] == host : true) &&
+				(ihostaddrs && respond_to?(:hostaddr, true) ? ihostaddrs[i] == hostaddr : true) &&
+				(iports ? iports[i].to_i == port : true)
 			end
-			deleted
+
+			if idx
+				ihosts&.delete_at(idx)
+				ihostaddrs&.delete_at(idx)
+				iports&.delete_at(idx)
+
+				iopts.merge!(
+					host: ihosts.join(",")) if ihosts
+				iopts.merge!(
+					hostaddr: ihostaddrs.join(",")) if ihostaddrs
+				iopts.merge!(
+					port: iports.join(",")) if iports
+			end
+
+			(ihosts || ihostaddrs || iports).size
 		end
 	end
 
@@ -760,7 +783,7 @@ class PG::Connection
 
 	private def async_connect_or_reset(poll_meth)
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
-		polling_loop(poll_meth, conninfo_hash[:connect_timeout])
+		polling_loop(poll_meth)
 
 		# Set connection to nonblocking to handle all blocking states in ruby.
 		# That way a fiber scheduler is able to handle IO requests.

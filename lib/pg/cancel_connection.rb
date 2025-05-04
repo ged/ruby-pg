@@ -7,8 +7,24 @@ if defined?(PG::CancelConnection)
 	class PG::CancelConnection
 		include PG::Connection::Pollable
 
-		# The timeout used by #cancel and async_cancel to establish the cancel connection.
-		attr_accessor :async_connect_timeout
+		alias c_initialize initialize
+
+		def initialize(conn)
+			c_initialize(conn)
+
+			# A cancel connection is always to one destination server only.
+			# Prepare conninfo_hash with just enough information to allow a shared polling_loop.
+			@host = conn.host
+			@hostaddr = conn.hostaddr
+			@port = conn.port
+
+			@conninfo_hash = {
+				host: @host,
+				hostaddr: @hostaddr,
+				port: @port.to_s,
+				connect_timeout: conn.conninfo_hash[:connect_timeout],
+			}
+		end
 
 		# call-seq:
 		#    conn.cancel
@@ -23,8 +39,15 @@ if defined?(PG::CancelConnection)
 		#
 		def cancel
 			start
-			polling_loop(:poll, async_connect_timeout)
+			polling_loop(:poll)
 		end
 		alias async_cancel cancel
+
+		# These private methods are there to allow a shared polling_loop.
+		private
+		attr_reader :host
+		attr_reader :hostaddr
+		attr_reader :port
+		attr_reader :conninfo_hash
 	end
 end
