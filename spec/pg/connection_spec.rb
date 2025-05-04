@@ -383,7 +383,8 @@ describe PG::Connection do
 					expect( error ).to be_an( PG::ConnectionBad )
 					if PG.library_version >= 140000
 						expect( error.message ).to match( /127\.0\.0\.1.+#{sock.port}.+timeout expired/im )
-						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED|could not receive data from server: (Connection refused|Socket is not connected))(.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)|)/im )
+						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED).+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)/im )
+						#expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED|could not receive data from server: (Connection refused|Socket is not connected))(.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)|)/im )
 
 # Failure on Macos is either:
 #   connection to server at "127.0.0.1" (127.0.0.1), port 52806 failed: timeout expired
@@ -438,6 +439,8 @@ describe PG::Connection do
 
 			expect( conn.port ).to eq( @port )
 			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+		ensure
+			conn&.finish
 		end
 	end
 

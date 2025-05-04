@@ -725,6 +725,7 @@ class PG::Connection
 					iopts = conninfo_hash.compact
 					if remove_current_host(iopts)
 						reset_start2(self.class.parse_connect_args(iopts))
+						sleep 0.1
 					else
 						finish
 						raise PG::ConnectionBad.new(connection_errors.join("\n").b, connection: self)
