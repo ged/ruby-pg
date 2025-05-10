@@ -32,7 +32,7 @@ CLEAN.include "lib/*/libpq.dll"
 CLEAN.include "lib/pg_ext.*"
 CLEAN.include "lib/pg/postgresql_lib_path.rb"
 CLEAN.include "ports/*.installed"
-CLEAN.include "ports/*mingw*", "ports/*linux*"
+CLEAN.include "ports/*mingw*", "ports/*linux*", "ports/*darwin*"
 
 Bundler::GemHelper.install_tasks
 $gem_spec = Bundler.load_gemspec(GEMSPEC)
@@ -49,6 +49,8 @@ CrossLibraries = [
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86_64-linux', 'linux-x86_64', 'x86_64-linux-gnu'],
+	['x86_64-darwin', 'darwin64-x86_64', 'x86_64-apple-darwin'],
+	['arm64-darwin', 'darwin64-arm64', 'arm64-apple-darwin'],
 ].map do |platform, openssl_config, toolchain|
 	CrossLibrary.new platform, openssl_config, toolchain
 end
@@ -76,6 +78,7 @@ Rake::ExtensionTask.new do |ext|
 	# Add libpq.dll/.so to fat binary gemspecs
 	ext.cross_compiling do |spec|
 		spec.files << "ports/#{spec.platform.to_s}/lib/libpq-ruby-pg.so.1" if spec.platform.to_s =~ /linux/
+		spec.files << "ports/#{spec.platform.to_s}/lib/libpq-ruby-pg.1.dylib" if spec.platform.to_s =~ /darwin/
 		spec.files << "ports/#{spec.platform.to_s}/lib/libpq.dll" if spec.platform.to_s =~ /mingw|mswin/
 	end
 end
@@ -96,16 +99,31 @@ task 'gem:native:prepare' do
 	end
 end
 
+task 'install_darwin_mig' do
+	sh <<~EOT
+		rm -rf bootstrap_cmds &&
+		git clone --branch=cross_platform https://github.com/markmentovai/bootstrap_cmds &&
+		cd bootstrap_cmds &&
+		autoreconf --install &&
+		sh configure &&
+		make &&
+		sed -E -i 's/^cppflags=(.*)/cppflags=(\\1 "-D__arm64__" "-I\\/opt\\/osxcross\\/target\\/SDK\\/MacOSX11.1.sdk\\/usr\\/include")/' migcom.tproj/mig.sh &&
+		sudo make install
+	EOT
+end
+
 CrossLibraries.each do |xlib|
 	platform = xlib.platform
 	desc "Build fat binary gem for platform #{platform}"
 	task "gem:native:#{platform}" => ['gem:native:prepare'] do
 		RakeCompilerDock.sh <<-EOT, platform: platform
+			#{ "sudo apt-get update && sudo apt-get install -y bison flex &&" if platform =~ /darwin/ }
 			#{ # remove nm on Linux to suppress PostgreSQL's check for exit which raises thread_exit as a false positive:
 				"sudo mv `which nm` `which nm`.bak &&" if platform =~ /linux/ }
 			sudo apt-get update && sudo apt-get install -y bison flex &&
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
+			#{ "rake install_darwin_mig" if platform =~ /darwin/ }
 			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=3.4.1:3.3.5:3.2.6:3.1.6:3.0.7:2.7.8
 		EOT
 	end
