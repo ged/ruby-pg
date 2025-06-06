@@ -49,7 +49,7 @@ describe 'Basic type mapping' do
 					res.values
 				ensure
 					conn&.finish
-				end.take
+				end.value
 
 				expect( vals ).to eq( [['b', '234', '{2,3}']] )
 			end

@@ -15,6 +15,13 @@ TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
 TEST_DIRECTORY = Pathname.new(TEST_DIR_STR)
 DATA_OBJ_MEMSIZE = ObjectSpace.memsize_of(Object.new)
 
+if defined? Ractor
+	class Ractor
+		# compat with Ruby-3.4 and older
+		alias value take unless method_defined? :value
+	end
+end
+
 module PG::TestingHelpers
 
 	### Automatically wrap a transaction around examples that don't disable it.

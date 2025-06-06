@@ -61,7 +61,7 @@ jobs:
             ruby: "3.2"
             PGVER: "12"
           - os: ubuntu
-            os_ver: "20.04"
+            os_ver: "22.04"
             ruby: "2.7"
             PGVER: "10"
           - os: ubuntu

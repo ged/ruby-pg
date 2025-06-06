@@ -37,7 +37,7 @@ describe 'Basic type mapping' do
 				res.map_types!(btm).values
 			ensure
 				conn&.finish
-			end.take
+			end.value
 
 			expect( vals ).to eq( [
 					[ 1, 'a', 2.0, true, Date.new(2013,6,30) ],
@@ -52,7 +52,7 @@ describe 'Basic type mapping' do
 				res.map_types!(btm).values
 			ensure
 				conn&.finish
-			end.take
+			end.value
 
 			expect( vals ).to eq( [
 					[ 1, 'a', 2.0, true, Date.new(2013,6,30) ],

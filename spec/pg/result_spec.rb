@@ -38,7 +38,7 @@ describe PG::Result do
 			conn.exec("SELECT 123 as col")
 		ensure
 			conn&.finish
-		end.take
+		end.value
 
 		expect( res ).to be_kind_of( PG::Result )
 		expect( res.fields ).to eq( ["col"] )

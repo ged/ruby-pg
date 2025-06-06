@@ -35,7 +35,7 @@ describe PG::Error do
 		end
 
 		begin
-			r.take
+			r.value
 		rescue Exception => err
 		end
 
