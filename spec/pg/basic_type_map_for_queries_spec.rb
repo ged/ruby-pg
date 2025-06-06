@@ -30,7 +30,7 @@ describe 'Basic type mapping' do
 				res.values
 			ensure
 				conn&.finish
-			end.take
+			end.value
 
 			expect( vals ).to eq( [[ "2019-12-08 23:38:12.123", "t" ]] )
 		end

@@ -42,7 +42,7 @@ describe PG::Connection do
 			conn.exec("SELECT 123").values
 		ensure
 			conn&.finish
-		end.take
+		end.value
 
 		expect( vals ).to eq( [["123"]] )
 	end
@@ -52,7 +52,7 @@ describe PG::Connection do
 			PG.connect( 'localhost', @port, nil, nil, :test, nil, nil ) do |conn|
 				conn.exec("SELECT 234").values
 			end
-		end.take
+		end.value
 
 		expect( vals ).to eq( [["234"]] )
 	end
