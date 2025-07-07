@@ -2082,7 +2082,7 @@ describe PG::Connection do
 			expect { @conn.set_chunked_rows_mode(-2) }.to raise_error(PG::Error)
 		end
 
-		it "should work in single row mode" do
+		it "should work in chunked rows mode" do
 			@conn.send_query( "SELECT generate_series(1,12)" )
 			@conn.set_chunked_rows_mode(3)
 

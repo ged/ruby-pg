@@ -128,7 +128,10 @@ describe PG::Result do
 		expect( res.each.to_a ).to eq [{:a=>'1', :b=>'2'}]
 	end
 
-	[[:single, nil, [:set_single_row_mode]], [:chunked, :postgresql_17, [:set_chunked_rows_mode, 3]]].each do |mode_name, guard, row_mode|
+	[
+		[:single, nil, [:set_single_row_mode]],
+		[:chunked, :postgresql_17, [:set_chunked_rows_mode, 3]],
+	].each do |mode_name, guard, row_mode|
 		context "result streaming in #{mode_name} row mode", guard do
 			let!(:textdec_int){ PG::TextDecoder::Integer.new name: 'INT4', oid: 23 }
 
