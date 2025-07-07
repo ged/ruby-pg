@@ -34,7 +34,7 @@ msgstr ""
 msgid ""
 "* docs :: http://deveiate.org/code/pg (English) ,\n"
 "          https://deveiate.org/code/pg/README_ja_md.html (Japanese)\n"
-"* clog :: link:/History.md\n"
+"* clog :: link:/CHANGELOG.md\n"
 msgstr ""
 
 #. type: Plain text

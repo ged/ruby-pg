@@ -2,7 +2,7 @@
 
 * ホーム :: https://github.com/ged/ruby-pg
 * ドキュメント :: http://deveiate.org/code/pg （英語）、 https://deveiate.org/code/pg/README_ja_md.html （日本語）
-* 変更履歴 :: link:/History.md
+* 変更履歴 :: link:/CHANGELOG.md
 
 [![https://gitter.im/ged/ruby-pg
 でチャットに参加](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ged/ruby-pg?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)

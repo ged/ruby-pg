@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/ged/ruby-pg"
-  spec.metadata["changelog_uri"] = "https://github.com/ged/ruby-pg/blob/master/History.md"
+  spec.metadata["changelog_uri"] = "https://github.com/ged/ruby-pg/blob/master/CHANGELOG.md"
   spec.metadata["documentation_uri"] = "http://deveiate.org/code/pg"
   # https://github.com/oneclick/rubyinstaller2/wiki/For-gem-developers#msys2-library-dependency
   spec.metadata["msys2_mingw_dependencies"] = "postgresql"

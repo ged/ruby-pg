@@ -39,10 +39,10 @@ msgstr "ホーム :: https://github.com/ged/ruby-pg"
 msgid ""
 "* docs :: http://deveiate.org/code/pg (English) ,\n"
 "          https://deveiate.org/code/pg/README_ja_md.html (Japanese)\n"
-"* clog :: link:/History.md\n"
+"* clog :: link:/CHANGELOG.md\n"
 msgstr ""
 "* ドキュメント :: http://deveiate.org/code/pg （英語）、 https://deveiate.org/code/pg/README_ja_md.html （日本語）\n"
-"* 変更履歴 :: link:/History.md\n"
+"* 変更履歴 :: link:/CHANGELOG.md\n"
 
 #. type: Plain text
 #: ../README.md:9
