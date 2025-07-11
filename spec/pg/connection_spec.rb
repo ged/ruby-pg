@@ -369,25 +369,61 @@ describe PG::Connection do
 		end
 	end
 
-	it "times out after connect_timeout seconds" do
-		TCPServer.open( 'localhost', 54320 ) do |serv|
+	it "raises after 'timeout' and two times 'connection refused'" do
+		with_env_vars(PGHOST: nil) do
+			PG::TestingHelpers::ListenSocket.new do |sock|
+				start_time = Time.now
+				expect {
+					described_class.connect(
+						hostaddr: '127.0.0.1,127.0.0.1,127.0.0.1',
+						port: "#{@port_down},#{sock.port},#{@port_down}",
+						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 5 : 1,
+						dbname: "test")
+				}.to raise_error do |error|
+					expect( error ).to be_an( PG::ConnectionBad )
+					if PG.library_version >= 140000
+						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED).+127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)/im )
+					end
+				end
+
+				expect( Time.now - start_time ).to be_between(0.9, 20).inclusive
+			end
+		end
+	end
+
+	it "times out after 2 * connect_timeout seconds on two connections" do
+		PG::TestingHelpers::ListenSocket.new do |sock|
 			start_time = Time.now
 			expect {
 				described_class.connect(
-																host: 'localhost',
-																port: 54320,
-																connect_timeout: 1,
-																dbname: "test")
+					host: '127.0.0.1,localhost',
+					port: sock.port,
+					connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 3 : 1,
+					dbname: "test")
 			}.to raise_error do |error|
 				expect( error ).to be_an( PG::ConnectionBad )
-				expect( error.message ).to match( /timeout expired/ )
-				if PG.library_version >= 120000
-					expect( error.message ).to match( /\"localhost\"/ )
-					expect( error.message ).to match( /port 54320/ )
+				if PG.library_version >= 140000
+					expect( error.message ).to match( /127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{sock.port}.+timeout expired/im )
 				end
 			end
 
+			expect( Time.now - start_time ).to be_between(1.9, 20).inclusive
+		end
+	end
+
+	it "succeeds with second host after connect_timeout" do
+		PG::TestingHelpers::ListenSocket.new do |sock|
+			start_time = Time.now
+			conn = described_class.connect(
+				host: 'localhost,localhost,localhost',
+				port: "#{sock.port},#{@port},#{sock.port}",
+				connect_timeout: 1,
+				dbname: "test")
+
+			expect( conn.port ).to eq( @port )
 			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+		ensure
+			conn&.finish
 		end
 	end
 
@@ -768,7 +804,8 @@ describe PG::Connection do
 	end
 
 	it "raises proper error when sending fails" do
-		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
+		sock = PG::TestingHelpers::ListenSocket.new('127.0.0.1') { }
+		conn = described_class.connect_start( '127.0.0.1', sock.port, "", "", "me", "xxxx", "somedb" )
 		expect{ conn.exec 'SELECT 1' }.to raise_error(PG::UnableToSend, /no connection/){|err| expect(err).to have_attributes(connection: conn) }
 	end
 
@@ -919,8 +956,8 @@ describe PG::Connection do
 
 		it "should raise an error on a bad connection" do
 			conn = PG::Connection.connect_start( @conninfo )
-			expect{ conn.server_version }.to raise_error(PG::ConnectionBad)
 			conn.finish
+			expect{ conn.server_version }.to raise_error(PG::ConnectionBad)
 		end
 	end
 
@@ -1674,11 +1711,12 @@ describe PG::Connection do
 
 
 	it "handles server close while asynchronous connect" do
-		serv = TCPServer.new( '127.0.0.1', 54320 )
-		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		expect( [PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK] ).to include conn.connect_poll
-		select( nil, [conn.socket_io], nil, 0.2 )
-		serv.close
+		conn = nil
+		PG::TestingHelpers::ListenSocket.new('127.0.0.1') do |sock|
+			conn = described_class.connect_start( '127.0.0.1', sock.port, "", "", "me", "xxxx", "somedb" )
+			expect( [PG::PGRES_POLLING_WRITING, PG::CONNECTION_OK] ).to include conn.connect_poll
+			select( nil, [conn.socket_io], nil, 0.2 )
+		end
 		if conn.connect_poll == PG::PGRES_POLLING_READING
 			select( [conn.socket_io], nil, nil, 0.2 )
 		end
@@ -1802,12 +1840,13 @@ describe PG::Connection do
 	end
 
 	it "consume_input should raise ConnectionBad for a closed connection" do
-		serv = TCPServer.new( '127.0.0.1', 54320 )
-		conn = described_class.connect_start( '127.0.0.1', 54320, "", "", "me", "xxxx", "somedb" )
-		while [PG::CONNECTION_STARTED, PG::CONNECTION_MADE].include?(conn.connect_poll)
-			sleep 0.1
+		conn = nil
+		PG::TestingHelpers::ListenSocket.new '127.0.0.1' do |sock|
+			conn = described_class.connect_start( '127.0.0.1', sock.port, "", "", "me", "xxxx", "somedb" )
+			while [PG::CONNECTION_STARTED, PG::CONNECTION_MADE].include?(conn.connect_poll)
+				sleep 0.1
+			end
 		end
-		serv.close
 		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /server closed the connection unexpectedly/){|err| expect(err).to have_attributes(connection: conn) }
 		expect{ conn.consume_input }.to raise_error(PG::ConnectionBad, /can't get socket descriptor|connection not open/){|err| expect(err).to have_attributes(connection: conn) }
 	end
