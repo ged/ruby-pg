@@ -30,6 +30,7 @@ jobs:
           - platform: "x86_64-linux"
           - platform: "x86_64-darwin"
           - platform: "arm64-darwin"
+          - platform: "aarch64-mingw-ucrt"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
@@ -61,6 +62,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: windows-11-arm
+            ruby: "3.4"
+            platform: "aarch64-mingw-ucrt"
           - os: windows-latest
             ruby: "3.3"
             platform: "x64-mingw-ucrt"
