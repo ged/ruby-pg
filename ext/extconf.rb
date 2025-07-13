@@ -163,7 +163,7 @@ if gem_platform=with_config("cross-build")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc" if RUBY_PLATFORM =~ /mingw|mswin/
 	# Avoid: "libpq.so: undefined reference to `dlopen'" in cross-ruby-2.7.8
-	$LDFLAGS << " -Wl,--no-as-needed" if RUBY_PLATFORM !~ /aarch64|arm64/
+	$LDFLAGS << " -Wl,--no-as-needed" if RUBY_PLATFORM !~ /aarch64|arm64|darwin/
 	# Find libpq in the ports directory coming from lib/3.x
 	# It is shared between all compiled ruby versions.
 	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'" if RUBY_PLATFORM =~ /linux/
