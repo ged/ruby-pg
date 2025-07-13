@@ -28,6 +28,8 @@ jobs:
           - platform: "x64-mingw32"
           - platform: "x86-mingw32"
           - platform: "x86_64-linux"
+          - platform: "x86_64-darwin"
+          - platform: "arm64-darwin"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
@@ -73,6 +75,12 @@ jobs:
           - os: ubuntu-latest
             ruby: "3.2"
             platform: "x86_64-linux"
+          - os: macos-latest
+            ruby: "3.4"
+            platform: "arm64-darwin"
+          - os: macos-13
+            ruby: "3.4"
+            platform: "x86_64-darwin"
 
     runs-on: ${{ matrix.os }}
     env:

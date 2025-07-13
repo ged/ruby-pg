@@ -69,7 +69,7 @@ if gem_platform=with_config("cross-build")
 			def configure
 				envs = []
 				envs << "CFLAGS=-DDSO_WIN32 -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /mingw|mswin/
-				envs << "CFLAGS=-fPIC -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /linux/
+				envs << "CFLAGS=-fPIC -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /linux|darwin/
 				execute('configure', ['env', *envs, "./Configure", openssl_platform, "threads", "-static", "CROSS_COMPILE=#{host}-", configure_prefix], altlog: "config.log")
 			end
 			def compile
@@ -85,23 +85,54 @@ if gem_platform=with_config("cross-build")
 		recipe.cook_and_activate
 	end
 
-	if RUBY_PLATFORM =~ /linux/
+	if RUBY_PLATFORM =~ /linux|darwin/
 		krb5_recipe = BuildRecipe.new("krb5", KRB5_VERSION, [KRB5_SOURCE_URI]).tap do |recipe|
 			class << recipe
 				def work_path
 					File.join(super, "src")
 				end
+				def configure
+					if RUBY_PLATFORM=~/darwin/
+						ENV["CC"] = host[/^.*[^\.\d]/] + "-clang"
+						ENV["CXX"] = host[/^.*[^\.\d]/] + "-c++"
+
+						# Manually set the correct values for configure checks that libkrb5 won't be
+						# able to perform because we're cross-compiling.
+						ENV["krb5_cv_attr_constructor_destructor"] = "yes"
+						ENV["ac_cv_func_regcomp"] = "yes"
+						ENV["ac_cv_printf_positional"] = "yes"
+					end
+					super
+				end
 			end
 			# We specify -fcommon to get around duplicate definition errors in recent gcc.
 			# See https://github.com/cockroachdb/cockroach/issues/49734
 			recipe.configure_options << "CFLAGS=-fcommon#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
+			recipe.configure_options << "LDFLAGS=-framework Kerberos" if RUBY_PLATFORM =~ /darwin/
 			recipe.configure_options << "--without-keyutils"
+			recipe.configure_options << "--disable-nls"
+			recipe.configure_options << "--disable-silent-rules"
+			recipe.configure_options << "--without-system-verto"
 			recipe.configure_options << "krb5_cv_attr_constructor_destructor=yes"
 			recipe.configure_options << "ac_cv_func_regcomp=yes"
 			recipe.configure_options << "ac_cv_printf_positional=yes"
 			recipe.host = toolchain
 			recipe.cook_and_activate
 		end
+	end
+
+	# We build a libpq library file which static links OpenSSL and krb5.
+	# Our builtin libpq is referenced in different ways depending on the OS:
+	# - Window: Add the ports directory at runtime per RubyInstaller::Runtime.add_dll_directory
+	#     The file is called "libpq.dll"
+	# - Linux: Add a rpath to pg_ext.so which references the ports directory.
+	#     The file is called "libpq-ruby-pg.so.1" to avoid loading of system libpq by accident.
+	# - Macos: Add a reference with relative path in pg_ext.so to the ports directory.
+	#     The file is called "libpq-ruby-pg.1.dylib" to avoid loading of other libpq by accident.
+	libpq_orig, libpq_rubypg = case RUBY_PLATFORM
+	when /linux/ then ["libpq.so.5", "libpq-ruby-pg.so.1"]
+	when /darwin/ then ["libpq.5.dylib", "libpq-ruby-pg.1.dylib"]
+	# when /mingw/ then ["libpq.dll", "libpq.dll"] # renaming not needed
 	end
 
 	postgresql_recipe = BuildRecipe.new("postgresql", POSTGRESQL_VERSION, [POSTGRESQL_SOURCE_URI]).tap do |recipe|
@@ -111,7 +142,7 @@ if gem_platform=with_config("cross-build")
 					"--target=#{host}",
 					"--host=#{host}",
 					'--with-openssl',
-					*(RUBY_PLATFORM=~/linux/ ? ['--with-gssapi'] : []),
+					*(RUBY_PLATFORM=~/linux|darwin/ ? ['--with-gssapi'] : []),
 					'--without-zlib',
 					'--without-icu',
 					'--without-readline',
@@ -127,8 +158,8 @@ if gem_platform=with_config("cross-build")
 		end
 
 		recipe.host = toolchain
-		recipe.configure_options << "CFLAGS=#{" -fPIC" if RUBY_PLATFORM =~ /linux/}"
-		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 -L#{openssl_recipe.path}/lib-arm64 #{"-Wl,-soname,libpq-ruby-pg.so.1 -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/}"
+		recipe.configure_options << "CFLAGS=#{" -fPIC" if RUBY_PLATFORM =~ /linux|darwin/}"
+		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 -L#{openssl_recipe.path}/lib-arm64 #{"-Wl,-soname,#{libpq_rubypg} -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/} #{"-Wl,-install_name,@loader_path/../../ports/#{gem_platform}/lib/#{libpq_rubypg} -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support -lresolv -framework Kerberos" if RUBY_PLATFORM =~ /darwin/}"
 		recipe.configure_options << "LIBS=-lkrb5 -lcom_err -lk5crypto -lkrb5support -lresolv" if RUBY_PLATFORM =~ /linux/
 		recipe.configure_options << "LIBS=-lssl -lwsock32 -lgdi32 -lws2_32 -lcrypt32" if RUBY_PLATFORM =~ /mingw|mswin/
 		recipe.configure_options << "CPPFLAGS=-I#{openssl_recipe.path}/include"
@@ -136,15 +167,15 @@ if gem_platform=with_config("cross-build")
 	end
 
 	# Use our own library name for libpq to avoid loading of system libpq by accident.
-	FileUtils.ln_sf File.join(postgresql_recipe.port_path, "lib/libpq.so.5"),
-			File.join(postgresql_recipe.port_path, "lib/libpq-ruby-pg.so.1")
+	FileUtils.ln_sf File.join(postgresql_recipe.port_path, "lib/#{libpq_orig}"),
+			File.join(postgresql_recipe.port_path, "lib/#{libpq_rubypg}")
 	# Avoid dependency to external libgcc.dll on x86-mingw32
-	$LDFLAGS << " -static-libgcc"
+	$LDFLAGS << " -static-libgcc" if RUBY_PLATFORM =~ /mingw|mswin/
 	# Avoid: "libpq.so: undefined reference to `dlopen'" in cross-ruby-2.7.8
-	$LDFLAGS << " -Wl,--no-as-needed" if RUBY_PLATFORM !~ /aarch64/
-	# Find libpq in the ports directory coming from lib/3.3
+	$LDFLAGS << " -Wl,--no-as-needed" if RUBY_PLATFORM !~ /aarch64|arm64|darwin/
+	# Find libpq in the ports directory coming from lib/3.x
 	# It is shared between all compiled ruby versions.
-	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'"
+	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'" if RUBY_PLATFORM =~ /linux/
 	# Don't use pg_config for cross build, but --with-pg-* path options
 	dir_config('pg', "#{postgresql_recipe.path}/include", "#{postgresql_recipe.path}/lib")
 
