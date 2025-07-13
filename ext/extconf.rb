@@ -121,9 +121,18 @@ if gem_platform=with_config("cross-build")
 		end
 	end
 
+	# We build a libpq library file which static links OpenSSL and krb5.
+	# Our builtin libpq is referenced in different ways depending on the OS:
+	# - Window: Add the ports directory at runtime per RubyInstaller::Runtime.add_dll_directory
+	#     The file is called "libpq.dll"
+	# - Linux: Add a rpath to pg_ext.so which references the ports directory.
+	#     The file is called "libpq-ruby-pg.so.1" to avoid loading of system libpq by accident.
+	# - Macos: Add a reference with relative path in pg_ext.so to the ports directory.
+	#     The file is called "libpq-ruby-pg.1.dylib" to avoid loading of other libpq by accident.
 	libpq_orig, libpq_rubypg = case RUBY_PLATFORM
 	when /linux/ then ["libpq.so.5", "libpq-ruby-pg.so.1"]
 	when /darwin/ then ["libpq.5.dylib", "libpq-ruby-pg.1.dylib"]
+	# when /mingw/ then ["libpq.dll", "libpq.dll"] # renaming not needed
 	end
 
 	postgresql_recipe = BuildRecipe.new("postgresql", POSTGRESQL_VERSION, [POSTGRESQL_SOURCE_URI]).tap do |recipe|
