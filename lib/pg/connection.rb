@@ -673,7 +673,16 @@ class PG::Connection
 	alias async_cancel cancel
 
 	module Pollable
-		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it
+		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it.
+		#
+		# Connecting to multiple hosts is done like so:
+		# - All hosts are passed to PG::Connection.connect_start
+		# - As soon as the host is tried to connect the related host is removed from the hosts list
+		# - When the polling status changes to `PG::PGRES_POLLING_OK` the connection is returned and ready to use.
+		# - When the polling status changes to `PG::PGRES_POLLING_FAILED` connecting is aborted and a PG::ConnectionBad is raised with details to all connection attepts.
+		# - When a timeout occurs, connecting is restarted with the remaining hosts.
+		#
+		# The downside is that this connects only once to hosts which are listed twice when they timeout.
 		private def polling_loop(poll_meth)
 			connect_timeout = conninfo_hash[:connect_timeout]
 			if (timeo = connect_timeout.to_i) && timeo > 0
@@ -799,7 +808,7 @@ class PG::Connection
 		#    PG::Connection.new(connection_string) -> conn
 		#    PG::Connection.new(host, port, options, tty, dbname, user, password) ->  conn
 		#
-		# Create a connection to the specified server.
+		# === Create a connection to the specified server.
 		#
 		# +connection_hash+ must be a ruby Hash with connection parameters.
 		# See the {list of valid parameters}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS] in the PostgreSQL documentation.
@@ -823,7 +832,13 @@ class PG::Connection
 		# [+password+]
 		#   login password
 		#
-		# Examples:
+		#
+		# If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
+		# connection will have its +client_encoding+ set accordingly.
+		#
+		# Raises a PG::Error if the connection fails.
+		#
+		# === Examples:
 		#
 		#   # Connect using all defaults
 		#   PG::Connection.new
@@ -840,10 +855,16 @@ class PG::Connection
 		#   # As an URI
 		#   PG::Connection.new( "postgresql://user:pass@pgsql.example.com:5432/testdb?sslmode=require" )
 		#
-		# If the Ruby default internal encoding is set (i.e., <code>Encoding.default_internal != nil</code>), the
-		# connection will have its +client_encoding+ set accordingly.
+		# === Specifying Multiple Hosts
 		#
-		# Raises a PG::Error if the connection fails.
+		# It is possible to specify multiple hosts to connect to, so that they are tried in the given order or optionally in random order.
+		# In the Keyword/Value format, the host, hostaddr, and port options accept comma-separated lists of values.
+		# The {details to libpq}[https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS] describe how it works, but there are two small differences how ruby-pg handles multiple hosts:
+		# - All hosts are resolved before the first connection is tried.
+		#   This means that when +load_balance_hosts+ is set to +random+, then all resolved addresses are tried randomly in one level.
+		#   When a host resolves to more than one address, it is therefore tried more often than a host that has only one address.
+		# - When a timeout occurs due to the value of +connect_timeout+, then the given +host+, +hostaddr+ and +port+ combination is not tried a second time, even if it is specified several times.
+		#
 		def new(*args)
 			conn = connect_to_hosts(*args)
 

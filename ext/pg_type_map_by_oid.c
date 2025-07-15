@@ -315,6 +315,8 @@ pg_tmbo_coders( VALUE self )
  * The type map will do Hash lookups for each result value, if the number of rows
  * is below or equal +number+.
  *
+ * Default is 10.
+ *
  */
 static VALUE
 pg_tmbo_max_rows_for_online_lookup_set( VALUE self, VALUE value )

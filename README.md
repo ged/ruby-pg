@@ -175,6 +175,7 @@ The following type maps are prefilled with type mappings from the PG::BasicTypeR
 * PG::BasicTypeMapBasedOnResult - a PG::TypeMapByOid prefilled with encoders for common PostgreSQL column types
 * PG::BasicTypeMapForQueries - a PG::TypeMapByClass prefilled with encoders for common Ruby value classes
 
+Several type maps can be chained by setting PG::TypeMap::DefaultTypeMappable#default_type_map .
 
 ## Thread support
 
