@@ -28,6 +28,7 @@ jobs:
           - platform: "x64-mingw32"
           - platform: "x86-mingw32"
           - platform: "x86_64-linux"
+          - platform: "aarch64-linux"
           - platform: "x86_64-darwin"
           - platform: "arm64-darwin"
     steps:
@@ -75,6 +76,9 @@ jobs:
           - os: ubuntu-latest
             ruby: "3.2"
             platform: "x86_64-linux"
+          - os: ubuntu-24.04-arm
+            ruby: "3.4"
+            platform: "aarch64-linux"
           - os: macos-latest
             ruby: "3.4"
             platform: "arm64-darwin"
