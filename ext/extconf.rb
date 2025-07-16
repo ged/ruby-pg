@@ -159,7 +159,7 @@ if gem_platform=with_config("cross-build")
 
 		recipe.host = toolchain
 		recipe.configure_options << "CFLAGS=#{" -fPIC" if RUBY_PLATFORM =~ /linux|darwin/}"
-		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 -L#{openssl_recipe.path}/lib-arm64 #{"-Wl,-soname,#{libpq_rubypg} -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support" if RUBY_PLATFORM =~ /linux/} #{"-Wl,-install_name,@loader_path/../../ports/#{gem_platform}/lib/#{libpq_rubypg} -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support -lresolv -framework Kerberos" if RUBY_PLATFORM =~ /darwin/}"
+		recipe.configure_options << "LDFLAGS=-L#{openssl_recipe.path}/lib -L#{openssl_recipe.path}/lib64 -L#{openssl_recipe.path}/lib-arm64 #{"-Wl,-soname,#{libpq_rubypg} -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support -ldl" if RUBY_PLATFORM =~ /linux/} #{"-Wl,-install_name,@loader_path/../../ports/#{gem_platform}/lib/#{libpq_rubypg} -lgssapi_krb5 -lkrb5 -lk5crypto -lkrb5support -lresolv -framework Kerberos" if RUBY_PLATFORM =~ /darwin/}"
 		recipe.configure_options << "LIBS=-lkrb5 -lcom_err -lk5crypto -lkrb5support -lresolv" if RUBY_PLATFORM =~ /linux/
 		recipe.configure_options << "LIBS=-lssl -lwsock32 -lgdi32 -lws2_32 -lcrypt32" if RUBY_PLATFORM =~ /mingw|mswin/
 		recipe.configure_options << "CPPFLAGS=-I#{openssl_recipe.path}/include"
