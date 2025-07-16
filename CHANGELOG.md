@@ -1,4 +1,4 @@
-## v1.6.0.rc2 [2025-07-14] Lars Kanis <lars@greiz-reinsdorf.de>
+## v1.6.0.rc2 [2025-07-16] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
 
