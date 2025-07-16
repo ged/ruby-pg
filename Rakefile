@@ -11,6 +11,7 @@ require 'rake/clean'
 require 'rspec/core/rake_task'
 require 'bundler'
 require 'bundler/gem_helper'
+require_relative "rakelib/pg_gem_helper"
 
 # Build directory constants
 BASEDIR = Pathname( __FILE__ ).dirname
@@ -34,7 +35,7 @@ CLEAN.include "lib/pg/postgresql_lib_path.rb"
 CLEAN.include "ports/*.installed"
 CLEAN.include "ports/*mingw*", "ports/*linux*", "ports/*darwin*"
 
-Bundler::GemHelper.install_tasks
+PgGemHelper.install_tasks
 $gem_spec = Bundler.load_gemspec(GEMSPEC)
 
 desc "Turn on warnings and debugging in the build."
@@ -55,6 +56,9 @@ CrossLibraries = [
 ].map do |platform, openssl_config, toolchain|
 	CrossLibrary.new platform, openssl_config, toolchain
 end
+
+# Register binary gems to be pushed to rubygems.org
+Bundler::GemHelper.instance.cross_platforms = CrossLibraries.map(&:platform)
 
 # Rake-compiler task
 Rake::ExtensionTask.new do |ext|
