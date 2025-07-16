@@ -1,3 +1,31 @@
+## v1.6.0.rc2 [2025-07-14] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Added:
+
+- Add binary gems for Ruby 3.4.
+- Add fat binary gem for platform `aarch64-mingw-ucrt` aka Windows on ARM [#626](https://github.com/ged/ruby-pg/pull/626), for platform Macos on Intel and ARM [#643](https://github.com/ged/ruby-pg/pull/643) and for platform `aarch64-linux` [#646](https://github.com/ged/ruby-pg/pull/646).
+- Update fat binary gem to OpenSSL-3.5.1 and PostgreSQL-17.5.
+- Add a patch to libpq to avoid starvation on bigger SSL records, which some database engines other than vanilla PostgreSQL use.
+  This patch applies to platform specific binary gems only.
+  [#616](https://github.com/ged/ruby-pg/pull/616)
+- Fix missing array input verification in PG::TypeMapByColumn.
+  This could cause a segfault.
+  [#620](https://github.com/ged/ruby-pg/pull/620)
+- Add possibility to define the number of array dimensions to be encoded.
+  Setting dimensions is especially useful, when a Record shall be encoded into an Array, since the Array encoder can not distinguish if the array shall be encoded as a higher dimension or as a record otherwise.
+  [#622](https://github.com/ged/ruby-pg/pull/622)
+- Add MINGW package dependency which is resolved by RubyInstaller.
+  [#617](https://github.com/ged/ruby-pg/pull/617)
+- Change `conn.server_version` and `conn.protocol_version` to raise instead of return 0 on error.
+  [#632](https://github.com/ged/ruby-pg/pull/632)
+- Fix making PG::BasicTypeMapForQueries shareable for Ractor in ruby-3.5.
+  [#636](https://github.com/ged/ruby-pg/pull/636)
+- Rename `History.md` to `CHANGELOG.md`, which is more common.
+  [#642](https://github.com/ged/ruby-pg/pull/642)
+- Fix connecting to multiple hosts after `connnect_timeout`.
+  [#637](https://github.com/ged/ruby-pg/pull/637)
+
+
 ## v1.6.0.rc1 [2024-11-28] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
