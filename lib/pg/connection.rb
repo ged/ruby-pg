@@ -863,7 +863,9 @@ class PG::Connection
 		# - All hosts are resolved before the first connection is tried.
 		#   This means that when +load_balance_hosts+ is set to +random+, then all resolved addresses are tried randomly in one level.
 		#   When a host resolves to more than one address, it is therefore tried more often than a host that has only one address.
-		# - When a timeout occurs due to the value of +connect_timeout+, then the given +host+, +hostaddr+ and +port+ combination is not tried a second time, even if it is specified several times.
+		# - When a timeout occurs due to the value of +connect_timeout+, then the given +host+, +hostaddr+ and +port+ combination is not tried a second time, even if it's specified several times.
+		#   It's still possible to do load balancing with +load_balance_hosts+ set to +random+ and to increase the number of connections a node gets, when the hostname is provided multiple times in the host string.
+		#   This is because in non-timeout cases the host is tried multiple times.
 		#
 		def new(*args)
 			conn = connect_to_hosts(*args)
