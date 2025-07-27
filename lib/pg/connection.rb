@@ -763,7 +763,7 @@ class PG::Connection
 			ihosts = iopts[:host]&.split(",", -1)
 			ihostaddrs = iopts[:hostaddr]&.split(",", -1)
 			iports = iopts[:port]&.split(",", -1)
-			iports = iports * (ihosts || ihostaddrs).size if iports&.size == 1
+			iports = iports * (ihosts || ihostaddrs || [1]).size if iports&.size == 1
 
 			idx = (ihosts || ihostaddrs || iports).index.with_index do |_, i|
 				(ihosts ? ihosts[i] == host : true) &&
