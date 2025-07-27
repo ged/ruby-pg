@@ -1,49 +1,41 @@
-## v1.6.0.rc2 [2025-07-16] Lars Kanis <lars@greiz-reinsdorf.de>
+## v1.6.0 [2025-07-27] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
 
 - Add binary gems for Ruby 3.4.
-- Add fat binary gem for platform `aarch64-mingw-ucrt` aka Windows on ARM [#626](https://github.com/ged/ruby-pg/pull/626), for platform Macos on Intel and ARM [#643](https://github.com/ged/ruby-pg/pull/643) and for platform `aarch64-linux` [#646](https://github.com/ged/ruby-pg/pull/646).
+- Add fat binary gem for platform `aarch64-mingw-ucrt` aka Windows on ARM [#626](https://github.com/ged/ruby-pg/pull/626), for platform Macos on Intel and ARM [#643](https://github.com/ged/ruby-pg/pull/643), for platform `aarch64-linux` [#646](https://github.com/ged/ruby-pg/pull/646) and for platform `x86_64-linux` [#551](https://github.com/ged/ruby-pg/pull/551#issuecomment-2504715762).
 - Update fat binary gem to OpenSSL-3.5.1 and PostgreSQL-17.5.
 - Add a patch to libpq to avoid starvation on bigger SSL records, which some database engines other than vanilla PostgreSQL use.
   This patch applies to platform specific binary gems only.
   [#616](https://github.com/ged/ruby-pg/pull/616)
-- Fix missing array input verification in PG::TypeMapByColumn.
-  This could cause a segfault.
-  [#620](https://github.com/ged/ruby-pg/pull/620)
-- Add possibility to define the number of array dimensions to be encoded.
-  Setting dimensions is especially useful, when a Record shall be encoded into an Array, since the Array encoder can not distinguish if the array shall be encoded as a higher dimension or as a record otherwise.
-  [#622](https://github.com/ged/ruby-pg/pull/622)
-- Add MINGW package dependency which is resolved by RubyInstaller.
-  [#617](https://github.com/ged/ruby-pg/pull/617)
-- Change `conn.server_version` and `conn.protocol_version` to raise instead of return 0 on error.
-  [#632](https://github.com/ged/ruby-pg/pull/632)
-- Fix making PG::BasicTypeMapForQueries shareable for Ractor in ruby-3.5.
-  [#636](https://github.com/ged/ruby-pg/pull/636)
-- Rename `History.md` to `CHANGELOG.md`, which is more common.
-  [#642](https://github.com/ged/ruby-pg/pull/642)
-- Fix connecting to multiple hosts after `connnect_timeout`.
-  [#637](https://github.com/ged/ruby-pg/pull/637)
-
-
-## v1.6.0.rc1 [2024-11-28] Lars Kanis <lars@greiz-reinsdorf.de>
-
-Added:
-
-- Add fat binary gem for platform `x86_64-linux`.
-  [#551](https://github.com/ged/ruby-pg/pull/551#issuecomment-2504715762)
-- Add PG::BinaryDecoder::Array and PG::BinaryEncoder::Array to parse and encode PostgreSQL arrays in binary format.
-  [#603](https://github.com/ged/ruby-pg/pull/603)
 - Add support for new query cancel functions of PostgreSQL-17.
   This adds the new class `PG::CancelConnection` which provides the ability to cancel a query per blocking or per non-blocking functions.
   If the new functions are available they are used and the older are no longer compiled in.
   This way we can get rid of reading out the internal `PGcancel` struct by `Connection#backend_key`.
   [#614](https://github.com/ged/ruby-pg/pull/614)
+- Add PG::BinaryDecoder::Array and PG::BinaryEncoder::Array to parse and encode PostgreSQL arrays in binary format.
+  [#603](https://github.com/ged/ruby-pg/pull/603)
+- Add possibility to define the number of array dimensions to be encoded.
+  Setting dimensions is especially useful, when a Record shall be encoded into an Array, since the Array encoder can not distinguish if the array shall be encoded as a higher dimension or as a record otherwise.
+  [#622](https://github.com/ged/ruby-pg/pull/622)
 - Add Connection#set_chunked_rows_mode [#610](https://github.com/ged/ruby-pg/pull/610)
 - Add PG::Connection#close_prepared, PG::Connection#close_portal, PG::Connection#send_close_prepared and PG::Connection#send_close_portal which are new in PostgreSQL-17.
   [#611](https://github.com/ged/ruby-pg/pull/611)
 - Add Connection#send_pipeline_sync, async_pipeline_sync and release GVL at PQ(sendP|P)ipelineSync.
   [#612](https://github.com/ged/ruby-pg/pull/612)
+- Add MINGW package dependency which is resolved by RubyInstaller.
+  [#617](https://github.com/ged/ruby-pg/pull/617)
+- Change `conn.server_version` and `conn.protocol_version` to raise instead of return 0 on error.
+  [#632](https://github.com/ged/ruby-pg/pull/632)
+- Fix connecting to multiple hosts after `connnect_timeout`.
+  [#637](https://github.com/ged/ruby-pg/pull/637)
+- Fix making PG::BasicTypeMapForQueries shareable for Ractor in ruby-3.5.
+  [#636](https://github.com/ged/ruby-pg/pull/636)
+- Fix missing array input verification in PG::TypeMapByColumn.
+  This could cause a segfault.
+  [#620](https://github.com/ged/ruby-pg/pull/620)
+- Rename `History.md` to `CHANGELOG.md`, which is more common.
+  [#642](https://github.com/ged/ruby-pg/pull/642)
 
 Removed:
 
