@@ -27,8 +27,10 @@ jobs:
           - platform: "x64-mingw-ucrt"
           - platform: "x64-mingw32"
           - platform: "x86-mingw32"
-          - platform: "x86_64-linux"
-          - platform: "aarch64-linux"
+          - platform: "x86_64-linux-gnu"
+          - platform: "x86_64-linux-musl"
+          - platform: "aarch64-linux-gnu"
+          - platform: "aarch64-linux-musl"
           - platform: "x86_64-darwin"
           - platform: "arm64-darwin"
     steps:
@@ -75,10 +77,10 @@ jobs:
             PGVERSION: 16.6-1-windows-x64
           - os: ubuntu-latest
             ruby: "3.2"
-            platform: "x86_64-linux"
+            platform: "x86_64-linux-gnu"
           - os: ubuntu-24.04-arm
             ruby: "3.4"
-            platform: "aarch64-linux"
+            platform: "aarch64-linux-gnu"
           - os: macos-latest
             ruby: "3.4"
             platform: "arm64-darwin"
@@ -164,11 +166,11 @@ jobs:
         include:
           - from_image: fedora:39
             image_platform: linux/x86_64
-            gem_platform: x86_64-linux
+            gem_platform: x86_64-linux-gnu
             dockerfile: centos
           - from_image: alpine
             image_platform: linux/x86_64
-            gem_platform: x86_64-linux
+            gem_platform: x86_64-linux-musl
             dockerfile: alpine
 
     runs-on: ubuntu-latest
@@ -191,7 +193,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - gem_platform: x86_64-linux
+          - gem_platform: x86_64-linux-gnu
 
     runs-on: ubuntu-latest
     steps:

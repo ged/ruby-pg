@@ -49,8 +49,10 @@ CrossLibraries = [
 	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
-	['x86_64-linux', 'linux-x86_64', 'x86_64-linux-gnu'],
-	['aarch64-linux', 'linux-aarch64', 'aarch64-linux-gnu'],
+	['x86_64-linux-gnu', 'linux-x86_64', 'x86_64-linux-gnu'],
+	['x86_64-linux-musl', 'linux-x86_64', 'x86_64-unknown-linux-musl'],
+	['aarch64-linux-gnu', 'linux-aarch64', 'aarch64-linux-gnu'],
+	['aarch64-linux-musl', 'linux-aarch64', 'aarch64-linux-musl'],
 	['x86_64-darwin', 'darwin64-x86_64', 'x86_64-apple-darwin'],
 	['arm64-darwin', 'darwin64-arm64', 'arm64-apple-darwin'],
 ].map do |platform, openssl_config, toolchain|
