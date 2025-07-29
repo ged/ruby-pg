@@ -63,15 +63,15 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            ruby: "3.3"
+            ruby: "3.4"
             platform: "x64-mingw-ucrt"
           - os: windows-latest
-            ruby: "3.1.4-1"
+            ruby: "3.2.9-1"
             platform: "x86-mingw32"
             PGVERSION: 10.20-1-windows
           - os: windows-latest
-            ruby: "2.7"
-            platform: "x64-mingw32"
+            ruby: "3.2"
+            platform: "x64-mingw-ucrt"
             PGVERSION: 16.6-1-windows-x64
           - os: ubuntu-latest
             ruby: "3.2"
@@ -116,7 +116,10 @@ jobs:
         with:
           name: binary-gem-${{ matrix.platform }}
 
-      - name: Download PostgreSQL 32-bit
+      - run: bundle install
+      - run: gem install --local pg-*${{ matrix.platform }}.gem --verbose
+
+      - name: Download PostgreSQL
         if: ${{ matrix.os == 'windows-latest' && matrix.PGVERSION }}
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -135,9 +138,6 @@ jobs:
           echo "PGPASSWORD="  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - run: echo $env:PATH
-      - run: gem update --system 3.3.26
-      - run: bundle install
-      - run: gem install --local pg-*${{ matrix.platform }}.gem --verbose
       - name: Run specs
         if: ${{ matrix.os != 'windows-latest' }}
         run: ruby -rpg -S rspec -fd spec/**/*_spec.rb

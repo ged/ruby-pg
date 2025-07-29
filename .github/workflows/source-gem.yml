@@ -47,7 +47,7 @@ jobs:
             PGVERSION: 17.0-1-windows-x64
             PGVER: "17"
           - os: windows
-            ruby: "2.7"
+            ruby: "3.2"
             PGVERSION: 10.20-1-windows-x64
             PGVER: "10"
           - os: windows
@@ -88,6 +88,12 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
 
+      - name: Print tool versions
+        run: |
+          ruby -v
+          gem env
+          gcc -v
+
       - name: Download gem from build job
         uses: actions/download-artifact@v4
         with:
@@ -97,6 +103,8 @@ jobs:
         if: matrix.os == 'windows' && matrix.ruby != 'mswin'
         shell: cmd
         run: ridk exec sh -c "pacman --sync --needed --noconfirm  ${MINGW_PACKAGE_PREFIX}-gcc"
+
+      - run: bundle install
 
       - name: Download PostgreSQL Windows
         if: matrix.os == 'windows'
@@ -109,7 +117,7 @@ jobs:
 
           $(new-object net.webclient).DownloadFile("http://get.enterprisedb.com/postgresql/postgresql-$env:PGVERSION-binaries.zip", "postgresql-binaries.zip")
           Unzip "postgresql-binaries.zip" "."
-          echo "$pwd/pgsql/bin"  | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "$env:RI_DEVKIT$env:MINGW_PREFIX/bin;$env:RI_DEVKIT/usr/bin;$pwd/pgsql/bin"  | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "PGUSER=$env:USERNAME"  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "PGPASSWORD="  | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -131,9 +139,7 @@ jobs:
           sudo mv /Library/PostgreSQL/$PGVER/pgsql/* /Library/PostgreSQL/$PGVER/ && \
           echo /Library/PostgreSQL/$PGVER/bin >> $GITHUB_PATH
 
-      - run: gem update --system 3.3.26
-      - run: bundle install
-
+      - run: echo $env:PATH
       - run: gem install --local *.gem --verbose
 
       - name: Run specs
@@ -143,10 +149,16 @@ jobs:
           TRUFFLERUBYOPT: --experimental-options --keep-handles-alive
         run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
 
-      - name: Print logs if job failed
+      - name: Print db logs if job failed
         if: ${{ failure() && matrix.os == 'windows' }}
         run: ridk exec cat tmp_test_specs/*.log
 
-      - name: Print logs if job failed
+      - name: Print db logs if job failed
         if: ${{ failure() && matrix.os != 'windows' }}
         run: cat tmp_test_specs/*.log
+
+      - name: Print mkmf logs if job failed on Windows-head
+        if: ${{ failure() && matrix.os == 'windows' && matrix.ruby == 'head' }}
+        run: |
+          ridk exec cat c:/rubyinstaller-head-*/lib/ruby/gems/*/extensions/*/*/*/mkmf.log || ridk exec cat d:/rubyinstaller-head-*/lib/ruby/gems/*/extensions/*/*/*/mkmf.log
+          ridk exec gcc -v
