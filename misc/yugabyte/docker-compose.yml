@@ -14,7 +14,7 @@ services:
       start_period: 10s
 
   pg:
-    image: ruby:3.0
+    image: ruby:3.1
     working_dir: /app
     volumes:
       - .:/app
