@@ -40,10 +40,76 @@ A small example usage:
 ## Requirements
 
 * Ruby 2.7 or newer
-* PostgreSQL 10.x or later (with headers, -dev packages, etc).
+* PostgreSQL 10.x or later
+* When installing the source gem: libpq with headers, -dev packages, etc.
 
-It usually works with earlier versions of Ruby/PostgreSQL as well, but those are
-not regularly tested.
+
+## How To Install
+
+Install via RubyGems:
+
+    gem install pg
+
+This installs the binary gem, specific to the running platform by default.
+
+### Binary gem
+
+The binary gems don't depend on the libpq package on the running system.
+They have libpq builtin.
+
+The gems for platform `x86_64-linux` and `aarch64-linux` run on Alpine Linux, but require the package `gcompat` there as long as we don't provide a native gem for platform `x86_64-linux-musl`. Install this package like so:
+
+    apk add gcompat
+
+There is one use case the binary gems don't support: Retrieval of connection [options from LDAP](https://www.postgresql.org/docs/current/libpq-ldap.html). To support this `libldap` would be necessary, but it has a lot of dependencies. It doesn't seem to be a widely used feature and that it's worth to support it. If it's necessary, the source gem can be forced.
+
+### Source gem
+
+The source gem can be forced by:
+
+    gem install pg --platform ruby
+
+You may need to specify the path to the 'pg_config' program installed with
+Postgres:
+
+    gem install pg -- --with-pg-config=<path to pg_config>
+
+If you're installing via Bundler, you can provide compile hints like so:
+
+    bundle config build.pg --with-pg-config=<path to pg_config>
+
+### Bundler
+
+To make sure, the necessary platforms and the source gem are fetched by bundler, they can be added like so
+
+```
+bundle lock --add-platform x86_64-linux
+bundle lock --add-platform arm64-darwin
+bundle lock --add-platform x64-mingw-ucrt
+bundle lock --add-platform ruby
+bundle package --all-platforms
+```
+
+A re-run of `bundle package` is also necessary after `bundle update`, in order to retrieve the new specific gems of all platforms.
+
+If the binary gems don't work for some reason, it's easy to force the usage of the source gem in the Gemfile:
+
+```
+gem "pg", force_ruby_platform: true
+```
+
+### More
+
+See README-OS_X.rdoc for more information about installing under MacOS X, and
+README-Windows.rdoc for Windows build/installation instructions.
+
+There's also [a Google+ group](http://goo.gl/TFy1U) and a
+[mailing list](http://groups.google.com/group/ruby-pg) if you get stuck, or just
+want to chat about something.
+
+If you want to install as a signed gem, the public certs of the gem signers
+can be found in [the `certs` directory](https://github.com/ged/ruby-pg/tree/master/certs)
+of the repository.
 
 
 ## Versioning
@@ -57,32 +123,6 @@ For example:
 ```ruby
   spec.add_dependency 'pg', '~> 1.0'
 ```
-
-## How To Install
-
-Install via RubyGems:
-
-    gem install pg
-
-You may need to specify the path to the 'pg_config' program installed with
-Postgres:
-
-    gem install pg -- --with-pg-config=<path to pg_config>
-
-If you're installing via Bundler, you can provide compile hints like so:
-
-    bundle config build.pg --with-pg-config=<path to pg_config>
-
-See README-OS_X.rdoc for more information about installing under MacOS X, and
-README-Windows.rdoc for Windows build/installation instructions.
-
-There's also [a Google+ group](http://goo.gl/TFy1U) and a
-[mailing list](http://groups.google.com/group/ruby-pg) if you get stuck, or just
-want to chat about something.
-
-If you want to install as a signed gem, the public certs of the gem signers
-can be found in [the `certs` directory](https://github.com/ged/ruby-pg/tree/master/certs)
-of the repository.
 
 
 ## Type Casts
