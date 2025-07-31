@@ -364,6 +364,7 @@ pg_coder_flags_get(VALUE self)
  * Specifies whether the assigned #elements_type requires quotation marks to
  * be transferred safely. Encoding with #needs_quotation=false is somewhat
  * faster.
+ * It is only used by text coders and ignored by binary coders.
  *
  * The default is +true+. This option is ignored for decoding of values.
  */
@@ -397,6 +398,7 @@ pg_coder_needs_quotation_get(VALUE self)
  * Specifies the character that separates values within the composite type.
  * The default is a comma.
  * This must be a single one-byte character.
+ * It is only used by text coders and ignored by binary coders.
  */
 static VALUE
 pg_coder_delimiter_set(VALUE self, VALUE delimiter)
