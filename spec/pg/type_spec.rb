@@ -1184,8 +1184,15 @@ describe "PG::Type derivations" do
 			it "should respond to to_h" do
 				expect( textenc_int_array.to_h ).to eq( {
 					name: nil, oid: 0, format: 0, flags: 0,
-					elements_type: textenc_int, needs_quotation: false, delimiter: ',',
-					dimensions: nil
+					elements_type: textenc_int, needs_quotation: false, delimiter: ','
+				} )
+			end
+
+			it "should respond to to_h with dimensions set" do
+				enc_array = PG::BinaryEncoder::Array.new dimensions: 1
+				expect( enc_array.to_h ).to eq( {
+					name: nil, oid: 0, format: 1, flags: 0, dimensions: 1,
+					elements_type: nil, needs_quotation: true, delimiter: ','
 				} )
 			end
 

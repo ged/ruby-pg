@@ -72,12 +72,13 @@ module PG
 
 	class CompositeCoder < Coder
 		def to_h
-			{ **super,
+			h = { **super,
 				elements_type: elements_type,
 				needs_quotation: needs_quotation?,
 				delimiter: delimiter,
-				dimensions: dimensions,
 			}
+			h[:dimensions] = dimensions if dimensions # Write only when set, for Marshal compat with pg<1.6
+			h
 		end
 
 		def inspect
