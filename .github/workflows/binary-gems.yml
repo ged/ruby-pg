@@ -27,9 +27,9 @@ jobs:
           - platform: "x64-mingw-ucrt"
           - platform: "x64-mingw32"
           - platform: "x86-mingw32"
-          - platform: "x86_64-linux-gnu"
+          - platform: "x86_64-linux"
           - platform: "x86_64-linux-musl"
-          - platform: "aarch64-linux-gnu"
+          - platform: "aarch64-linux"
           - platform: "aarch64-linux-musl"
           - platform: "x86_64-darwin"
           - platform: "arm64-darwin"
@@ -77,10 +77,10 @@ jobs:
             PGVERSION: 16.6-1-windows-x64
           - os: ubuntu-latest
             ruby: "3.2"
-            platform: "x86_64-linux-gnu"
+            platform: "x86_64-linux"
           - os: ubuntu-24.04-arm
             ruby: "3.4"
-            platform: "aarch64-linux-gnu"
+            platform: "aarch64-linux"
           - os: macos-latest
             ruby: "3.4"
             platform: "arm64-darwin"
@@ -166,8 +166,12 @@ jobs:
         include:
           - from_image: fedora:39
             image_platform: linux/x86_64
-            gem_platform: x86_64-linux-gnu
+            gem_platform: x86_64-linux
             dockerfile: centos
+          - from_image: alpine
+            image_platform: linux/x86_64
+            gem_platform: x86_64-linux
+            dockerfile: alpine
           - from_image: alpine
             image_platform: linux/x86_64
             gem_platform: x86_64-linux-musl
@@ -183,7 +187,7 @@ jobs:
       - name: Build image and Run tests
         run: |
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          docker build --rm --platform ${{matrix.image_platform}} --build-arg from_image=${{matrix.from_image}} -t ruby-test -f spec/env/Dockerfile.${{matrix.dockerfile}} .
+          docker build --rm --platform ${{matrix.image_platform}} --build-arg from_image=${{matrix.from_image}} --build-arg gem_platform=${{matrix.gem_platform}} -t ruby-test -f spec/env/Dockerfile.${{matrix.dockerfile}} .
           docker run --rm -t --network=host -v `pwd`:/build ruby-test
 
   job_binary_yugabyte:
@@ -193,7 +197,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - gem_platform: x86_64-linux-gnu
+          - gem_platform: x86_64-linux
 
     runs-on: ubuntu-latest
     steps:

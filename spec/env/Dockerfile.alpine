@@ -1,8 +1,11 @@
 ARG from_image
+ARG gem_platform
 FROM ${from_image}
 
 RUN uname -a
 RUN apk add ruby ruby-rake ruby-dev git gcc make musl-dev postgresql16 sudo
+# Conditionally install gcompat only for x86_64-linux (not x86_64-linux-musl)
+RUN if [ "$gem_platform" = "x86_64-linux" ]; then apk add gcompat; fi
 
 RUN git config --global --add safe.directory /build
 RUN ruby --version
