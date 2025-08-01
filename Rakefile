@@ -85,6 +85,9 @@ Rake::ExtensionTask.new do |ext|
 		spec.files << "ports/#{spec.platform.to_s}/lib/libpq-ruby-pg.so.1" if spec.platform.to_s =~ /linux/
 		spec.files << "ports/#{spec.platform.to_s}/lib/libpq-ruby-pg.1.dylib" if spec.platform.to_s =~ /darwin/
 		spec.files << "ports/#{spec.platform.to_s}/lib/libpq.dll" if spec.platform.to_s =~ /mingw|mswin/
+
+		# Binary gems don't postgresql header+lib files
+		spec.metadata.delete("msys2_mingw_dependencies")
 	end
 end
 
