@@ -50,7 +50,9 @@ CrossLibraries = [
 	['x86-mingw32', 'mingw', 'i686-w64-mingw32'],
 	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86_64-linux', 'linux-x86_64', 'x86_64-linux-gnu'],
+	['x86_64-linux-musl', 'linux-x86_64', 'x86_64-unknown-linux-musl'],
 	['aarch64-linux', 'linux-aarch64', 'aarch64-linux-gnu'],
+	['aarch64-linux-musl', 'linux-aarch64', 'aarch64-linux-musl'],
 	['x86_64-darwin', 'darwin64-x86_64', 'x86_64-apple-darwin'],
 	['arm64-darwin', 'darwin64-arm64', 'arm64-apple-darwin'],
 ].map do |platform, openssl_config, toolchain|
@@ -68,7 +70,13 @@ Rake::ExtensionTask.new do |ext|
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
 	ext.cross_compile  = true
-	ext.cross_platform = CrossLibraries.map(&:platform)
+
+	# Activate current cross compiled platform only.
+	# This is to work around the issue that `linux` platform is selected in `linux-musl` image.
+	ext.cross_platform = CrossLibraries.map(&:platform).select do |pl|
+		m = ENV["RCD_IMAGE"]&.match(/:(?<ruby_ver>[\d\.]+)-mri-(?<platform>[-\w]+)$/)
+		m && m[:platform] == pl
+	end
 
 	ext.cross_config_options += CrossLibraries.map do |xlib|
 		{
