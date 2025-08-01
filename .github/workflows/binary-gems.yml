@@ -28,7 +28,9 @@ jobs:
           - platform: "x64-mingw32"
           - platform: "x86-mingw32"
           - platform: "x86_64-linux"
+          - platform: "x86_64-linux-musl"
           - platform: "aarch64-linux"
+          - platform: "aarch64-linux-musl"
           - platform: "x86_64-darwin"
           - platform: "arm64-darwin"
     steps:
@@ -156,7 +158,7 @@ jobs:
 
 
   job_binary_multiarch:
-    name: multiarch (${{matrix.platform}} on ${{matrix.from_image}} ${{matrix.image_platform}})
+    name: multiarch (${{matrix.gem_platform}} on ${{matrix.from_image}} ${{matrix.image_platform}})
     needs: rcd_build
     strategy:
       fail-fast: false
@@ -168,10 +170,26 @@ jobs:
             dockerfile: centos
           - from_image: alpine
             image_platform: linux/x86_64
+            gem_platform: x86_64-linux-musl
+            dockerfile: alpine
+          - from_image: alpine
+            image_platform: linux/arm64
+            gem_platform: aarch64-linux-musl
+            dockerfile: alpine
+            os: ubuntu-24.04-arm
+          - from_image: alpine
+            image_platform: linux/x86_64
             gem_platform: x86_64-linux
             dockerfile: alpine
+            docker_arg: "--build-arg with_pkg=gcompat"
+          - from_image: alpine
+            image_platform: linux/arm64
+            gem_platform: aarch64-linux
+            dockerfile: alpine
+            docker_arg: "--build-arg with_pkg=gcompat"
+            os: ubuntu-24.04-arm
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Download gem-${{ matrix.gem_platform }}
@@ -180,8 +198,7 @@ jobs:
           name: binary-gem-${{ matrix.gem_platform }}
       - name: Build image and Run tests
         run: |
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          docker build --rm --platform ${{matrix.image_platform}} --build-arg from_image=${{matrix.from_image}} -t ruby-test -f spec/env/Dockerfile.${{matrix.dockerfile}} .
+          docker build --rm --platform ${{matrix.image_platform}} --build-arg from_image=${{matrix.from_image}} ${{matrix.docker_arg}} -t ruby-test -f spec/env/Dockerfile.${{matrix.dockerfile}} .
           docker run --rm -t --network=host -v `pwd`:/build ruby-test
 
   job_binary_yugabyte:
