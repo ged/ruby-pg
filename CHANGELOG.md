@@ -1,3 +1,11 @@
+## v1.6.1 [2025-08-03] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Add binary gems for platforms `aarch64-linux-musl` and `x86_64-linux-musl` without the need to install package `gcompat`. [#657](https://github.com/ged/ruby-pg/pull/657).
+- Serialize CompositeCoder#dimensions only when set. [#652](https://github.com/ged/ruby-pg/pull/652)
+  This fixes the compatibility to pg-1.5.9, when deserializing Marshal data from pg-1.6, as long as the new attribute isn't used.
+- Remove dependency to MSYS2 package "postgresql" from binary Windows gem [#654](https://github.com/ged/ruby-pg/pull/654)
+
+
 ## v1.6.0 [2025-07-27] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
