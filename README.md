@@ -146,7 +146,7 @@ Very basic type casting can be enabled by:
 But Pg's type casting is highly customizable. That's why it's divided into
 2 layers:
 
-### Encoders / Decoders (ext/pg_*coder.c, lib/pg/*coder.rb)
+### Encoders / Decoders (ext/pg_\*coder.c, lib/pg/\*coder.rb)
 
 This is the lower layer, containing encoding classes that convert Ruby
 objects for transmission to the DBMS and decoding classes to convert
@@ -188,9 +188,9 @@ The following text and binary formats can also be encoded although they are not 
 * Literal for insertion into SQL string: [TE](rdoc-ref:PG::TextEncoder::QuotedLiteral)
 * SQL-Identifier: [TE](rdoc-ref:PG::TextEncoder::Identifier), [TD](rdoc-ref:PG::TextDecoder::Identifier)
 
-### PG::TypeMap and derivations (ext/pg_type_map*.c, lib/pg/type_map*.rb)
+### TypeMap and derivations (ext/pg_type_map\*.c, lib/pg/type_map\*.rb)
 
-A TypeMap defines which value will be converted by which encoder/decoder.
+A PG::TypeMap defines which value will be converted by which encoder/decoder.
 There are different type map strategies, implemented by several derivations
 of this class. They can be chosen and configured according to the particular
 needs for type casting. The default type map is PG::TypeMapAllStrings.

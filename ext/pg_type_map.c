@@ -187,7 +187,9 @@ init_pg_type_map(void)
 	 *
 	 * This is the base class for type maps.
 	 * See derived classes for implementations of different type cast strategies
-	 * ( PG::TypeMapByColumn, PG::TypeMapByOid ).
+	 * ( PG::TypeMapByColumn, PG::TypeMapByOid, etc.).
+	 *
+	 * Find more type maps in the {README}[rdoc-ref:README.md@Type+Casts].
 	 *
 	 */
 	rb_cTypeMap = rb_define_class_under( rb_mPG, "TypeMap", rb_cObject );
