@@ -57,9 +57,7 @@ This installs the binary gem, specific to the running platform by default.
 The binary gems don't depend on the libpq package on the running system.
 They have libpq builtin.
 
-The gems for platform `x86_64-linux` and `aarch64-linux` run on Alpine Linux, but require the package `gcompat` there as long as we don't provide a native gem for platform `x86_64-linux-musl`. Install this package like so:
-
-    apk add gcompat
+The gems for platform `x86_64-linux` and `aarch64-linux` run on Alpine Linux, but require the package `gcompat`, while the native gems for platform `*-linux-musl` work without that dependency.
 
 There is one use case the binary gems don't support: Retrieval of connection [options from LDAP](https://www.postgresql.org/docs/current/libpq-ldap.html). To support this `libldap` would be necessary, but it has a lot of dependencies. It doesn't seem to be a widely used feature and that it's worth to support it. If it's necessary, the source gem can be forced.
 
