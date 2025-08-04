@@ -57,4 +57,14 @@ describe PG do
 
 		expect( bres ).to eq( 55 )
 	end
+
+	it "should provide constants in a Ractor", :ractor do
+		vals = Ractor.new(@conninfo) do |conninfo|
+			[PG.library_version, PG.version_string, PG.threadsafe?, PG::VERSION, PG::POSTGRESQL_LIB_PATH]
+		end.value
+
+		expect( vals ).to eq(
+			[PG.library_version, PG.version_string, PG.threadsafe?, PG::VERSION, PG::POSTGRESQL_LIB_PATH]
+		)
+	end
 end

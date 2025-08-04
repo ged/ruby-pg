@@ -21,6 +21,7 @@ module PG
 			POSTGRESQL_LIB_PATH = false
 		end
 	end
+	POSTGRESQL_LIB_PATH.freeze
 
 	add_dll_path = proc do |path, &block|
 		if RUBY_PLATFORM =~/(mswin|mingw)/i && path
