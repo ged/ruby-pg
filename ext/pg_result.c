@@ -617,7 +617,7 @@ pgresult_error_message(VALUE self)
  * call-seq:
  *    res.verbose_error_message( verbosity, show_context ) -> String
  *
- * Returns a reformatted version of the error message associated with a PGresult object.
+ * Returns a reformatted version of the error message associated with the PG::Result object.
  *
  */
 static VALUE
@@ -734,9 +734,9 @@ pgresult_nfields(VALUE self)
  * call-seq:
  *    res.binary_tuples() -> Integer
  *
- * Returns 1 if the PGresult contains binary data and 0 if it contains text data.
+ * Returns 1 if the PG::Result contains binary data and 0 if it contains text data.
  *
- * This function is deprecated (except for its use in connection with COPY), because it is possible for a single PGresult to contain text data in some columns and binary data in others.
+ * This function is deprecated (except for its use in connection with COPY), because it is possible for a single PG::Result to contain text data in some columns and binary data in others.
  * Result#fformat is preferred. binary_tuples returns 1 only if all columns of the result are binary (format 1).
  */
 static VALUE
@@ -1572,8 +1572,8 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
  * wrapping each row into a dedicated result object, it delivers data in nearly
  * the same speed as with ordinary results.
  *
- * The base result must be in status PGRES_SINGLE_TUPLE or PGRES_TUPLES_CHUNK.
- * It iterates over all tuples until the status changes to PGRES_TUPLES_OK.
+ * The base result must be in status +PGRES_SINGLE_TUPLE+ or +PGRES_TUPLES_CHUNK+.
+ * It iterates over all tuples until the status changes to +PGRES_TUPLES_OK+.
  * A PG::Error is raised for any errors from the server.
  *
  * Row description data does not change while the iteration. All value retrieval

@@ -242,10 +242,10 @@ pg_tuple_materialize(VALUE self)
  * An integer +key+ is interpreted as column index.
  * Negative values of index count from the end of the array.
  *
- * Depending on Result#field_name_type= a string or symbol +key+ is interpreted as column name.
+ * Depending on PG::Result#field_name_type= a string or symbol +key+ is interpreted as column name.
  *
  * If the key can't be found, there are several options:
- * With no other arguments, it will raise a IndexError exception;
+ * With no other arguments, it will raise a +IndexError+ exception;
  * if default is given, then that will be returned;
  * if the optional code block is specified, then that will be run and its result returned.
  */
@@ -302,7 +302,7 @@ pg_tuple_fetch(int argc, VALUE *argv, VALUE self)
  * An integer +key+ is interpreted as column index.
  * Negative values of index count from the end of the array.
  *
- * Depending on Result#field_name_type= a string or symbol +key+ is interpreted as column name.
+ * Depending on PG::Result#field_name_type= a string or symbol +key+ is interpreted as column name.
  *
  * If the key can't be found, it returns +nil+ .
  */
@@ -405,7 +405,7 @@ pg_tuple_each_value(VALUE self)
  *    tup.values  -> Array
  *
  * Returns the values of this tuple as Array.
- * +res.tuple(i).values+ is equal to +res.tuple_values(i)+ .
+ * <tt>res.tuple(i).values</tt> is equal to <tt>res.tuple_values(i)</tt> .
  */
 static VALUE
 pg_tuple_values(VALUE self)
