@@ -70,13 +70,7 @@ Rake::ExtensionTask.new do |ext|
 	ext.lib_dir        = 'lib'
 	ext.source_pattern = "*.{c,h}"
 	ext.cross_compile  = true
-
-	# Activate current cross compiled platform only.
-	# This is to work around the issue that `linux` platform is selected in `linux-musl` image.
-	ext.cross_platform = CrossLibraries.map(&:platform).select do |pl|
-		m = ENV["RCD_IMAGE"]&.match(/:(?<ruby_ver>[\d\.]+)-mri-(?<platform>[-\w]+)$/)
-		m && m[:platform] == pl
-	end
+	ext.cross_platform = CrossLibraries.map(&:platform)
 
 	ext.cross_config_options += CrossLibraries.map do |xlib|
 		{
@@ -141,7 +135,7 @@ CrossLibraries.each do |xlib|
 			bundle install --local &&
 			#{ "rake install_darwin_mig[__arm64__]" if platform =~ /arm64-darwin/ }
 			#{ "rake install_darwin_mig[__x86_64__]" if platform =~ /x86_64-darwin/ }
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>2.7", "~>3.0")}
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>2.7", "~>3.0")} RAKE_EXTENSION_TASK_NO_NATIVE=true
 		EOT
 	end
 	desc "Build the native binary gems"
