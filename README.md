@@ -65,6 +65,7 @@ There is one use case the binary gems don't support: Retrieval of connection [op
 
 The source gem can be forced by:
 
+    gem uninstall pg --all
     gem install pg --platform ruby
 
 You may need to specify the path to the 'pg_config' program installed with
