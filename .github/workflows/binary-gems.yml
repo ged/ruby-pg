@@ -223,3 +223,26 @@ jobs:
           cp -v  pg-*.gem   misc/yugabyte/
           cd misc/yugabyte
           docker-compose up --abort-on-container-exit  --exit-code-from pg
+
+  job_binary_too_old_glibc:
+    name: GLIBC
+    needs: rcd_build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gem_platform: x86_64-linux
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download gem-${{ matrix.gem_platform }}
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-gem-${{ matrix.gem_platform }}
+      - name: Build image and Run tests
+        run: |
+          sudo apt-get install -y docker-compose
+          cp -v  pg-*.gem   misc/glibc/
+          cd misc/glibc
+          docker-compose up --abort-on-container-exit  --exit-code-from pg
