@@ -474,7 +474,7 @@ EOT
 
 			csr_cert.sign ca_key, OpenSSL::Digest::SHA256.new
 
-			open "#{output_dir}/#{name}", 'w' do |io|
+			File.open "#{output_dir}/#{name}", 'w' do |io|
 				io.puts csr_cert.to_text
 				io.write csr_cert.to_pem
 			end
