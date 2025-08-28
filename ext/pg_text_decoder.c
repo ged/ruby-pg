@@ -579,7 +579,7 @@ pg_text_dec_from_base64(t_pg_coder *conv, const char *val, int len, int tuple, i
 	/* create a buffer of the expected decoded length */
 	VALUE out_value = rb_str_new(NULL, BASE64_DECODED_SIZE(len));
 
-	decoded_len = base64_decode( RSTRING_PTR(out_value), val, len );
+	decoded_len = rbpg_base64_decode( RSTRING_PTR(out_value), val, len );
 	rb_str_set_len(out_value, decoded_len);
 
 	/* Is it a pure String conversion? Then we can directly send out_value to the user. */

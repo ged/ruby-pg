@@ -784,7 +784,7 @@ pg_text_enc_to_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedi
 	if(out){
 		/* Second encoder pass, if required */
 		strlen = enc_func(this->elem, value, out, intermediate, enc_idx);
-		base64_encode( out, out, strlen );
+		rbpg_base64_encode( out, out, strlen );
 
 		return BASE64_ENCODED_SIZE(strlen);
 	} else {
@@ -799,7 +799,7 @@ pg_text_enc_to_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedi
 			out_str = rb_str_new(NULL, BASE64_ENCODED_SIZE(strlen));
 			PG_ENCODING_SET_NOCHECK(out_str, enc_idx);
 
-			base64_encode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
+			rbpg_base64_encode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
 			*intermediate = out_str;
 
 			return -1;

@@ -524,7 +524,7 @@ pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 	if(out){
 		/* Second encoder pass, if required */
 		strlen = enc_func(this->elem, value, out, intermediate, enc_idx);
-		strlen = base64_decode( out, out, strlen );
+		strlen = rbpg_base64_decode( out, out, strlen );
 
 		return strlen;
 	} else {
@@ -538,7 +538,7 @@ pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 			strlen = RSTRING_LENINT(subint);
 			out_str = rb_str_new(NULL, BASE64_DECODED_SIZE(strlen));
 
-			strlen = base64_decode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
+			strlen = rbpg_base64_decode( RSTRING_PTR(out_str), RSTRING_PTR(subint), strlen);
 			rb_str_set_len( out_str, strlen );
 			*intermediate = out_str;
 
