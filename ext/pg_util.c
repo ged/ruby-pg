@@ -15,7 +15,7 @@ static const char base64_encode_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
  * in-place (with _out_ == _in_).
  */
 void
-base64_encode( char *out, const char *in, int len)
+rbpg_base64_encode( char *out, const char *in, int len)
 {
 	const unsigned char *in_ptr = (const unsigned char *)in + len;
 	char *out_ptr = out + BASE64_ENCODED_SIZE(len);
@@ -72,7 +72,7 @@ static const unsigned char base64_decode_table[] =
  * It is possible to decode a string in-place (with _out_ == _in_).
  */
 int
-base64_decode( char *out, const char *in, unsigned int len)
+rbpg_base64_decode( char *out, const char *in, unsigned int len)
 {
 	unsigned char a, b, c, d;
 	const unsigned char *in_ptr = (const unsigned char *)in;
