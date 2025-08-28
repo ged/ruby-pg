@@ -48,8 +48,8 @@ describe PG::Connection do
 	end
 
 	it "connects using 7 arguments in a Ractor", :ractor do
-		vals = Ractor.new do
-			PG.connect( 'localhost', @port, nil, nil, :test, nil, nil ) do |conn|
+		vals = Ractor.new(@port) do |port|
+			PG.connect( 'localhost', port, nil, nil, :test, nil, nil ) do |conn|
 				conn.exec("SELECT 234").values
 			end
 		end.value
