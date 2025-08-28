@@ -474,7 +474,7 @@ pg_tuple_dump(VALUE self)
 	values = rb_ary_new4(this->num_fields, &this->values[0]);
 	a = rb_ary_new3(2, field_names, values);
 
-        rb_copy_generic_ivar(a, self);
+	rb_copy_generic_ivar(a, self);
 
 	return a;
 }
