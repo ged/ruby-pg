@@ -141,7 +141,7 @@ CrossLibraries.each do |xlib|
 			bundle install --local &&
 			#{ "rake install_darwin_mig[__arm64__]" if platform =~ /arm64-darwin/ }
 			#{ "rake install_darwin_mig[__x86_64__]" if platform =~ /x86_64-darwin/ }
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEOPTS=-j`nproc` RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>2.7", "~>3.0")}
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEFLAGS="-j`nproc` V=1" RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>2.7", "~>3.0")}
 		EOT
 	end
 	desc "Build the native binary gems"
