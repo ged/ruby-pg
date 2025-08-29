@@ -49,6 +49,12 @@ if gem_platform=with_config("cross-build")
 			"#{target}/#{RUBY_PLATFORM}"
 		end
 
+		# Add "--prefix=/", to avoid our actual build install path compiled into the binary.
+		# Instead use DESTDIR variable of make to set our install path.
+		def configure_prefix
+			"--prefix="
+		end
+
 		def cook_and_activate
 			checkpoint = File.join(self.target, "#{self.name}-#{self.version}-#{RUBY_PLATFORM}.installed")
 			unless File.exist?(checkpoint)
@@ -70,13 +76,13 @@ if gem_platform=with_config("cross-build")
 				envs = []
 				envs << "CFLAGS=-DDSO_WIN32 -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /mingw|mswin/
 				envs << "CFLAGS=-fPIC -DOPENSSL_THREADS" if RUBY_PLATFORM =~ /linux|darwin/
-				execute('configure', ['env', *envs, "./Configure", openssl_platform, "threads", "-static", "CROSS_COMPILE=#{host}-", configure_prefix], altlog: "config.log")
+				execute('configure', ['env', *envs, "./Configure", openssl_platform, "threads", "-static", "CROSS_COMPILE=#{host}-", "--prefix=/"], altlog: "config.log")
 			end
 			def compile
 				execute('compile', "#{make_cmd} build_libs")
 			end
 			def install
-				execute('install', "#{make_cmd} install_dev")
+				execute('install', "#{make_cmd} install_dev DESTDIR=#{path}")
 			end
 		end
 
@@ -104,6 +110,9 @@ if gem_platform=with_config("cross-build")
 					end
 					super
 				end
+				def install
+					execute('install', "#{make_cmd} install DESTDIR=#{path}")
+				end
 			end
 			# We specify -fcommon to get around duplicate definition errors in recent gcc.
 			# See https://github.com/cockroachdb/cockroach/issues/49734
@@ -112,6 +121,7 @@ if gem_platform=with_config("cross-build")
 			recipe.configure_options << "--without-keyutils"
 			recipe.configure_options << "--disable-nls"
 			recipe.configure_options << "--disable-silent-rules"
+			recipe.configure_options << "--disable-rpath"
 			recipe.configure_options << "--without-system-verto"
 			recipe.configure_options << "krb5_cv_attr_constructor_destructor=yes"
 			recipe.configure_options << "ac_cv_func_regcomp=yes"
@@ -146,12 +156,13 @@ if gem_platform=with_config("cross-build")
 					'--without-zlib',
 					'--without-icu',
 					'--without-readline',
+					'--disable-rpath',
 					'ac_cv_search_gss_store_cred_into=',
 				]
 			end
 			def compile
-				execute 'compile include', "#{make_cmd} -C src/include install"
-				execute 'compile interfaces', "#{make_cmd} -C src/interfaces install"
+				execute 'compile include', "#{make_cmd} -C src/include install DESTDIR=#{path}"
+				execute 'compile interfaces', "#{make_cmd} -C src/interfaces install DESTDIR=#{path}"
 			end
 			def install
 			end
@@ -169,6 +180,9 @@ if gem_platform=with_config("cross-build")
 	# Use our own library name for libpq to avoid loading of system libpq by accident.
 	FileUtils.ln_sf File.join(postgresql_recipe.port_path, "lib/#{libpq_orig}"),
 			File.join(postgresql_recipe.port_path, "lib/#{libpq_rubypg}")
+	# Link to libpq_rubypg in our ports directory without adding it as rpath (like dir_config does)
+	$CFLAGS << " -I#{postgresql_recipe.path}/include"
+	$LDFLAGS << " -L#{postgresql_recipe.path}/lib"
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc" if RUBY_PLATFORM =~ /mingw|mswin/
 	# Avoid: "libpq.so: undefined reference to `dlopen'" in cross-ruby-2.7.8
@@ -176,8 +190,6 @@ if gem_platform=with_config("cross-build")
 	# Find libpq in the ports directory coming from lib/3.x
 	# It is shared between all compiled ruby versions.
 	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'" if RUBY_PLATFORM =~ /linux/
-	# Don't use pg_config for cross build, but --with-pg-* path options
-	dir_config('pg', "#{postgresql_recipe.path}/include", "#{postgresql_recipe.path}/lib")
 
 	$defs.push( "-DPG_IS_BINARY_GEM")
 else
