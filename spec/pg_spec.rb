@@ -67,4 +67,30 @@ describe PG do
 			[PG.library_version, PG.version_string, PG.threadsafe?, PG::VERSION, PG::POSTGRESQL_LIB_PATH]
 		)
 	end
+
+	it "native gem's C-ext file shouldn't contain any rpath or other build-related paths" do
+		skip "applies to native binary gems only" unless PG::IS_BINARY_GEM
+		cext_fname = $LOADED_FEATURES.grep(/pg_ext/).first
+		expect(cext_fname).not_to be_nil
+		cext_text = File.binread(cext_fname)
+		expect(cext_text).to match(/Init_pg_ext/) # C-ext shoud contain the init function
+		expect(cext_text).not_to match(/usr\/local/) # there should be no rpath to /usr/local/rake-compiler/ruby/x86_64-unknown-linux-musl/ruby-3.4.5/lib or so
+		expect(cext_text).not_to match(/home\//) # there should be no path to /home/ or so
+	end
+
+	it "native gem's libpq file shouldn't contain any rpath or other build-related paths" do
+		skip "applies to native binary gems only" unless PG::IS_BINARY_GEM
+
+		libpq_fname = case RUBY_PLATFORM
+			when /mingw|mswin/ then "libpq.dll"
+			when /linux/ then "libpq-ruby-pg.so.1"
+			when /darwin/ then "libpq-ruby-pg.1.dylib"
+		end
+
+		path = File.join(PG::POSTGRESQL_LIB_PATH, libpq_fname)
+		text = File.binread(path)
+		expect(text).to match(/PQconnectdb/) # libpq shoud contain the connect function
+		expect(text).not_to match(/usr\/local/) # there should be no rpath to build dirs
+		expect(text).not_to match(/home\//) # there should be no path to /home/.../ports/ or so
+	end
 end
