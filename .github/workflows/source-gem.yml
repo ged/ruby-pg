@@ -147,7 +147,7 @@ jobs:
           PG_DEBUG: 0
           # Temprary fix only for Truffleruby-24.0.0:
           TRUFFLERUBYOPT: --experimental-options --keep-handles-alive
-        run: ruby -rpg -S rspec spec/**/*_spec.rb -cfdoc
+        run: ruby -rpg -S rspec spec/*_spec.rb spec/**/*_spec.rb -cfdoc
 
       - name: Print db logs if job failed
         if: ${{ failure() && matrix.os == 'windows' }}
