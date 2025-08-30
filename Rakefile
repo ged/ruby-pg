@@ -74,7 +74,7 @@ Rake::ExtensionTask.new do |ext|
 	# Activate current cross compiled platform only.
 	# This is to work around the issue that `linux` platform is selected in `linux-musl` image.
 	ext.cross_platform = CrossLibraries.map(&:platform).select do |pl|
-		m = ENV["RCD_IMAGE"]&.match(/:(?<ruby_ver>[\d\.]+)-mri-(?<platform>[-\w]+)$/)
+		m = ENV["RCD_IMAGE"]&.match(/:(?<ruby_ver>[\w\.]+)-mri-(?<platform>[-\w]+)$/)
 		m && m[:platform] == pl
 	end
 
@@ -106,7 +106,7 @@ task 'gem:native:prepare' do
 	# Copy gem signing key and certs to be accessible from the docker container
 	mkdir_p 'build/gem'
 	sh "cp ~/.gem/gem-*.pem build/gem/ || true"
-	sh "bundle package"
+	sh "bundle package --all"
 	begin
 		OpenSSL::PKey.read(File.read(File.expand_path("~/.gem/gem-private_key.pem")), ENV["GEM_PRIVATE_KEY_PASSPHRASE"] || "")
 	rescue OpenSSL::PKey::PKeyError

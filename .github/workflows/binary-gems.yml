@@ -20,6 +20,8 @@ jobs:
   rcd_build:
     name: Build
     runs-on: ubuntu-latest
+    env:
+      RCD_IMAGE_VERSION: snapshot
     strategy:
       fail-fast: false
       matrix:
