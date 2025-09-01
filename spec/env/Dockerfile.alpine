@@ -25,4 +25,4 @@ CMD ruby -v && \
   bundle config set --local without 'development' && \
   bundle install && \
   sudo -u postgres ruby -rpg -e "p RUBY_DESCRIPTION, PG::VERSION, PG::POSTGRESQL_LIB_PATH, PG::IS_BINARY_GEM, PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET; puts PG.connect.exec('SELECT version()').values; p PG.connect.host" && \
-  sudo -u postgres ruby -rpg -S rspec -fd spec/**/*_spec.rb
+  sudo -u postgres ruby -rpg -S rspec -fd spec/*_spec.rb spec/**/*_spec.rb

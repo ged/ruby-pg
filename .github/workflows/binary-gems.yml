@@ -20,6 +20,8 @@ jobs:
   rcd_build:
     name: Build
     runs-on: ubuntu-latest
+    env:
+      RCD_IMAGE_VERSION: snapshot
     strategy:
       fail-fast: false
       matrix:
@@ -142,12 +144,12 @@ jobs:
       - run: echo $env:PATH
       - name: Run specs
         if: ${{ matrix.os != 'windows-latest' }}
-        run: ruby -rpg -S rspec -fd spec/**/*_spec.rb
+        run: ruby -rpg -S rspec -fd spec/*_spec.rb spec/**/*_spec.rb
       - name: Run specs
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           ridk enable
-          ruby -rpg -S rspec -fd spec/**/*_spec.rb
+          ruby -rpg -S rspec -fd spec/*_spec.rb spec/**/*_spec.rb
 
       - name: Print logs if job failed
         if: ${{ failure() && matrix.os == 'windows-latest' }}
