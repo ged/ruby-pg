@@ -1,3 +1,13 @@
+## v1.6.2 [YYYY-MM-DD] Lars Kanis <lars@greiz-reinsdorf.de>
+
+- Remove several absolute paths from native binaries which pointed to build directories. [#668](https://github.com/ged/ruby-pg/pull/668)
+- Fix bad fallback path to `pg_service.conf`. [#666](https://github.com/ged/ruby-pg/pull/666)
+- Use `rbpg_` prefix for `base64_*` functions to avoid name clashes with functions provided by other libraries like Heimdal on Macos. [#667](https://github.com/ged/ruby-pg/pull/667)
+- Raise a more descriptive error message in case of `pg_ext` LoadError. [#664](https://github.com/ged/ruby-pg/pull/664)
+- Freeze some constants to make them available in a Ractor context. [#660](https://github.com/ged/ruby-pg/pull/660)
+- Several documentation improvements.
+
+
 ## v1.6.1 [2025-08-03] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Add binary gems for platforms `aarch64-linux-musl` and `x86_64-linux-musl` without the need to install package `gcompat`. [#657](https://github.com/ged/ruby-pg/pull/657).
