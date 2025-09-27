@@ -12,6 +12,7 @@ static VALUE sym_symbol, sym_string, sym_static_symbol;
 static VALUE pgresult_type_map_set( VALUE, VALUE );
 static t_pg_result *pgresult_get_this( VALUE );
 static t_pg_result *pgresult_get_this_safe( VALUE );
+static void ensure_init_for_tuple(VALUE self);
 
 #if defined(HAVE_PQRESULTMEMORYSIZE)
 
@@ -396,6 +397,8 @@ pg_result_freeze(VALUE self)
 {
 	t_pg_result *this = pgresult_get_this(self);
 
+	ensure_init_for_tuple(self);
+	RB_OBJ_WRITE(self, &this->tuple_hash, Qnil);
 	RB_OBJ_WRITE(self, &this->connection, Qnil);
 	return rb_call_super(0, NULL);
 }
@@ -1184,7 +1187,7 @@ pgresult_aref(VALUE self, VALUE index)
 		rb_hash_aset( tuple, this->fnames[field_num], val );
 	}
 	/* Store a copy of the filled hash for use at the next row. */
-	if( num_tuples > 10 )
+	if( num_tuples > 10 && !RB_OBJ_FROZEN(self))
 		RB_OBJ_WRITE(self, &this->tuple_hash, rb_hash_dup(tuple));
 
 	return tuple;
