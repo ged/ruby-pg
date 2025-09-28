@@ -2382,7 +2382,7 @@ pgconn_notifies(VALUE self)
 		return Qnil;
 	}
 
-	hash = rb_hash_new();
+	hash = rb_hash_new_capa(3);
 	relname = rb_str_new2(notification->relname);
 	be_pid = INT2NUM(notification->be_pid);
 	extra = rb_str_new2(notification->extra);

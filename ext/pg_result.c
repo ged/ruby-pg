@@ -1363,11 +1363,12 @@ static void ensure_init_for_tuple(VALUE self)
 
 	if( this->field_map == Qnil ){
 		int i;
-		VALUE field_map = rb_hash_new();
+		VALUE field_map;
 
 		if( this->nfields == -1 )
 			pgresult_init_fnames( self );
 
+		field_map = rb_hash_new_capa(this->nfields);
 		for( i = 0; i < this->nfields; i++ ){
 			rb_hash_aset(field_map, this->fnames[i], INT2FIX(i));
 		}
