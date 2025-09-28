@@ -157,10 +157,6 @@ typedef struct {
 	/* Size of PGresult as published to ruby memory management. */
 	ssize_t result_size;
 
-	/* Prefilled tuple Hash with fnames[] as keys.
-	 * Only used in pgresult_aref() with more than 10 rows, otherwise Qnil. */
-	VALUE tuple_hash;
-
 	/* Hash with fnames[] to field number mapping.
 	 * Init on-demand to create PG::Tuple objects, otherwise Qnil. */
 	VALUE field_map;

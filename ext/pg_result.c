@@ -115,7 +115,6 @@ pgresult_gc_mark( void *_this )
 
 	rb_gc_mark_movable( this->connection );
 	rb_gc_mark_movable( this->typemap );
-	rb_gc_mark_movable( this->tuple_hash );
 	rb_gc_mark_movable( this->field_map );
 
 	for( i=0; i < this->nfields; i++ ){
@@ -131,7 +130,6 @@ pgresult_gc_compact( void *_this )
 
 	pg_gc_location( this->connection );
 	pg_gc_location( this->typemap );
-	pg_gc_location( this->tuple_hash );
 	pg_gc_location( this->field_map );
 
 	for( i=0; i < this->nfields; i++ ){
@@ -213,7 +211,6 @@ pg_new_result2(PGresult *result, VALUE rb_pgconn)
 	this->typemap = pg_typemap_all_strings;
 	this->p_typemap = RTYPEDDATA_DATA( this->typemap );
 	this->nfields = -1;
-	this->tuple_hash = Qnil;
 	this->field_map = Qnil;
 	this->flags = 0;
 	self = TypedData_Wrap_Struct(rb_cPGresult, &pgresult_type, this);
@@ -398,7 +395,6 @@ pg_result_freeze(VALUE self)
 	t_pg_result *this = pgresult_get_this(self);
 
 	ensure_init_for_tuple(self);
-	RB_OBJ_WRITE(self, &this->tuple_hash, Qnil);
 	RB_OBJ_WRITE(self, &this->connection, Qnil);
 	return rb_call_super(0, NULL);
 }
@@ -1179,16 +1175,11 @@ pgresult_aref(VALUE self, VALUE index)
 	if ( tuple_num < 0 || tuple_num >= num_tuples )
 		rb_raise( rb_eIndexError, "Index %d is out of range", tuple_num );
 
-	/* We reuse the Hash of the previous output for larger row counts.
-	 * This is somewhat faster than populating an empty Hash object. */
-	tuple = NIL_P(this->tuple_hash) ? rb_hash_new() : this->tuple_hash;
+	tuple = rb_hash_new_capa(this->nfields);
 	for ( field_num = 0; field_num < this->nfields; field_num++ ) {
 		VALUE val = this->p_typemap->funcs.typecast_result_value(this->p_typemap, self, tuple_num, field_num);
 		rb_hash_aset( tuple, this->fnames[field_num], val );
 	}
-	/* Store a copy of the filled hash for use at the next row. */
-	if( num_tuples > 10 && !RB_OBJ_FROZEN(self))
-		RB_OBJ_WRITE(self, &this->tuple_hash, rb_hash_dup(tuple));
 
 	return tuple;
 }
