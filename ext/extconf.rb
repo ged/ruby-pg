@@ -319,6 +319,7 @@ have_func 'PQsetChunkedRowsMode', 'libpq-fe.h' # since PostgreSQL-17
 have_func 'timegm'
 have_func 'rb_io_wait' # since ruby-3.0
 have_func 'rb_io_descriptor' # since ruby-3.1
+have_func 'rb_hash_new_capa' # since ruby-3.2
 
 have_header 'inttypes.h'
 have_header('ruby/fiber/scheduler.h') if RUBY_PLATFORM=~/mingw|mswin/

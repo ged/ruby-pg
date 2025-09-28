@@ -76,6 +76,10 @@ typedef long suseconds_t;
 	#define PG_MAX_COLUMNS 4000
 #endif
 
+#ifndef HAVE_RB_HASH_NEW_CAPA
+#define rb_hash_new_capa(x) rb_hash_new()
+#endif
+
 #define pg_gc_location(x) x = rb_gc_location(x)
 
 /* For compatibility with ruby < 3.0 */
