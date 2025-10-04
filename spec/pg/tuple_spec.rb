@@ -303,6 +303,23 @@ describe PG::Tuple do
 		Ractor.make_shareable(res)
 	end
 
+	it "should be distributable to Ractors", :ractor do
+		res = @conn.exec("SELECT generate_series(1,100) AS f")
+		arr = res.ntuples.times.flat_map do |tidx1|
+			tuple = res.tuple(tidx1)
+			Ractor.make_shareable(tuple)
+			[
+				Ractor.new(tuple) do |tup|
+					tup.to_h
+				end,
+				Ractor.new(tuple) do |tup|
+					tup.to_h
+				end
+			]
+		end.map(&:value)
+		expect( arr ).to eq( (1..100).to_a.flat_map { |a| [{"f" => a.to_s}, {"f" => a.to_s}] } )
+	end
+
 	it "should give account about memory usage" do
 		expect( ObjectSpace.memsize_of(tuple0) ).to be > DATA_OBJ_MEMSIZE
 		expect( ObjectSpace.memsize_of(tuple_empty) ).to be > 0
