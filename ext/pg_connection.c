@@ -4425,9 +4425,11 @@ pgconn_set_default_encoding( VALUE self )
  *    res.type_map_for_queries = typemap
  *
  * Set the default TypeMap that is used for type casts of query bind parameters.
+ * It can be overwritten per +type_map+ parameter of #exec_params and siblings.
  *
  * +typemap+ must be a kind of PG::TypeMap .
  *
+ * See also #type_map_for_queries
  */
 static VALUE
 pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
@@ -4452,6 +4454,9 @@ pgconn_type_map_for_queries_set(VALUE self, VALUE typemap)
  * Returns the default TypeMap that is currently set for type casts of query
  * bind parameters.
  *
+ * Default is PG::TypeMapAllStrings .
+ *
+ * See also #type_map_for_queries=
  */
 static VALUE
 pgconn_type_map_for_queries_get(VALUE self)
@@ -4466,9 +4471,11 @@ pgconn_type_map_for_queries_get(VALUE self)
  *    res.type_map_for_results = typemap
  *
  * Set the default TypeMap that is used for type casts of result values.
+ * It can be overwritten per PG::Result#type_map= .
  *
  * +typemap+ must be a kind of PG::TypeMap .
  *
+ * See also #type_map_for_results
  */
 static VALUE
 pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
@@ -4490,6 +4497,9 @@ pgconn_type_map_for_results_set(VALUE self, VALUE typemap)
  *
  * Returns the default TypeMap that is currently set for type casts of result values.
  *
+ * Default is PG::TypeMapAllStrings .
+ *
+ * See also #type_map_for_results=
  */
 static VALUE
 pgconn_type_map_for_results_get(VALUE self)
@@ -4506,11 +4516,13 @@ pgconn_type_map_for_results_get(VALUE self)
  *
  * Set the default coder that is used for type casting of parameters
  * to #put_copy_data .
+ * It can be overwritten per +encoder+ parameter of #put_copy_data and +coder+ parameter of #copy_data.
  *
  * +encoder+ can be:
  * * a kind of PG::Coder
  * * +nil+ - disable type encoding, data must be a String.
  *
+ * See also #encoder_for_put_copy_data
  */
 static VALUE
 pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
@@ -4540,6 +4552,8 @@ pgconn_encoder_for_put_copy_data_set(VALUE self, VALUE encoder)
  * * a kind of PG::Coder
  * * +nil+ - type encoding is disabled, data must be a String.
  *
+ * Default is +nil+ .
+ * See also #encoder_for_put_copy_data=
  */
 static VALUE
 pgconn_encoder_for_put_copy_data_get(VALUE self)
@@ -4555,11 +4569,13 @@ pgconn_encoder_for_put_copy_data_get(VALUE self)
  *
  * Set the default coder that is used for type casting of received data
  * by #get_copy_data .
+ * It can be overwritten per +decoder+ parameter of #get_copy_data and +coder+ parameter of #copy_data.
  *
  * +decoder+ can be:
  * * a kind of PG::Coder
  * * +nil+ - disable type decoding, returned data will be a String.
  *
+ * See also #decoder_for_get_copy_data
  */
 static VALUE
 pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
@@ -4589,6 +4605,9 @@ pgconn_decoder_for_get_copy_data_set(VALUE self, VALUE decoder)
  * * a kind of PG::Coder
  * * +nil+ - type encoding is disabled, returned data will be a String.
  *
+ * Default is +nil+ .
+ *
+ * See also #decoder_for_get_copy_data=
  */
 static VALUE
 pgconn_decoder_for_get_copy_data_get(VALUE self)
@@ -4611,7 +4630,7 @@ pgconn_decoder_for_get_copy_data_get(VALUE self)
  *
  * Settings the type of field names affects only future results.
  *
- * See further description at PG::Result#field_name_type=
+ * See further description at PG::Result#field_name_type= and #field_name_type .
  *
  */
 static VALUE
