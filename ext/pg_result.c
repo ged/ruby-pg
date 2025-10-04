@@ -513,20 +513,46 @@ static void pgresult_init_fnames(VALUE self)
  *
  * The class to represent the query result tuples (rows).
  * An instance of this class is created as the result of every query.
- * All result rows and columns are stored in a memory block attached to the PG::Result object.
- * Whenever a value is accessed it is casted to a Ruby object by the assigned #type_map .
+ * All result rows and columns are stored in an immutable memory block attached to the PG::Result object unless streaming is used.
+ *
+ * A PG::Result has various ways to retrieve the result data:
+ *    require 'pg'
+ *    conn = PG.connect(dbname: 'test')
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.num_fields       # 3
+ *    res.num_tuples       # 1
+ *    res.fname(2)         # "c"
+ *    res.fields           # ["a", "b", "c"]
+ *    res.getvalue(0,0)    # '1'
+ *    res[0]               # {"a" => "1", "b" => "2", "c" => "3"}
+ *    res.tuple_values(0)  # ["1", "2", nil]
+ *    res.tuple(0)         # #<PG::Tuple a: "1", b: "2", c: nil>
+ *    res.values           # [["1", "2", nil]]
+ *    res.field_values(:a) # ["1"]
+ *    res.column_values(1) # ["2"]
+ *    res.each.first       # {"a" => "1", "b" => "2", "c" => nil}
+ *    res.each_row.first   # ["1", "2", nil]
+ *
+ * Whenever a value is accessed it is casted to a Ruby object by the assigned #type_map which is PG::TypeMapAllStrings by default.
+ * Similarly field names can be retrieved either as strings (default) or as symbols which can be switched per #field_name_type= .
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.type_map = PG::TypeMapByColumn.new([PG::TextDecoder::Integer.new]*3)
+ *    res.field_name_type = :symbol
+ *    res.fname(2)         # :c
+ *    res.fields           # [:a, :b, :c]
+ *    res.getvalue(0,0)    # 1
+ *    res[0]               # {a: 1, b: 2, c: nil}
+ *    res.tuple_values(0)  # [1, 2, nil]
+ *    res.tuple(0)         # #<PG::Tuple a: 1, b: 2, c: nil>
+ *    res.values           # [[1, 2, nil]]
+ *    res.field_values(:a) # [1]
+ *    res.column_values(1) # [2]
+ *    res.each.first       # {a: 1, b: 2, c: nil}
+ *    res.each_row.first   # [1, 2, nil]
  *
  * Since pg-1.1 the amount of memory in use by a PG::Result object is estimated and passed to ruby's garbage collector.
  * You can invoke the #clear method to force deallocation of memory of the instance when finished with the result for better memory performance.
- *
- * Example:
- *    require 'pg'
- *    conn = PG.connect(:dbname => 'test')
- *    res  = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
- *    res.getvalue(0,0) # '1'
- *    res[0]['b']       # '2'
- *    res[0]['c']       # nil
- *
  */
 
 /**************************************************************************
@@ -705,6 +731,10 @@ pgresult_error_field(VALUE self, VALUE field)
  *    res.ntuples() -> Integer
  *
  * Returns the number of tuples in the query result.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.ntuples          # 1
+ *    res.num_tuples       # 1
  */
 static VALUE
 pgresult_ntuples(VALUE self)
@@ -723,6 +753,9 @@ pgresult_ntuples_for_enum(VALUE self, VALUE args, VALUE eobj)
  *    res.nfields() -> Integer
  *
  * Returns the number of columns in the query result.
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.nfields          # 3
+ *    res.num_fields       # 3
  */
 static VALUE
 pgresult_nfields(VALUE self)
@@ -752,6 +785,8 @@ pgresult_binary_tuples(VALUE self)
  * Returns the name of the column corresponding to _index_.
  * Depending on #field_name_type= it's a String or Symbol.
  *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.fname(2)       # "c"
  */
 static VALUE
 pgresult_fname(VALUE self, VALUE index)
@@ -1122,6 +1157,9 @@ pgresult_oid_value(VALUE self)
  *    res[ n ] -> Hash
  *
  * Returns tuple _n_ as a hash.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res[0]               # {"a" => "1", "b" => "2", "c" => "3"}
  */
 static VALUE
 pgresult_aref(VALUE self, VALUE index)
@@ -1156,7 +1194,10 @@ pgresult_aref(VALUE self, VALUE index)
  * call-seq:
  *    res.each_row { |row| ... }
  *
- * Yields each row of the result. The row is a list of column values.
+ * Yields an Array object for each row in the result.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.each_row.first   # ["1", "2", nil]
  */
 static VALUE
 pgresult_each_row(VALUE self)
@@ -1191,6 +1232,9 @@ pgresult_each_row(VALUE self)
  *    res.values -> Array
  *
  * Returns all tuples as an array of arrays.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.values           # [["1", "2", nil]]
  */
 static VALUE
 pgresult_values(VALUE self)
@@ -1240,12 +1284,13 @@ make_column_result_array( VALUE self, int col )
 
 
 /*
- *  call-seq:
- *     res.column_values( n )   -> array
+ * call-seq:
+ *    res.column_values( n )   -> array
  *
- *  Returns an Array of the values from the nth column of each
- *  tuple in the result.
+ * Returns an Array of the values from the nth column of each tuple in the result.
  *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.column_values(1) # ["2"]
  */
 static VALUE
 pgresult_column_values(VALUE self, VALUE index)
@@ -1256,11 +1301,13 @@ pgresult_column_values(VALUE self, VALUE index)
 
 
 /*
- *  call-seq:
+ * call-seq:
  *     res.field_values( field )   -> array
  *
- *  Returns an Array of the values from the given _field_ of each tuple in the result.
+ * Returns an Array of the values from the given _field_ of each tuple in the result.
  *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.field_values(:a) # ["1"]
  */
 static VALUE
 pgresult_field_values( VALUE self, VALUE field )
@@ -1281,11 +1328,13 @@ pgresult_field_values( VALUE self, VALUE field )
 
 
 /*
- *  call-seq:
- *     res.tuple_values( n )   -> array
+ * call-seq:
+ *    res.tuple_values( n )   -> array
  *
- *  Returns an Array of the field values from the nth row of the result.
+ * Returns an Array of the field values from the nth row of the result.
  *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.tuple_values(0)  # ["1", "2", nil]
  */
 static VALUE
 pgresult_tuple_values(VALUE self, VALUE index)
@@ -1334,11 +1383,13 @@ static void ensure_init_for_tuple(VALUE self)
 }
 
 /*
- *  call-seq:
- *     res.tuple( n )   -> PG::Tuple
+ * call-seq:
+ *    res.tuple( n )   -> PG::Tuple
  *
- *  Returns a PG::Tuple from the nth row of the result.
+ * Returns a PG::Tuple from the nth row of the result.
  *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.tuple(0)         # #<PG::Tuple a: "1", b: "2", c: nil>
  */
 static VALUE
 pgresult_tuple(VALUE self, VALUE index)
@@ -1363,7 +1414,10 @@ pgresult_tuple(VALUE self, VALUE index)
  * call-seq:
  *    res.each{ |tuple| ... }
  *
- * Invokes block for each tuple in the result set.
+ * Yields a Hash object for each row in the result.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.each.first       # {"a" => "1", "b" => "2", "c" => nil}
  */
 static VALUE
 pgresult_each(VALUE self)
@@ -1386,6 +1440,9 @@ pgresult_each(VALUE self)
  *    res.fields() -> Array
  *
  * Depending on #field_name_type= returns an array of strings or symbols representing the names of the fields in the result.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.fields           # ["a", "b", "c"]
  */
 static VALUE
 pgresult_fields(VALUE self)
@@ -1410,6 +1467,7 @@ pgresult_fields(VALUE self)
  *
  * +typemap+ must be a kind of PG::TypeMap .
  *
+ * See also #map_types! and PG::BasicTypeMapForResults
  */
 static VALUE
 pgresult_type_map_set(VALUE self, VALUE typemap)
@@ -1433,6 +1491,7 @@ pgresult_type_map_set(VALUE self, VALUE typemap)
  *    res.type_map -> value
  *
  * Returns the PG::TypeMap that is currently set for type casts of result values to ruby objects.
+ * The default is retrieved from PG::Connection#type_map_for_results , which defaults to PG::TypeMapAllStrings .
  *
  */
 static VALUE
