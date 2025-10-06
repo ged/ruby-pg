@@ -510,7 +510,7 @@ pg_tuple_load(VALUE self, VALUE a)
 	if (RARRAY_LENINT(field_names) != num_fields)
 		rb_raise(rb_eTypeError, "different number of fields and values");
 
-	field_map = rb_hash_new();
+	field_map = rb_hash_new_capa(num_fields);
 	for( i = 0; i < num_fields; i++ ){
 		rb_hash_aset(field_map, RARRAY_AREF(field_names, i), INT2FIX(i));
 	}

@@ -76,6 +76,10 @@ typedef long suseconds_t;
 	#define PG_MAX_COLUMNS 4000
 #endif
 
+#ifndef HAVE_RB_HASH_NEW_CAPA
+#define rb_hash_new_capa(x) rb_hash_new()
+#endif
+
 #define pg_gc_location(x) x = rb_gc_location(x)
 
 /* For compatibility with ruby < 3.0 */
@@ -157,10 +161,8 @@ typedef struct {
 	/* Size of PGresult as published to ruby memory management. */
 	ssize_t result_size;
 
-	/* Prefilled tuple Hash with fnames[] as keys. */
-	VALUE tuple_hash;
-
-	/* Hash with fnames[] to field number mapping. */
+	/* Hash with fnames[] to field number mapping.
+	 * Init on-demand to create PG::Tuple objects, otherwise Qnil. */
 	VALUE field_map;
 
 	/* List of field names as frozen String or Symbol objects.

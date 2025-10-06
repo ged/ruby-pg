@@ -45,6 +45,22 @@ describe PG::Result do
 		expect( res.values ).to eq( [["123"]] )
 	end
 
+	it "should be distributable to Ractors", :ractor do
+		res1 = @conn.exec("SELECT generate_series(1,100) AS f")
+		Ractor.make_shareable(res1)
+		arr = res1.ntuples.times.flat_map do |tidx1|
+			[
+				Ractor.new(res1, tidx1) do |res, tidx|
+					res[tidx]
+				end,
+				Ractor.new(res1, tidx1) do |res, tidx|
+					res[tidx]
+				end
+			]
+		end.map(&:value)
+		expect( arr ).to eq( (1..100).to_a.flat_map{|a| [{"f" => a.to_s}, {"f" => a.to_s}] } )
+	end
+
 	describe :field_name_type do
 		let!(:res) { @conn.exec('SELECT 1 AS a, 2 AS "B"') }
 
