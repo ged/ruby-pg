@@ -221,8 +221,8 @@ Several type maps can be chained by setting PG::TypeMap::DefaultTypeMappable#def
 
 ## Thread support
 
-PG is thread safe in such a way that different threads can use different PG::Connection objects concurrently.
-However it is not safe to access any Pg objects simultaneously from more than one thread.
+PG is thread safe in such a way that different threads or fibers can use different PG::Connection objects concurrently.
+However it is not safe to access any PG object simultaneously from more than one thread or fiber unless the object is frozen.
 So make sure to open a new database server connection for every new thread or use a wrapper library like ActiveRecord that manages connections in a thread safe way.
 
 If messages like the following are printed to stderr, you're probably using one connection from several threads:
