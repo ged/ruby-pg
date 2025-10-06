@@ -66,6 +66,7 @@ pg_get_connection_safe( VALUE self )
 	t_pg_connection *this;
 	TypedData_Get_Struct( self, t_pg_connection, &pg_connection_type, this);
 
+	rb_check_frozen(self);
 	if ( !this->pgconn )
 		pg_raise_conn_error( rb_eConnectionBad, self, "connection is closed");
 

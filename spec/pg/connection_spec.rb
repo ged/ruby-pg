@@ -23,8 +23,11 @@ describe PG::Connection do
 		expect{ c.field_name_type = :symbol  }.to raise_error(FrozenError)
 		expect{ c.set_default_encoding }.to raise_error(FrozenError)
 		expect{ c.internal_encoding = nil }.to raise_error(FrozenError)
-	ensure
-		c&.finish
+		expect{ c.exec("") }.to raise_error(FrozenError)
+		expect{ c.send_query("") }.to raise_error(FrozenError)
+		expect{ c.exec_prepared("a") }.to raise_error(FrozenError)
+		expect{ c.finish }.to raise_error(FrozenError)
+		expect( c.finished? ).to be_falsey
 	end
 
 	it "shouldn't be shareable for Ractor", :ractor do
