@@ -37,4 +37,4 @@ environment:
   matrix:
     - ruby_version: "head"
       RUBYDOWNLOAD: x64
-    - ruby_version: "30-x64"
+    - ruby_version: "31-x64"
