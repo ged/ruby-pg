@@ -30,6 +30,9 @@ A small example usage:
   end
 ```
 
+See the PG::Connection class for query methods and the PG::Result class for information on working with the results of a query.
+
+
 ## Build Status
 
 [![Build Status Github Actions](https://github.com/ged/ruby-pg/actions/workflows/source-gem.yml/badge.svg?branch=master)](https://github.com/ged/ruby-pg/actions/workflows/source-gem.yml)
