@@ -11,7 +11,7 @@ group :development do
 end
 
 group :test do
-  gem "bundler", ">= 1.16", "< 3.0"
+  gem "bundler", ">= 1.16", "< 5.0"
   gem "rake-compiler", "~> 1.0"
   gem "rake-compiler-dock", "~> 1.9.1", git: "https://github.com/rake-compiler/rake-compiler-dock"
   gem "rspec", "~> 3.5"
