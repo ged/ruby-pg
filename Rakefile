@@ -115,19 +115,6 @@ task 'gem:native:prepare' do
 	end
 end
 
-task 'install_darwin_mig', [:arch] do |t, args|
-	sh <<~EOT
-		rm -rf bootstrap_cmds &&
-		git clone --branch=cross_platform https://github.com/markmentovai/bootstrap_cmds &&
-		cd bootstrap_cmds &&
-		autoreconf --install &&
-		sh configure &&
-		make &&
-		sed -E -i 's/^cppflags=(.*)/cppflags=(\\1 "-D#{args[:arch]}" "-I\\/opt\\/osxcross\\/target\\/SDK\\/MacOSX11.1.sdk\\/usr\\/include")/' migcom.tproj/mig.sh &&
-		sudo make install
-	EOT
-end
-
 CrossLibraries.each do |xlib|
 	platform = xlib.platform
 	desc "Build fat binary gem for platform #{platform}"
@@ -139,8 +126,6 @@ CrossLibraries.each do |xlib|
 			sudo apt-get update && sudo apt-get install -y bison flex &&
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			#{ "rake install_darwin_mig[__arm64__]" if platform =~ /arm64-darwin/ }
-			#{ "rake install_darwin_mig[__x86_64__]" if platform =~ /x86_64-darwin/ }
 			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEFLAGS="-j`nproc` V=1" RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>2.7", "~>3.0")}
 		EOT
 	end
