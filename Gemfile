@@ -13,7 +13,7 @@ end
 group :test do
   gem "bundler", ">= 1.16", "< 5.0"
   gem "rake-compiler", "~> 1.0"
-  gem "rake-compiler-dock", "~> 1.9.1", git: "https://github.com/rake-compiler/rake-compiler-dock"
+  gem "rake-compiler-dock", "~> 1.10.0", git: "https://github.com/rake-compiler/rake-compiler-dock"
   gem "rspec", "~> 3.5"
   # "bigdecimal" is a gem on ruby-3.4+ and it's optional for ruby-pg.
   # Specs should succeed without it, but 4 examples are then excluded.
