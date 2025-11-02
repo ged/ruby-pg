@@ -28,7 +28,7 @@ EOCODE
 			sqlstate, ews, errcode_macro_name = $1, $2, $3
 			next unless ews=='E'
 
-			is_sqlclass = sqlstate[2..-1] == '000'
+			is_sqlclass = sqlstate[2..-1] == '000' || sqlstate == '10608'
 			class_code = sqlstate[0,2]
 			baseclass_code = is_sqlclass ? 'NULL' : class_code.inspect
 			class_name = camelize(errcode_macro_name.sub('ERRCODE_', '').downcase)

@@ -44,19 +44,19 @@ jobs:
         include:
           - os: windows
             ruby: "head"
-            PGVERSION: 17.0-1-windows-x64
-            PGVER: "17"
+            PGVERSION: 18.0-1-windows-x64
+            PGVER: "18"
           - os: windows
             ruby: "3.2"
             PGVERSION: 10.20-1-windows-x64
             PGVER: "10"
           - os: windows
             ruby: "mswin"
-            PGVERSION: 17.0-1-windows-x64
-            PGVER: "17"
+            PGVERSION: 18.0-1-windows-x64
+            PGVER: "18"
           - os: ubuntu
             ruby: "head"
-            PGVER: "17"
+            PGVER: "18"
           - os: ubuntu
             ruby: "3.2"
             PGVER: "12"
@@ -69,11 +69,11 @@ jobs:
             PGVER: "14"
           - os: ubuntu
             ruby: "truffleruby-head"
-            PGVER: "17"
+            PGVER: "18"
           - os: macos
             ruby: "head"
-            PGVERSION: 17.0-1-osx
-            PGVER: "17"
+            PGVERSION: 18.0-2-osx
+            PGVER: "18"
 
     runs-on: ${{ matrix.os }}-${{ matrix.os_ver || 'latest' }}
     env:
@@ -162,3 +162,8 @@ jobs:
         run: |
           ridk exec cat c:/rubyinstaller-head-*/lib/ruby/gems/*/extensions/*/*/*/mkmf.log || ridk exec cat d:/rubyinstaller-head-*/lib/ruby/gems/*/extensions/*/*/*/mkmf.log
           ridk exec gcc -v
+
+      - name: Print mkmf logs if job failed on Macos-head
+        if: ${{ failure() && matrix.os == 'macos' && matrix.ruby == 'head' }}
+        run: |
+           cat /Users/runner/.rubies/ruby-head/lib/ruby/gems/*/extensions/*/*/*/mkmf.log
