@@ -72,7 +72,7 @@ jobs:
             PGVER: "18"
           - os: macos
             ruby: "head"
-            PGVERSION: 18.0-1-osx
+            PGVERSION: 18.0-2-osx
             PGVER: "18"
 
     runs-on: ${{ matrix.os }}-${{ matrix.os_ver || 'latest' }}
