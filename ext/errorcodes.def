@@ -88,8 +88,9 @@
   register_error_class( "0Z002", klass );
 }
 {
-  VALUE klass = define_error_class( "InvalidArgumentForXquery", "10" );
+  VALUE klass = define_error_class( "InvalidArgumentForXquery", NULL );
   register_error_class( "10608", klass );
+  register_error_class( "10", klass );
 }
 {
   VALUE klass = define_error_class( "CaseNotFound", NULL );
