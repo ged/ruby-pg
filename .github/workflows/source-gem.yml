@@ -162,3 +162,8 @@ jobs:
         run: |
           ridk exec cat c:/rubyinstaller-head-*/lib/ruby/gems/*/extensions/*/*/*/mkmf.log || ridk exec cat d:/rubyinstaller-head-*/lib/ruby/gems/*/extensions/*/*/*/mkmf.log
           ridk exec gcc -v
+
+      - name: Print mkmf logs if job failed on Macos-head
+        if: ${{ failure() && matrix.os == 'macos' && matrix.ruby == 'head' }}
+        run: |
+           cat /Users/runner/.rubies/ruby-head/lib/ruby/gems/*/extensions/*/*/*/mkmf.log
