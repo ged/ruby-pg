@@ -86,7 +86,7 @@ jobs:
           - os: macos-latest
             ruby: "3.4"
             platform: "arm64-darwin"
-          - os: macos-13
+          - os: macos-15-intel
             ruby: "3.4"
             platform: "x86_64-darwin"
 
