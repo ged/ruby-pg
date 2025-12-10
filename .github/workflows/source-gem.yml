@@ -104,6 +104,10 @@ jobs:
         shell: cmd
         run: ridk exec sh -c "pacman --sync --needed --noconfirm  ${MINGW_PACKAGE_PREFIX}-gcc"
 
+      - name: Fix Truffleruby OpenSSL load error
+        if: matrix.ruby == 'truffleruby-head'
+        run: gem install openssl
+
       - run: bundle install
 
       - name: Download PostgreSQL Windows
