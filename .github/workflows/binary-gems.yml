@@ -28,7 +28,6 @@ jobs:
         include:
           - platform: "x64-mingw-ucrt"
           - platform: "x64-mingw32"
-          - platform: "x86-mingw32"
           - platform: "x86_64-linux"
           - platform: "x86_64-linux-musl"
           - platform: "aarch64-linux"
@@ -69,10 +68,6 @@ jobs:
           - os: windows-latest
             ruby: "4.0"
             platform: "x64-mingw-ucrt"
-          - os: windows-latest
-            ruby: "3.2.9-1"
-            platform: "x86-mingw32"
-            PGVERSION: 10.20-1-windows
           - os: windows-latest
             ruby: "3.2"
             platform: "x64-mingw-ucrt"
