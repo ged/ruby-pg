@@ -1,3 +1,18 @@
+## v1.6.3 [2025-12-29] Lars Kanis <lars@greiz-reinsdorf.de>
+
+Added:
+- Add binary gems for ruby-4.0, now providing ruby-3.0 to 4.0. #682
+- Improve documentation of PG::Result and README. #676
+- Update errorcodes to PostgreSQL-18.
+- Use `rb_hash_new_capa` on Ruby-3.2+ . #674
+- Deny any server communication on a frozen PG::Connection . #677
+- Fix possible race condition in PG::Result in Ractor context. #674
+
+Removed:
+- Drop binary gem support for platform `x86-mingw32`. #682
+- Drop binary gems for ruby-2.7.
+
+
 ## v1.6.2 [2025-09-02] Lars Kanis <lars@greiz-reinsdorf.de>
 
 - Remove several absolute paths from native binaries which pointed to build directories. [#668](https://github.com/ged/ruby-pg/pull/668)
