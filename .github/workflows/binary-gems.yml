@@ -20,15 +20,14 @@ jobs:
   rcd_build:
     name: Build
     runs-on: ubuntu-latest
-    env:
-      RCD_IMAGE_VERSION: snapshot
+    # env:
+      # RCD_IMAGE_VERSION: snapshot
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: "x64-mingw-ucrt"
           - platform: "x64-mingw32"
-          - platform: "x86-mingw32"
           - platform: "x86_64-linux"
           - platform: "x86_64-linux-musl"
           - platform: "aarch64-linux"
@@ -67,12 +66,8 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            ruby: "3.4"
+            ruby: "4.0"
             platform: "x64-mingw-ucrt"
-          - os: windows-latest
-            ruby: "3.2.9-1"
-            platform: "x86-mingw32"
-            PGVERSION: 10.20-1-windows
           - os: windows-latest
             ruby: "3.2"
             platform: "x64-mingw-ucrt"
@@ -81,10 +76,10 @@ jobs:
             ruby: "3.2"
             platform: "x86_64-linux"
           - os: ubuntu-24.04-arm
-            ruby: "3.4"
+            ruby: "4.0"
             platform: "aarch64-linux"
           - os: macos-latest
-            ruby: "3.4"
+            ruby: "4.0"
             platform: "arm64-darwin"
           - os: macos-15-intel
             ruby: "3.4"

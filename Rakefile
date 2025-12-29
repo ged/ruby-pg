@@ -106,7 +106,8 @@ task 'gem:native:prepare' do
 	# Copy gem signing key and certs to be accessible from the docker container
 	mkdir_p 'build/gem'
 	sh "cp ~/.gem/gem-*.pem build/gem/ || true"
-	sh "bundle package --all"
+	sh "bundle config set cache_all false"
+	sh "bundle package"
 	begin
 		OpenSSL::PKey.read(File.read(File.expand_path("~/.gem/gem-private_key.pem")), ENV["GEM_PRIVATE_KEY_PASSPHRASE"] || "")
 	rescue OpenSSL::PKey::PKeyError
@@ -126,7 +127,7 @@ CrossLibraries.each do |xlib|
 			sudo apt-get update && sudo apt-get install -y bison flex &&
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEFLAGS="-j`nproc` V=1" RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>2.7", "~>3.0")}
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEFLAGS="-j`nproc` V=1" RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>4.0", "~>3.0")}
 		EOT
 	end
 	desc "Build the native binary gems"
