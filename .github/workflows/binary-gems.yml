@@ -98,8 +98,6 @@ jobs:
           apt-get: "postgresql" # Ubuntu
           brew: "postgresql"    # macOS
           mingw: "postgresql"   # Windows mingw / mswin /ucrt
-          # workaround missing ruby-4.0 on Windows
-          setup-ruby-ref: ruby/setup-ruby/d3e3bd032ad2222a8ac878bbccf2aba78864e134
 
       - name: Set up 32 bit x86 Ruby
         if: matrix.platform == 'x86-mingw32'
