@@ -2,6 +2,7 @@
 
 Added:
 - Add binary gems for ruby-4.0, now providing ruby-3.0 to 4.0. #682
+- Update fat binary gem to OpenSSL-3.6.0 and PostgreSQL-18.1.
 - Improve documentation of PG::Result and README. #676
 - Update errorcodes to PostgreSQL-18.
 - Use `rb_hash_new_capa` on Ruby-3.2+ . #674
