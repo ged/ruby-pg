@@ -73,16 +73,28 @@ jobs:
             platform: "x64-mingw-ucrt"
             PGVERSION: 16.6-1-windows-x64
           - os: ubuntu-latest
-            ruby: "3.2"
+            ruby: "4.0"
+            platform: "x86_64-linux"
+          - os: ubuntu-latest
+            ruby: "3.0"
             platform: "x86_64-linux"
           - os: ubuntu-24.04-arm
             ruby: "4.0"
             platform: "aarch64-linux"
+          - os: ubuntu-24.04-arm
+            ruby: "3.0"
+            platform: "aarch64-linux"
           - os: macos-latest
             ruby: "4.0"
             platform: "arm64-darwin"
+          - os: macos-latest
+            ruby: "3.0"
+            platform: "arm64-darwin"
           - os: macos-15-intel
-            ruby: "3.4"
+            ruby: "4.0"
+            platform: "x86_64-darwin"
+          - os: macos-15-intel
+            ruby: "3.0"
             platform: "x86_64-darwin"
 
     runs-on: ${{ matrix.os }}

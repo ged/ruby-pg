@@ -114,7 +114,7 @@ class Scheduler
 		close(true)
 	end
 
-	def close(internal = false)
+	def close(internal = true)
 		# $stderr.puts [__method__, Fiber.current].inspect
 
 		unless internal

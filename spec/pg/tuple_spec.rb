@@ -304,6 +304,7 @@ describe PG::Tuple do
 	end
 
 	it "should be distributable to Ractors", :ractor do
+		skip "unstable on ruby-3.0" if RUBY_VERSION < "3.1"
 		res = @conn.exec("SELECT generate_series(1,100) AS f")
 		arr = res.ntuples.times.flat_map do |tidx1|
 			tuple = res.tuple(tidx1)

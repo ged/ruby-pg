@@ -63,6 +63,7 @@ context "with a Fiber scheduler", :scheduler do
 	end
 
 	it "connects with environment variables", :postgresql_12, :unix_socket do
+		skip "requires ruby-3.2" if RUBY_VERSION < "3.2"
 		run_with_scheduler do
 			vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
