@@ -165,13 +165,7 @@ module PG::TestingHelpers
 		### Run the specified command +cmd+ with system(), failing if the execution
 		### fails.
 		def run( *cmd )
-			cmd.flatten!
-
-			if cmd.length > 1
-				trace( quotelist(*cmd) )
-			else
-				trace( cmd )
-			end
+			trace(cmd.length == 1 ? cmd.first : quotelist(*cmd))
 
 			system( *cmd )
 			raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
@@ -180,13 +174,7 @@ module PG::TestingHelpers
 		### Run the specified command +cmd+ after redirecting stdout and stderr to the specified
 		### +logpath+, failing if the execution fails.
 		def log_and_run( logpath, *cmd )
-			cmd.flatten!
-
-			if cmd.length > 1
-				trace( quotelist(*cmd) )
-			else
-				trace( cmd )
-			end
+			trace(cmd.length == 1 ? cmd.first : quotelist(*cmd))
 
 			# Eliminate the noise of creating/tearing down the database by
 			# redirecting STDERR/STDOUT to a logfile
