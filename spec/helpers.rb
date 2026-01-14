@@ -133,7 +133,6 @@ module PG::TestingHelpers
 			return '' unless /(?:vt10[03]|xterm(?:-color)?|linux|screen)/i =~ ENV['TERM']
 			attributes = ANSI_ATTRIBUTES.values_at( *attributes ).compact.join(';')
 
-			# $stderr.puts "  attr is: %p" % [attributes]
 			if attributes.empty?
 				return ''
 			else
@@ -411,11 +410,9 @@ EOT
 		def create_key(name, rsa_size: 2048)
 			ca_key = OpenSSL::PKey::RSA.new rsa_size
 
-			#cipher = OpenSSL::Cipher.new 'AES-128-CBC'
-
 			File.open "#{output_dir}/#{name}", 'w', 0600 do |io|
 				io.puts ca_key.to_text
-				io.write ca_key.export # (cipher)
+				io.write ca_key.export
 			end
 			ca_key
 		end
