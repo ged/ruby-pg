@@ -93,7 +93,6 @@ module PG::TestingHelpers
 
 	end
 
-
 	#
 	# Examples
 	#
@@ -121,7 +120,6 @@ module PG::TestingHelpers
 		'white'      => 37,   'on_white'   => 47
 	}
 
-
 	###############
 	module_function
 	###############
@@ -143,7 +141,6 @@ module PG::TestingHelpers
 			end
 		end
 
-
 		### Colorize the given +string+ with the specified +attributes+ and return it, handling
 		### line-endings, color reset, etc.
 		def colorize( *args )
@@ -161,12 +158,10 @@ module PG::TestingHelpers
 			return ansi_code( args.flatten ) + string + ansi_code( 'reset' ) + ending
 		end
 
-
 		### Output a message with highlighting.
 		def message( *msg )
 			$stderr.puts( colorize(:bold) { msg.flatten.join(' ') } )
 		end
-
 
 		### Output a logging message if $VERBOSE is true
 		def trace( *msg )
@@ -175,12 +170,10 @@ module PG::TestingHelpers
 			$stderr.puts( output )
 		end
 
-
 		### Return the specified args as a string, quoting any that have a space.
 		def quotelist( *args )
 			return args.flatten.collect {|part| part.to_s =~ /\s/ ? part.to_s.inspect : part.to_s }
 		end
-
 
 		### Run the specified command +cmd+ with system(), failing if the execution
 		### fails.
@@ -196,7 +189,6 @@ module PG::TestingHelpers
 			system( *cmd )
 			raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
 		end
-
 
 		### Run the specified command +cmd+ after redirecting stdout and stderr to the specified
 		### +logpath+, failing if the execution fails.
@@ -504,14 +496,12 @@ EOT
 		end
 	end
 
-
 	# Retrieve the names of the column types of a given result set.
 	def result_typenames(res)
 		@conn.exec_params( "SELECT " + res.nfields.times.map{|i| "format_type($#{i*2+1},$#{i*2+2})"}.join(","),
 				res.nfields.times.flat_map{|i| [res.ftype(i), res.fmod(i)] } ).
 				values[0]
 	end
-
 
 	# A matcher for checking the status of a PG::Connection to ensure it's still
 	# usable.
@@ -549,9 +539,7 @@ EOT
 		def failure_message_when_negated
 			"expected %p not to be usable, but it still is" % [ @conn ]
 		end
-
 	end
-
 
 	### Return a ConnStillUsableMatcher to be used like:
 	###
@@ -700,7 +688,6 @@ EOT
 	end
 end
 
-
 RSpec.configure do |config|
 	config.include( PG::TestingHelpers )
 
@@ -745,7 +732,6 @@ RSpec.configure do |config|
 		$pg_server.teardown
 	end
 end
-
 
 # Do not wait for threads doing blocking calls at the process shutdown.
 # Instead exit immediately after printing the rspec report, if we know there are pending IO calls, which do not react on ruby interrupts.
