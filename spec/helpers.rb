@@ -127,46 +127,34 @@ module PG::TestingHelpers
 	module Loggable
 		### Create a string that contains the ANSI codes specified and return it
 		def ansi_code( *attributes )
-			attributes.flatten!
-			attributes.collect! {|at| at.to_s }
-
 			return '' unless /(?:vt10[03]|xterm(?:-color)?|linux|screen)/i =~ ENV['TERM']
-			attributes = ANSI_ATTRIBUTES.values_at( *attributes ).compact.join(';')
+			attrs = ANSI_ATTRIBUTES.values_at(*attributes).compact.join(';')
 
-			if attributes.empty?
-				return ''
+			if attrs.empty?
+				''
 			else
-				return "\e[%sm" % attributes
+				"\e[%sm" % attrs
 			end
 		end
 
 		### Colorize the given +string+ with the specified +attributes+ and return it, handling
 		### line-endings, color reset, etc.
-		def colorize( *args )
-			string = ''
-
-			if block_given?
-				string = yield
-			else
-				string = args.shift
-			end
-
+		def colorize(attribute, string)
 			ending = string[/(\s)$/] || ''
 			string = string.rstrip
 
-			return ansi_code( args.flatten ) + string + ansi_code( 'reset' ) + ending
+			return ansi_code(attribute) + string + ansi_code('reset') + ending
 		end
 
 		### Output a message with highlighting.
 		def message( *msg )
-			$stderr.puts( colorize(:bold) { msg.flatten.join(' ') } )
+			$stderr.puts(colorize('bold', msg.flatten.join(' ')))
 		end
 
 		### Output a logging message if $VERBOSE is true
 		def trace( *msg )
 			return unless $VERBOSE
-			output = colorize( msg.flatten.join(' '), 'yellow' )
-			$stderr.puts( output )
+			$stderr.puts(colorize('yellow', msg.flatten.join(' ')))
 		end
 
 		### Return the specified args as a string, quoting any that have a space.
