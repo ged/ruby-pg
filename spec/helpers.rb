@@ -147,19 +147,19 @@ module PG::TestingHelpers
 		end
 
 		### Output a message with highlighting.
-		def message( *msg )
-			$stderr.puts(colorize('bold', msg.flatten.join(' ')))
+		def message(msg)
+			$stderr.puts(colorize('bold', msg))
 		end
 
 		### Output a logging message if $VERBOSE is true
-		def trace( *msg )
+		def trace(msg)
 			return unless $VERBOSE
-			$stderr.puts(colorize('yellow', msg.flatten.join(' ')))
+			$stderr.puts(colorize('yellow', msg))
 		end
 
 		### Return the specified args as a string, quoting any that have a space.
 		def quotelist( *args )
-			return args.flatten.collect {|part| part.to_s =~ /\s/ ? part.to_s.inspect : part.to_s }
+			args.collect {|part| part.to_s =~ /\s/ ? part.to_s.inspect : part.to_s }.join(' ')
 		end
 
 		### Run the specified command +cmd+ with system(), failing if the execution
