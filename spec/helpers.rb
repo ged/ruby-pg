@@ -309,7 +309,6 @@ EOT
 				sopt += " -k #{@test_dir.to_s.dump}" unless RUBY_PLATFORM=~/mingw|mswin/i
 				log_and_run @logfile, pg_bin_path('pg_ctl'), '-w', '-o', sopt,
 					'-D', @pgdata.to_s, 'start'
-				sleep 2
 
 				td = @pgdata
 				@conninfo = "host=localhost port=#{@port} dbname=test sslrootcert=#{td + 'ruby-pg-ca-cert'} sslcert=#{td + 'ruby-pg-client-cert'} sslkey=#{td + 'ruby-pg-client-key'}"
