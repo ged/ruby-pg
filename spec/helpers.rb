@@ -251,7 +251,6 @@ module PG::TestingHelpers
 
 		def create_test_db
 			trace "Creating the test DB"
-			log_and_run @logfile, pg_bin_path('psql'), '-p', @port.to_s, '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
 			log_and_run @logfile, pg_bin_path('createdb'), '-p', @port.to_s, '-e', 'test'
 		end
 
@@ -276,12 +275,10 @@ module PG::TestingHelpers
 		private
 
 		def setup_cluster(postgresql_conf)
-			return if (@pgdata+"ruby-pg-server-cert").exist?
-
 			FileUtils.rm_rf(@pgdata, verbose: $DEBUG)
 
 			trace "Running initdb"
-			log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @pgdata.to_s
+			log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '--no-sync', '-D', @pgdata.to_s
 
 			trace "Enable SSL"
 			# Enable SSL in server config
@@ -291,6 +288,7 @@ ssl = on
 ssl_ca_file = 'ruby-pg-ca-cert'
 ssl_cert_file = 'ruby-pg-server-cert'
 ssl_key_file = 'ruby-pg-server-key'
+fsync = off
 #{postgresql_conf}
 EOT
 			end
