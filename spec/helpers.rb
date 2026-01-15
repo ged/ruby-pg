@@ -11,9 +11,7 @@ require_relative 'helpers/scheduler.rb'
 require_relative 'helpers/tcp_gate_scheduler.rb'
 require_relative 'helpers/tcp_gate_switcher.rb'
 
-DEFAULT_TEST_DIR_STR = Dir.pwd
-TEST_DIR_STR = ENV['RUBY_PG_TEST_DIR'] || DEFAULT_TEST_DIR_STR
-TEST_DIRECTORY = Pathname.new(TEST_DIR_STR)
+TEST_DIRECTORY = Pathname.new(ENV['RUBY_PG_TEST_DIR'] || Dir.pwd)
 DATA_OBJ_MEMSIZE = ObjectSpace.memsize_of(Object.new)
 
 if defined? Ractor
