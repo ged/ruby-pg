@@ -222,17 +222,21 @@ module PG::TestingHelpers
 		attr_reader :unix_socket
 
 		### Set up a PostgreSQL database instance for testing.
-		def initialize( name, port: 23456, postgresql_conf: '' )
+		def initialize(name, port: 23456, postgresql_conf: '')
 			trace "Setting up test database for #{name}"
+
 			@name = name
 			@port = port
 			@test_dir = TEST_DIRECTORY + "tmp_test_#{@name}"
 			@pgdata = @test_dir + 'data'
-			@pgdata.mkpath
-			@pg_bin_dir = nil
-
 			@logfile = @test_dir + 'setup.log'
+			@pg_bindir = nil
+			@unix_socket = @test_dir.to_s
+			@conninfo = "host=localhost port=#{@port} dbname=test sslrootcert=#{@pgdata + 'ruby-pg-ca-cert'} sslcert=#{@pgdata + 'ruby-pg-client-cert'} sslkey=#{@pgdata + 'ruby-pg-client-key'}"
+
 			trace "Command output logged to #{@logfile}"
+
+			@pgdata.mkpath
 
 			begin
 				unless (@pgdata+"postgresql.conf").exist?
@@ -273,10 +277,6 @@ EOT
 				sopt += " -k #{@test_dir.to_s.dump}" unless RUBY_PLATFORM=~/mingw|mswin/i
 				log_and_run @logfile, pg_bin_path('pg_ctl'), '-w', '-o', sopt,
 					'-D', @pgdata.to_s, 'start'
-
-				td = @pgdata
-				@conninfo = "host=localhost port=#{@port} dbname=test sslrootcert=#{td + 'ruby-pg-ca-cert'} sslcert=#{td + 'ruby-pg-client-cert'} sslkey=#{td + 'ruby-pg-client-key'}"
-				@unix_socket = @test_dir.to_s
 			rescue => err
 				$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
 				$stderr.puts "See #{@logfile} for details:"
@@ -297,8 +297,7 @@ EOT
 			conn.set_notice_processor do |message|
 				$stderr.puts( @name + ':' + message ) if $DEBUG
 			end
-
-			return conn
+			conn
 		end
 
 		def teardown
