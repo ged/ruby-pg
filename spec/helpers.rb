@@ -93,7 +93,6 @@ module PG::TestingHelpers
 
 	end
 
-
 	#
 	# Examples
 	#
@@ -121,7 +120,6 @@ module PG::TestingHelpers
 		'white'      => 37,   'on_white'   => 47
 	}
 
-
 	###############
 	module_function
 	###############
@@ -129,85 +127,54 @@ module PG::TestingHelpers
 	module Loggable
 		### Create a string that contains the ANSI codes specified and return it
 		def ansi_code( *attributes )
-			attributes.flatten!
-			attributes.collect! {|at| at.to_s }
-
 			return '' unless /(?:vt10[03]|xterm(?:-color)?|linux|screen)/i =~ ENV['TERM']
-			attributes = ANSI_ATTRIBUTES.values_at( *attributes ).compact.join(';')
+			attrs = ANSI_ATTRIBUTES.values_at(*attributes).compact.join(';')
 
-			# $stderr.puts "  attr is: %p" % [attributes]
-			if attributes.empty?
-				return ''
+			if attrs.empty?
+				''
 			else
-				return "\e[%sm" % attributes
+				"\e[%sm" % attrs
 			end
 		end
-
 
 		### Colorize the given +string+ with the specified +attributes+ and return it, handling
 		### line-endings, color reset, etc.
-		def colorize( *args )
-			string = ''
-
-			if block_given?
-				string = yield
-			else
-				string = args.shift
-			end
-
+		def colorize(attribute, string)
 			ending = string[/(\s)$/] || ''
 			string = string.rstrip
 
-			return ansi_code( args.flatten ) + string + ansi_code( 'reset' ) + ending
+			return ansi_code(attribute) + string + ansi_code('reset') + ending
 		end
-
 
 		### Output a message with highlighting.
-		def message( *msg )
-			$stderr.puts( colorize(:bold) { msg.flatten.join(' ') } )
+		def message(msg)
+			$stderr.puts(colorize('bold', msg))
 		end
-
 
 		### Output a logging message if $VERBOSE is true
-		def trace( *msg )
+		def trace(msg)
 			return unless $VERBOSE
-			output = colorize( msg.flatten.join(' '), 'yellow' )
-			$stderr.puts( output )
+			$stderr.puts(colorize('yellow', msg))
 		end
-
 
 		### Return the specified args as a string, quoting any that have a space.
 		def quotelist( *args )
-			return args.flatten.collect {|part| part.to_s =~ /\s/ ? part.to_s.inspect : part.to_s }
+			args.collect {|part| part.to_s =~ /\s/ ? part.to_s.inspect : part.to_s }.join(' ')
 		end
-
 
 		### Run the specified command +cmd+ with system(), failing if the execution
 		### fails.
 		def run( *cmd )
-			cmd.flatten!
-
-			if cmd.length > 1
-				trace( quotelist(*cmd) )
-			else
-				trace( cmd )
-			end
+			trace(cmd.length == 1 ? cmd.first : quotelist(*cmd))
 
 			system( *cmd )
 			raise "Command failed: [%s]" % [cmd.join(' ')] unless $?.success?
 		end
 
-
 		### Run the specified command +cmd+ after redirecting stdout and stderr to the specified
 		### +logpath+, failing if the execution fails.
 		def log_and_run( logpath, *cmd )
-			cmd.flatten!
-
-			if cmd.length > 1
-				trace( quotelist(*cmd) )
-			else
-				trace( cmd )
-			end
+			trace(cmd.length == 1 ? cmd.first : quotelist(*cmd))
 
 			# Eliminate the noise of creating/tearing down the database by
 			# redirecting STDERR/STDOUT to a logfile
@@ -419,11 +386,9 @@ EOT
 		def create_key(name, rsa_size: 2048)
 			ca_key = OpenSSL::PKey::RSA.new rsa_size
 
-			#cipher = OpenSSL::Cipher.new 'AES-128-CBC'
-
 			File.open "#{output_dir}/#{name}", 'w', 0600 do |io|
 				io.puts ca_key.to_text
-				io.write ca_key.export # (cipher)
+				io.write ca_key.export
 			end
 			ca_key
 		end
@@ -504,14 +469,12 @@ EOT
 		end
 	end
 
-
 	# Retrieve the names of the column types of a given result set.
 	def result_typenames(res)
 		@conn.exec_params( "SELECT " + res.nfields.times.map{|i| "format_type($#{i*2+1},$#{i*2+2})"}.join(","),
 				res.nfields.times.flat_map{|i| [res.ftype(i), res.fmod(i)] } ).
 				values[0]
 	end
-
 
 	# A matcher for checking the status of a PG::Connection to ensure it's still
 	# usable.
@@ -549,9 +512,7 @@ EOT
 		def failure_message_when_negated
 			"expected %p not to be usable, but it still is" % [ @conn ]
 		end
-
 	end
-
 
 	### Return a ConnStillUsableMatcher to be used like:
 	###
@@ -700,7 +661,6 @@ EOT
 	end
 end
 
-
 RSpec.configure do |config|
 	config.include( PG::TestingHelpers )
 
@@ -745,7 +705,6 @@ RSpec.configure do |config|
 		$pg_server.teardown
 	end
 end
-
 
 # Do not wait for threads doing blocking calls at the process shutdown.
 # Instead exit immediately after printing the rspec report, if we know there are pending IO calls, which do not react on ruby interrupts.
