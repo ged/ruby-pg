@@ -289,24 +289,6 @@ EOT
 			end
 		end
 
-		def generate_ssl_certs(output_dir)
-			gen = CertGenerator.new(output_dir)
-
-			trace "create ca-key"
-			ca_key = gen.create_key('ruby-pg-ca-key')
-			ca_cert = gen.create_ca_cert('ruby-pg-ca-cert', ca_key, '/CN=ruby-pg root key')
-
-			trace "create server cert"
-			key = gen.create_key('ruby-pg-server-key')
-			csr = gen.create_signing_request('ruby-pg-server-csr', '/CN=localhost', key)
-			gen.create_cert_from_csr('ruby-pg-server-cert', csr, ca_cert, ca_key, dns_names: %w[localhost] )
-
-			trace "create client cert"
-			key = gen.create_key('ruby-pg-client-key')
-			csr = gen.create_signing_request('ruby-pg-client-csr', '/CN=ruby-pg client', key)
-			gen.create_cert_from_csr('ruby-pg-client-cert', csr, ca_cert, ca_key)
-		end
-
 		def create_test_db
 			trace "Creating the test DB"
 			log_and_run @logfile, pg_bin_path('psql'), '-p', @port.to_s, '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
@@ -326,6 +308,26 @@ EOT
 			trace "Tearing down test database for #{@name}"
 
 			log_and_run @logfile, pg_bin_path('pg_ctl'), '-D', @pgdata.to_s, '-m', 'fast', 'stop'
+		end
+
+		private
+
+		def generate_ssl_certs(output_dir)
+			gen = CertGenerator.new(output_dir)
+
+			trace "create ca-key"
+			ca_key = gen.create_key('ruby-pg-ca-key')
+			ca_cert = gen.create_ca_cert('ruby-pg-ca-cert', ca_key, '/CN=ruby-pg root key')
+
+			trace "create server cert"
+			key = gen.create_key('ruby-pg-server-key')
+			csr = gen.create_signing_request('ruby-pg-server-csr', '/CN=localhost', key)
+			gen.create_cert_from_csr('ruby-pg-server-cert', csr, ca_cert, ca_key, dns_names: %w[localhost] )
+
+			trace "create client cert"
+			key = gen.create_key('ruby-pg-client-key')
+			csr = gen.create_signing_request('ruby-pg-client-csr', '/CN=ruby-pg client', key)
+			gen.create_cert_from_csr('ruby-pg-client-cert', csr, ca_cert, ca_key)
 		end
 
 		def pg_bin_path(cmd)
