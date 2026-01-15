@@ -230,7 +230,7 @@ module PG::TestingHelpers
 			@test_dir = TEST_DIRECTORY + "tmp_test_#{@name}"
 			@pgdata = @test_dir + 'data'
 			@logfile = @test_dir + 'setup.log'
-			@pg_bindir = nil
+			@pg_bindir = pg_bindir
 			@unix_socket = @test_dir.to_s
 			@conninfo = "host=localhost port=#{@port} dbname=test sslrootcert=#{@pgdata + 'ruby-pg-ca-cert'} sslcert=#{@pgdata + 'ruby-pg-client-cert'} sslkey=#{@pgdata + 'ruby-pg-client-key'}"
 
@@ -331,14 +331,15 @@ EOT
 		end
 
 		def pg_bin_path(cmd)
-			@pg_bin_dir ||= begin
-				`pg_config --bindir`.strip
-			rescue
-				nil
-			end
 			# Avoid execution of MSYS2 bash wrapper on Windows while PostgreSQL's restart with restricted privileges:
 			cmd += ".exe" if RUBY_PLATFORM=~/mingw|mswin/
-			[@pg_bin_dir&.empty? ? nil : @pg_bin_dir, cmd].compact.join("/")
+			[@pg_bindir, cmd].compact.join("/")
+		end
+
+		def pg_bindir
+			`pg_config --bindir`.chomp
+		rescue
+			nil
 		end
 	end
 
