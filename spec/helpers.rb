@@ -236,47 +236,10 @@ module PG::TestingHelpers
 
 			trace "Command output logged to #{@logfile}"
 
-			@pgdata.mkpath
-
 			begin
-				unless (@pgdata+"postgresql.conf").exist?
-					FileUtils.rm_rf( @pgdata, :verbose => $DEBUG )
-					trace "Running initdb"
-					log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @pgdata.to_s
-				end
-
-				unless (@pgdata+"ruby-pg-server-cert").exist?
-					trace "Enable SSL"
-					# Enable SSL in server config
-					File.open(@pgdata+"postgresql.conf", "a+") do |fd|
-						fd.puts <<-EOT
-ssl = on
-ssl_ca_file = 'ruby-pg-ca-cert'
-ssl_cert_file = 'ruby-pg-server-cert'
-ssl_key_file = 'ruby-pg-server-key'
-#{postgresql_conf}
-EOT
-					end
-
-					# Enable MD5 authentication in hba config
-					hba_content = File.read(@pgdata+"pg_hba.conf")
-					File.open(@pgdata+"pg_hba.conf", "w") do |fd|
-						fd.puts <<-EOT
-# TYPE  DATABASE     USER              ADDRESS             METHOD
-host    all          testusermd5       ::1/128             md5
-EOT
-						fd.puts hba_content
-					end
-
-					trace "Generate certificates"
-					generate_ssl_certs(@pgdata.to_s)
-				end
-
-				trace "Starting postgres"
-				sopt = "-p #{@port}"
-				sopt += " -k #{@test_dir.to_s.dump}" unless RUBY_PLATFORM=~/mingw|mswin/i
-				log_and_run @logfile, pg_bin_path('pg_ctl'), '-w', '-o', sopt,
-					'-D', @pgdata.to_s, 'start'
+				@pgdata.mkpath
+				setup_cluster(postgresql_conf)
+				start_cluster
 			rescue => err
 				$stderr.puts "%p during test setup: %s" % [ err.class, err.message ]
 				$stderr.puts "See #{@logfile} for details:"
@@ -311,6 +274,47 @@ EOT
 		end
 
 		private
+
+		def setup_cluster(postgresql_conf)
+			return if (@pgdata+"ruby-pg-server-cert").exist?
+
+			FileUtils.rm_rf(@pgdata, verbose: $DEBUG)
+
+			trace "Running initdb"
+			log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @pgdata.to_s
+
+			trace "Enable SSL"
+			# Enable SSL in server config
+			File.open(@pgdata+"postgresql.conf", "a+") do |fd|
+				fd.puts <<-EOT
+ssl = on
+ssl_ca_file = 'ruby-pg-ca-cert'
+ssl_cert_file = 'ruby-pg-server-cert'
+ssl_key_file = 'ruby-pg-server-key'
+#{postgresql_conf}
+EOT
+			end
+
+			# Enable MD5 authentication in hba config
+			hba_content = File.read(@pgdata+"pg_hba.conf")
+			File.open(@pgdata+"pg_hba.conf", "w") do |fd|
+				fd.puts <<-EOT
+# TYPE  DATABASE     USER              ADDRESS             METHOD
+host    all          testusermd5       ::1/128             md5
+EOT
+				fd.puts hba_content
+			end
+
+			trace "Generate certificates"
+			generate_ssl_certs(@pgdata.to_s)
+		end
+
+		def start_cluster
+			trace "Starting postgres"
+			sopt = "-p #{@port}"
+			sopt += " -k #{@test_dir.to_s.dump}" unless RUBY_PLATFORM=~/mingw|mswin/i
+			log_and_run @logfile, pg_bin_path('pg_ctl'), '-w', '-o', sopt, '-D', @pgdata.to_s, 'start'
+		end
 
 		def generate_ssl_certs(output_dir)
 			gen = CertGenerator.new(output_dir)
