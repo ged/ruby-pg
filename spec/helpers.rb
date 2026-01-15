@@ -701,8 +701,9 @@ RSpec.configure do |config|
 		$pg_server = PG::TestingHelpers::PostgresServer.new("specs", port: port)
 		$pg_server.create_test_db
 	end
+
 	config.after(:suite) do
-		$pg_server.teardown
+		$pg_server.teardown if $pg_server
 	end
 end
 
