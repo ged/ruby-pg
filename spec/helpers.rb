@@ -222,7 +222,6 @@ module PG::TestingHelpers
 		attr_reader :port
 		attr_reader :conninfo
 		attr_reader :unix_socket
-		attr_reader :pgdata
 
 		### Set up a PostgreSQL database instance for testing.
 		def initialize( name, port: 23456, postgresql_conf: '' )
@@ -308,6 +307,10 @@ EOT
 			trace "Tearing down test database for #{@name}"
 
 			log_and_run @logfile, pg_bin_path('pg_ctl'), '-D', @pgdata.to_s, '-m', 'fast', 'stop'
+		end
+
+		def ca_file
+			"#{@pgdata}/ruby-pg-ca-cert"
 		end
 
 		private

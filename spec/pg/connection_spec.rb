@@ -616,7 +616,7 @@ describe PG::Connection do
 			# Connect with SSL, but use a wrong client cert, so that connection is aborted.
 			# A second connection is then started with a new IO.
 			# And since the pipes above were freed in the concurrent thread above, there is a high chance that it's a lower file descriptor than before.
-			conn = PG.connect( @conninfo + " sslcert=#{$pg_server.pgdata}/ruby-pg-ca-cert" )
+			conn = PG.connect( @conninfo + " sslcert=#{$pg_server.ca_file}" )
 			expect( conn.ssl_in_use? ).to be_falsey
 
 			# The new connection should work even when the file descriptor has changed.
@@ -632,7 +632,7 @@ describe PG::Connection do
 					Thread.new do
 						Thread.current.report_on_exception = false
 						expect do
-							threaded_conn = PG.connect( @conninfo + " sslcert=#{$pg_server.pgdata}/ruby-pg-ca-cert" )
+							threaded_conn = PG.connect( @conninfo + " sslcert=#{$pg_server.ca_file}" )
 							threaded_conn.exec("SELECT 1")
 							threaded_conn.close
 						end.not_to raise_error
