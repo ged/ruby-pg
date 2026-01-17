@@ -718,7 +718,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 }
 
 
-static const char BinarySignature[11] = "PGCOPY\n\377\r\n\0";
+static const char BinarySignature[11] = {'P','G','C','O','P','Y','\n','\377','\r','\n','\0'};
 
 /*
  * Document-class: PG::BinaryDecoder::CopyRow < PG::CopyDecoder
