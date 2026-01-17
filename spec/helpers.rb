@@ -281,27 +281,28 @@ module PG::TestingHelpers
 			FileUtils.rm_rf(@pgdata, verbose: $DEBUG)
 
 			trace "Running initdb"
-			log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '-D', @pgdata.to_s
+			log_and_run @logfile, pg_bin_path('initdb'), '-E', 'UTF8', '--no-locale', '--no-sync', '-D', @pgdata.to_s
 
 			trace "Enable SSL"
 			# Enable SSL in server config
 			File.open(@pgdata+"postgresql.conf", "a+") do |fd|
-				fd.puts <<-EOT
-ssl = on
-ssl_ca_file = 'ruby-pg-ca-cert'
-ssl_cert_file = 'ruby-pg-server-cert'
-ssl_key_file = 'ruby-pg-server-key'
-#{postgresql_conf}
-EOT
+				fd.puts <<~EOT
+					ssl = on
+					ssl_ca_file = 'ruby-pg-ca-cert'
+					ssl_cert_file = 'ruby-pg-server-cert'
+					ssl_key_file = 'ruby-pg-server-key'
+					fsync = off
+					#{postgresql_conf}
+				EOT
 			end
 
 			# Enable MD5 authentication in hba config
 			hba_content = File.read(@pgdata+"pg_hba.conf")
 			File.open(@pgdata+"pg_hba.conf", "w") do |fd|
-				fd.puts <<-EOT
-# TYPE  DATABASE     USER              ADDRESS             METHOD
-host    all          testusermd5       ::1/128             md5
-EOT
+				fd.puts <<~EOT
+					# TYPE  DATABASE     USER              ADDRESS             METHOD
+					host    all          testusermd5       ::1/128             md5
+				EOT
 				fd.puts hba_content
 			end
 
