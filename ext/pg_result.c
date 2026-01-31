@@ -577,7 +577,7 @@ static void pgresult_init_fnames(VALUE self)
  * * +PGRES_PIPELINE_SYNC+
  * * +PGRES_PIPELINE_ABORTED+
  *
- * Use <tt>res.res_status</tt> to retrieve the string representation.
+ * Use #res_status or Result.res_status to retrieve the string representation.
  */
 static VALUE
 pgresult_result_status(VALUE self)
@@ -589,7 +589,7 @@ pgresult_result_status(VALUE self)
  * call-seq:
  *    PG::Result.res_status( status ) -> String
  *
- * Returns the string representation of +status+.
+ * Returns the string representation of #result_status.
  *
 */
 static VALUE
@@ -603,7 +603,7 @@ pgresult_s_res_status(VALUE self, VALUE status)
  *    res.res_status -> String
  *    res.res_status( status ) -> String
  *
- * Returns the string representation of the status of the result or of the provided +status+.
+ * Returns the string representation of the status of the result or of the provided #result_status.
  *
  */
 static VALUE
