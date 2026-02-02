@@ -122,6 +122,14 @@ describe PG::Result do
 		expect( list ).to eq [['1', '2']]
 	end
 
+	it "yields a row as a PG::Tuple" do
+		res = @conn.exec("SELECT 2 AS a, NULL AS b")
+		list = []
+		res.each_tuple { |r| list << r }
+		expect( list.map(&:class) ).to eq [PG::Tuple]
+		expect( list.map(&:to_h) ).to eq([{"a" => "2", "b" => nil}])
+	end
+
 	it "yields a row as an Enumerator" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		e = res.each_row
