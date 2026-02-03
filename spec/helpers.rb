@@ -188,32 +188,6 @@ module PG::TestingHelpers
 
 	extend Loggable
 
-	### Check the current directory for directories that look like they're
-	### testing directories from previous tests, and tell any postgres instances
-	### running in them to shut down.
-	def stop_existing_postmasters
-		# tmp_test_0.22329534700318
-		pat = Pathname.getwd + 'tmp_test_*'
-		Pathname.glob( pat.to_s ).each do |testdir|
-			datadir = testdir + 'data'
-			pidfile = datadir + 'postmaster.pid'
-			if pidfile.exist? && pid = pidfile.read.chomp.to_i
-				trace "pidfile (%p) exists: %d" % [ pidfile, pid ]
-				begin
-					Process.kill( 0, pid )
-				rescue Errno::ESRCH
-					trace "No postmaster running for %s" % [ datadir ]
-					# Process isn't alive, so don't try to stop it
-				else
-					trace "Stopping lingering database at PID %d" % [ pid ]
-					run 'pg_ctl', '-D', datadir.to_s, '-m', 'fast', 'stop'
-				end
-			else
-				trace "No pidfile (%p)" % [ pidfile ]
-			end
-		end
-	end
-
 	class PostgresServer
 		include Loggable
 
@@ -238,6 +212,7 @@ module PG::TestingHelpers
 
 			begin
 				@pgdata.mkpath
+				stop_existing_cluster
 				setup_cluster(postgresql_conf)
 				start_cluster
 			rescue => err
@@ -315,6 +290,25 @@ module PG::TestingHelpers
 			sopt = "-p #{@port}"
 			sopt += " -k #{@test_dir.to_s.dump}" unless RUBY_PLATFORM=~/mingw|mswin/i
 			log_and_run @logfile, pg_bin_path('pg_ctl'), '-w', '-o', sopt, '-D', @pgdata.to_s, 'start'
+		end
+
+		def stop_existing_cluster
+			pidfile = @pgdata + 'postmaster.pid'
+
+			if pidfile.exist? && pid = pidfile.read.chomp.to_i
+				trace "pidfile (%p) exists: %d" % [ pidfile, pid ]
+				begin
+					Process.kill( 0, pid )
+				rescue Errno::ESRCH
+					trace "No postmaster running for %s" % [ @pgdata ]
+					# Process isn't alive, so don't try to stop it
+				else
+					trace "Stopping lingering database at PID %d" % [ pid ]
+					run pg_bin_path('pg_ctl'), '-D', @pgdata.to_s, '-m', 'fast', 'stop'
+				end
+			else
+				trace "No pidfile (%p)" % [ pidfile ]
+			end
 		end
 
 		def generate_ssl_certs(output_dir)
@@ -701,8 +695,6 @@ RSpec.configure do |config|
 
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|
-		PG::TestingHelpers.stop_existing_postmasters
-
 		ENV['PGHOST'] = 'localhost'
 		ENV['PGPORT'] ||= "23456"
 		port = ENV['PGPORT'].to_i
