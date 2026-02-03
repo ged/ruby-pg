@@ -7,7 +7,7 @@
 #include "pg.h"
 
 VALUE rb_cPGresult;
-static VALUE sym_symbol, sym_string, sym_static_symbol;
+static VALUE sym_symbol, sym_string;
 
 static VALUE pgresult_type_map_set( VALUE, VALUE );
 static t_pg_result *pgresult_get_this( VALUE );
@@ -465,9 +465,6 @@ pgresult_get(VALUE self)
 static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
 {
 	VALUE fname;
-#ifdef TRUFFLERUBY
-	if( flags & (PG_RESULT_FIELD_NAMES_SYMBOL | PG_RESULT_FIELD_NAMES_STATIC_SYMBOL) ){
-#else
 	if( flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
 		rb_encoding *enc = rb_enc_from_index(enc_idx);
 		fname = rb_check_symbol_cstr(cstr, strlen(cstr), enc);
@@ -476,10 +473,6 @@ static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
 			PG_ENCODING_SET_NOCHECK(fname, enc_idx);
 			fname = rb_str_intern(fname);
 		}
-	} else if( flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
-#endif
-		rb_encoding *enc = rb_enc_from_index(enc_idx);
-		fname = ID2SYM(rb_intern3(cstr, strlen(cstr), enc));
 	} else {
 		fname = rb_str_new2(cstr);
 		PG_ENCODING_SET_NOCHECK(fname, enc_idx);
@@ -1692,7 +1685,6 @@ pgresult_stream_each_tuple(VALUE self)
  * It can be set to one of:
  * * +:string+ to use String based field names
  * * +:symbol+ to use Symbol based field names
- * * +:static_symbol+ to use pinned Symbol (can not be garbage collected) - Don't use this, it will probably be removed in future.
  *
  * The default is retrieved from PG::Connection#field_name_type , which defaults to +:string+ .
  *
@@ -1715,7 +1707,6 @@ pgresult_field_name_type_set(VALUE self, VALUE sym)
 
 	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
 	if( sym == sym_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_SYMBOL;
-	else if ( sym == sym_static_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_STATIC_SYMBOL;
 	else if ( sym == sym_string );
 	else rb_raise(rb_eArgError, "invalid argument %+"PRIsVALUE, sym);
 
@@ -1736,8 +1727,6 @@ pgresult_field_name_type_get(VALUE self)
 	t_pg_result *this = pgresult_get_this(self);
 	if( this->flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
 		return sym_symbol;
-	} else if( this->flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
-		return sym_static_symbol;
 	} else {
 		return sym_string;
 	}
@@ -1748,7 +1737,6 @@ init_pg_result(void)
 {
 	sym_string = ID2SYM(rb_intern("string"));
 	sym_symbol = ID2SYM(rb_intern("symbol"));
-	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGresult = rb_define_class_under( rb_mPG, "Result", rb_cObject );
 	rb_undef_alloc_func(rb_cPGresult);

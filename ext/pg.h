@@ -116,7 +116,7 @@ typedef struct {
 	/* Ruby encoding index of the client/internal encoding */
 	int enc_idx : PG_ENC_IDX_BITS;
 	/* flags controlling Symbol/String field names */
-	unsigned int flags : 2;
+	unsigned int flags : 1;
 	/* enable automatic flushing of send data at the end of send_query calls */
 	unsigned int flush_data : 1;
 
@@ -151,7 +151,7 @@ typedef struct {
 	unsigned int autoclear : 1;
 
 	/* flags controlling Symbol/String field names */
-	unsigned int flags : 2;
+	unsigned int flags : 1;
 
 	/* Number of fields in fnames[] .
 	 * Set to -1 if fnames[] is not yet initialized.
@@ -181,9 +181,8 @@ typedef VALUE (* t_pg_typecast_result)(t_typemap *, VALUE, int, int);
 typedef t_pg_coder *(* t_pg_typecast_query_param)(t_typemap *, VALUE, int);
 typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 
-#define PG_RESULT_FIELD_NAMES_MASK 0x03
+#define PG_RESULT_FIELD_NAMES_MASK 0x01
 #define PG_RESULT_FIELD_NAMES_SYMBOL 0x01
-#define PG_RESULT_FIELD_NAMES_STATIC_SYMBOL 0x02
 
 #define PG_CODER_TIMESTAMP_DB_UTC 0x0
 #define PG_CODER_TIMESTAMP_DB_LOCAL 0x1
