@@ -1,16 +1,18 @@
 ## v1.6.3 [2025-12-29] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
-- Add binary gems for ruby-4.0, now providing ruby-3.0 to 4.0. #682
+
+- Add binary gems for ruby-4.0, now providing ruby-3.0 to 4.0. [#682](https://github.com/ged/ruby-pg/pull/682)
 - Update fat binary gem to OpenSSL-3.6.0 and PostgreSQL-18.1.
-- Improve documentation of PG::Result and README. #676
+- Improve documentation of PG::Result and README. [#676](https://github.com/ged/ruby-pg/pull/676)
 - Update errorcodes to PostgreSQL-18.
-- Use `rb_hash_new_capa` on Ruby-3.2+ . #674
-- Deny any server communication on a frozen PG::Connection . #677
-- Fix possible race condition in PG::Result in Ractor context. #674
+- Use `rb_hash_new_capa` on Ruby-3.2+ . [#674](https://github.com/ged/ruby-pg/pull/674)
+- Deny any server communication on a frozen PG::Connection . [#677](https://github.com/ged/ruby-pg/pull/677)
+- Fix possible race condition in PG::Result in Ractor context. [#674](https://github.com/ged/ruby-pg/pull/674)
 
 Removed:
-- Drop binary gem support for platform `x86-mingw32`. #682
+
+- Drop binary gem support for platform `x86-mingw32`. [#682](https://github.com/ged/ruby-pg/pull/682)
 - Drop binary gems for ruby-2.7.
 
 
