@@ -194,6 +194,7 @@ module PG::TestingHelpers
 		attr_reader :port
 		attr_reader :conninfo
 		attr_reader :unix_socket
+		attr_reader :version
 
 		### Set up a PostgreSQL database instance for testing.
 		def initialize(name, port: 23456, postgresql_conf: '')
@@ -205,6 +206,7 @@ module PG::TestingHelpers
 			@pgdata = @test_dir + 'data'
 			@logfile = @test_dir + 'setup.log'
 			@pg_bindir = pg_bindir
+			@version = pg_version
 			@unix_socket = @test_dir.to_s
 			@conninfo = "host=localhost port=#{@port} dbname=test sslrootcert=#{@pgdata + 'ruby-pg-ca-cert'} sslcert=#{@pgdata + 'ruby-pg-client-cert'} sslkey=#{@pgdata + 'ruby-pg-client-key'}"
 
@@ -267,8 +269,13 @@ module PG::TestingHelpers
 					ssl_cert_file = 'ruby-pg-server-cert'
 					ssl_key_file = 'ruby-pg-server-key'
 					fsync = off
-					#{postgresql_conf}
 				EOT
+				if @version >= 18
+					fd.puts <<~EOT
+						oauth_validator_libraries = '#{TEST_DIRECTORY}/spec/oauth/dummy_validator'
+					EOT
+				end
+				fd.puts postgresql_conf
 			end
 
 			# Enable MD5 authentication in hba config
@@ -278,6 +285,12 @@ module PG::TestingHelpers
 					# TYPE  DATABASE     USER              ADDRESS             METHOD
 					host    all          testusermd5       ::1/128             md5
 				EOT
+				if @version >= 18
+					fd.puts <<~EOT
+						host    all          testuseroauth     127.0.0.1/32        oauth scope=test issuer="http://localhost:#{@port + 3}"
+						host    all          testuseroauth     ::1/32              oauth scope=test issuer="http://localhost:#{@port + 3}"
+					EOT
+				end
 				fd.puts hba_content
 			end
 
@@ -339,6 +352,10 @@ module PG::TestingHelpers
 			`pg_config --bindir`.chomp
 		rescue
 			nil
+		end
+
+		def pg_version
+			`#{pg_bin_path("pg_ctl")} --version`[/pg_ctl \(PostgreSQL\) (\d+)/, 1]&.to_i
 		end
 	end
 
@@ -682,6 +699,7 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_12 ) if PG.library_version < 120000
 	config.filter_run_excluding( :postgresql_14 ) if PG.library_version < 140000
 	config.filter_run_excluding( :postgresql_17 ) if PG.library_version < 170000
+	config.filter_run_excluding( :postgresql_18 ) if PG.library_version < 180000
 	config.filter_run_excluding( :unix_socket ) if RUBY_PLATFORM=~/mingw|mswin/i
 	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0" || (RUBY_PLATFORM =~ /mingw|mswin/ && RUBY_VERSION < "3.1") || !Fiber.respond_to?(:scheduler)
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
