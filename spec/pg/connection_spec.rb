@@ -3010,4 +3010,63 @@ describe PG::Connection do
 				.to raise_error(TypeError)
 		end
 	end
+
+	describe "OAuth support", :postgresql_18 do
+		before :all do
+			skip "requires a PostgreSQL 18 cluster" unless $pg_server.version >= 18
+
+			system "make", "-s", "-C", (TEST_DIRECTORY + "spec/oauth").to_s
+			raise "Building OAuth validator library failed!" unless $?.success?
+
+			require 'webrick'
+
+			PG.connect(@conninfo) do |conn|
+				conn.exec("DROP USER IF EXISTS testuseroauth")
+				conn.exec("CREATE USER testuseroauth")
+			end
+		end
+
+		before :each do
+			@old_env, ENV["PGOAUTHDEBUG"] = ENV["PGOAUTHDEBUG"], "UNSAFE"
+		end
+
+		def start_fake_oauth(port)
+			server = WEBrick::HTTPServer.new(Port: port, Logger: WEBrick::Log.new(nil, WEBrick::BasicLog::WARN))
+			server.mount_proc("/.well-known/openid-configuration") do |req, res|
+				res["Content-Type"] = "application/json"
+				res.body = %!{"issuer":"http://localhost:#{port}","token_endpoint":"http://localhost:#{port}/token","device_authorization_endpoint":"http://localhost:#{@port + 3}/devauth"}!
+			end
+			server.mount_proc("/devauth") do |req, res|
+				res["Content-Type"] = "application/json"
+				res.body = %!{"device_code":"42","user_code":"666","verification_uri":"http://localhost:#{port}/verify","expires_in":60}!
+			end
+			server.mount_proc("/token") do |req, res|
+				res["Content-Type"] = "application/json"
+				res.body = %!{"access_token":"yes","token_type":""}!
+			end
+			Thread.new { server.start }
+			server
+		end
+
+		it "should work with no hook" do
+			oauth_server = start_fake_oauth(@port + 3)
+
+			begin
+				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
+					conn.exec("SELECT 1")
+				end
+			rescue PG::ConnectionBad => e
+				if e.message =~ /no OAuth flows are available/
+					skip "requires libpq-oauth to be installed"
+				end
+				raise
+			ensure
+				oauth_server.shutdown
+			end
+		end
+
+		after :each do
+			ENV["PGOAUTHDEBUG"] = @old_env
+		end
+	end
 end

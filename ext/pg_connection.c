@@ -965,6 +965,19 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
+#ifdef _WIN32
+#define is_socket(fd) rb_w32_is_socket(fd)
+#else
+static int
+is_socket(int fd)
+{
+    struct stat sbuf;
+
+    if (fstat(fd, &sbuf) < 0)
+        rb_sys_fail("fstat(2)");
+    return S_ISSOCK(sbuf.st_mode);
+}
+#endif
 
 VALUE
 pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
@@ -983,7 +996,7 @@ pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
 		*p_ruby_sd = ruby_sd = sd;
 	#endif
 
-	cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+	cSocket = rb_const_get(rb_cObject, rb_intern(is_socket(ruby_sd) ? "BasicSocket" : "IO"));
 	socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
 
 	/* Disable autoclose feature */
