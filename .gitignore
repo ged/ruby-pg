@@ -15,6 +15,9 @@
 /lib/2.?/
 /lib/3.?/
 /pkg/
+/spec/oauth/*.bc
+/spec/oauth/*.o
+/spec/oauth/*.so
 /tmp/
 /tmp_test_*/
 /vendor/

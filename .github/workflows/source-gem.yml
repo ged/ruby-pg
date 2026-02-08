@@ -127,8 +127,13 @@ jobs:
           echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVER" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get -y update
-          sudo apt-get -y --allow-downgrades install postgresql-$PGVER libpq5=$PGVER* libpq-dev=$PGVER*
+          sudo apt-get -y --allow-downgrades install postgresql-$PGVER libpq5=$PGVER* libpq-dev=$PGVER* postgresql-server-dev-$PGVER libkrb5-dev
           echo /usr/lib/postgresql/$PGVER/bin >> $GITHUB_PATH
+
+      - name: Download OAuth support Ubuntu
+        if: matrix.os == 'ubuntu' && matrix.PGVER >= 18
+        run: |
+          sudo apt-get -y --allow-downgrades install libpq-oauth=$PGVER*
 
       - name: Download PostgreSQL Macos
         if: matrix.os == 'macos'
