@@ -101,6 +101,12 @@ jobs:
     env:
       PGVERSION: ${{ matrix.PGVERSION }}
     steps:
+      # Workaround for broken ubuntu-latest image.
+      # See https://github.com/Shopify/ruby-lsp/issues/3942
+      - name: Remove pre-installed Ruby 4.0
+        if: matrix.os == 'ubuntu-latest' && matrix.ruby == '4.0'
+        run: rm -rf /opt/hostedtoolcache/Ruby/4.0*
+
       - uses: actions/checkout@v4
       - name: Set up Ruby
         if: matrix.platform != 'x86-mingw32'
