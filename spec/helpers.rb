@@ -227,7 +227,7 @@ module PG::TestingHelpers
 		def create_test_db
 			trace "Creating the test DB"
 			log_and_run @logfile, pg_bin_path('psql'), '-p', @port.to_s, '-e', '-c', 'DROP DATABASE IF EXISTS test', 'postgres'
-			log_and_run @logfile, pg_bin_path('createdb'), '-p', @port.to_s, '-e', 'test'
+			log_and_run @logfile, pg_bin_path('createdb'), '-p', @port.to_s, 'test'
 		end
 
 		def connect
