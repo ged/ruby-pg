@@ -3070,7 +3070,7 @@ describe PG::Connection do
 
 			verification_uri, user_code, verification_uri_complete, expires_in = nil, nil, nil, nil
 
-			PG.set_auth_data_hook do |data|
+			PG.set_auth_data_hook do |conn_num, data|
 				case data
 				when PG::PromptOAuthDevice
 					verification_uri = data.verification_uri
@@ -3103,7 +3103,7 @@ describe PG::Connection do
 		it "should call oauth bearer reuqest hook" do
 			openid_configuration, scope = nil, nil
 
-			PG.set_auth_data_hook do |data|
+			PG.set_auth_data_hook do |conn_num, data|
 				case data
 				when PG::OAuthBearerRequest
 					openid_configuration = data.openid_configuration
@@ -3124,7 +3124,7 @@ describe PG::Connection do
 		it "should reset the hook when called without block" do
 			oauth_server = start_fake_oauth(@port + 3)
 
-			PG.set_auth_data_hook do |data|
+			PG.set_auth_data_hook do |conn_num, data|
 				raise "broken hook"
 			end
 

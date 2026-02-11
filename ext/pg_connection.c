@@ -623,6 +623,22 @@ pgconn_reset_poll(VALUE self)
 	return INT2FIX((int)status);
 }
 
+/*
+ * call-seq:
+ *    conn.pgconn_address()
+ *
+ * Returns the PGconn address.
+ *
+ * It can be used to compare with the address received by the OAuth hook:
+ *
+ *   PG.set_auth_data_hook do |pgconn_address, data|
+ */
+static VALUE
+pgconn_pgconn_address(VALUE self)
+{
+	return PTR2NUM(pg_get_pgconn(self));
+}
+
 
 /*
  * call-seq:
@@ -4750,6 +4766,7 @@ init_pg_connection(void)
 	rb_define_private_method(rb_cPGconn, "reset_start2", pgconn_reset_start2, 1);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
+	rb_define_private_method(rb_cPGconn, "pgconn_address", pgconn_pgconn_address, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Connection Status     ******/
 	rb_define_method(rb_cPGconn, "db", pgconn_db, 0);
