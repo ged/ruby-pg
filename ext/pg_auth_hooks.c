@@ -6,7 +6,7 @@
 
 #include "pg.h"
 
-#if LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
 
 #ifdef TRUFFLERUBY
 static VALUE auth_data_hook;
