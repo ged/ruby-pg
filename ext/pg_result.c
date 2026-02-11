@@ -531,6 +531,7 @@ static void pgresult_init_fnames(VALUE self)
  *    res.column_values(1) # ["2"]
  *    res.each.first       # {"a" => "1", "b" => "2", "c" => nil}
  *    res.each_row.first   # ["1", "2", nil]
+ *    res.each_tuple.first # #<PG::Tuple a: "1", b: "2", c: nil>
  *
  * Whenever a value is accessed it is casted to a Ruby object by the assigned #type_map which is PG::TypeMapAllStrings by default.
  * Similarly field names can be retrieved either as strings (default) or as symbols which can be switched per #field_name_type= .
@@ -549,6 +550,7 @@ static void pgresult_init_fnames(VALUE self)
  *    res.column_values(1) # [2]
  *    res.each.first       # {a: 1, b: 2, c: nil}
  *    res.each_row.first   # [1, 2, nil]
+ *    res.each_tuple.first # #<PG::Tuple a: 1, b: 2, c: nil>
  *
  * Since pg-1.1 the amount of memory in use by a PG::Result object is estimated and passed to ruby's garbage collector.
  * You can invoke the #clear method to force deallocation of memory of the instance when finished with the result for better memory performance.
@@ -1432,6 +1434,32 @@ pgresult_each(VALUE self)
 
 /*
  * call-seq:
+ *    res.each_tuple{ |tuple| ... }
+ *
+ * Yields a PG::Tuple object for each row in the result.
+ *
+ *    res = conn.exec('SELECT 1 AS a, 2 AS b, NULL AS c')
+ *    res.each_tuple.first  # #<PG::Tuple a: "1", b: "2", c: nil>
+ */
+static VALUE
+pgresult_each_tuple(VALUE self)
+{
+	PGresult *result;
+	int tuple_num;
+
+	RETURN_SIZED_ENUMERATOR(self, 0, NULL, pgresult_ntuples_for_enum);
+
+	result = pgresult_get(self);
+
+	for(tuple_num = 0; tuple_num < PQntuples(result); tuple_num++) {
+		VALUE tuple = pgresult_tuple(self, INT2FIX(tuple_num));
+		rb_yield( tuple );
+	}
+	return self;
+}
+
+/*
+ * call-seq:
  *    res.fields() -> Array
  *
  * Depending on #field_name_type= returns an array of strings or symbols representing the names of the fields in the result.
@@ -1797,6 +1825,7 @@ init_pg_result(void)
 	rb_define_method(rb_cPGresult, "each", pgresult_each, 0);
 	rb_define_method(rb_cPGresult, "fields", pgresult_fields, 0);
 	rb_define_method(rb_cPGresult, "each_row", pgresult_each_row, 0);
+	rb_define_method(rb_cPGresult, "each_tuple", pgresult_each_tuple, 0);
 	rb_define_method(rb_cPGresult, "values", pgresult_values, 0);
 	rb_define_method(rb_cPGresult, "column_values", pgresult_column_values, 1);
 	rb_define_method(rb_cPGresult, "field_values", pgresult_field_values, 1);
