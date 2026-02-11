@@ -316,6 +316,7 @@ have_func 'PQenterPipelineMode', 'libpq-fe.h' do |src| # since PostgreSQL-14
   src + " int con(){ return PGRES_PIPELINE_SYNC; }"
 end
 have_func 'PQsetChunkedRowsMode', 'libpq-fe.h' # since PostgreSQL-17
+have_func 'PQfullProtocolVersion', 'libpq-fe.h' # since PostgreSQL-18
 have_func 'timegm'
 have_func 'rb_io_wait' # since ruby-3.0
 have_func 'rb_io_descriptor' # since ruby-3.1

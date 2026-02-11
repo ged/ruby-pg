@@ -865,6 +865,31 @@ pgconn_protocol_version(VALUE self)
 	return INT2NUM(protocol_version);
 }
 
+#ifdef HAVE_PQFULLPROTOCOLVERSION
+/*
+ * call-seq:
+ *   conn.full_protocol_version -> Integer
+ *
+ * Interrogates the frontend/backend protocol being used, including minor version.
+ *
+ * Applications might wish to use this function to determine whether certain features are supported.
+ * The result is the major version multiplied by 10000 added to the minor version, e.g. 30002 for version 3.2.
+ * The protocol version will not change after connection startup is complete, but it could theoretically change during a connection reset.
+ * The 3.0 protocol is supported by PostgreSQL server versions 7.4 and above.
+ *
+ * PG::ConnectionBad is raised if the connection is bad.
+ */
+static VALUE
+pgconn_full_protocol_version(VALUE self)
+{
+	int protocol_version = PQfullProtocolVersion(pg_get_pgconn(self));
+	if (protocol_version == 0) {
+		pg_raise_conn_error( rb_eConnectionBad, self, "PQfullProtocolVersion() can't get protocol version");
+	}
+	return INT2NUM(protocol_version);
+}
+#endif
+
 /*
  * call-seq:
  *   conn.server_version -> Integer
@@ -4733,6 +4758,9 @@ init_pg_connection(void)
 	rb_define_method(rb_cPGconn, "transaction_status", pgconn_transaction_status, 0);
 	rb_define_method(rb_cPGconn, "parameter_status", pgconn_parameter_status, 1);
 	rb_define_method(rb_cPGconn, "protocol_version", pgconn_protocol_version, 0);
+#ifdef HAVE_PQFULLPROTOCOLVERSION
+	rb_define_method(rb_cPGconn, "full_protocol_version", pgconn_full_protocol_version, 0);
+#endif
 	rb_define_method(rb_cPGconn, "server_version", pgconn_server_version, 0);
 	rb_define_method(rb_cPGconn, "error_message", pgconn_error_message, 0);
 	rb_define_method(rb_cPGconn, "socket", pgconn_socket, 0);

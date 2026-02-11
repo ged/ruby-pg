@@ -976,6 +976,18 @@ describe PG::Connection do
 		end
 	end
 
+	context :protocol_version, :postgresql_18 do
+		it "should retrieve the wrie protocol version" do
+			expect( @conn.full_protocol_version ).to eq 30000
+		end
+
+		it "should raise an error on a bad connection" do
+			conn = PG::Connection.connect_start( @conninfo )
+			conn.finish
+			expect{ conn.full_protocol_version }.to raise_error(PG::ConnectionBad)
+		end
+	end
+
 	it "allows a query to be cancelled" do
 		start = Time.now
 		@conn.set_notice_processor do |notice|
