@@ -355,7 +355,6 @@ module PG::TestingHelpers
 		end
 
 		def create_ca_cert(name, ca_key, x509_name, valid_years: 10)
-			ca_key = OpenSSL::PKey::RSA.new File.read "#{ca_key}" unless ca_key.kind_of?(OpenSSL::PKey::RSA)
 			ca_name = OpenSSL::X509::Name.parse x509_name
 
 			ca_cert = OpenSSL::X509::Certificate.new
@@ -396,7 +395,6 @@ module PG::TestingHelpers
 		end
 
 		def create_signing_request(name, x509_name, key)
-			key = OpenSSL::PKey::RSA.new File.read "#{key}" unless key.kind_of?(OpenSSL::PKey::RSA)
 			csr = OpenSSL::X509::Request.new
 			csr.version = 0
 			csr.subject = OpenSSL::X509::Name.parse x509_name
@@ -411,9 +409,6 @@ module PG::TestingHelpers
 		end
 
 		def create_cert_from_csr(name, csr, ca_cert, ca_key, valid_years: 10, dns_names: nil)
-			ca_key = OpenSSL::PKey::RSA.new File.read "#{ca_key}" unless ca_key.kind_of?(OpenSSL::PKey::RSA)
-			ca_cert = OpenSSL::X509::Certificate.new File.read "#{ca_cert}" unless ca_cert.kind_of?(OpenSSL::X509::Certificate)
-			csr = OpenSSL::X509::Request.new File.read "#{csr}" unless csr.kind_of?(OpenSSL::X509::Request)
 			raise 'CSR can not be verified' unless csr.verify csr.public_key
 
 			csr_cert = OpenSSL::X509::Certificate.new
