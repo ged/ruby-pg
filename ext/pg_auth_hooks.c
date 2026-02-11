@@ -260,11 +260,13 @@ oauth_bearer_request_cleanup(PGconn *_conn, struct PGoauthBearerRequest *request
 }
 
 static VALUE
-call_auth_data_hook(VALUE data)
+call_auth_data_hook(VALUE args)
 {
-	VALUE proc = auth_data_hook_get();
+	VALUE proc = ((VALUE*)args)[0];
+	VALUE conn_num = ((VALUE*)args)[1];
+	VALUE v_data = ((VALUE*)args)[2];
 
-	return rb_funcall(proc, rb_intern("call"), 1, data);
+	return rb_funcall(proc, rb_intern("call"), 2, conn_num, v_data);
 }
 
 static VALUE
@@ -296,7 +298,7 @@ oauth_bearer_request_hook_cleanup(VALUE self, VALUE ex)
  * currently-registered Ruby auth_data_hook object.
  */
 int
-auth_data_hook_proxy(PGauthData type, PGconn *_conn, void *data)
+auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data)
 {
 	VALUE proc = auth_data_hook_get(), ret = Qnil;
 
@@ -305,21 +307,23 @@ auth_data_hook_proxy(PGauthData type, PGconn *_conn, void *data)
 			t_pg_prompt_oauth_device *prompt;
 
 			VALUE v_prompt = TypedData_Make_Struct(rb_cPromptOAuthDevice, t_pg_prompt_oauth_device, &pg_prompt_oauth_device_type, prompt);
+			VALUE args[] = { proc, PTR2NUM(conn), v_prompt };
 
 			prompt->prompt = data;
 
-			ret = rb_rescue(call_auth_data_hook, v_prompt, prompt_oauth_device_hook_cleanup, v_prompt);
+			ret = rb_rescue(call_auth_data_hook, (VALUE)&args, prompt_oauth_device_hook_cleanup, v_prompt);
 
 			prompt->prompt = NULL;
 		} else if (type == PQAUTHDATA_OAUTH_BEARER_TOKEN) {
 			t_pg_oauth_bearer_request *request;
 
 			VALUE v_request = TypedData_Make_Struct(rb_cOAuthBearerRequest, t_pg_oauth_bearer_request, &pg_oauth_bearer_request_type, request);
+			VALUE args[] = { proc, PTR2NUM(conn), v_request };
 
 			request->request = data;
 			request->request->cleanup = oauth_bearer_request_cleanup;
 
-			ret = rb_rescue(call_auth_data_hook, v_request, oauth_bearer_request_hook_cleanup, v_request);
+			ret = rb_rescue(call_auth_data_hook, (VALUE)&args, oauth_bearer_request_hook_cleanup, v_request);
 
 			request->request = NULL;
 		}
