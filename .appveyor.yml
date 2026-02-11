@@ -11,7 +11,7 @@ install:
       }
   - cmd: |
       ridk enable
-      c:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed ${MINGW_PACKAGE_PREFIX}-pkgconf ${MINGW_PACKAGE_PREFIX}-libyaml ${MINGW_PACKAGE_PREFIX}-gcc"
+      c:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed ${MINGW_PACKAGE_PREFIX}-pkgconf ${MINGW_PACKAGE_PREFIX}-libyaml ${MINGW_PACKAGE_PREFIX}-gcc ${MINGW_PACKAGE_PREFIX}-postgresql"
   - ruby --version
   - gem --version
   - gem install bundler --conservative
@@ -32,7 +32,7 @@ build_script:
 test_script:
   - bundle exec rake test PG_DEBUG=0
 on_failure:
-  - find -name mkmf.log | xargs cat
+  - sh -c "find -name mkmf.log | xargs cat"
 environment:
   matrix:
     - ruby_version: "head"
