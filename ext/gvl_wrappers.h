@@ -21,7 +21,7 @@
 #	include RUBY_EXTCONF_H
 #endif
 
-#ifndef HAVE_PQSETCHUNKEDROWSMODE
+#ifndef LIBPQ_HAS_CHUNK_MODE
 typedef struct pg_cancel_conn PGcancelConn;
 #endif
 
