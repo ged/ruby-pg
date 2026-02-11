@@ -78,11 +78,6 @@ describe PG::Result do
 			expect(res.field_name_type).to eq(:symbol)
 		end
 
-		it "can set static_symbol field names" do
-			res.field_name_type = :static_symbol
-			expect(res.field_name_type).to eq(:static_symbol)
-		end
-
 		it "can't set symbol field names after #fields" do
 			res.fields
 			expect{ res.field_name_type = :symbol }.to raise_error(ArgumentError, /already materialized/)
@@ -104,13 +99,6 @@ describe PG::Result do
 	it "acts as an array of hashes with symbols" do
 		res = @conn.exec("SELECT 1 AS a, 2 AS b")
 		res.field_name_type = :symbol
-		expect( res[0][:a] ).to eq( '1' )
-		expect( res[0][:b] ).to eq( '2' )
-	end
-
-	it "acts as an array of hashes with static_symbols" do
-		res = @conn.exec("SELECT 1 AS a, 2 AS b")
-		res.field_name_type = :static_symbol
 		expect( res[0][:a] ).to eq( '1' )
 		expect( res[0][:b] ).to eq( '2' )
 	end

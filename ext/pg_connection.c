@@ -14,7 +14,7 @@ VALUE rb_cPGconn;
 static ID s_id_encode;
 static ID s_id_autoclose_set;
 static VALUE sym_type, sym_format, sym_value;
-static VALUE sym_symbol, sym_string, sym_static_symbol;
+static VALUE sym_symbol, sym_string;
 
 static VALUE pgconn_finish( VALUE );
 static VALUE pgconn_set_default_encoding( VALUE self );
@@ -4667,7 +4667,6 @@ pgconn_field_name_type_set(VALUE self, VALUE sym)
 	rb_check_frozen(self);
 	this->flags &= ~PG_RESULT_FIELD_NAMES_MASK;
 	if( sym == sym_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_SYMBOL;
-	else if ( sym == sym_static_symbol ) this->flags |= PG_RESULT_FIELD_NAMES_STATIC_SYMBOL;
 	else if ( sym == sym_string );
 	else rb_raise(rb_eArgError, "invalid argument %+"PRIsVALUE, sym);
 
@@ -4689,8 +4688,6 @@ pgconn_field_name_type_get(VALUE self)
 
 	if( this->flags & PG_RESULT_FIELD_NAMES_SYMBOL ){
 		return sym_symbol;
-	} else if( this->flags & PG_RESULT_FIELD_NAMES_STATIC_SYMBOL ){
-		return sym_static_symbol;
 	} else {
 		return sym_string;
 	}
@@ -4710,7 +4707,6 @@ init_pg_connection(void)
 	sym_value = ID2SYM(rb_intern("value"));
 	sym_string = ID2SYM(rb_intern("string"));
 	sym_symbol = ID2SYM(rb_intern("symbol"));
-	sym_static_symbol = ID2SYM(rb_intern("static_symbol"));
 
 	rb_cPGconn = rb_define_class_under( rb_mPG, "Connection", rb_cObject );
 	/* Help rdoc to known the Constants module */
