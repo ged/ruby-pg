@@ -29,6 +29,9 @@ extern int ruby_thread_has_gvl_p(void);
 #ifndef LIBPQ_HAS_CHUNK_MODE
 typedef struct pg_cancel_conn PGcancelConn;
 #endif
+#ifndef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+typedef enum { DUMMY_TYPE } PGauthData;
+#endif
 
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
@@ -171,22 +174,11 @@ FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 #define FOR_EACH_PARAM_OF_notice_receiver_proxy(param) \
 	param(void *, arg)
 
-#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
-
 /* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_CALLBACK_FUNCTION(function) \
 	function(auth_data_hook_proxy, GVL_TYPE_NONVOID, int, void *, data) \
 	function(notice_processor_proxy, GVL_TYPE_VOID, void, const char *, message) \
 	function(notice_receiver_proxy, GVL_TYPE_VOID, void, const PGresult *, result) \
-
-#else
-
-/* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
-#define FOR_EACH_CALLBACK_FUNCTION(function) \
-	function(notice_processor_proxy, GVL_TYPE_VOID, void, const char *, message) \
-	function(notice_receiver_proxy, GVL_TYPE_VOID, void, const PGresult *, result) \
-
-#endif
 
 FOR_EACH_CALLBACK_FUNCTION( DEFINE_GVL_STUB_DECL );
 
