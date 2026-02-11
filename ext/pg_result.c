@@ -315,17 +315,17 @@ pg_result_check( VALUE self )
 		case PGRES_SINGLE_TUPLE:
 		case PGRES_EMPTY_QUERY:
 		case PGRES_COMMAND_OK:
-#ifdef HAVE_PQENTERPIPELINEMODE
+#ifdef LIBPQ_HAS_PIPELINING
 		case PGRES_PIPELINE_SYNC:
 #endif
-#ifdef HAVE_PQSETCHUNKEDROWSMODE
+#ifdef LIBPQ_HAS_CHUNK_MODE
 		case PGRES_TUPLES_CHUNK:
 #endif
 			return self;
 		case PGRES_BAD_RESPONSE:
 		case PGRES_FATAL_ERROR:
 		case PGRES_NONFATAL_ERROR:
-#ifdef HAVE_PQENTERPIPELINEMODE
+#ifdef LIBPQ_HAS_PIPELINING
 		case PGRES_PIPELINE_ABORTED:
 #endif
 			error = rb_str_new2( PQresultErrorMessage(this->pgresult) );
@@ -1600,7 +1600,7 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 					return self;
 				rb_raise( rb_eInvalidResultStatus, "PG::Result is not in single row mode");
 			case PGRES_SINGLE_TUPLE:
-#ifdef HAVE_PQSETCHUNKEDROWSMODE
+#ifdef LIBPQ_HAS_CHUNK_MODE
 			case PGRES_TUPLES_CHUNK:
 #endif
 				break;

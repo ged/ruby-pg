@@ -508,12 +508,12 @@ Init_pg_ext(void)
 	rb_define_const(rb_mPGconstants, "PGRES_COPY_BOTH", INT2FIX(PGRES_COPY_BOTH));
 	/* Result#result_status constant - Single tuple from larger resultset. */
 	rb_define_const(rb_mPGconstants, "PGRES_SINGLE_TUPLE", INT2FIX(PGRES_SINGLE_TUPLE));
-#ifdef HAVE_PQSETCHUNKEDROWSMODE
+#ifdef LIBPQ_HAS_CHUNK_MODE
 	/* Result#result_status constant - tuple chunk from larger resultset. */
 	rb_define_const(rb_mPGconstants, "PGRES_TUPLES_CHUNK", INT2FIX(PGRES_TUPLES_CHUNK));
 #endif
 
-#ifdef HAVE_PQENTERPIPELINEMODE
+#ifdef LIBPQ_HAS_PIPELINING
 	/* Result#result_status constant - The PG::Result represents a synchronization point in pipeline mode, requested by Connection#pipeline_sync.
 	 *
 	 * This status occurs only when pipeline mode has been selected. */
@@ -643,7 +643,7 @@ Init_pg_ext(void)
 	rb_define_const(rb_mPGconstants, "PG_DIAG_CONSTRAINT_NAME", INT2FIX(PG_DIAG_CONSTRAINT_NAME));
 #endif
 
-#ifdef HAVE_PQENTERPIPELINEMODE
+#ifdef LIBPQ_HAS_PIPELINING
 	/* Connection#pipeline_status constant
 	 *
 	 * The libpq connection is in pipeline mode.

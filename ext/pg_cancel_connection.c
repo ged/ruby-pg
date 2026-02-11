@@ -13,7 +13,7 @@
  *
  */
 
-#ifdef HAVE_PQSETCHUNKEDROWSMODE
+#ifdef LIBPQ_HAS_CHUNK_MODE
 
 static VALUE rb_cPG_Cancon;
 static ID s_id_autoclose_set;
@@ -340,7 +340,7 @@ pg_cancon_finish(VALUE self)
 void
 init_pg_cancon(void)
 {
-#ifdef HAVE_PQSETCHUNKEDROWSMODE
+#ifdef LIBPQ_HAS_CHUNK_MODE
 	s_id_autoclose_set = rb_intern("autoclose=");
 
 	rb_cPG_Cancon = rb_define_class_under( rb_mPG, "CancelConnection", rb_cObject );
