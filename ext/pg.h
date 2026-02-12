@@ -288,6 +288,7 @@ extern VALUE pg_typemap_all_strings;
 void Init_pg_ext                                       _(( void ));
 
 void init_pg_connection                                _(( void ));
+void init_pg_auth_hooks                                _(( void ));
 void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_type_map                                  _(( void ));
@@ -374,6 +375,9 @@ rb_encoding * pg_get_pg_encname_as_rb_encoding         _(( const char * ));
 const char * pg_get_rb_encoding_as_pg_encoding         _(( rb_encoding * ));
 rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+int auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data);
+#endif
 void notice_receiver_proxy(void *arg, const PGresult *result);
 void notice_processor_proxy(void *arg, const char *message);
 

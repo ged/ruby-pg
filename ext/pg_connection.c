@@ -623,6 +623,22 @@ pgconn_reset_poll(VALUE self)
 	return INT2FIX((int)status);
 }
 
+/*
+ * call-seq:
+ *    conn.pgconn_address()
+ *
+ * Returns the PGconn address.
+ *
+ * It can be used to compare with the address received by the OAuth hook:
+ *
+ *   PG.set_auth_data_hook do |pgconn_address, data|
+ */
+static VALUE
+pgconn_pgconn_address(VALUE self)
+{
+	return PTR2NUM(pg_get_pgconn(self));
+}
+
 
 /*
  * call-seq:
@@ -965,6 +981,19 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
+#ifdef _WIN32
+#define is_socket(fd) rb_w32_is_socket(fd)
+#else
+static int
+is_socket(int fd)
+{
+    struct stat sbuf;
+
+    if (fstat(fd, &sbuf) < 0)
+        rb_sys_fail("fstat(2)");
+    return S_ISSOCK(sbuf.st_mode);
+}
+#endif
 
 VALUE
 pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
@@ -983,7 +1012,7 @@ pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
 		*p_ruby_sd = ruby_sd = sd;
 	#endif
 
-	cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+	cSocket = rb_const_get(rb_cObject, rb_intern(is_socket(ruby_sd) ? "BasicSocket" : "IO"));
 	socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
 
 	/* Disable autoclose feature */
@@ -4737,6 +4766,7 @@ init_pg_connection(void)
 	rb_define_private_method(rb_cPGconn, "reset_start2", pgconn_reset_start2, 1);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
+	rb_define_private_method(rb_cPGconn, "pgconn_address", pgconn_pgconn_address, 0);
 
 	/******     PG::Connection INSTANCE METHODS: Connection Status     ******/
 	rb_define_method(rb_cPGconn, "db", pgconn_db, 0);
