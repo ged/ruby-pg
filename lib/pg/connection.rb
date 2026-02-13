@@ -867,8 +867,8 @@ class PG::Connection
 		#   It's still possible to do load balancing with +load_balance_hosts+ set to +random+ and to increase the number of connections a node gets, when the hostname is provided multiple times in the host string.
 		#   This is because in non-timeout cases the host is tried multiple times.
 		#
-		def new(*args)
-			conn = connect_to_hosts(*args)
+		def new(*args, **kwargs)
+			conn = connect_to_hosts(*args, **kwargs)
 
 			if block_given?
 				begin
@@ -919,8 +919,8 @@ class PG::Connection
 				port: dests.map{|d| d[2] }.join(","))
 		end
 
-		private def connect_to_hosts(*args)
-			option_string = parse_connect_args(*args)
+		private def connect_to_hosts(*args, set_auth_data_hook: nil, **kwargs)
+			option_string = parse_connect_args(*args, **kwargs)
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
 
@@ -943,6 +943,12 @@ class PG::Connection
 			end
 			conn = self.connect_start(iopts) or
 										raise(PG::Error, "Unable to create a new connection")
+			if set_auth_data_hook
+				@@auth_mutex.synchronize do
+					@@pgconn_map[conn.send(:pgconn_address)] = conn
+				end
+				conn.instance_variable_set(:@auth_data_hook, set_auth_data_hook)
+			end
 
 			raise PG::ConnectionBad, conn.error_message if conn.status == PG::CONNECTION_BAD
 
@@ -1086,6 +1092,24 @@ class PG::Connection
 			REDIRECT_CLASS_METHODS.each do |ali, (async, sync)|
 				singleton_class.remove_method(ali) if method_defined?(ali)
 				singleton_class.alias_method(ali, enable ? async : sync )
+			end
+		end
+	end
+
+	if PG.respond_to?(:set_auth_data_hook)
+		def call_auth_data_hook(data)
+			@auth_data_hook.call(self, data)
+		end
+
+		@@auth_mutex = Mutex.new
+		@@pgconn_map = ObjectSpace::WeakMap.new
+
+		PG.set_auth_data_hook do |conn_num, data|
+			@@auth_mutex.synchronize do
+				conn = @@pgconn_map[conn_num]
+				if conn
+					conn.call_auth_data_hook(data)
+				end
 			end
 		end
 	end

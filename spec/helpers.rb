@@ -673,6 +673,38 @@ module PG::TestingHelpers
 	def set_etc_hosts(hostaddr, hostname)
 		system "sudo --non-interactive sed -i '/.* #{hostname}$/{h;s/.*/#{hostaddr} #{hostname}/};${x;/^$/{s//#{hostaddr} #{hostname}/;H};x}' /etc/hosts" or skip("unable to change /etc/hosts file")
 	end
+
+	def build_oauth_validator
+		skip "requires a PostgreSQL 18 cluster" unless $pg_server.version >= 18
+
+		system "make", "-s", "-C", (TEST_DIRECTORY + "spec/oauth").to_s
+		raise "Building OAuth validator library failed!" unless $?.success?
+
+		require 'webrick'
+
+		PG.connect(@conninfo) do |conn|
+			conn.exec("DROP USER IF EXISTS testuseroauth")
+			conn.exec("CREATE USER testuseroauth")
+		end
+	end
+
+	def start_fake_oauth(port)
+		server = WEBrick::HTTPServer.new(Port: port, Logger: WEBrick::Log.new(nil, WEBrick::BasicLog::WARN))
+		server.mount_proc("/.well-known/openid-configuration") do |req, res|
+			res["Content-Type"] = "application/json"
+			res.body = %!{"issuer":"http://localhost:#{port}","token_endpoint":"http://localhost:#{port}/token","device_authorization_endpoint":"http://localhost:#{@port + 3}/devauth"}!
+		end
+		server.mount_proc("/devauth") do |req, res|
+			res["Content-Type"] = "application/json"
+			res.body = %!{"device_code":"42","user_code":"666","verification_uri":"http://localhost:#{port}/verify","expires_in":60}!
+		end
+		server.mount_proc("/token") do |req, res|
+			res["Content-Type"] = "application/json"
+			res.body = %!{"access_token":"yes","token_type":""}!
+		end
+		Thread.new { server.start }
+		server
+	end
 end
 
 RSpec.configure do |config|

@@ -3011,41 +3011,13 @@ describe PG::Connection do
 		end
 	end
 
-	describe "PG.set_auth_data_hook", :postgresql_18  do
+	describe "option set_auth_data_hook", :postgresql_18  do
 		before :all do
-			skip "requires a PostgreSQL 18 cluster" unless $pg_server.version >= 18
-
-			system "make", "-s", "-C", (TEST_DIRECTORY + "spec/oauth").to_s
-			raise "Building OAuth validator library failed!" unless $?.success?
-
-			require 'webrick'
-
-			PG.connect(@conninfo) do |conn|
-				conn.exec("DROP USER IF EXISTS testuseroauth")
-				conn.exec("CREATE USER testuseroauth")
-			end
+			build_oauth_validator
 		end
 
 		before :each do
 			@old_env, ENV["PGOAUTHDEBUG"] = ENV["PGOAUTHDEBUG"], "UNSAFE"
-		end
-
-		def start_fake_oauth(port)
-			server = WEBrick::HTTPServer.new(Port: port, Logger: WEBrick::Log.new(nil, WEBrick::BasicLog::WARN))
-			server.mount_proc("/.well-known/openid-configuration") do |req, res|
-				res["Content-Type"] = "application/json"
-				res.body = %!{"issuer":"http://localhost:#{port}","token_endpoint":"http://localhost:#{port}/token","device_authorization_endpoint":"http://localhost:#{@port + 3}/devauth"}!
-			end
-			server.mount_proc("/devauth") do |req, res|
-				res["Content-Type"] = "application/json"
-				res.body = %!{"device_code":"42","user_code":"666","verification_uri":"http://localhost:#{port}/verify","expires_in":60}!
-			end
-			server.mount_proc("/token") do |req, res|
-				res["Content-Type"] = "application/json"
-				res.body = %!{"access_token":"yes","token_type":""}!
-			end
-			Thread.new { server.start }
-			server
 		end
 
 		it "should work with no hook" do
@@ -3065,91 +3037,8 @@ describe PG::Connection do
 			end
 		end
 
-		it "should call prompt oauth device hook" do
-			oauth_server = start_fake_oauth(@port + 3)
-
-			verification_uri, user_code, verification_uri_complete, expires_in = nil, nil, nil, nil
-
-			PG.set_auth_data_hook do |conn_num, data|
-				case data
-				when PG::PromptOAuthDevice
-					verification_uri = data.verification_uri
-					user_code = data.user_code
-					verification_uri_complete = data.verification_uri_complete
-					expires_in = data.expires_in
-					true
-				end
-			end
-
-			begin
-				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
-					conn.exec("SELECT 1")
-				end
-			rescue PG::ConnectionBad => e
-				if e.message =~ /no OAuth flows are available/
-					skip "requires libpq-oauth to be installed"
-				end
-				raise
-			ensure
-				oauth_server.shutdown
-			end
-
-			expect(verification_uri).to eq("http://localhost:#{@port + 3}/verify")
-			expect(user_code).to eq("666")
-			expect(verification_uri_complete).to eq(nil)
-			expect(expires_in).to eq(60)
-		end
-
-		it "should call oauth bearer reuqest hook" do
-			openid_configuration, scope = nil, nil
-
-			PG.set_auth_data_hook do |conn_num, data|
-				case data
-				when PG::OAuthBearerRequest
-					openid_configuration = data.openid_configuration
-					scope = data.scope
-					data.token = "yes"
-					true
-				end
-			end
-
-			PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
-				conn.exec("SELECT 1")
-			end
-
-			expect(openid_configuration).to eq("http://localhost:#{@port + 3}/.well-known/openid-configuration")
-			expect(scope).to eq("test")
-		end
-
-		it "should reset the hook when called without block" do
-			oauth_server = start_fake_oauth(@port + 3)
-
-			PG.set_auth_data_hook do |conn_num, data|
-				raise "broken hook"
-			end
-
-			expect do
-				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") {}
-			end.to raise_error("broken hook")
-
-			PG.set_auth_data_hook
-
-			begin
-				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
-					conn.exec("SELECT 1")
-				end
-			rescue PG::ConnectionBad => e
-				if e.message =~ /no OAuth flows are available/
-					skip "requires libpq-oauth to be installed"
-				end
-				raise
-			ensure
-				oauth_server.shutdown
-			end
-		end
-
 		after :each do
-			PG.set_auth_data_hook
+			# PG.set_auth_data_hook
 			ENV["PGOAUTHDEBUG"] = @old_env
 		end
 	end
