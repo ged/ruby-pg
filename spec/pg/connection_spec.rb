@@ -3010,4 +3010,36 @@ describe PG::Connection do
 				.to raise_error(TypeError)
 		end
 	end
+
+	describe "option set_auth_data_hook", :postgresql_18  do
+		before :all do
+			build_oauth_validator
+		end
+
+		before :each do
+			@old_env, ENV["PGOAUTHDEBUG"] = ENV["PGOAUTHDEBUG"], "UNSAFE"
+		end
+
+		it "should work with no hook" do
+			oauth_server = start_fake_oauth(@port + 3)
+
+			begin
+				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
+					conn.exec("SELECT 1")
+				end
+			rescue PG::ConnectionBad => e
+				if e.message =~ /no OAuth flows are available/
+					skip "requires libpq-oauth to be installed"
+				end
+				raise
+			ensure
+				oauth_server.shutdown
+			end
+		end
+
+		after :each do
+			# PG.set_auth_data_hook
+			ENV["PGOAUTHDEBUG"] = @old_env
+		end
+	end
 end

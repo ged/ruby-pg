@@ -179,11 +179,17 @@ pgconn_gc_mark( void *_this )
 	rb_gc_mark_movable( this->trace_stream );
 	rb_gc_mark_movable( this->encoder_for_put_copy_data );
 	rb_gc_mark_movable( this->decoder_for_get_copy_data );
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	rb_gc_mark_movable( this->auth_data_hook );
+#endif
 }
 
 static void
 pgconn_gc_compact( void *_this )
 {
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	VALUE old_rb_conn;
+#endif
 	t_pg_connection *this = (t_pg_connection *)_this;
 	pg_gc_location( this->socket_io );
 	pg_gc_location( this->notice_receiver );
@@ -193,6 +199,15 @@ pgconn_gc_compact( void *_this )
 	pg_gc_location( this->trace_stream );
 	pg_gc_location( this->encoder_for_put_copy_data );
 	pg_gc_location( this->decoder_for_get_copy_data );
+
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	pg_gc_location( this->auth_data_hook );
+	/* update the PG::Connection object which is maybe stored in pgconn2value */
+	if ( pgconn_lookup(this->pgconn, &old_rb_conn) ) {
+		VALUE new_rb_conn = rb_gc_location(old_rb_conn);
+		pgconn_insert( this->pgconn, new_rb_conn );
+	}
+#endif
 }
 
 
@@ -210,8 +225,14 @@ pgconn_gc_free( void *_this )
 		}
 	}
 #endif
-	if (this->pgconn != NULL)
+	if (this->pgconn != NULL) {
 		PQfinish( this->pgconn );
+
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+		/* Remove from auth hook callback table */
+		pgconn_delete(this->pgconn );
+#endif
+	}
 
 	xfree(this);
 }
@@ -264,6 +285,9 @@ pgconn_s_allocate( VALUE klass )
 	RB_OBJ_WRITE(self, &this->type_map_for_results, pg_typemap_all_strings);
 	RB_OBJ_WRITE(self, &this->encoder_for_put_copy_data, Qnil);
 	RB_OBJ_WRITE(self, &this->decoder_for_get_copy_data, Qnil);
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	RB_OBJ_WRITE(self, &this->auth_data_hook, Qnil);
+#endif
 	RB_OBJ_WRITE(self, &this->trace_stream, Qnil);
 	rb_ivar_set(self, rb_intern("@calls_to_put_copy_data"), INT2FIX(0));
 	rb_ivar_set(self, rb_intern("@iopts_for_reset"), Qnil);
@@ -623,6 +647,45 @@ pgconn_reset_poll(VALUE self)
 	return INT2FIX((int)status);
 }
 
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+
+/*
+ * call-seq:
+ *    conn.auth_data_hook(&block)
+ *
+ * Set a auth data hook.
+ */
+static VALUE
+pgconn_auth_data_hook_set(VALUE self, VALUE proc)
+{
+	t_pg_connection *this = pg_get_connection( self );
+
+	if (rb_obj_is_proc(proc)) {
+		/* set proc */
+		pgconn_insert( this->pgconn, self );
+	} else if (NIL_P(proc)) {
+		/* if nil is given, set back to default */
+		pgconn_delete( this->pgconn );
+	} else {
+		rb_raise(rb_eArgError, "Proc object expected");
+	}
+	RB_OBJ_WRITE(self, &this->auth_data_hook, proc);
+	return proc;
+}
+
+/*
+ * call-seq:
+ *    conn.auth_data_hook()
+ *
+ * Returns the defined auth data hook.
+ */
+static VALUE
+pgconn_auth_data_hook_get(VALUE self)
+{
+	return pg_get_connection(self)->auth_data_hook;
+}
+
+#endif
 
 /*
  * call-seq:
@@ -965,6 +1028,19 @@ pgconn_socket(VALUE self)
 	return INT2NUM(sd);
 }
 
+#ifdef _WIN32
+#define is_socket(fd) rb_w32_is_socket(fd)
+#else
+static int
+is_socket(int fd)
+{
+    struct stat sbuf;
+
+    if (fstat(fd, &sbuf) < 0)
+        rb_sys_fail("fstat(2)");
+    return S_ISSOCK(sbuf.st_mode);
+}
+#endif
 
 VALUE
 pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
@@ -983,7 +1059,7 @@ pg_wrap_socket_io(int sd, VALUE self, VALUE *p_socket_io, int *p_ruby_sd)
 		*p_ruby_sd = ruby_sd = sd;
 	#endif
 
-	cSocket = rb_const_get(rb_cObject, rb_intern("BasicSocket"));
+	cSocket = rb_const_get(rb_cObject, rb_intern(is_socket(ruby_sd) ? "BasicSocket" : "IO"));
 	socket_io = rb_funcall( cSocket, rb_intern("for_fd"), 1, INT2NUM(ruby_sd));
 
 	/* Disable autoclose feature */
@@ -4737,6 +4813,10 @@ init_pg_connection(void)
 	rb_define_private_method(rb_cPGconn, "reset_start2", pgconn_reset_start2, 1);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	rb_define_method(rb_cPGconn, "auth_data_hook=", pgconn_auth_data_hook_set, 1);
+	rb_define_method(rb_cPGconn, "auth_data_hook", pgconn_auth_data_hook_get, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: Connection Status     ******/
 	rb_define_method(rb_cPGconn, "db", pgconn_db, 0);
