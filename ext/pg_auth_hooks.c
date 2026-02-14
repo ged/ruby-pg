@@ -12,9 +12,31 @@
  * We store the pgconn pointers in a register to retrieve the PG::Connection VALUE in the oauth hook.
  */
 struct st_table *pgconn2value;
+rb_nativethread_lock_t pgconn2value_lock;
 
 static VALUE rb_cPromptOAuthDevice;
 static VALUE rb_cOAuthBearerRequest;
+
+int pgconn_lookup(PGconn *pgconn, VALUE *rb_conn){
+	int res;
+	rb_nativethread_lock_lock(&pgconn2value_lock);
+	res = st_lookup(pgconn2value, (st_data_t)pgconn, (st_data_t*)rb_conn);
+	rb_nativethread_lock_unlock(&pgconn2value_lock);
+	return res;
+}
+
+void pgconn_insert(PGconn *pgconn, VALUE rb_conn) {
+	rb_nativethread_lock_lock(&pgconn2value_lock);
+	st_insert( pgconn2value, (st_data_t)pgconn, (st_data_t)rb_conn );
+	rb_nativethread_lock_unlock(&pgconn2value_lock);
+}
+
+void pgconn_delete(PGconn *pgconn) {
+	rb_nativethread_lock_lock(&pgconn2value_lock);
+	st_delete( pgconn2value, (st_data_t*)&pgconn, NULL );
+	rb_nativethread_lock_unlock(&pgconn2value_lock);
+}
+
 
 /*
  * Document-class: PG::PromptOAuthDevice
@@ -312,7 +334,9 @@ pg_oauth_pgconn2value_size_get(VALUE self)
 void
 init_pg_auth_hooks(void)
 {
+
 	pgconn2value = st_init_numtable();
+	rb_nativethread_lock_initialize(&pgconn2value_lock);
 
 	PQsetAuthDataHook(gvl_auth_data_hook_proxy); // TODO: Add some safeguards?
 

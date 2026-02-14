@@ -22,9 +22,6 @@ static VALUE pgconn_wait_for_flush( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
 static const rb_data_type_t pg_connection_type;
 static VALUE pgconn_async_flush(VALUE self);
-#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
-extern struct st_table *pgconn2value;
-#endif
 
 /*
  * Global functions
@@ -206,9 +203,9 @@ pgconn_gc_compact( void *_this )
 #ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
 	pg_gc_location( this->auth_data_hook );
 	/* update the PG::Connection object which is maybe stored in pgconn2value */
-	if ( st_lookup(pgconn2value, (st_data_t)this->pgconn, (st_data_t*)&old_rb_conn) ) {
+	if ( pgconn_lookup(this->pgconn, &old_rb_conn) ) {
 		VALUE new_rb_conn = rb_gc_location(old_rb_conn);
-		st_insert( pgconn2value, (st_data_t)this->pgconn, (st_data_t)new_rb_conn );
+		pgconn_insert( this->pgconn, new_rb_conn );
 	}
 #endif
 }
@@ -233,7 +230,7 @@ pgconn_gc_free( void *_this )
 
 #ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
 		/* Remove from auth hook callback table */
-		st_delete(pgconn2value, (st_data_t *)&this->pgconn, NULL );
+		pgconn_delete(this->pgconn );
 #endif
 	}
 
@@ -665,10 +662,10 @@ pgconn_auth_data_hook_set(VALUE self, VALUE proc)
 
 	if (rb_obj_is_proc(proc)) {
 		/* set proc */
-		st_insert( pgconn2value, (st_data_t)this->pgconn, (st_data_t)self );
+		pgconn_insert( this->pgconn, self );
 	} else if (NIL_P(proc)) {
 		/* if nil is given, set back to default */
-		st_delete( pgconn2value, (st_data_t *)&this->pgconn, NULL );
+		pgconn_delete( this->pgconn );
 	} else {
 		rb_raise(rb_eArgError, "Proc object expected");
 	}

@@ -21,6 +21,7 @@
 #include "ruby.h"
 #include "ruby/st.h"
 #include "ruby/encoding.h"
+#include "ruby/thread_native.h"
 
 #define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
@@ -381,6 +382,9 @@ rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 
 #ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
 int auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data);
+int pgconn_lookup(PGconn *pgconn, VALUE *rb_conn);
+void pgconn_insert(PGconn *pgconn, VALUE rb_conn);
+void pgconn_delete(PGconn *pgconn);
 #endif
 void notice_receiver_proxy(void *arg, const PGresult *result);
 void notice_processor_proxy(void *arg, const char *message);

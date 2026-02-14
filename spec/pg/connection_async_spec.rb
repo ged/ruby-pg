@@ -256,7 +256,6 @@ describe PG::Connection do
 			hook = proc do |conn, data|
 				case data
 				when PG::OAuthBearerRequest
-					conn1 = conn
 					openid_configuration = data.openid_configuration
 					scope = data.scope
 					data.token = "yes"
@@ -275,6 +274,31 @@ describe PG::Connection do
 
 			# Number of GC'ed objects
 			expect(before + 20 - after).to be_between(1, 50)
+		end
+
+		it "should be usable with Ractor", :ractor do
+			ractors = 20.times.map do |idx1|
+				Ractor.new(@conninfo, @port, idx1) do |conninfo, port, idx2|
+					hook = proc do |conn, data|
+						case data
+						when PG::OAuthBearerRequest
+							openid_configuration = data.openid_configuration
+							scope = data.scope
+							data.token = "yes"
+							true
+						end
+					end
+
+					conn = PG.connect(host: "localhost", port: port, dbname: "test", user: "testuseroauth", oauth_issuer: "http://localhost:#{port + 3}", oauth_client_id: "foo", set_auth_data_hook: hook)
+					conn.exec("SELECT #{idx2}").values
+				ensure
+					conn&.finish
+				end
+			end
+
+			vals = ractors.map(&:value)
+
+			expect( vals ).to eq( 20.times.map { |i| [[i.to_s]] } )
 		end
 
 		# TODO: Is resetting the global hook still useful, when the hook is per connection?
