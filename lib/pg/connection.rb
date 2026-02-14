@@ -943,11 +943,11 @@ class PG::Connection
 			end
 			conn = self.connect_start(iopts) or
 										raise(PG::Error, "Unable to create a new connection")
-			if set_auth_data_hook
-				@@auth_mutex.synchronize do
-					@@pgconn_map[conn.send(:pgconn_address)] = conn
-				end
-				conn.instance_variable_set(:@auth_data_hook, set_auth_data_hook)
+
+			if conn.respond_to?(:auth_data_hook)
+				conn.auth_data_hook = set_auth_data_hook
+			elsif set_auth_data_hook
+				raise ArgumentError, "invalid option set_auth_data_hook"
 			end
 
 			raise PG::ConnectionBad, conn.error_message if conn.status == PG::CONNECTION_BAD
@@ -1092,24 +1092,6 @@ class PG::Connection
 			REDIRECT_CLASS_METHODS.each do |ali, (async, sync)|
 				singleton_class.remove_method(ali) if method_defined?(ali)
 				singleton_class.alias_method(ali, enable ? async : sync )
-			end
-		end
-	end
-
-	if PG.respond_to?(:set_auth_data_hook)
-		def call_auth_data_hook(data)
-			@auth_data_hook.call(self, data)
-		end
-
-		@@auth_mutex = Mutex.new
-		@@pgconn_map = ObjectSpace::WeakMap.new
-
-		PG.set_auth_data_hook do |conn_num, data|
-			@@auth_mutex.synchronize do
-				conn = @@pgconn_map[conn_num]
-				if conn
-					conn.call_auth_data_hook(data)
-				end
 			end
 		end
 	end

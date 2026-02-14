@@ -8,49 +8,10 @@
 
 #ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
 
-#ifdef TRUFFLERUBY
-static VALUE auth_data_hook;
-#else
 /*
- * On Ruby verisons which support Ractors we store the global callback once
- * per Ractor.
+ * We store the pgconn pointers in a register to retrieve the PG::Connection VALUE in the oauth hook.
  */
-#include "ruby/ractor.h"
-static rb_ractor_local_key_t auth_data_hook_key;
-#endif
-
-static void
-auth_data_hook_init(void)
-{
-#ifdef TRUFFLERUBY
-	auth_data_hook = Qnil;
-	rb_gc_register_address(&auth_data_hook);
-#else
-	auth_data_hook_key = rb_ractor_local_storage_value_newkey();
-#endif
-}
-
-static VALUE
-auth_data_hook_get(void)
-{
-#ifdef TRUFFLERUBY
-	return auth_data_hook;
-#else
-	VALUE hook = Qnil;
-	rb_ractor_local_storage_value_lookup(auth_data_hook_key, &hook);
-	return hook;
-#endif
-}
-
-static void
-auth_data_hook_set(VALUE hook)
-{
-#ifdef TRUFFLERUBY
-	auth_data_hook = hook;
-#else
-	rb_ractor_local_storage_value_set(auth_data_hook_key, hook);
-#endif
-}
+struct st_table *pgconn2value;
 
 static VALUE rb_cPromptOAuthDevice;
 static VALUE rb_cOAuthBearerRequest;
@@ -298,16 +259,20 @@ oauth_bearer_request_hook_cleanup(VALUE self, VALUE ex)
  * currently-registered Ruby auth_data_hook object.
  */
 int
-auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data)
+auth_data_hook_proxy(PGauthData type, PGconn *pgconn, void *data)
 {
-	VALUE proc = auth_data_hook_get(), ret = Qnil;
+	VALUE rb_conn = Qnil;
+	VALUE ret = Qnil;
 
-	if (proc != Qnil) {
+	if ( st_lookup(pgconn2value, (st_data_t)pgconn, (st_data_t*)&rb_conn) ) {
+		t_pg_connection *this = pg_get_connection( rb_conn );
+		VALUE proc = this->auth_data_hook;
+
 		if (type == PQAUTHDATA_PROMPT_OAUTH_DEVICE) {
 			t_pg_prompt_oauth_device *prompt;
 
 			VALUE v_prompt = TypedData_Make_Struct(rb_cPromptOAuthDevice, t_pg_prompt_oauth_device, &pg_prompt_oauth_device_type, prompt);
-			VALUE args[] = { proc, PTR2NUM(conn), v_prompt };
+			VALUE args[] = { proc, rb_conn, v_prompt };
 
 			prompt->prompt = data;
 
@@ -318,7 +283,7 @@ auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data)
 			t_pg_oauth_bearer_request *request;
 
 			VALUE v_request = TypedData_Make_Struct(rb_cOAuthBearerRequest, t_pg_oauth_bearer_request, &pg_oauth_bearer_request_type, request);
-			VALUE args[] = { proc, PTR2NUM(conn), v_request };
+			VALUE args[] = { proc, rb_conn, v_request };
 
 			request->request = data;
 			request->request->cleanup = oauth_bearer_request_cleanup;
@@ -329,44 +294,30 @@ auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data)
 		}
 	}
 
+  /* TODO: a hook can return 1, 0 or -1 */
 	return RTEST(ret);
 }
 
 /*
- * Document-method: PG.set_auth_data_hook
- *
  * call-seq:
- *   PG.set_auth_data_hook {|data| ... } -> Proc
- *
- * If you pass no arguments, it will reset the handler to the default.
+ *    PG.pgconn2value_size -> Integer
  */
 static VALUE
-pg_s_set_auth_data_hook(VALUE _self)
+pg_oauth_pgconn2value_size_get(VALUE self)
 {
-	PQsetAuthDataHook(gvl_auth_data_hook_proxy); // TODO: Add some safeguards?
-
-	VALUE old_proc = auth_data_hook_get(), proc;
-
-	if (rb_block_given_p()) {
-		proc = rb_block_proc();
-	} else {
-		/* if no block is given, set back to default */
-		proc = Qnil;
-	}
-
-	auth_data_hook_set(proc);
-
-	return old_proc;
+	return SIZET2NUM(rb_st_table_size(pgconn2value));
 }
+
 
 void
 init_pg_auth_hooks(void)
 {
-	auth_data_hook_init();
+	pgconn2value = st_init_numtable();
+
+	PQsetAuthDataHook(gvl_auth_data_hook_proxy); // TODO: Add some safeguards?
 
 	/* rb_mPG = rb_define_module("PG") */
-
-	rb_define_singleton_method(rb_mPG, "set_auth_data_hook", pg_s_set_auth_data_hook, 0);
+	rb_define_private_method(rb_singleton_class(rb_mPG), "pgconn2value_size", pg_oauth_pgconn2value_size_get, 0);
 
 	rb_cPromptOAuthDevice = rb_define_class_under(rb_mPG, "PromptOAuthDevice", rb_cObject);
 	rb_undef_alloc_func(rb_cPromptOAuthDevice);

@@ -22,6 +22,9 @@ static VALUE pgconn_wait_for_flush( VALUE self );
 static void pgconn_set_internal_encoding_index( VALUE );
 static const rb_data_type_t pg_connection_type;
 static VALUE pgconn_async_flush(VALUE self);
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+extern struct st_table *pgconn2value;
+#endif
 
 /*
  * Global functions
@@ -179,11 +182,17 @@ pgconn_gc_mark( void *_this )
 	rb_gc_mark_movable( this->trace_stream );
 	rb_gc_mark_movable( this->encoder_for_put_copy_data );
 	rb_gc_mark_movable( this->decoder_for_get_copy_data );
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	rb_gc_mark_movable( this->auth_data_hook );
+#endif
 }
 
 static void
 pgconn_gc_compact( void *_this )
 {
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	VALUE old_rb_conn;
+#endif
 	t_pg_connection *this = (t_pg_connection *)_this;
 	pg_gc_location( this->socket_io );
 	pg_gc_location( this->notice_receiver );
@@ -193,6 +202,15 @@ pgconn_gc_compact( void *_this )
 	pg_gc_location( this->trace_stream );
 	pg_gc_location( this->encoder_for_put_copy_data );
 	pg_gc_location( this->decoder_for_get_copy_data );
+
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	pg_gc_location( this->auth_data_hook );
+	/* update the PG::Connection object which is maybe stored in pgconn2value */
+	if ( st_lookup(pgconn2value, (st_data_t)this->pgconn, (st_data_t*)&old_rb_conn) ) {
+		VALUE new_rb_conn = rb_gc_location(old_rb_conn);
+		st_insert( pgconn2value, (st_data_t)this->pgconn, (st_data_t)new_rb_conn );
+	}
+#endif
 }
 
 
@@ -210,8 +228,14 @@ pgconn_gc_free( void *_this )
 		}
 	}
 #endif
-	if (this->pgconn != NULL)
+	if (this->pgconn != NULL) {
 		PQfinish( this->pgconn );
+
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+		/* Remove from auth hook callback table */
+		st_delete(pgconn2value, (st_data_t *)&this->pgconn, NULL );
+#endif
+	}
 
 	xfree(this);
 }
@@ -264,6 +288,9 @@ pgconn_s_allocate( VALUE klass )
 	RB_OBJ_WRITE(self, &this->type_map_for_results, pg_typemap_all_strings);
 	RB_OBJ_WRITE(self, &this->encoder_for_put_copy_data, Qnil);
 	RB_OBJ_WRITE(self, &this->decoder_for_get_copy_data, Qnil);
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	RB_OBJ_WRITE(self, &this->auth_data_hook, Qnil);
+#endif
 	RB_OBJ_WRITE(self, &this->trace_stream, Qnil);
 	rb_ivar_set(self, rb_intern("@calls_to_put_copy_data"), INT2FIX(0));
 	rb_ivar_set(self, rb_intern("@iopts_for_reset"), Qnil);
@@ -623,22 +650,45 @@ pgconn_reset_poll(VALUE self)
 	return INT2FIX((int)status);
 }
 
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+
 /*
  * call-seq:
- *    conn.pgconn_address()
+ *    conn.auth_data_hook(&block)
  *
- * Returns the PGconn address.
- *
- * It can be used to compare with the address received by the OAuth hook:
- *
- *   PG.set_auth_data_hook do |pgconn_address, data|
+ * Set a auth data hook.
  */
 static VALUE
-pgconn_pgconn_address(VALUE self)
+pgconn_auth_data_hook_set(VALUE self, VALUE proc)
 {
-	return PTR2NUM(pg_get_pgconn(self));
+	t_pg_connection *this = pg_get_connection( self );
+
+	if (rb_obj_is_proc(proc)) {
+		/* set proc */
+		st_insert( pgconn2value, (st_data_t)this->pgconn, (st_data_t)self );
+	} else if (NIL_P(proc)) {
+		/* if nil is given, set back to default */
+		st_delete( pgconn2value, (st_data_t *)&this->pgconn, NULL );
+	} else {
+		rb_raise(rb_eArgError, "Proc object expected");
+	}
+	RB_OBJ_WRITE(self, &this->auth_data_hook, proc);
+	return proc;
 }
 
+/*
+ * call-seq:
+ *    conn.auth_data_hook()
+ *
+ * Returns the defined auth data hook.
+ */
+static VALUE
+pgconn_auth_data_hook_get(VALUE self)
+{
+	return pg_get_connection(self)->auth_data_hook;
+}
+
+#endif
 
 /*
  * call-seq:
@@ -4766,7 +4816,10 @@ init_pg_connection(void)
 	rb_define_private_method(rb_cPGconn, "reset_start2", pgconn_reset_start2, 1);
 	rb_define_method(rb_cPGconn, "reset_poll", pgconn_reset_poll, 0);
 	rb_define_alias(rb_cPGconn, "close", "finish");
-	rb_define_private_method(rb_cPGconn, "pgconn_address", pgconn_pgconn_address, 0);
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	rb_define_method(rb_cPGconn, "auth_data_hook=", pgconn_auth_data_hook_set, 1);
+	rb_define_method(rb_cPGconn, "auth_data_hook", pgconn_auth_data_hook_get, 0);
+#endif
 
 	/******     PG::Connection INSTANCE METHODS: Connection Status     ******/
 	rb_define_method(rb_cPGconn, "db", pgconn_db, 0);

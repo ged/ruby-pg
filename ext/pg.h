@@ -113,6 +113,10 @@ typedef struct {
 	VALUE encoder_for_put_copy_data;
 	/* Kind of PG::Coder object for casting COPY rows to ruby values */
 	VALUE decoder_for_get_copy_data;
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	/* Callback for retrieval of OAuth token */
+	VALUE auth_data_hook;
+#endif
 	/* Ruby encoding index of the client/internal encoding */
 	int enc_idx : PG_ENC_IDX_BITS;
 	/* flags controlling Symbol/String field names */
