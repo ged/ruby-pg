@@ -253,6 +253,8 @@ describe PG::Connection do
 		end
 
 		it "should garbage collect PG::Connection after use" do
+			skip "Truffleruby's garbage collector works differently" if RUBY_ENGINE=="truffleruby"
+
 			hook = proc do |conn, data|
 				case data
 				when PG::OAuthBearerRequest
@@ -264,16 +266,17 @@ describe PG::Connection do
 				end
 			end
 
-			10.times do
+			before = PG.send(:pgconn2value_size)
+			20.times do
 				conn = PG.connect(host: "localhost", port: @port, dbname: "test", user: "testuseroauth", oauth_issuer: "http://localhost:#{@port + 3}", oauth_client_id: "foo", set_auth_data_hook: hook)
 				conn.exec("SELECT 1")
 			end
 
-			before = PG::Connection.class_variable_get(:@@pgconn_map).keys.size
 			GC.start
-			after = PG::Connection.class_variable_get(:@@pgconn_map).keys.size
+			after = PG.send(:pgconn2value_size)
 
-			expect(before - after).to be_between(2, 20)
+			# Number of GC'ed objects
+			expect(before + 20 - after).to be_between(1, 50)
 		end
 
 		# TODO: Is resetting the global hook still useful, when the hook is per connection?
