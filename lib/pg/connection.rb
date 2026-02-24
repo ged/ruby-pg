@@ -58,11 +58,15 @@ class PG::Connection
 	# * URI string
 	# * URI object
 	# * positional arguments
+  #
+  # If an option Hash is used, :password can be a Proc or lambda that returns a
+  # string, so as to support dynamic passwords.
 	#
 	# The method adds the option "fallback_application_name" if it isn't already set.
 	# It returns a connection string with "key=value" pairs.
 	def self.parse_connect_args( *args )
 		hash_arg = args.last.is_a?( Hash ) ? args.pop.transform_keys(&:to_sym) : {}
+		hash_arg[:password] = hash_arg[:password].call if hash_arg[:password].respond_to?(:call)
 		iopts = {}
 
 		if args.length == 1
