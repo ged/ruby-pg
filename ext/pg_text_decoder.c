@@ -942,8 +942,8 @@ static VALUE
 init_pg_text_decoder_inet(VALUE rb_mPG_TextDecoder)
 {
 	rb_require("ipaddr");
+	rb_gc_register_address(&s_IPAddr);
 	s_IPAddr = rb_funcall(rb_cObject, rb_intern("const_get"), 1, rb_str_new2("IPAddr"));
-	rb_global_variable(&s_IPAddr);
 	s_ivar_family = rb_intern("@family");
 	s_ivar_addr = rb_intern("@addr");
 	s_ivar_mask_addr = rb_intern("@mask_addr");
@@ -953,10 +953,10 @@ init_pg_text_decoder_inet(VALUE rb_mPG_TextDecoder)
 
 	use_ipaddr_alloc = RTEST(rb_eval_string("IPAddr.new.instance_variables.sort == [:@addr, :@family, :@mask_addr]"));
 
+	rb_gc_register_address(&s_vmasks4);
+	rb_gc_register_address(&s_vmasks6);
 	s_vmasks4 = rb_eval_string("a = [0]*33; a[0] = 0; a[32] = 0xffffffff; 31.downto(1){|i| a[i] = a[i+1] - (1 << (31 - i))}; a.freeze");
-	rb_global_variable(&s_vmasks4);
 	s_vmasks6 = rb_eval_string("a = [0]*129; a[0] = 0; a[128] = 0xffffffffffffffffffffffffffffffff; 127.downto(1){|i| a[i] = a[i+1] - (1 << (127 - i))}; a.freeze");
-	rb_global_variable(&s_vmasks6);
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Inet", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Inet", pg_text_dec_inet, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder);
@@ -973,12 +973,12 @@ init_pg_text_decoder(void)
 	s_id_utc = rb_intern("utc");
 	s_id_getlocal = rb_intern("getlocal");
 
+	rb_gc_register_address(&s_nan);
+	rb_gc_register_address(&s_pos_inf);
+	rb_gc_register_address(&s_neg_inf);
 	s_nan = rb_eval_string("0.0/0.0");
-	rb_global_variable(&s_nan);
 	s_pos_inf = rb_eval_string("1.0/0.0");
-	rb_global_variable(&s_pos_inf);
 	s_neg_inf = rb_eval_string("-1.0/0.0");
-	rb_global_variable(&s_neg_inf);
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );

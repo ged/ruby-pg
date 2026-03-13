@@ -381,8 +381,8 @@ pg_text_enc_numeric(t_pg_coder *this, VALUE value, char *out, VALUE *intermediat
 static VALUE
 init_pg_text_encoder_numeric(VALUE rb_mPG_TextDecoder)
 {
+	rb_gc_register_address(&s_str_F);
 	s_str_F = rb_str_freeze(rb_str_new_cstr("F"));
-	rb_global_variable(&s_str_F);
 	rb_funcall(rb_mPG, rb_intern("require_bigdecimal_without_warning"), 0);
 	s_cBigDecimal = rb_const_get(rb_cObject, rb_intern("BigDecimal"));
 
