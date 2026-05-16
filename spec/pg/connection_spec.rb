@@ -1089,7 +1089,7 @@ describe PG::Connection do
 							conn.exec("INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')")
 							q << 1
 							# emulate some load that keeps the transaction open
-							conn.exec("select pg_sleep(2)")
+							sleep 2
 						end
 					ensure
 						conn&.close
