@@ -311,17 +311,25 @@ class PG::Connection
 		yield(self)
 	rescue PG::RollbackTransaction
 		rollback = true
-		cancel if transaction_status == PG::PQTRANS_ACTIVE
-		block
-		exec "ROLLBACK"
+		perform_rollback
 	rescue Exception
 		rollback = true
-		cancel if transaction_status == PG::PQTRANS_ACTIVE
-		block
-		exec "ROLLBACK"
+		perform_rollback
 		raise
 	ensure
-		exec "COMMIT" unless rollback
+		unless rollback
+			if Thread.current.status == "aborting"
+				perform_rollback
+			else
+				exec("COMMIT")
+			end
+		end
+	end
+
+	private def perform_rollback
+		cancel if transaction_status == PG::PQTRANS_ACTIVE
+		block
+		exec("ROLLBACK")
 	end
 
 	### Returns an array of Hashes with connection defaults. See ::conndefaults
