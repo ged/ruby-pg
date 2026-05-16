@@ -306,22 +306,19 @@ class PG::Connection
 	# and a +COMMIT+ at the end of the block, or
 	# +ROLLBACK+ if any exception occurs.
 	def transaction
-		rollback = false
 		exec "BEGIN"
 		yield(self)
-	rescue PG::RollbackTransaction
-		rollback = true
-		cancel if transaction_status == PG::PQTRANS_ACTIVE
-		block
-		exec "ROLLBACK"
-	rescue Exception
-		rollback = true
-		cancel if transaction_status == PG::PQTRANS_ACTIVE
-		block
-		exec "ROLLBACK"
+	rescue PG::RollbackTransaction => error
+	rescue Exception => error
 		raise
 	ensure
-		exec "COMMIT" unless rollback
+		if error || Thread.current.status == "aborting"
+			cancel if transaction_status == PG::PQTRANS_ACTIVE
+			block
+			exec("ROLLBACK")
+		else
+			exec("COMMIT")
+		end
 	end
 
 	### Returns an array of Hashes with connection defaults. See ::conndefaults

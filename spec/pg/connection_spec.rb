@@ -1073,6 +1073,41 @@ describe PG::Connection do
 			end
 			expect( res ).to eq( "transaction result" )
 		end
+
+		context "when current thread gets halted in the middle of the running transaction" do
+
+			it "rollbacks the transaction" do
+				# abort the per-example transaction so we can test our own
+				@conn.exec('ROLLBACK')
+				@conn.exec("CREATE TABLE pie ( flavor TEXT )")
+
+				begin
+					q = Thread::Queue.new
+					thread = Thread.new do
+						conn = $pg_server.connect
+						conn.transaction do
+							conn.exec("INSERT INTO pie VALUES ('rhubarb'), ('cherry'), ('schizophrenia')")
+							q << 1
+							# emulate some load that keeps the transaction open
+							sleep 2
+						end
+					ensure
+						conn&.close
+					end
+					# Wait for the thread to reach the testing point
+					q.pop
+					# Terminate the thread ungracefully and wait it to die
+					thread.exit
+					thread.join
+
+					res = @conn.exec("SELECT * FROM pie")
+					expect(res.ntuples).to eq(0)
+				ensure
+					thread.exit
+					@conn.exec("DROP TABLE pie")
+				end
+			end
+		end
 	end
 
 	describe "large objects" do
