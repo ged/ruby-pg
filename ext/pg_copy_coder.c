@@ -219,7 +219,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 	t_pg_coder_enc_func enc_func;
-	static t_pg_coder *p_elem_coder;
+	t_pg_coder *p_elem_coder;
 	int i;
 	t_typemap *p_typemap;
 	char *current_out;
@@ -387,7 +387,7 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 		VALUE subint;
 		VALUE entry;
 		t_pg_coder_enc_func enc_func;
-		static t_pg_coder *p_elem_coder;
+		t_pg_coder *p_elem_coder;
 
 		entry = rb_ary_entry(value, i);
 
