@@ -568,13 +568,16 @@ static VALUE
 pgconn_reset_start2( VALUE self, VALUE conninfo )
 {
 	t_pg_connection *this = pg_get_connection( self );
+	/* Ensure conninfo is a valid C string before closing the connection. */
+	char *p_conninfo = StringValueCStr(conninfo);
 
 	/* Close old connection */
 	pgconn_close_socket_io( self );
 	PQfinish( this->pgconn );
+	this->pgconn = NULL; /* Ensure no double free can happen. */
 
 	/* Start new connection */
-	this->pgconn = gvl_PQconnectStart( StringValueCStr(conninfo) );
+	this->pgconn = gvl_PQconnectStart( p_conninfo );
 
 	if( this->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate PGconn structure");

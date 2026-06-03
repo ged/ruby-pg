@@ -1871,6 +1871,11 @@ describe PG::Connection do
 		end.to raise_error(PG::Error)
 	end
 
+	it "reset with invalid conninfo doesn't close the connection" do
+		expect{ @conn.send(:reset_start2, "\0") }.to raise_error(ArgumentError)
+		expect( @conn.exec("SELECT 1").values ).to eq([["1"]])
+	end
+
 
 	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction do
 		conn = PG.connect( @conninfo )
