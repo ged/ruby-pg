@@ -1281,7 +1281,7 @@ alloc_query_params(struct query_params_data *paramsData)
 	int nParams;
 	int i=0;
 	t_pg_coder *conv;
-	unsigned int required_pool_size;
+	size_t required_pool_size;
 	char *memory_pool;
 
 	Check_Type(paramsData->params, T_ARRAY);

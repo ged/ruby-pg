@@ -2855,6 +2855,25 @@ describe PG::Connection do
 				end
 			end
 
+			it "should encode big strings with typecasting without overflow" do
+				big_count = 100
+				step = 42_949_673
+				big_len = (step - 3) / 2
+				wrap = (big_count * step) & 0xffff_ffff
+
+				big = 'A'.b * big_len
+				params = Array.new(big_count, big)
+
+				tm = PG::TypeMapByClass.new
+				tm[String] = PG::TextEncoder::Bytea.new.freeze
+
+				sql = big_count.times.map{|n| "$#{n+1}" }.join(",")
+				@conn.exec_params('select '+sql, params, 0, tm)
+			rescue PG::UnableToSend
+				# ignore "PQsendQueryParams cannot allocate memory for output buffer"
+			end
+
+
 			it "can process #copy_data input queries with row encoder and respects character encoding" do
 				@conn2.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )
 				@conn2.copy_data( "COPY copytable FROM STDOUT" ) do |res|
