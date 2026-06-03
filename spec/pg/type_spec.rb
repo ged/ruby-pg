@@ -1369,6 +1369,16 @@ describe "PG::Type derivations" do
 					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
 					expect( v ).to eq( "Héllo\n".encode(Encoding::ISO_8859_1) )
 				end
+
+				it "should encode big strings without crash" do
+					skip if RUBY_ENGINE=="truffleruby"
+					n = 1 << 30
+					small = "A" * 100
+					large = "\n".b * n
+					encoder.encode([small, large])
+				rescue ArgumentError
+					# ignore "negative expanding string size" error
+				end
 			end
 
 			context "with TypeMapByClass" do
@@ -1438,6 +1448,16 @@ describe "PG::Type derivations" do
 					v = encoder.encode(["Héllo"], "iso-8859-1")
 					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
 					expect( v.b ).to eq( "\x00\x01\x00\x00\x00\x05H\xE9llo".b )
+				end
+
+				it "should encode big strings without crash" do
+					skip if RUBY_ENGINE=="truffleruby"
+					n = 2_147_483_644
+					wrapped = ((n + 4 + (1 << 31)) % (1 << 32)) - (1 << 31)
+					s = "A".b * n
+					encoder.encode([s])
+				rescue ArgumentError
+					# ignore "negative expanding string size" error
 				end
 			end
 

@@ -212,10 +212,10 @@ pg_get_rb_encoding_as_pg_encoding( rb_encoding *enc )
  *
  */
 char *
-pg_rb_str_ensure_capa( VALUE str, long expand_len, char *curr_ptr, char **end_ptr )
+pg_rb_str_ensure_capa( VALUE str, size_t expand_len, char *curr_ptr, char **end_ptr )
 {
-	long curr_len = curr_ptr - RSTRING_PTR(str);
-	long curr_capa = rb_str_capacity( str );
+	size_t curr_len = curr_ptr - RSTRING_PTR(str);
+	size_t curr_capa = rb_str_capacity( str );
 	if( curr_capa < curr_len + expand_len ){
 		rb_str_set_len( str, curr_len );
 		rb_str_modify_expand( str, (curr_len + expand_len) * 2 - curr_capa );
