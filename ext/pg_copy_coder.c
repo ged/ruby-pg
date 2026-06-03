@@ -370,6 +370,10 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 	char *current_out;
 	char *end_capa_ptr;
 
+	if( RARRAY_LEN(value) >= 32768 ){
+		rb_raise( rb_eArgError, "too many columns in array for PG::BinaryEncoder::CopyRow: %ld", RARRAY_LEN(value) );
+	}
+
 	p_typemap = RTYPEDDATA_DATA( this->typemap );
 	p_typemap->funcs.fit_to_query( this->typemap, value );
 

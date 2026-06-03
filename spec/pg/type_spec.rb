@@ -1434,6 +1434,10 @@ describe "PG::Type derivations" do
 						to eq("\x00\x02\x00\x00\x00\x01x\x00\x00\x00\x02yz")
 				end
 
+				it "should'nt encode too big array" do
+					expect{ encoder.encode(["x"]*32768) }.to raise_error(ArgumentError, /too many columns/)
+				end
+
 				it 'should output a string with correct character encoding' do
 					v = encoder.encode(["Héllo"], "iso-8859-1")
 					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
