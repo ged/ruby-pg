@@ -1368,11 +1368,11 @@ alloc_query_params(struct query_params_data *paramsData)
 					if( paramsData->formats[i] == 0 )
 						StringValueCStr(intermediate);
 					/* In case a new string object was generated, make sure it doesn't get freed by the GC */
-					if( intermediate != param_value ){
+					// if( intermediate != param_value ){
 						if( NIL_P(paramsData->gc_array) )
 							paramsData->gc_array = rb_ary_new();
 						rb_ary_push(paramsData->gc_array, intermediate);
-					}
+					// }
 					paramsData->values[i] = RSTRING_PTR(intermediate);
 					paramsData->lengths[i] = RSTRING_LENINT(intermediate);
 
@@ -1440,6 +1440,7 @@ pgconn_sync_exec_params( int argc, VALUE *argv, VALUE self )
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE command, in_res_fmt;
+	VALUE gc_array;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -1460,10 +1461,12 @@ pgconn_sync_exec_params( int argc, VALUE *argv, VALUE self )
 
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
+	gc_array = paramsData.gc_array;
 
 	result = gvl_PQexecParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
+	RB_GC_GUARD(gc_array);
 	free_query_params( &paramsData );
 
 	rb_pgresult = pg_new_result(result, self);
