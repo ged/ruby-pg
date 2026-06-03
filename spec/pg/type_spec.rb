@@ -392,6 +392,15 @@ describe "PG::Type derivations" do
 				expect( textenc_bytea.encode("\x00\x01\x02\x03\xef".b) ).to eq( "\\x00010203ef" )
 			end
 
+			it "should raise too large string to bytea" do
+				n = 1_073_741_822
+				data = "A".b * n
+				enc = PG::TextEncoder::ToBase64.new(
+					elements_type: PG::TextEncoder::Bytea.new
+				)
+				expect{ enc.encode(data) }.to raise_error(ArgumentError, /too large input string/)
+			end
+
 			context 'text timestamps' do
 				it 'encodes timestamps without timezone' do
 					expect( textenc_timestamp.encode(Time.new(2016,1,2, 23, 23, 59.123456, 3*60*60)) ).

@@ -430,9 +430,14 @@ pg_text_enc_bytea(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		}
 		return (int)(optr - out);
 	}else{
+		long size;
 		*intermediate = rb_obj_as_string(value);
+		size = RSTRING_LEN(*intermediate);
+
 		/* The output starts with "\x" and each character is converted to hex. */
-		return 2 + RSTRING_LENINT(*intermediate) * 2;
+		if( size > INT_MAX / 2 - 2 )
+			rb_raise( rb_eArgError, "too large input string for PG::TextEncoder::Bytea: %ld", size );
+		return 2 + size * 2;
 	}
 }
 
