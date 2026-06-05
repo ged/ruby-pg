@@ -153,13 +153,13 @@ pgconn_make_conninfo_array( const PQconninfoOption *options )
 	return ary;
 }
 
-static const char *pg_cstr_enc(VALUE str, int enc_idx){
+static const char *pg_cstr_enc(VALUE str, int enc_idx, VALUE *transcoded_str){
 	const char *ptr = StringValueCStr(str);
 	if( ENCODING_GET(str) == enc_idx ){
 		return ptr;
 	} else {
-		str = rb_str_export_to_enc(str, rb_enc_from_index(enc_idx));
-		return StringValueCStr(str);
+		*transcoded_str = rb_str_export_to_enc(str, rb_enc_from_index(enc_idx));
+		return StringValueCStr(*transcoded_str);
 	}
 }
 
@@ -568,13 +568,16 @@ static VALUE
 pgconn_reset_start2( VALUE self, VALUE conninfo )
 {
 	t_pg_connection *this = pg_get_connection( self );
+	/* Ensure conninfo is a valid C string before closing the connection. */
+	char *p_conninfo = StringValueCStr(conninfo);
 
 	/* Close old connection */
 	pgconn_close_socket_io( self );
 	PQfinish( this->pgconn );
+	this->pgconn = NULL; /* Ensure no double free can happen. */
 
 	/* Start new connection */
-	this->pgconn = gvl_PQconnectStart( StringValueCStr(conninfo) );
+	this->pgconn = gvl_PQconnectStart( p_conninfo );
 
 	if( this->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate PGconn structure");
@@ -1142,8 +1145,10 @@ pgconn_sync_exec(int argc, VALUE *argv, VALUE self)
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
 		VALUE query_str = argv[0];
+		VALUE transcoded_str;
 
-		result = gvl_PQexec(this->pgconn, pg_cstr_enc(query_str, this->enc_idx));
+		result = gvl_PQexec(this->pgconn, pg_cstr_enc(query_str, this->enc_idx, &transcoded_str));
+		RB_GC_GUARD(transcoded_str);
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
 		if (rb_block_given_p()) {
@@ -1281,7 +1286,7 @@ alloc_query_params(struct query_params_data *paramsData)
 	int nParams;
 	int i=0;
 	t_pg_coder *conv;
-	unsigned int required_pool_size;
+	size_t required_pool_size;
 	char *memory_pool;
 
 	Check_Type(paramsData->params, T_ARRAY);
@@ -1440,6 +1445,7 @@ pgconn_sync_exec_params( int argc, VALUE *argv, VALUE self )
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE command, in_res_fmt;
+	VALUE transcoded_str;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -1461,9 +1467,10 @@ pgconn_sync_exec_params( int argc, VALUE *argv, VALUE self )
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQexecParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
+	result = gvl_PQexecParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx, &transcoded_str), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
+	RB_GC_GUARD(transcoded_str);
 	free_query_params( &paramsData );
 
 	rb_pgresult = pg_new_result(result, self);
@@ -1492,6 +1499,7 @@ pgconn_sync_prepare(int argc, VALUE *argv, VALUE self)
 	VALUE rb_pgresult;
 	VALUE name, command, in_paramtypes;
 	VALUE param;
+	VALUE transcoded_str1, transcoded_str2;
 	int i = 0;
 	int nParams = 0;
 	Oid *paramTypes = NULL;
@@ -1500,8 +1508,8 @@ pgconn_sync_prepare(int argc, VALUE *argv, VALUE self)
 	int enc_idx = this->enc_idx;
 
 	rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
-	name_cstr = pg_cstr_enc(name, enc_idx);
-	command_cstr = pg_cstr_enc(command, enc_idx);
+	name_cstr = pg_cstr_enc(name, enc_idx, &transcoded_str1);
+	command_cstr = pg_cstr_enc(command, enc_idx, &transcoded_str2);
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
@@ -1517,6 +1525,8 @@ pgconn_sync_prepare(int argc, VALUE *argv, VALUE self)
 	}
 	result = gvl_PQprepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
 
+	RB_GC_GUARD(transcoded_str1);
+	RB_GC_GUARD(transcoded_str2);
 	xfree(paramTypes);
 
 	rb_pgresult = pg_new_result(result, self);
@@ -1540,6 +1550,7 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 	PGresult *result = NULL;
 	VALUE rb_pgresult;
 	VALUE name, in_res_fmt;
+	VALUE transcoded_str;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -1555,10 +1566,11 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQexecPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx), nParams,
+	result = gvl_PQexecPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx, &transcoded_str), nParams,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
+	RB_GC_GUARD(transcoded_str);
 	free_query_params( &paramsData );
 
 	rb_pgresult = pg_new_result(result, self);
@@ -1575,9 +1587,13 @@ pgconn_sync_describe_close_prepared_portal(VALUE self, VALUE name, PGresult *(*f
 {
 	PGresult *result;
 	VALUE rb_pgresult;
+	VALUE transcoded_str;
 	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx);
+	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx, &transcoded_str);
+
 	result = func(this->pgconn, stmt);
+
+	RB_GC_GUARD(transcoded_str);
 	rb_pgresult = pg_new_result(result, self);
 	pg_result_check(rb_pgresult);
 	return rb_pgresult;
@@ -1974,13 +1990,15 @@ static VALUE pgconn_send_query_params(int argc, VALUE *argv, VALUE self);
 static VALUE
 pgconn_send_query(int argc, VALUE *argv, VALUE self)
 {
+	VALUE transcoded_str;
 	t_pg_connection *this = pg_get_connection_safe( self );
 
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
-		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx)) == 0)
+		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx, &transcoded_str)) == 0)
 			pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQuery %s", PQerrorMessage(this->pgconn));
 
+		RB_GC_GUARD(transcoded_str);
 		pgconn_wait_for_flush( self );
 		return Qnil;
 	}
@@ -2037,6 +2055,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE command, in_res_fmt;
+	VALUE transcoded_str;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -2048,9 +2067,10 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQsendQueryParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx), nParams, paramsData.types,
+	result = gvl_PQsendQueryParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx, &transcoded_str), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
+	RB_GC_GUARD(transcoded_str);
 	free_query_params( &paramsData );
 
 	if(result == 0)
@@ -2087,6 +2107,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	int result;
 	VALUE name, command, in_paramtypes;
 	VALUE param;
+	VALUE transcoded_str1, transcoded_str2;
 	int i = 0;
 	int nParams = 0;
 	Oid *paramTypes = NULL;
@@ -2095,8 +2116,8 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	int enc_idx = this->enc_idx;
 
 	rb_scan_args(argc, argv, "21", &name, &command, &in_paramtypes);
-	name_cstr = pg_cstr_enc(name, enc_idx);
-	command_cstr = pg_cstr_enc(command, enc_idx);
+	name_cstr = pg_cstr_enc(name, enc_idx, &transcoded_str1);
+	command_cstr = pg_cstr_enc(command, enc_idx, &transcoded_str2);
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
@@ -2112,6 +2133,8 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 	}
 	result = gvl_PQsendPrepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
 
+	RB_GC_GUARD(transcoded_str1);
+	RB_GC_GUARD(transcoded_str2);
 	xfree(paramTypes);
 
 	if(result == 0) {
@@ -2159,6 +2182,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	t_pg_connection *this = pg_get_connection_safe( self );
 	int result;
 	VALUE name, in_res_fmt;
+	VALUE transcoded_str;
 	int nParams;
 	int resultFormat;
 	struct query_params_data paramsData = { this->enc_idx };
@@ -2174,10 +2198,11 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQsendQueryPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx), nParams,
+	result = gvl_PQsendQueryPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx, &transcoded_str), nParams,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
+	RB_GC_GUARD(transcoded_str);
 	free_query_params( &paramsData );
 
 	if(result == 0)
@@ -2191,12 +2216,14 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 static VALUE
 pgconn_send_describe_close_prepared_portal(VALUE self, VALUE name, int (*func)(PGconn *, const char *), const char *funame)
 {
+	VALUE transcoded_str;
 	t_pg_connection *this = pg_get_connection_safe( self );
-	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx);
+	const char *stmt = NIL_P(name) ? NULL : pg_cstr_enc(name, this->enc_idx, &transcoded_str);
 	/* returns 0 on failure */
 	if(func(this->pgconn, stmt) == 0)
 		pg_raise_conn_error( rb_eUnableToSend, self, "%s %s", funame, PQerrorMessage(this->pgconn));
 
+	RB_GC_GUARD(transcoded_str);
 	pgconn_wait_for_flush( self );
 	return Qnil;
 }
@@ -2773,6 +2800,7 @@ static VALUE
 pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 {
 	VALUE str;
+	VALUE transcoded_str;
 	int ret;
 	const char *error_message = NULL;
 	t_pg_connection *this = pg_get_connection_safe( self );
@@ -2780,12 +2808,13 @@ pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 	if (rb_scan_args(argc, argv, "01", &str) == 0)
 		error_message = NULL;
 	else
-		error_message = pg_cstr_enc(str, this->enc_idx);
+		error_message = pg_cstr_enc(str, this->enc_idx, &transcoded_str);
 
 	ret = gvl_PQputCopyEnd(this->pgconn, error_message);
 	if(ret == -1)
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
 
+	RB_GC_GUARD(transcoded_str);
 	return (ret) ? Qtrue : Qfalse;
 }
 

@@ -1871,6 +1871,11 @@ describe PG::Connection do
 		end.to raise_error(PG::Error)
 	end
 
+	it "reset with invalid conninfo doesn't close the connection" do
+		expect{ @conn.send(:reset_start2, "\0") }.to raise_error(ArgumentError)
+		expect( @conn.exec("SELECT 1").values ).to eq([["1"]])
+	end
+
 
 	it "closes the IO fetched from #socket_io when the connection is closed", :without_transaction do
 		conn = PG.connect( @conninfo )
@@ -2854,6 +2859,25 @@ describe PG::Connection do
 					# Stop silently as soon the server complains about too many params
 				end
 			end
+
+			it "should encode big strings with typecasting without overflow" do
+				big_count = 100
+				step = 42_949_673
+				big_len = (step - 3) / 2
+				wrap = (big_count * step) & 0xffff_ffff
+
+				big = 'A'.b * big_len
+				params = Array.new(big_count, big)
+
+				tm = PG::TypeMapByClass.new
+				tm[String] = PG::TextEncoder::Bytea.new.freeze
+
+				sql = big_count.times.map{|n| "$#{n+1}" }.join(",")
+				@conn.exec_params('select '+sql, params, 0, tm)
+			rescue PG::UnableToSend
+				# ignore "PQsendQueryParams cannot allocate memory for output buffer"
+			end
+
 
 			it "can process #copy_data input queries with row encoder and respects character encoding" do
 				@conn2.exec( "CREATE TEMP TABLE copytable (col1 TEXT)" )

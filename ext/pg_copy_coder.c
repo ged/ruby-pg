@@ -219,8 +219,8 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 	t_pg_coder_enc_func enc_func;
-	static t_pg_coder *p_elem_coder;
-	int i;
+	t_pg_coder *p_elem_coder;
+	long i;
 	t_typemap *p_typemap;
 	char *current_out;
 	char *end_capa_ptr;
@@ -265,7 +265,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					strlen = RSTRING_LENINT(subint);
 
 					/* size of string assuming the worst case, that every character must be escaped. */
-					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2, current_out, end_capa_ptr );
+					PG_RB_STR_ENSURE_CAPA( *intermediate, (size_t)strlen * 2, current_out, end_capa_ptr );
 
 					/* Copy string from subint with backslash escaping */
 					for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
@@ -278,7 +278,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 				} else {
 					/* 2nd pass for writing the data to prepared buffer */
 					/* size of string assuming the worst case, that every character must be escaped. */
-					PG_RB_STR_ENSURE_CAPA( *intermediate, strlen * 2, current_out, end_capa_ptr );
+					PG_RB_STR_ENSURE_CAPA( *intermediate, (size_t)strlen * 2, current_out, end_capa_ptr );
 
 					/* Place the unescaped string at current output position. */
 					strlen = enc_func(p_elem_coder, entry, current_out, &subint, enc_idx);
@@ -365,7 +365,7 @@ static int
 pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
-	int i;
+	long i;
 	t_typemap *p_typemap;
 	char *current_out;
 	char *end_capa_ptr;
@@ -391,7 +391,7 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 		VALUE subint;
 		VALUE entry;
 		t_pg_coder_enc_func enc_func;
-		static t_pg_coder *p_elem_coder;
+		t_pg_coder *p_elem_coder;
 
 		entry = rb_ary_entry(value, i);
 
@@ -413,7 +413,7 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 					/* we can directly use String value in subint */
 					strlen = RSTRING_LENINT(subint);
 
-					PG_RB_STR_ENSURE_CAPA( *intermediate, 4 + strlen, current_out, end_capa_ptr );
+					PG_RB_STR_ENSURE_CAPA( *intermediate, (size_t)4 + strlen, current_out, end_capa_ptr );
 					/* 4 bytes length */
 					write_nbo32(strlen, current_out);
 					current_out += 4;
@@ -422,7 +422,7 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 					current_out += strlen;
 				} else {
 					/* 2nd pass for writing the data to prepared buffer */
-					PG_RB_STR_ENSURE_CAPA( *intermediate, 4 + strlen, current_out, end_capa_ptr );
+					PG_RB_STR_ENSURE_CAPA( *intermediate, (size_t)4 + strlen, current_out, end_capa_ptr );
 					/* 4 bytes length */
 					write_nbo32(strlen, current_out);
 					current_out += 4;
@@ -557,7 +557,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 		int found_delim = 0;
 		const char *start_ptr;
 		const char *end_ptr;
-		long input_len;
+		size_t input_len;
 
 		/* Remember start of field on input side */
 		start_ptr = cur_ptr;
@@ -692,7 +692,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 
 		/* Check whether raw input matched null marker */
 		input_len = end_ptr - start_ptr;
-		if (input_len == RSTRING_LEN(this->null_string) &&
+		if (input_len == (size_t)RSTRING_LEN(this->null_string) &&
 					strncmp(start_ptr, RSTRING_PTR(this->null_string), input_len) == 0) {
 			rb_ary_push(array, Qnil);
 		} else {
@@ -834,7 +834,7 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 		array = rb_ary_new2(expected_fields);
 
 		for( fieldno = 0; fieldno < nfields; fieldno++){
-			long input_len;
+			int input_len;
 
 			/* read field size */
 			if (line_end_ptr - cur_ptr < 4 ) goto length_error;

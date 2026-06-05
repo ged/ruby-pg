@@ -179,7 +179,7 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 {
 	t_pg_recordcoder *this = (t_pg_recordcoder *)conv;
 	t_pg_coder_enc_func enc_func;
-	static t_pg_coder *p_elem_coder;
+	t_pg_coder *p_elem_coder;
 	int i;
 	t_typemap *p_typemap;
 	char *current_out;

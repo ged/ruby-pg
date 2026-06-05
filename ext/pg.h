@@ -319,7 +319,7 @@ VALUE pg_tmbc_allocate                                 _(( void ));
 void pg_coder_init_encoder                             _(( VALUE ));
 void pg_coder_init_decoder                             _(( VALUE ));
 void pg_coder_compact                                  _(( void * ));
-char *pg_rb_str_ensure_capa                            _(( VALUE, long, char *, char ** ));
+char *pg_rb_str_ensure_capa                            _(( VALUE, size_t, char *, char ** ));
 
 #define PG_RB_STR_ENSURE_CAPA( str, expand_len, curr_ptr, end_ptr ) \
 	do { \
