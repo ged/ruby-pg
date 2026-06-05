@@ -181,12 +181,13 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 	t_pg_coder_enc_func enc_func;
 	t_pg_coder *p_elem_coder;
 	int i;
+	VALUE rb_typemap = this->typemap;
 	t_typemap *p_typemap;
 	char *current_out;
 	char *end_capa_ptr;
 
-	p_typemap = RTYPEDDATA_DATA( this->typemap );
-	p_typemap->funcs.fit_to_query( this->typemap, value );
+	p_typemap = RTYPEDDATA_DATA( rb_typemap );
+	p_typemap->funcs.fit_to_query( rb_typemap, value );
 
 	/* Allocate a new string with embedded capacity and realloc exponential when needed. */
 	PG_RB_STR_NEW( *intermediate, current_out, end_capa_ptr );
@@ -277,6 +278,7 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 
 	rb_str_set_len( *intermediate, current_out - RSTRING_PTR(*intermediate) );
 
+	RB_GC_GUARD(rb_typemap);
 	return -1;
 }
 
@@ -387,10 +389,11 @@ pg_text_dec_record(t_pg_coder *conv, char *input_line, int len, int _tuple, int 
 	char *output_ptr;
 	char *cur_ptr;
 	char *end_capa_ptr;
+	VALUE rb_typemap = this->typemap;
 	t_typemap *p_typemap;
 
-	p_typemap = RTYPEDDATA_DATA( this->typemap );
-	expected_fields = p_typemap->funcs.fit_to_copy_get( this->typemap );
+	p_typemap = RTYPEDDATA_DATA( rb_typemap );
+	expected_fields = p_typemap->funcs.fit_to_copy_get( rb_typemap );
 
 	/* The received input string will probably have this->nfields fields. */
 	array = rb_ary_new2(expected_fields);
@@ -490,6 +493,7 @@ pg_text_dec_record(t_pg_coder *conv, char *input_line, int len, int _tuple, int 
 	if (*cur_ptr)
 		rb_raise( rb_eArgError, "malformed record literal: \"%s\" - Junk after right parenthesis.", input_line );
 
+	RB_GC_GUARD(rb_typemap);
 	return array;
 }
 
