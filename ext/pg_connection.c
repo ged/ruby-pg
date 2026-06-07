@@ -439,7 +439,7 @@ pgconn_sync_encrypt_password(int argc, VALUE *argv, VALUE self)
 	Check_Type(password, T_STRING);
 	Check_Type(username, T_STRING);
 
-	encrypted = gvl_PQencryptPasswordConn(conn, StringValueCStr(password), StringValueCStr(username), RTEST(algorithm) ? StringValueCStr(algorithm) : NULL);
+	encrypted = PQencryptPasswordConn(conn, StringValueCStr(password), StringValueCStr(username), RTEST(algorithm) ? StringValueCStr(algorithm) : NULL);
 	if ( encrypted ) {
 		rval = rb_str_new2( encrypted );
 		PQfreemem( encrypted );
@@ -1134,11 +1134,11 @@ static VALUE pgconn_sync_exec_params( int, VALUE *, VALUE );
  * This function has the same behavior as #async_exec, but is implemented using the synchronous command processing API of libpq.
  * It's not recommended to use explicit sync or async variants but #exec instead, unless you have a good reason to do so.
  *
- * Both #sync_exec and #async_exec release the GVL while waiting for server response, so that concurrent threads will get executed.
- * However #async_exec has two advantages:
+ * However #async_exec has some advantages:
  *
- * 1. #async_exec can be aborted by signals (like Ctrl-C), while #exec blocks signal processing until the query is answered.
- * 2. Ruby VM gets notified about IO blocked operations and can pass them through <tt>Fiber.scheduler</tt>.
+ * 1. Only #async_exec allows concurrent threads to run, while waiting for a server response.
+ * 2. #async_exec can be aborted by signals (like Ctrl-C), while #exec blocks signal processing until the query is answered.
+ * 3. Ruby VM gets notified about IO blocked operations and can pass them through <tt>Fiber.scheduler</tt>.
  *    So only <tt>async_*</tt> methods are compatible to event based schedulers like the async gem.
  */
 static VALUE
@@ -1153,7 +1153,7 @@ pgconn_sync_exec(int argc, VALUE *argv, VALUE self)
 		VALUE query_str = argv[0];
 		VALUE transcoded_str;
 
-		result = gvl_PQexec(this->pgconn, pg_cstr_enc(query_str, this->enc_idx, &transcoded_str));
+		result = PQexec(this->pgconn, pg_cstr_enc(query_str, this->enc_idx, &transcoded_str));
 		RB_GC_GUARD(transcoded_str);
 		rb_pgresult = pg_new_result(result, self);
 		pg_result_check(rb_pgresult);
@@ -1473,7 +1473,7 @@ pgconn_sync_exec_params( int argc, VALUE *argv, VALUE self )
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQexecParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx, &transcoded_str), nParams, paramsData.types,
+	result = PQexecParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx, &transcoded_str), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
 	RB_GC_GUARD(transcoded_str);
@@ -1529,7 +1529,7 @@ pgconn_sync_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2UINT(param);
 		}
 	}
-	result = gvl_PQprepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
+	result = PQprepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
 
 	RB_GC_GUARD(transcoded_str1);
 	RB_GC_GUARD(transcoded_str2);
@@ -1572,7 +1572,7 @@ pgconn_sync_exec_prepared(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQexecPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx, &transcoded_str), nParams,
+	result = PQexecPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx, &transcoded_str), nParams,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
@@ -1616,7 +1616,7 @@ pgconn_sync_describe_close_prepared_portal(VALUE self, VALUE name, PGresult *(*f
 static VALUE
 pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 {
-	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQdescribePrepared);
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, PQdescribePrepared);
 }
 
 
@@ -1631,7 +1631,7 @@ pgconn_sync_describe_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
 {
-	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQdescribePortal);
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, PQdescribePortal);
 }
 
 
@@ -1649,7 +1649,7 @@ pgconn_sync_describe_portal(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_close_prepared(VALUE self, VALUE stmt_name)
 {
-	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQclosePrepared);
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, PQclosePrepared);
 }
 
 /*
@@ -1665,7 +1665,7 @@ pgconn_sync_close_prepared(VALUE self, VALUE stmt_name)
 static VALUE
 pgconn_sync_close_portal(VALUE self, VALUE stmt_name)
 {
-	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, gvl_PQclosePortal);
+	return pgconn_sync_describe_close_prepared_portal(self, stmt_name, PQclosePortal);
 }
 #endif
 
@@ -2001,7 +2001,7 @@ pgconn_send_query(int argc, VALUE *argv, VALUE self)
 
 	/* If called with no or nil parameters, use PQexec for compatibility */
 	if ( argc == 1 || (argc >= 2 && argc <= 4 && NIL_P(argv[1]) )) {
-		if(gvl_PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx, &transcoded_str)) == 0)
+		if(PQsendQuery(this->pgconn, pg_cstr_enc(argv[0], this->enc_idx, &transcoded_str)) == 0)
 			pg_raise_conn_error( rb_eUnableToSend, self, "PQsendQuery %s", PQerrorMessage(this->pgconn));
 
 		RB_GC_GUARD(transcoded_str);
@@ -2073,7 +2073,7 @@ pgconn_send_query_params(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQsendQueryParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx, &transcoded_str), nParams, paramsData.types,
+	result = PQsendQueryParams(this->pgconn, pg_cstr_enc(command, paramsData.enc_idx, &transcoded_str), nParams, paramsData.types,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats, resultFormat);
 
 	RB_GC_GUARD(transcoded_str);
@@ -2137,7 +2137,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 				paramTypes[i] = NUM2UINT(param);
 		}
 	}
-	result = gvl_PQsendPrepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
+	result = PQsendPrepare(this->pgconn, name_cstr, command_cstr, nParams, paramTypes);
 
 	RB_GC_GUARD(transcoded_str1);
 	RB_GC_GUARD(transcoded_str2);
@@ -2204,7 +2204,7 @@ pgconn_send_query_prepared(int argc, VALUE *argv, VALUE self)
 	resultFormat = NIL_P(in_res_fmt) ? 0 : NUM2INT(in_res_fmt);
 	nParams = alloc_query_params( &paramsData );
 
-	result = gvl_PQsendQueryPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx, &transcoded_str), nParams,
+	result = PQsendQueryPrepared(this->pgconn, pg_cstr_enc(name, paramsData.enc_idx, &transcoded_str), nParams,
 		(const char * const *)paramsData.values, paramsData.lengths, paramsData.formats,
 		resultFormat);
 
@@ -2245,7 +2245,7 @@ static VALUE
 pgconn_send_describe_prepared(VALUE self, VALUE stmt_name)
 {
 	return pgconn_send_describe_close_prepared_portal(
-		self, stmt_name, gvl_PQsendDescribePrepared,
+		self, stmt_name, PQsendDescribePrepared,
 		"PQsendDescribePrepared");
 }
 
@@ -2261,7 +2261,7 @@ static VALUE
 pgconn_send_describe_portal(VALUE self, VALUE portal)
 {
 	return pgconn_send_describe_close_prepared_portal(
-		self, portal, gvl_PQsendDescribePortal,
+		self, portal, PQsendDescribePortal,
 		"PQsendDescribePortal");
 }
 
@@ -2279,7 +2279,7 @@ static VALUE
 pgconn_send_close_prepared(VALUE self, VALUE stmt_name)
 {
 	return pgconn_send_describe_close_prepared_portal(
-		self, stmt_name, gvl_PQsendClosePrepared,
+		self, stmt_name, PQsendClosePrepared,
 		"PQsendClosePrepared");
 }
 
@@ -2297,7 +2297,7 @@ static VALUE
 pgconn_send_close_portal(VALUE self, VALUE portal)
 {
 	return pgconn_send_describe_close_prepared_portal(
-		self, portal, gvl_PQsendClosePortal,
+		self, portal, PQsendClosePortal,
 		"PQsendClosePortal");
 }
 #endif
@@ -2793,7 +2793,7 @@ pgconn_sync_put_copy_data(int argc, VALUE *argv, VALUE self)
 
 	Check_Type(buffer, T_STRING);
 
-	ret = gvl_PQputCopyData(this->pgconn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
+	ret = PQputCopyData(this->pgconn, RSTRING_PTR(buffer), RSTRING_LENINT(buffer));
 	if(ret == -1)
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
 
@@ -3456,12 +3456,12 @@ error:
  * and the PG::Result object will  automatically be cleared when the block terminates.
  * In this instance, <code>conn.exec</code> returns the value of the block.
  *
- * #exec is an alias for #async_exec which is almost identical to #sync_exec .
+ * #exec is an alias for #async_exec which is functional identical to #sync_exec .
  * #sync_exec is implemented on the simpler synchronous command processing API of libpq, whereas
  * #async_exec is implemented on the asynchronous API and on ruby's IO mechanisms.
  * Only #async_exec is compatible to <tt>Fiber.scheduler</tt> based asynchronous IO processing introduced in ruby-3.0.
- * Both methods ensure that other threads can process while waiting for the server to
- * complete the request, but #sync_exec blocks all signals to be processed until the query is finished.
+ * Only #async_exec ensures that other threads can process while waiting for the server to complete the request.
+ * In contrast #sync_exec blocks all threads and signals to be processed until the query is finished.
  * This is most notably visible by a delayed reaction to Control+C.
  * It's not recommended to use explicit sync or async variants but #exec instead, unless you have a good reason to do so.
  *
@@ -3923,7 +3923,7 @@ static VALUE
 pgconn_send_pipeline_sync(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	int res = gvl_PQsendPipelineSync(conn);
+	int res = PQsendPipelineSync(conn);
 	if( res != 1 )
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 
