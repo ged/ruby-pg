@@ -124,8 +124,8 @@ jobs:
       - name: Download PostgreSQL Ubuntu
         if: matrix.os == 'ubuntu'
         run: |
-          echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVER" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVER" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get -y update
           sudo apt-get -y --allow-downgrades install postgresql-$PGVER libpq5=$PGVER* libpq-dev=$PGVER*
           echo /usr/lib/postgresql/$PGVER/bin >> $GITHUB_PATH
@@ -151,11 +151,11 @@ jobs:
 
       - name: Print db logs if job failed
         if: ${{ failure() && matrix.os == 'windows' }}
-        run: ridk exec cat tmp_test_specs/*.log
+        run: ridk exec cat tmp_test_*/*.log
 
       - name: Print db logs if job failed
         if: ${{ failure() && matrix.os != 'windows' }}
-        run: cat tmp_test_specs/*.log
+        run: cat tmp_test_*/*.log
 
       - name: Print mkmf logs if job failed on Windows-head
         if: ${{ failure() && matrix.os == 'windows' && matrix.ruby == 'head' }}
