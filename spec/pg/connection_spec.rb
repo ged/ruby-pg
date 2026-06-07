@@ -430,6 +430,25 @@ describe PG::Connection do
 		end
 	end
 
+	it "can emit messages in PQsend*, https://github.com/ged/ruby-pg/issues/171", :without_transaction do
+		port_ro = @port + 2
+		@dbms = PG::TestingHelpers::PostgresServer.new("stopping", port: port_ro)
+		pg = PG.connect( host: @dbms.unix_socket, port: port_ro, dbname: "postgres" )
+		pg.set_notice_processor {}
+		pg.prepare('time_now', 'SELECT current_timestamp')
+
+		# Server close emits a message:
+		#   "FATAL:  terminating connection due to administrator command\n"
+		@dbms.teardown
+
+		# libpq version <= 11 emits messages while PQsend* functions.
+		# This crashed on ruby <= 3.3 due to locking GVL which is already locked.
+		pg.send_query_prepared('time_now')
+		pg.get_result
+	rescue PG::UnableToSend, PG::ConnectionBad
+		# OK, didn't crash
+	end
+
 	context "with multiple PostgreSQL servers", :without_transaction do
 		before :all do
 			@port_ro = @port + 1
