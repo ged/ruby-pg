@@ -764,11 +764,13 @@ describe PG::Connection do
 				conn.setnonblocking(true)
 
 				res = nil
-				conn.exec <<-EOSQL
+				# use async_exec since sync_exec is no longer thread compatible, necessary for run_with_gate
+				conn.async_exec <<-EOSQL
 					CREATE TEMP TABLE copytable (col1 TEXT);
 				EOSQL
 
-				conn.exec( "COPY copytable FROM STDOUT CSV" )
+				conn.async_exec( "COPY copytable FROM STDOUT CSV" )
+
 				gate.stop
 
 				data = "x" * 1000 * 1000
