@@ -1044,6 +1044,7 @@ class PG::Connection
 		}
 		private_constant :REDIRECT_METHODS
 		if PG::Connection.instance_methods.include? :async_close_prepared
+			# PostgreSQL-17+
 			REDIRECT_METHODS.merge!({
 				:close_prepared => [:async_close_prepared, :sync_close_prepared],
 				:close_portal => [:async_close_portal, :sync_close_portal],
