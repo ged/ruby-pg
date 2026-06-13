@@ -682,6 +682,7 @@ Init_pg_ext(void)
 
 	/* Initialize the main extension classes */
 	init_pg_connection();
+	init_pg_auth_hooks();
 	init_pg_result();
 	init_pg_errors();
 	init_pg_type_map();
