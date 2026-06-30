@@ -30,34 +30,36 @@ describe PG::Connection do
 		expect( c.finished? ).to be_falsey
 	end
 
-	it "shouldn't be shareable for Ractor", :ractor do
-		c = PG.connect(@conninfo)
-		expect{ Ractor.make_shareable(c) }.to raise_error(Ractor::Error, /PG::Connection/)
-	ensure
-		c&.finish
-	end
-
-	it "should be usable with Ractor", :ractor do
-		vals = Ractor.new(@conninfo) do |conninfo|
-			conn = PG.connect(conninfo)
-			conn.setnonblocking true
-			conn.setnonblocking false
-			conn.exec("SELECT 123").values
+	context "Ractor", :ractor do
+		it "shouldn't be shareable for Ractor" do
+			c = PG.connect(@conninfo)
+			expect{ Ractor.make_shareable(c) }.to raise_error(Ractor::Error, /PG::Connection/)
 		ensure
-			conn&.finish
-		end.value
+			c&.finish
+		end
 
-		expect( vals ).to eq( [["123"]] )
-	end
+		it "should be usable with Ractor" do
+			vals = Ractor.new(@conninfo) do |conninfo|
+				conn = PG.connect(conninfo)
+				conn.setnonblocking true
+				conn.setnonblocking false
+				conn.exec("SELECT 123").values
+			ensure
+				conn&.finish
+			end.value
 
-	it "connects using 7 arguments in a Ractor", :ractor do
-		vals = Ractor.new(@port) do |port|
-			PG.connect( 'localhost', port, nil, nil, :test, nil, nil ) do |conn|
-				conn.exec("SELECT 234").values
-			end
-		end.value
+			expect( vals ).to eq( [["123"]] )
+		end
 
-		expect( vals ).to eq( [["234"]] )
+		it "connects using 7 arguments in a Ractor" do
+			vals = Ractor.new(@port) do |port|
+				PG.connect( 'localhost', port, nil, nil, :test, nil, nil ) do |conn|
+					conn.exec("SELECT 234").values
+				end
+			end.value
+
+			expect( vals ).to eq( [["234"]] )
+		end
 	end
 
 	describe "#inspect", :without_transaction do
@@ -315,273 +317,293 @@ describe PG::Connection do
 		end
 	end
 
-	it "connects successfully with connection string" do
-		tmpconn = described_class.connect( @conninfo )
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		tmpconn.finish
-	end
-
-	it "connects using 7 arguments converted to strings" do
-		tmpconn = described_class.connect( 'localhost', @port, nil, nil, :test, nil, nil )
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		tmpconn.finish
-	end
-
-	it "connects using a hash of connection parameters" do
-		tmpconn = described_class.connect(
-			:host => 'localhost',
-			:port => @port,
-			:dbname => :test)
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		tmpconn.finish
-	end
-
-	it "connects using a hash of optional connection parameters" do
-		tmpconn = described_class.connect(
-			:host => 'localhost',
-			:port => @port,
-			:dbname => :test,
-			:keepalives => 1)
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		tmpconn.finish
-	end
-
-	it "raises an exception when connecting with an invalid number of arguments" do
-		expect {
-			described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'the-extra-arg' )
-		}.to raise_error do |error|
-			expect( error ).to be_an( ArgumentError )
-			expect( error.message ).to match( /extra positional parameter/i )
-			expect( error.message ).to match( /8/ )
-			expect( error.message ).to match( /the-extra-arg/ )
+	context "connect" do
+		it "successfully with connection string" do
+			tmpconn = described_class.connect( @conninfo )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			tmpconn.finish
 		end
-	end
 
-	it "emits a suitable error_message at connection errors" do
-		skip("Will be fixed in postgresql-15 on Windows") if RUBY_PLATFORM=~/mingw|mswin/
-
-				expect {
-					described_class.connect(
-		                              :host => 'localhost',
-		                              :port => @port,
-		                              :dbname => "non-existent")
-				}.to raise_error do |error|
-			expect( error ).to be_an( PG::ConnectionBad )
-			expect( error.message ).to match( /database "non-existent" does not exist/i )
-			expect( error.message.encoding ).to eq( Encoding::BINARY )
+		it "using 7 arguments converted to strings" do
+			tmpconn = described_class.connect( 'localhost', @port, nil, nil, :test, nil, nil )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			tmpconn.finish
 		end
-	end
 
-	it "raises after 'timeout' and two times 'connection refused'" do
-		with_env_vars(PGHOST: nil) do
+		it "using a hash of connection parameters" do
+			tmpconn = described_class.connect(
+				:host => 'localhost',
+				:port => @port,
+				:dbname => :test)
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			tmpconn.finish
+		end
+
+		it "using a hash of optional connection parameters" do
+			tmpconn = described_class.connect(
+				:host => 'localhost',
+				:port => @port,
+				:dbname => :test,
+				:keepalives => 1)
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			tmpconn.finish
+		end
+
+		it "raises an exception when connecting with an invalid number of arguments" do
+			expect {
+				described_class.connect( 1, 2, 3, 4, 5, 6, 7, 'the-extra-arg' )
+			}.to raise_error do |error|
+				expect( error ).to be_an( ArgumentError )
+				expect( error.message ).to match( /extra positional parameter/i )
+				expect( error.message ).to match( /8/ )
+				expect( error.message ).to match( /the-extra-arg/ )
+			end
+		end
+
+		it "emits a suitable error_message at connection errors" do
+			skip("Will be fixed in postgresql-15 on Windows") if RUBY_PLATFORM=~/mingw|mswin/
+
+					expect {
+						described_class.connect(
+																		:host => 'localhost',
+																		:port => @port,
+																		:dbname => "non-existent")
+					}.to raise_error do |error|
+				expect( error ).to be_an( PG::ConnectionBad )
+				expect( error.message ).to match( /database "non-existent" does not exist/i )
+				expect( error.message.encoding ).to eq( Encoding::BINARY )
+			end
+		end
+
+		it "raises after 'timeout' and two times 'connection refused'" do
+			with_env_vars(PGHOST: nil) do
+				PG::TestingHelpers::ListenSocket.new do |sock|
+					start_time = Time.now
+					expect {
+						described_class.connect(
+							hostaddr: '127.0.0.1,127.0.0.1,127.0.0.1',
+							port: "#{@port_down},#{sock.port},#{@port_down}",
+							connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 5 : 1,
+							dbname: "test")
+					}.to raise_error do |error|
+						expect( error ).to be_an( PG::ConnectionBad )
+						if PG.library_version >= 140000
+							expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED).+127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)/im )
+						end
+					end
+
+					expect( Time.now - start_time ).to be_between(0.9, 20).inclusive
+				end
+			end
+		end
+
+		it "times out after 2 * connect_timeout seconds on two connections" do
 			PG::TestingHelpers::ListenSocket.new do |sock|
 				start_time = Time.now
 				expect {
 					described_class.connect(
-						hostaddr: '127.0.0.1,127.0.0.1,127.0.0.1',
-						port: "#{@port_down},#{sock.port},#{@port_down}",
-						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 5 : 1,
+						host: '127.0.0.1,localhost',
+						port: sock.port,
+						connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 3 : 1,
 						dbname: "test")
 				}.to raise_error do |error|
 					expect( error ).to be_an( PG::ConnectionBad )
 					if PG.library_version >= 140000
-						expect( error.message ).to match( /127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED).+127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{@port_down}.+(Connection refused|ECONNREFUSED)/im )
+						expect( error.message ).to match( /127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{sock.port}.+timeout expired/im )
 					end
 				end
 
-				expect( Time.now - start_time ).to be_between(0.9, 20).inclusive
+				expect( Time.now - start_time ).to be_between(1.9, 20).inclusive
 			end
 		end
-	end
 
-	it "times out after 2 * connect_timeout seconds on two connections" do
-		PG::TestingHelpers::ListenSocket.new do |sock|
-			start_time = Time.now
-			expect {
-				described_class.connect(
-					host: '127.0.0.1,localhost',
-					port: sock.port,
-					connect_timeout: RUBY_PLATFORM=~/mingw|mswin/i ? 3 : 1,
+		it "succeeds with second host after connect_timeout" do
+			PG::TestingHelpers::ListenSocket.new do |sock|
+				start_time = Time.now
+				conn = described_class.connect(
+					host: 'localhost,localhost,localhost',
+					port: "#{sock.port},#{@port},#{sock.port}",
+					connect_timeout: 1,
 					dbname: "test")
-			}.to raise_error do |error|
-				expect( error ).to be_an( PG::ConnectionBad )
-				if PG.library_version >= 140000
-					expect( error.message ).to match( /127\.0\.0\.1.+#{sock.port}.+timeout expired.+127\.0\.0\.1.+#{sock.port}.+timeout expired/im )
+
+				expect( conn.port ).to eq( @port )
+				expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+			ensure
+				conn&.finish
+			end
+		end
+
+		context "with multiple PostgreSQL servers", :without_transaction do
+			before :all do
+				@port_ro = @port + 1
+				@dbms = PG::TestingHelpers::PostgresServer.new("read-only",
+					port: @port_ro,
+					postgresql_conf: "default_transaction_read_only=on"
+				)
+			end
+
+			after :all do
+				@dbms&.teardown
+			end
+
+			it "honors target_session_attrs requirements" do
+				uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=read-write"
+				PG.connect(uri) do |conn|
+					expect( conn.port ).to eq( @port )
+				end
+
+				uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=any"
+				PG.connect(uri) do |conn|
+					expect( conn.port ).to eq( @port_ro )
 				end
 			end
-
-			expect( Time.now - start_time ).to be_between(1.9, 20).inclusive
-		end
-	end
-
-	it "succeeds with second host after connect_timeout" do
-		PG::TestingHelpers::ListenSocket.new do |sock|
-			start_time = Time.now
-			conn = described_class.connect(
-				host: 'localhost,localhost,localhost',
-				port: "#{sock.port},#{@port},#{sock.port}",
-				connect_timeout: 1,
-				dbname: "test")
-
-			expect( conn.port ).to eq( @port )
-			expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
-		ensure
-			conn&.finish
-		end
-	end
-
-	it "can emit messages in PQsend*, https://github.com/ged/ruby-pg/issues/171", :without_transaction do
-		port_ro = @port + 2
-		@dbms = PG::TestingHelpers::PostgresServer.new("stopping", port: port_ro)
-		pg = PG.connect( host: @dbms.unix_socket, port: port_ro, dbname: "postgres" )
-		pg.set_notice_processor {}
-		pg.prepare('time_now', 'SELECT current_timestamp')
-
-		# Server close emits a message:
-		#   "FATAL:  terminating connection due to administrator command\n"
-		@dbms.teardown
-
-		# libpq version <= 11 emits messages while PQsend* functions.
-		# This crashed on ruby <= 3.3 due to locking GVL which is already locked.
-		pg.send_query_prepared('time_now')
-		pg.get_result
-	rescue PG::UnableToSend, PG::ConnectionBad
-		# OK, didn't crash
-	end
-
-	context "with multiple PostgreSQL servers", :without_transaction do
-		before :all do
-			@port_ro = @port + 1
-			@dbms = PG::TestingHelpers::PostgresServer.new("read-only",
-				port: @port_ro,
-				postgresql_conf: "default_transaction_read_only=on"
-			)
 		end
 
-		after :all do
-			@dbms&.teardown
-		end
+		it "stops hosts iteration on authentication errors", :without_transaction, :ipv6 do
+			@conn.exec("DROP USER IF EXISTS testusermd5")
+			@conn.exec("CREATE USER testusermd5 PASSWORD 'secret'")
 
-		it "honors target_session_attrs requirements" do
-			uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=read-write"
+			uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=wrong"
+			error_match = if RUBY_PLATFORM=~/mingw|mswin/
+				# It's a long standing issue of libpq, that the error text is not correctly returned when both client and server are running on Windows.
+				# Instead a "Connection refused" is returned.
+				/authenti.*testusermd5|Connection refused|server closed the connection unexpectedly/i
+			else
+				/authenti.*testusermd5/i
+			end
+			expect { PG.connect(uri) }.to raise_error(error_match)
+
+			uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=secret"
 			PG.connect(uri) do |conn|
+				expect( conn.host ).to eq( "::1" )
 				expect( conn.port ).to eq( @port )
 			end
 
-			uri = "postgres://localhost:#{@port_ro},localhost:#{@port}/postgres?target_session_attrs=any"
+			uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port_down},#{@port} dbname=postgres user=testusermd5 password=wrong"
 			PG.connect(uri) do |conn|
-				expect( conn.port ).to eq( @port_ro )
+				expect( conn.host ).to eq( "127.0.0.1" )
+				expect( conn.port ).to eq( @port )
+			end
+		end
+
+		it "using URI with multiple hosts", :postgresql_12 do
+			uri = "postgres://localhost:#{@port_down},127.0.0.1:#{@port}/test?keepalives=1"
+			tmpconn = described_class.connect( uri )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.port ).to eq( @port )
+			expect( tmpconn.host ).to eq( "127.0.0.1" )
+			expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
+			tmpconn.finish
+		end
+
+		it "using URI with IPv6 hosts", :postgresql_12, :ipv6 do
+			uri = "postgres://localhost:#{@port},[::1]:#{@port},/test"
+			tmpconn = described_class.connect( uri )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.host ).to eq( "localhost" )
+			expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
+			tmpconn.finish
+		end
+
+		it "using URI with UnixSocket host", :postgresql_12, :unix_socket do
+			uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
+			tmpconn = described_class.connect( uri )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.host ).to eq( @unix_socket )
+			expect( tmpconn.hostaddr ).to eq( "" )
+			tmpconn.finish
+		end
+
+		it "with environment variables" do
+			skip("Is broken before postgresql-12 on Windows") if RUBY_PLATFORM=~/mingw|mswin/ && PG.library_version < 120000
+
+			tmpconn = with_env_vars(PGHOST: "localhost", PGPORT: @port, PGDATABASE: "test") do
+				described_class.connect
+			end
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.host ).to eq( "localhost" )
+			tmpconn.finish
+		end
+
+		it "via pg_service file and prefers explicit user,port over service over PGUSER,PGPORT" do
+			serfile = $pg_server.test_dir + "pg_service.conf"
+			File.write(serfile, "[mydb]\nuser=invalid\nport=#{@port_down}")
+			tmpconn = with_env_vars(PGSERVICEFILE: serfile, PGUSER: "invalid", PGPORT: @port_down) do
+				c = PG.connect service: "mydb", host: "localhost", user: @user, port: @port, dbname: "test"
+				c.reset
+			end
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.conninfo_hash[:service] ).to eq( "mydb" ) if PG.library_version >= 150000
+			expect( tmpconn.port ).to eq( @port )
+			expect( tmpconn.user ).to eq( @user )
+			expect( tmpconn.port ).to eq( @port )
+			tmpconn.finish
+		end
+
+		[
+			{},
+			{host: "localhost"},
+			{hostaddr: "127.0.0.1"},
+		].each do |conn_hash|
+			it "via #{conn_hash} and pg_service file and prefers service user,port over PGUSER,PGPORT" do
+				serfile = $pg_server.test_dir + "pg_service.conf"
+				File.write(serfile, "[mydb]\nuser=#{@user}\n#{ @conninfo.gsub(" ", "\n") }")
+				tmpconn = with_env_vars(PGSERVICEFILE: serfile, PGUSER: "invalid", PGPORT: @port_down) do
+					c = PG.connect service: "mydb", **conn_hash
+					c.reset
+				end
+				expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+				expect( tmpconn.conninfo_hash[:service] ).to eq( "mydb" ) if PG.library_version >= 150000
+				expect( tmpconn.port ).to eq( @port )
+				expect( tmpconn.user ).to eq( @user )
+				tmpconn.finish
+			end
+		end
+
+		it "using Hash with multiple hosts", :postgresql_12 do
+			tmpconn = described_class.connect( host: "#{@unix_socket}xx,127.0.0.1,localhost", port: @port, dbname: "test" )
+			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			expect( tmpconn.host ).to eq( "127.0.0.1" )
+			expect( tmpconn.hostaddr ).to match( /\A127\.0\.0\.1\z/ )
+			tmpconn.finish
+		end
+
+		%i[open new connect sync_connect async_connect setdb setdblogin].each do |meth|
+			it "via ##{meth} of a derived class" do
+				klass = Class.new(described_class) do
+					alias myexecute exec
+				end
+				klass.send(meth, @conninfo) do |conn|
+					expect( conn ).to be_a_kind_of( klass )
+					expect( conn.myexecute("SELECT 1") ).to be_a_kind_of( PG::Result )
+				end
 			end
 		end
 	end
 
-	it "stops hosts iteration on authentication errors", :without_transaction, :ipv6 do
-		@conn.exec("DROP USER IF EXISTS testusermd5")
-		@conn.exec("CREATE USER testusermd5 PASSWORD 'secret'")
-
-		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=wrong"
-		error_match = if RUBY_PLATFORM=~/mingw|mswin/
-			# It's a long standing issue of libpq, that the error text is not correctly returned when both client and server are running on Windows.
-			# Instead a "Connection refused" is returned.
-			/authenti.*testusermd5|Connection refused|server closed the connection unexpectedly/i
-		else
-			/authenti.*testusermd5/i
-		end
-		expect { PG.connect(uri) }.to raise_error(error_match)
-
-		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port},#{@port} dbname=postgres user=testusermd5 password=secret"
-		PG.connect(uri) do |conn|
-			expect( conn.host ).to eq( "::1" )
-			expect( conn.port ).to eq( @port )
-		end
-
-		uri = "host=::1,::1,127.0.0.1 port=#{@port_down},#{@port_down},#{@port} dbname=postgres user=testusermd5 password=wrong"
-		PG.connect(uri) do |conn|
-			expect( conn.host ).to eq( "127.0.0.1" )
-			expect( conn.port ).to eq( @port )
-		end
-	end
-
-	it "connects using URI with multiple hosts", :postgresql_12 do
-		uri = "postgres://localhost:#{@port_down},127.0.0.1:#{@port}/test?keepalives=1"
-		tmpconn = described_class.connect( uri )
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.port ).to eq( @port )
-		expect( tmpconn.host ).to eq( "127.0.0.1" )
-		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
-		tmpconn.finish
-	end
-
-	it "connects using URI with IPv6 hosts", :postgresql_12, :ipv6 do
-		uri = "postgres://localhost:#{@port},[::1]:#{@port},/test"
-		tmpconn = described_class.connect( uri )
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.host ).to eq( "localhost" )
-		expect( tmpconn.hostaddr ).to match( /\A(::1|127\.0\.0\.1)\z/ )
-		tmpconn.finish
-	end
-
-	it "connects using URI with UnixSocket host", :postgresql_12, :unix_socket do
-		uri = "postgres://#{@unix_socket.gsub("/", "%2F")}:#{@port}/test"
-		tmpconn = described_class.connect( uri )
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.host ).to eq( @unix_socket )
-		expect( tmpconn.hostaddr ).to eq( "" )
-		tmpconn.finish
-	end
-
-	it "connects with environment variables" do
-		skip("Is broken before postgresql-12 on Windows") if RUBY_PLATFORM=~/mingw|mswin/ && PG.library_version < 120000
-
-		tmpconn = with_env_vars(PGHOST: "localhost", PGPORT: @port, PGDATABASE: "test") do
-			described_class.connect
-		end
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.host ).to eq( "localhost" )
-		tmpconn.finish
-	end
-
-	it "connects using Hash with multiple hosts", :postgresql_12 do
-		tmpconn = described_class.connect( host: "#{@unix_socket}xx,127.0.0.1,localhost", port: @port, dbname: "test" )
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		expect( tmpconn.host ).to eq( "127.0.0.1" )
-		expect( tmpconn.hostaddr ).to match( /\A127\.0\.0\.1\z/ )
-		tmpconn.finish
-	end
-
-	%i[open new connect sync_connect async_connect setdb setdblogin].each do |meth|
-		it "can call ##{meth} of a derived class" do
-			klass = Class.new(described_class) do
-				alias execute exec
-			end
-			klass.send(meth, @conninfo) do |conn|
-				expect( conn ).to be_a_kind_of( klass )
-				expect( conn.execute("SELECT 1") ).to be_a_kind_of( PG::Result )
-			end
-		end
-	end
-
-	it "can connect asynchronously" do
-		tmpconn = described_class.connect_start( @conninfo )
-		expect( tmpconn ).to be_a( described_class )
-
-		wait_for_polling_ok(tmpconn)
-		expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-		tmpconn.finish
-	end
-
-	it "can connect asynchronously for the duration of a block" do
-		conn = nil
-
-		described_class.connect_start(@conninfo) do |tmpconn|
+	context "connect_start" do
+		it "can connect asynchronously" do
+			tmpconn = described_class.connect_start( @conninfo )
 			expect( tmpconn ).to be_a( described_class )
-			conn = tmpconn
 
 			wait_for_polling_ok(tmpconn)
 			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			tmpconn.finish
 		end
 
-		expect( conn ).to be_finished()
+		it "can connect asynchronously for the duration of a block" do
+			conn = nil
+
+			described_class.connect_start(@conninfo) do |tmpconn|
+				expect( tmpconn ).to be_a( described_class )
+				conn = tmpconn
+
+				wait_for_polling_ok(tmpconn)
+				expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+			end
+
+			expect( conn ).to be_finished()
+		end
 	end
 
 	context "with async established connection" do
@@ -658,6 +680,25 @@ describe PG::Connection do
 					end
 				end.each(&:join)
 			end
+		end
+
+		it "can emit messages in PQsend*, https://github.com/ged/ruby-pg/issues/171", :without_transaction do
+			port_ro = @port + 2
+			@dbms = PG::TestingHelpers::PostgresServer.new("stopping", port: port_ro)
+			pg = PG.connect( host: @dbms.unix_socket, port: port_ro, dbname: "postgres" )
+			pg.set_notice_processor {}
+			pg.prepare('time_now', 'SELECT current_timestamp')
+
+			# Server close emits a message:
+			#   "FATAL:  terminating connection due to administrator command\n"
+			@dbms.teardown
+
+			# libpq version <= 11 emits messages while PQsend* functions.
+			# This crashed on ruby <= 3.3 due to locking GVL which is already locked.
+			pg.send_query_prepared('time_now')
+			pg.get_result
+		rescue PG::UnableToSend, PG::ConnectionBad
+			# OK, didn't crash
 		end
 
 		it "can use conn.reset_start to restart the connection" do

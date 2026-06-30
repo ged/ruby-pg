@@ -34,6 +34,7 @@ module PG::TestingHelpers
 				@conninfo = $pg_server.conninfo
 				@unix_socket = $pg_server.unix_socket
 				@conn = $pg_server.connect
+				@user = ENV['USER'] || ENV['USERNAME']
 
 				# Find a local port that is not in use
 				@port_down = @port + 10
@@ -194,6 +195,7 @@ module PG::TestingHelpers
 		attr_reader :port
 		attr_reader :conninfo
 		attr_reader :unix_socket
+		attr_reader :test_dir
 
 		### Set up a PostgreSQL database instance for testing.
 		def initialize(name, port: 23456, postgresql_conf: '')

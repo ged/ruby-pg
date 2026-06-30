@@ -47,42 +47,65 @@ context "with a Fiber scheduler", :scheduler do
 		end
 	end
 
-	it "connects several times concurrently" do
-		run_with_scheduler do
-			q = Queue.new
-			3.times do
-				Fiber.schedule do
-					conn = PG.connect(@conninfo_gate)
-					conn.finish
-					q << true
+	context :connect do
+		it "connects several times concurrently" do
+			run_with_scheduler do
+				q = Queue.new
+				3.times do
+					Fiber.schedule do
+						conn = PG.connect(@conninfo_gate)
+						conn.finish
+						q << true
+					end
+				end.times do
+					q.pop
 				end
-			end.times do
-				q.pop
 			end
 		end
-	end
 
-	it "connects with environment variables", :postgresql_12, :unix_socket do
-		skip "requires ruby-3.2" if RUBY_VERSION < "3.2"
-		run_with_scheduler do
-			vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
+		it "connects with environment variables", :postgresql_12, :unix_socket do
+			skip "requires ruby-3.2" if RUBY_VERSION < "3.2"
+			run_with_scheduler do
+				vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
-			tmpconn = with_env_vars(PGHOST: "scheduler-localhost", PGPORT: vars[:port], PGDATABASE: vars[:dbname], PGSSLMODE: vars[:sslmode]) do
-				PG.connect
+				tmpconn = with_env_vars(PGHOST: "scheduler-localhost", PGPORT: vars[:port], PGDATABASE: vars[:dbname], PGSSLMODE: vars[:sslmode]) do
+					PG.connect
+				end
+				expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+				expect( tmpconn.host ).to eq( "scheduler-localhost" )
+				tmpconn.finish
 			end
-			expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
-			expect( tmpconn.host ).to eq( "scheduler-localhost" )
-			tmpconn.finish
 		end
-	end
 
-	it "can connect with DNS lookup", :scheduler_address_resolve do
-		run_with_scheduler do
-			conninfo = @conninfo_gate.gsub(/(^| )host=\w+/, " host=scheduler-localhost")
-			conn = PG.connect(conninfo)
-			opt = conn.conninfo.find { |info| info[:keyword] == 'host' }
-			expect( opt[:val] ).to start_with( 'scheduler-localhost' )
-			conn.finish
+		[
+			[{PGSERVICE: "mydb"}, {}],
+			[{PGHOTS: "ignored", PGPORT: "12345"}, { service: 'mydb', host: "scheduler-localhost" }],
+		].each do |env_hash, conn_hash|
+			it "connects with #{env_hash.merge(conn_hash)}", :scheduler_address_resolve do
+				run_with_scheduler do
+					vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
+
+					serfile = $pg_server.test_dir + "pg_service.conf"
+					ser_hash = { host: "scheduler-localhost", port: vars[:port], dbname: vars[:dbname], sslmode: vars[:sslmode] }.compact
+					File.write(serfile, "[mydb]\n#{ser_hash.map{|k,v| "#{k}=#{v}" }.join("\n") }")
+					tmpconn = with_env_vars(**env_hash, PGSERVICEFILE: serfile) do
+						PG.connect port: vars[:port], **conn_hash
+					end
+					expect( tmpconn.status ).to eq( PG::CONNECTION_OK )
+					expect( tmpconn.host ).to eq( "scheduler-localhost" )
+					tmpconn.finish
+				end
+			end
+		end
+
+		it "can connect with DNS lookup", :scheduler_address_resolve do
+			run_with_scheduler do
+				conninfo = @conninfo_gate.gsub(/(^| )host=\w+/, " host=scheduler-localhost")
+				conn = PG.connect(conninfo)
+				opt = conn.conninfo.find { |info| info[:keyword] == 'host' }
+				expect( opt[:val] ).to start_with( 'scheduler-localhost' )
+				conn.finish
+			end
 		end
 	end
 

@@ -589,7 +589,9 @@ class PG::Connection
 		# Use connection options from PG::Connection.new to reconnect with the same options but with renewed DNS resolution.
 		# Use conninfo_hash as a fallback when connect_start was used to create the connection object.
 		iopts = @iopts_for_reset || conninfo_hash.compact
-		if iopts[:host] && !iopts[:host].empty? && PG.library_version >= 100000
+		if	iopts[:host] && !iopts[:host].empty? &&
+				iopts[:port] && !iopts[:port].empty? &&
+				PG.library_version >= 100000
 			iopts = self.class.send(:resolve_hosts, iopts)
 		end
 		conninfo = self.class.parse_connect_args( iopts );
@@ -916,13 +918,24 @@ class PG::Connection
 				port: dests.map{|d| d[2] }.join(","))
 		end
 
+		RESOLUTION_KEYS = [:host, :hostaddr, :port].freeze
+		private_constant :RESOLUTION_KEYS
+
 		private def connect_to_hosts(*args)
 			option_string = parse_connect_args(*args)
-			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
-			iopts = PG::Connection.conndefaults.each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }.merge(iopts)
+			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}) { |h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
-			if PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET && iopts[:host].to_s.empty? && iopts[:hostaddr].to_s.empty?
-				# Many distors patch the hardcoded default UnixSocket path in libpq to /var/run/postgresql instead of /tmp .
+			has_explicit_host = (!iopts[:host].to_s.empty? || !iopts[:hostaddr].to_s.empty?) && !iopts[:port].to_s.empty?
+			has_explicit_service = !iopts[:service].to_s.empty?
+
+			iopts_with_defaults = PG::Connection.conndefaults.each_with_object({}) do |h, o|
+				k = h[:keyword].to_sym
+				# Only use the host/hostname/port keys from defaults and leave user/dbname/sslmode/... for libpq, so that they are processed in the right order.
+				o[k] = h[:val] if h[:val] && RESOLUTION_KEYS.include?(k)
+			end.merge(iopts)
+
+			if PG::BUNDLED_LIBPQ_WITH_UNIXSOCKET && iopts_with_defaults[:host].to_s.empty? && iopts_with_defaults[:hostaddr].to_s.empty?
+				# Many distros patch the hardcoded default UnixSocket path in libpq to /var/run/postgresql instead of /tmp .
 				# We simply try them all.
 				iopts[:host] = "/var/run/postgresql" + # Ubuntu, Debian, Fedora, Opensuse
 					",/run/postgresql" + # Alpine, Archlinux, Gentoo
@@ -930,15 +943,22 @@ class PG::Connection
 			end
 
 			iopts_for_reset = iopts
-			if iopts[:hostaddr]
+			if iopts_with_defaults[:hostaddr]
 				# hostaddr is provided -> no need to resolve hostnames
-
-			elsif iopts[:host] && !iopts[:host].empty? && PG.library_version >= 100000
-				iopts = resolve_hosts(iopts)
+			elsif has_explicit_service && !has_explicit_host
+				# The pg_service.conf might provide host/user/port/etc.
+				# Ruby-pg cannot interpret pg_service without reading INI file and the additional LDAP stuff.
+				# So, pass params through and let libpq resolve the service, possibly blocking the Thread.scheduler.
+				# This ensures the processing order of libpq which is:
+				# connection string => service file => environment variable => compiled default
+			elsif iopts_with_defaults[:host] && !iopts_with_defaults[:host].empty? && PG.library_version >= 100000
+				# Do host resolution to avoid blocking Thread.scheduler while DNS queries.
+				iopts_for_reset = iopts_with_defaults
+				iopts = resolve_hosts(iopts_with_defaults)
 			else
 				# No host given
 			end
-			conn = self.connect_start(iopts) or
+			conn = connect_start(iopts) or
 										raise(PG::Error, "Unable to create a new connection")
 
 			raise PG::ConnectionBad, conn.error_message if conn.status == PG::CONNECTION_BAD
