@@ -1298,7 +1298,7 @@ alloc_query_params(struct query_params_data *paramsData)
 	paramsData->typecast_heap_chain = Qnil;
 	paramsData->gc_array = Qnil;
 
-	nParams = (int)RARRAY_LEN(paramsData->params);
+	nParams = RARRAY_LENINT(paramsData->params);
 
 	required_pool_size = nParams * (
 			sizeof(char *) +
@@ -1513,7 +1513,7 @@ pgconn_sync_prepare(int argc, VALUE *argv, VALUE self)
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
-		nParams = (int)RARRAY_LEN(in_paramtypes);
+		nParams = RARRAY_LENINT(in_paramtypes);
 		paramTypes = ALLOC_N(Oid, nParams);
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
@@ -2121,7 +2121,7 @@ pgconn_send_prepare(int argc, VALUE *argv, VALUE self)
 
 	if(! NIL_P(in_paramtypes)) {
 		Check_Type(in_paramtypes, T_ARRAY);
-		nParams = (int)RARRAY_LEN(in_paramtypes);
+		nParams = RARRAY_LENINT(in_paramtypes);
 		paramTypes = ALLOC_N(Oid, nParams);
 		for(i = 0; i < nParams; i++) {
 			param = rb_ary_entry(in_paramtypes, i);
