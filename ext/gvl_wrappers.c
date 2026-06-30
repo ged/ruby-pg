@@ -19,6 +19,9 @@ PostgresPollingStatusType PQcancelPoll(PGcancelConn *cancelConn){return PGRES_PO
 #ifndef LIBPQ_HAS_PIPELINING
 int PQpipelineSync(PGconn *conn){return 0;}
 #endif
+#ifndef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+int auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data){return 0;}
+#endif
 
 #ifdef ENABLE_GVL_UNLOCK
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_WRAPPER_STRUCT );

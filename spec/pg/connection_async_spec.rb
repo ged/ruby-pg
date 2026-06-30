@@ -156,4 +156,188 @@ describe PG::Connection do
 		expect( conn.hostaddr ).to eq( "::1" )
 		expect( conn.port ).to eq( @port )
 	end
+
+	describe "option set_auth_data_hook", :postgresql_18  do
+		before :all do
+			build_oauth_validator
+		end
+
+		before :each do
+			@old_env, ENV["PGOAUTHDEBUG"] = ENV["PGOAUTHDEBUG"], "UNSAFE"
+		end
+
+		it "should call prompt oauth device hook" do
+			oauth_server = start_fake_oauth(@port + 3)
+
+			verification_uri, user_code, verification_uri_complete, expires_in = nil, nil, nil, nil
+			conn1, conn2 = nil, nil
+
+			hook = proc do |conn, data|
+				case data
+				when PG::PromptOAuthDevice
+					conn1 = conn
+					verification_uri = data.verification_uri
+					user_code = data.user_code
+					verification_uri_complete = data.verification_uri_complete
+					expires_in = data.expires_in
+					true
+				end
+			end
+
+			begin
+				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo", set_auth_data_hook: hook) do |conn|
+					conn.exec("SELECT 1")
+					conn2 = conn
+				end
+			rescue PG::ConnectionBad => e
+				if e.message =~ /no OAuth flows are available/
+					skip "requires libpq-oauth to be installed"
+				end
+				raise
+			ensure
+				oauth_server.shutdown
+			end
+
+			expect(conn1).to eq(conn2)
+			expect(verification_uri).to eq("http://localhost:#{@port + 3}/verify")
+			expect(user_code).to eq("666")
+			expect(verification_uri_complete).to eq(nil)
+			expect(expires_in).to eq(60)
+		end
+
+		it "should call oauth bearer request hook" do
+			openid_configuration, scope = nil, nil
+			conn1, conn2 = nil, nil
+
+			hook = proc do |conn, data|
+				case data
+				when PG::OAuthBearerRequest
+					conn1 = conn
+					openid_configuration = data.openid_configuration
+					scope = data.scope
+					data.token = "yes"
+					true
+				end
+			end
+
+			PG.connect(host: "localhost", port: @port, dbname: "test", user: "testuseroauth", oauth_issuer: "http://localhost:#{@port + 3}", oauth_client_id: "foo", set_auth_data_hook: hook) do |conn|
+				conn.exec("SELECT 1")
+				conn2 = conn
+			end
+
+			expect(conn1).to eq(conn2)
+			expect(openid_configuration).to eq("http://localhost:#{@port + 3}/.well-known/openid-configuration")
+			expect(scope).to eq("test")
+		end
+
+		it "shouldn't garbage collect PG::Connection in use" do
+			conn1 = nil
+			hook = proc do |conn, data|
+				case data
+				when PG::OAuthBearerRequest
+					data.token = "yes"
+					conn1 = conn
+					true
+				end
+			end
+
+			GC.stress = true
+			begin
+				conn = PG.connect(host: "localhost", port: @port, dbname: "test", user: "testuseroauth", oauth_issuer: "http://localhost:#{@port + 3}", oauth_client_id: "foo", set_auth_data_hook: hook)
+			ensure
+				GC.stress = false
+			end
+			conn.exec("SELECT 1")
+
+			expect(conn1).to eq(conn)
+		end
+
+		it "should garbage collect PG::Connection after use" do
+			hook = proc do |conn, data|
+				case data
+				when PG::OAuthBearerRequest
+					openid_configuration = data.openid_configuration
+					scope = data.scope
+					data.token = "yes"
+					true
+				end
+			end
+
+			before = PG.send(:pgconn2value_size)
+			20.times do
+				conn = PG.connect(host: "localhost", port: @port, dbname: "test", user: "testuseroauth", oauth_issuer: "http://localhost:#{@port + 3}", oauth_client_id: "foo", set_auth_data_hook: hook)
+				conn.exec("SELECT 1")
+			end
+
+			GC.start
+			after = PG.send(:pgconn2value_size)
+
+			# Number of GC'ed objects
+			expect(before + 20 - after).to be_between(1, 50)
+		end
+
+		it "should be usable with Ractor", :ractor do
+			ractors = 20.times.map do |idx1|
+				Ractor.new(@conninfo, @port, idx1) do |conninfo, port, idx2|
+					hook = proc do |conn, data|
+						case data
+						when PG::OAuthBearerRequest
+							openid_configuration = data.openid_configuration
+							scope = data.scope
+							data.token = "yes"
+							true
+						end
+					end
+
+					conn = PG.connect(host: "localhost", port: port, dbname: "test", user: "testuseroauth", oauth_issuer: "http://localhost:#{port + 3}", oauth_client_id: "foo", set_auth_data_hook: hook)
+					conn.exec("SELECT #{idx2}").values
+				ensure
+					conn&.finish
+				end
+			end
+
+			vals = ractors.map(&:value)
+
+			expect( vals ).to eq( 20.times.map { |i| [[i.to_s]] } )
+		end
+
+		# TODO: Is resetting the global hook still useful, when the hook is per connection?
+		# it "should reset the hook when called without block" do
+		# 	oauth_server = start_fake_oauth(@port + 3)
+		#
+		# 	PG.set_auth_data_hook do |conn_num, data|
+		# 		raise "broken hook"
+		# 	end
+		#
+		# 	expect do
+		# 		PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") {}
+		# 	end.to raise_error("broken hook")
+		#
+		# 	PG.set_auth_data_hook
+		#
+		# 	begin
+		# 		PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
+		# 			conn.exec("SELECT 1")
+		# 		end
+		# 	rescue PG::ConnectionBad => e
+		# 		if e.message =~ /no OAuth flows are available/
+		# 			skip "requires libpq-oauth to be installed"
+		# 		end
+		# 		raise
+		# 	ensure
+		# 		oauth_server.shutdown
+		# 	end
+		# end
+
+		# around :example do |ex|
+		# 	GC.stress = true
+		# 	ex.run
+		# 	GC.stress = false
+		# end
+
+		after :each do
+			# PG.set_auth_data_hook
+			ENV["PGOAUTHDEBUG"] = @old_env
+		end
+	end
 end

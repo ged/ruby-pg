@@ -21,6 +21,7 @@
 #include "ruby.h"
 #include "ruby/st.h"
 #include "ruby/encoding.h"
+#include "ruby/thread_native.h"
 
 #define PG_ENCODING_SET_NOCHECK(obj,i) \
 	do { \
@@ -113,6 +114,10 @@ typedef struct {
 	VALUE encoder_for_put_copy_data;
 	/* Kind of PG::Coder object for casting COPY rows to ruby values */
 	VALUE decoder_for_get_copy_data;
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+	/* Callback for retrieval of OAuth token */
+	VALUE auth_data_hook;
+#endif
 	/* Ruby encoding index of the client/internal encoding */
 	int enc_idx : PG_ENC_IDX_BITS;
 	/* flags controlling Symbol/String field names */
@@ -288,6 +293,7 @@ extern VALUE pg_typemap_all_strings;
 void Init_pg_ext                                       _(( void ));
 
 void init_pg_connection                                _(( void ));
+void init_pg_auth_hooks                                _(( void ));
 void init_pg_result                                    _(( void ));
 void init_pg_errors                                    _(( void ));
 void init_pg_type_map                                  _(( void ));
@@ -374,6 +380,12 @@ rb_encoding * pg_get_pg_encname_as_rb_encoding         _(( const char * ));
 const char * pg_get_rb_encoding_as_pg_encoding         _(( rb_encoding * ));
 rb_encoding *pg_conn_enc_get                           _(( PGconn * ));
 
+#ifdef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+int auth_data_hook_proxy(PGauthData type, PGconn *conn, void *data);
+int pgconn_lookup(PGconn *pgconn, VALUE *rb_conn);
+void pgconn_insert(PGconn *pgconn, VALUE rb_conn);
+void pgconn_delete(PGconn *pgconn);
+#endif
 void notice_receiver_proxy(void *arg, const PGresult *result);
 void notice_processor_proxy(void *arg, const char *message);
 

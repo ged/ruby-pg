@@ -24,6 +24,9 @@
 #ifndef LIBPQ_HAS_CHUNK_MODE
 typedef struct pg_cancel_conn PGcancelConn;
 #endif
+#ifndef LIBPQ_HAS_PROMPT_OAUTH_DEVICE
+typedef enum { DUMMY_TYPE } PGauthData;
+#endif
 
 #define DEFINE_PARAM_LIST1(type, name) \
 	name,
@@ -281,6 +284,10 @@ FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
  * Definitions of callback functions and their parameters
  */
 
+#define FOR_EACH_PARAM_OF_auth_data_hook_proxy(param) \
+	param(PGauthData, type) \
+	param(PGconn *, conn)
+
 #define FOR_EACH_PARAM_OF_notice_processor_proxy(param) \
 	param(void *, arg)
 
@@ -289,9 +296,11 @@ FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 
 /* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_CALLBACK_FUNCTION(function) \
+	function(auth_data_hook_proxy, GVL_TYPE_NONVOID, int, void *, data) \
 	function(notice_processor_proxy, GVL_TYPE_VOID, void, const char *, message) \
 	function(notice_receiver_proxy, GVL_TYPE_VOID, void, const PGresult *, result) \
 
 FOR_EACH_CALLBACK_FUNCTION( DEFINE_GVL_STUB_DECL );
+
 
 #endif /* end __gvl_wrappers_h */

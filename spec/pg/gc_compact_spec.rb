@@ -24,6 +24,8 @@
 require_relative '../helpers'
 
 describe "GC.compact", if: GC.respond_to?(:compact) do
+	hook_called = false
+
 	before :all do
 		TM1 = Class.new(PG::TypeMapByClass) do
 			def conv_array(value)
@@ -55,6 +57,20 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 			CANCON = PG::CancelConnection.new(CONN2)
 			CANCON.start
 			CANCON.socket_io
+		end
+
+		if PG::Connection.instance_methods.include?(:auth_data_hook)
+			build_oauth_validator
+			@old_env, ENV["PGOAUTHDEBUG"] = ENV["PGOAUTHDEBUG"], "UNSAFE"
+			HOOKED_CONN = PG::Connection.connect_start( "host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo" )
+			HOOKED_CONN.auth_data_hook = proc do |conn, data|
+				case data
+				when PG::OAuthBearerRequest
+					data.token = "yes"
+					hook_called = true
+					true
+				end
+			end
 		end
 
 		begin
@@ -109,6 +125,14 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 
 	it "should compact PG::CancelConnection", :postgresql_17 do
 		expect( CANCON.socket_io ).to be_kind_of( IO )
+	end
+
+	it "should compact PG::Connection in pgconn2value", :postgresql_18 do
+		wait_for_polling_ok(HOOKED_CONN)
+		expect( HOOKED_CONN.error_message ).to eq("")
+		HOOKED_CONN.finish
+		expect( hook_called ).to be_truthy
+		ENV["PGOAUTHDEBUG"] = @old_env
 	end
 
 	after :all do
