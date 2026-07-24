@@ -3021,6 +3021,7 @@ describe PG::Connection do
 			res = conn.exec(compiled)
 			res2 = conn.exec_params(sql, params)
 			expect( res.to_a ).to eq( res2.to_a ), compiled
+			expect( result_typenames(res) ).to eq( result_typenames(res2) ), compiled
 			compiled
 		end
 
@@ -3042,14 +3043,14 @@ describe PG::Connection do
 							$body$ $1 $body$ as h, t."$1", t."$2"
 					from (select 10 as "$1", 20 as "$2") as t
 				SQL
-				
+
 				aggregate_failures do
 					expect(compiled).to include("-- this is one: $1")
 					expect(compiled).to include("/* this is another one: $1 */")
 					expect(compiled).to include("-- this is two: $2")
 				end
 			end
-			
+
 			it "escapes strings properly" do
 				embed_params_and_check(<<~SQL, ["', '1"])
 					select $1 as one
@@ -3066,21 +3067,55 @@ describe PG::Connection do
 								{value: "'\0\xff\r\n\t1'".b, format: 1, type: 17},
 								{value: "abc"},
 								{value: 4},
-								{value: 5, type: 23},
-								{value: "{ 6, 7}", type: 1007},
+								{value: 5, type: 23, typename: 'int'},
+								{value: "{ 6, 7}", type: 1007, typename: 'int[]'},
 								{value: false},
-								{value: "\\x000102ff", type: 17},
+								{value: "\\x000102ff", type: 17, typename: 'bytea'},
+								{value: nil, format: 1, type: 17},
+								{value: nil, format: 1},
 								{value: nil}
-							]
+								]
 							embed_params_and_check <<~SQL, params
-								select $1::bytea as a, $2 as b, $3 as c, $4 as d, $5 as e, $6 as f, $7 as g, $8 as h, $9 as i
+								select $1::bytea as a, $2 as b, $3 as c, $4 as d, $5 as e, $6 as f, $7 as g, $8 as h, $9 as i, $10 as j, $11 as k
 							SQL
 						end
 					end
 				end
+
+				it "doesn't cast value" do
+					res = @conn.embed_params("SELECT $1", [{value: "22"}])
+					expect( res ).to eq("SELECT '22'")
+				end
+
+				it "doesn't cast value even if name is given" do
+					res = @conn.embed_params("SELECT $1", [{value: "22", typename: 'int8'}])
+					expect( res ).to eq("SELECT '22'")
+				end
+
+				it "casts value" do
+					res = @conn.embed_params("SELECT $1", [value: "22", typename: 'int8', type: 20])
+					expect( res ).to eq("SELECT '22'::int8")
+				end
+
+				it "assumes bytea data when format: 1" do
+					res = @conn.embed_params("SELECT $1", [value: "\0", format: 1])
+					expect( res ).to eq("SELECT '\\x00'")
+				end
+
+				it "fails to encode binary format" do
+					expect do
+						@conn.embed_params("SELECT $1", [{value: "x", format: 1, type: 20, typename: "int8"}])
+					end.to raise_error(ArgumentError, /binary encoded parameter/)
+				end
+
+				it "fails to encode OID without name" do
+					expect do
+						@conn.embed_params("SELECT $1", [{value: "1", type: 20}])
+					end.to raise_error(ArgumentError, /OID 20 missing.*key :typename/)
+				end
 			end
 		end
-		
+
 		describe "PG::TypeMapByClass type map" do
 			before do
 				@conn2 = PG.connect(@conninfo)
@@ -3124,6 +3159,45 @@ describe PG::Connection do
 						SQL
 					end
 				end
+			end
+		end
+
+		describe "with explicit :type_map" do
+			it "doesn't cast value" do
+				enc = PG::TextEncoder::Integer.new
+				tm = PG::TypeMapByColumn.new([enc])
+				res = @conn.embed_params("SELECT $1", ["22"], type_map: tm)
+				expect( res ).to eq("SELECT '22'")
+			end
+
+			it "doesn't cast value even if name is given" do
+				enc = PG::TextEncoder::Integer.new name: 'int8'
+				tm = PG::TypeMapByColumn.new([enc])
+				res = @conn.embed_params("SELECT $1", ["22"], type_map: tm)
+				expect( res ).to eq("SELECT '22'")
+			end
+
+			it "casts value" do
+				enc = PG::TextEncoder::Integer.new oid: 20, name: 'int8'
+				tm = PG::TypeMapByColumn.new([enc])
+				res = @conn.embed_params("SELECT $1", ["22"], type_map: tm)
+				expect( res ).to eq("SELECT '22'::int8")
+			end
+
+			it "fails to encode binary format" do
+				enc = PG::BinaryEncoder::Int4.new
+				tm = PG::TypeMapByColumn.new([enc])
+				expect do
+					@conn.embed_params("SELECT $1", ["x"], type_map: tm)
+				end.to raise_error(ArgumentError, /binary encoded parameter/)
+			end
+
+			it "fails to encode OID without name" do
+				enc = PG::TextEncoder::Integer.new oid: 20
+				tm = PG::TypeMapByColumn.new([enc])
+				expect do
+					@conn.embed_params("SELECT $1", ["y"], type_map: tm)
+				end.to raise_error(ArgumentError, /OID 20 missing.*name of encoder/)
 			end
 		end
 	end

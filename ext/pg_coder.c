@@ -631,7 +631,7 @@ init_pg_coder(void)
 	/*
 	 * Name of the coder or the corresponding data type.
 	 *
-	 * This accessor is only used in PG::Coder#inspect .
+	 * This accessor is used by PG::Coder#inspect and PG::Connection#embed_params .
 	 */
 	rb_define_attr(   rb_cPG_Coder, "name", 1, 1 );
 

@@ -3492,12 +3492,13 @@ pgconn_async_exec(int argc, VALUE *argv, VALUE self)
  * +params+ is an array of the bind parameters for the SQL query.
  * Each element of the +params+ array may be either:
  *   a hash of the form:
- *     {:value  => String (value of bind parameter)
- *      :type   => Integer (oid of type of bind parameter)
- *      :format => Integer (0 for text, 1 for binary)
+ *     {:value    => String (value of bind parameter)
+ *      :type     => Integer (oid of type of bind parameter)
+ *      :typename => String (name of type of bind parameter, only used for conn.embed_params )
+ *      :format   => Integer (0 for text, 1 for binary)
  *     }
  *   or, it may be a String. If it is a string, that is equivalent to the hash:
- *     { :value => <string value>, :type => 0, :format => 0 }
+ *     { :value   => <string value>, :type => 0, :format => 0 }
  *
  * PostgreSQL bind parameters are represented as $1, $2, $3, etc.,
  * inside the SQL query. The 0th element of the +params+ array is bound

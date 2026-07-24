@@ -687,29 +687,27 @@ class PG::Connection
 	# +embed_params+ is intended for debugging messages with positional parameters.
 	# It avoids manual insertion for later inspection in +psql+ or so.
 	#
+	# When using PG::Connection#exec_params, it's possible to set the numeric database type OID of a parameter by either a hash with +:type+ key, or by PG::Coder#oid .
+	# +embed_params+ casts the parameter the same way, but needs the name of the type instead its OID.
+	# That name must be provided by either a +:typename+ key in addition to the +:type+ OID or by PG::Coder#name in addition to PG::Coder#oid.
+	#
+	# Only text parameter format can be embedded into SQL text.
+	# Binary data ( <tt>:format => 1</tt> or PG::Coder#format == 1 ) raises an ArgumentError.
+	# However the common pattern of sending BYTEA (OID 17) data as format 1, which avoids escapting large blobs, is recognized and probably escaped into the SQL result string.
+	#
 	# Example:
-	# 	res = conn.embed_params('SELECT $1 AS a, $2 AS b, $3 AS c', [1, 2, nil])
-	# 	# => "SELECT '1' AS a, '2' AS b, NULL AS c"
-	def embed_params(sql, params, type_map: type_map_for_queries, coder_maps_bundle: nil)
+	# 	conn.embed_params('SELECT $1 AS a, $2 AS b, $3 AS c', [1, 2, {value: "\0", type: 17, format: 1}])
+	# 	=> "SELECT '1' AS a, '2' AS b, '\\x00'::bytea AS c"
+	def embed_params(sql, params, type_map: type_map_for_queries)
 		return sql if params.empty?
 
-		oid_to_typecast = proc do |oid|
+		oid_to_typecast = proc do |oid, tname, errtext|
 			if oid && oid > 0
-				by_oid = if coder_maps_bundle
-					# Try to retrieve types from the method argument
-					coder_maps_bundle.typenames_by_oid
-				elsif type_map.respond_to?(:coder_maps_bundle)
-					# Try to retrieve types from the current type map
-					type_map.coder_maps_bundle.typenames_by_oid
-				elsif @typenames_by_oid
-					# Try to use cached types
-					@typenames_by_oid
+				if tname.to_s.empty?
+					raise(ArgumentError, "Database type name of OID #{oid.inspect} missing#{errtext}")
 				else
-					# Load and cache types from the database server
-					@typenames_by_oid = PG::BasicTypeRegistry::CoderMapsBundle.new(self).typenames_by_oid
+					"::#{ tname }"
 				end
-				typename = by_oid[oid] || raise(ArgumentError, "cannot determine database type name of OID #{oid}")
-				"::#{ typename }"
 			end
 		end
 
@@ -723,20 +721,23 @@ class PG::Connection
 				"'#{ escape_bytea(value) }'"
 			else
 				if enc
-					raise ArgumentError, "binary encoded data from #{enc} cannot be inserted into SQL text" if enc.format != 0
-					"'#{escape(enc.encode(value))}'#{oid_to_typecast[enc.oid]}"
+					raise ArgumentError, "binary encoded parameter from #{enc.inspect} cannot be inserted into SQL text" if enc.format != 0
+					"'#{escape(enc.encode(value))}'#{oid_to_typecast[enc.oid, enc.name, " - please set name of encoder #{enc.inspect}"]}"
 				elsif Hash === value
-					next case value[:value]
-						when NilClass
-							'NULL'
+					typename = value[:format] == 1 && value[:type] == 17 ?
+						"::bytea" : oid_to_typecast[value[:type], value[:typename], " - please set parameter key :typename"]
+
+					case value[:value]
+					when NilClass
+						"NULL#{typename}"
+					else
+						if value[:format] == 1
+							raise ArgumentError, "binary encoded parameter with OID #{value[:type].inspect} cannot be inserted into SQL text" if value[:type] && value[:type] != 17
+							"'#{escape_bytea(value[:value].to_s)}'#{typename}"
 						else
-							if value[:format] == 1
-								raise ArgumentError, "binary encoded data with OID #{value[:type]} cannot be inserted into SQL text" if value[:type] && value[:type] != 17
-								"'#{ escape_bytea(value[:value].to_s) }'#{oid_to_typecast[value[:type]]}"
-							else
-								"'#{escape(value[:value].to_s)}'#{oid_to_typecast[value[:type]]}"
-							end
+							"'#{escape(value[:value].to_s)}'#{typename}"
 						end
+					end
 				else
 					"'#{escape(value.to_s)}'"
 				end
