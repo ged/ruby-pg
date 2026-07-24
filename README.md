@@ -246,9 +246,17 @@ Internally Pg always uses the nonblocking connection mode of libpq.
 It then behaves like running in blocking mode but ensures, that all blocking IO is handled in Ruby through a possibly registered `Fiber.scheduler`.
 When `PG::Connection#setnonblocking(true)` is called then the nonblocking state stays enabled, but the additional handling of blocking states is disabled, so that the calling program has to handle blocking states on its own.
 
-An exception to this rule are the methods for large objects like `PG::Connection#lo_create` and authentication methods using external libraries (like GSSAPI authentication).
-They are not compatible with `Fiber.scheduler`, so that blocking states are not passed to the registered IO scheduler.
-That means the operation will work properly, but IO waiting states can not be used to switch to another Fiber doing IO.
+There are some exceptions to the `Fiber.scheduler` compatibility, so that blocking states are not passed to the registered IO scheduler.
+That means the operation will work properly, but IO waiting states can not be used to switch to another Fiber doing IO:
+
+* Methods for large objects like `PG::Connection#lo_create`
+* Authentication methods using external libraries (like GSSAPI or LDAP authentication)
+* LDAP lookup of connection parameters: https://www.postgresql.org/docs/current/libpq-ldap.html
+* A connection string/hash with the `service` parameter set but not `host` and `port`.
+  `Thread.scheduler` compatible alternatives are:
+    * Set the service via `PGSERVICE`environment variable
+    * Set the `host` and `port` parameters explicit in the connection string/hash.
+    * Set the `hostaddr` in the service file.
 
 
 ## Ractor support
