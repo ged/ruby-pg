@@ -867,7 +867,7 @@ describe "PG::Type derivations" do
 							end.to raise_error(ArgumentError, /premature/)
 						end
 					end
-					it 'raises error when binary array has additonal bytes' do
+					it 'raises error when binary array has additional bytes' do
 						expect do
 							binarydec_int_array.decode(bin_int_array_data + "\0")
 						end.to raise_error(ArgumentError, /trailing/)
@@ -1453,7 +1453,7 @@ describe "PG::Type derivations" do
 						to eq("\x00\x02\x00\x00\x00\x01x\x00\x00\x00\x02yz")
 				end
 
-				it "should'nt encode too big array" do
+				it "shouldn't encode too big array" do
 					expect{ encoder.encode(["x"]*32768) }.to raise_error(ArgumentError, /too many columns/)
 				end
 

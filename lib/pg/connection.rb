@@ -620,7 +620,7 @@ class PG::Connection
 		# Returns +nil+ on success, or a string containing the
 		# error message if a failure occurs.
 		#
-		# On PostgreSQL-17+ client libaray the class PG::CancelConnection is used.
+		# On PostgreSQL-17+ client library the class PG::CancelConnection is used.
 		# On older client library a pure ruby implementation is used.
 		def cancel
 			cancon = PG::CancelConnection.new(self)
@@ -678,7 +678,7 @@ class PG::Connection
 		# - All hosts are passed to PG::Connection.connect_start
 		# - As soon as the host is tried to connect the related host is removed from the hosts list
 		# - When the polling status changes to `PG::PGRES_POLLING_OK` the connection is returned and ready to use.
-		# - When the polling status changes to `PG::PGRES_POLLING_FAILED` connecting is aborted and a PG::ConnectionBad is raised with details to all connection attepts.
+		# - When the polling status changes to `PG::PGRES_POLLING_FAILED` connecting is aborted and a PG::ConnectionBad is raised with details to all connection attempts.
 		# - When a timeout occurs, connecting is restarted with the remaining hosts.
 		#
 		# The downside is that this connects only once to hosts which are listed twice when they timeout.

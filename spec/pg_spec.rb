@@ -73,7 +73,7 @@ describe PG do
 		cext_fname = $LOADED_FEATURES.grep(/pg_ext/).first
 		expect(cext_fname).not_to be_nil
 		cext_text = File.binread(cext_fname)
-		expect(cext_text).to match(/Init_pg_ext/) # C-ext shoud contain the init function
+		expect(cext_text).to match(/Init_pg_ext/) # C-ext should contain the init function
 		expect(cext_text).not_to match(/usr\/local/) # there should be no rpath to /usr/local/rake-compiler/ruby/x86_64-unknown-linux-musl/ruby-3.4.5/lib or so
 		expect(cext_text).not_to match(/home\//) # there should be no path to /home/ or so
 	end
@@ -89,7 +89,7 @@ describe PG do
 
 		path = File.join(PG::POSTGRESQL_LIB_PATH, libpq_fname)
 		text = File.binread(path)
-		expect(text).to match(/PQconnectdb/) # libpq shoud contain the connect function
+		expect(text).to match(/PQconnectdb/) # libpq should contain the connect function
 		expect(text).not_to match(/usr\/local/) # there should be no rpath to build dirs
 		expect(text).not_to match(/home\//) # there should be no path to /home/.../ports/ or so
 	end
