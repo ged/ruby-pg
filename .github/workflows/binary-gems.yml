@@ -35,7 +35,7 @@ jobs:
           - platform: "x86_64-darwin"
           - platform: "arm64-darwin"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -53,7 +53,7 @@ jobs:
         run: bundle exec rake gem:native:${{ matrix.platform }}
 
       - name: Upload binary gem
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-gem-${{ matrix.platform }}
           path: pkg/*.gem
@@ -101,7 +101,7 @@ jobs:
     env:
       PGVERSION: ${{ matrix.PGVERSION }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Ruby
         if: matrix.platform != 'x86-mingw32'
         uses: ruby/setup-ruby-pkgs@v1
@@ -123,7 +123,7 @@ jobs:
           echo "C:/msys64/$env:MSYSTEM_PREFIX/bin"  | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Download gem from build job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-gem-${{ matrix.platform }}
 
@@ -200,9 +200,9 @@ jobs:
 
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download gem-${{ matrix.gem_platform }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-gem-${{ matrix.gem_platform }}
       - name: Build image and Run tests
@@ -221,9 +221,9 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download gem-${{ matrix.gem_platform }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-gem-${{ matrix.gem_platform }}
       - name: Build image and Run tests
@@ -244,9 +244,9 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Download gem-${{ matrix.gem_platform }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: binary-gem-${{ matrix.gem_platform }}
       - name: Build image and Run tests
