@@ -3034,6 +3034,23 @@ describe PG::Connection do
 			conn.exec("SET escape_string_warning = on")
 		end
 
+		it "ensures PostgreSQL string syntax does not change" do
+			require "net/http"
+			require "json"
+
+			latest_commit_uri = URI(
+				"https://api.github.com/repos/postgres/postgres/commits?sha=master&path=doc/src/sgml/syntax.sgml&per_page=1"
+			)
+			latest_commit_info = JSON.parse(Net::HTTP.get(latest_commit_uri), symbolize_names: true)
+			error_message = <<~TEXT
+				PostgreSQL syntax has changed. Please make sure no new string literals were added by inspecting changelog
+				https://www.postgresql.org/docs/current/release.html and syntax page
+				https://www.postgresql.org/docs/current/sql-syntax-lexical.html. Should you find any syntax changes in
+				string literals - please adjust PG::Connection::PLACEHOLDER_RE constant accordingly
+			TEXT
+			expect(latest_commit_info.dig(0, :sha)).to eq("45762084545ec14dbbe66ace1d69d7e89f8978ac"), error_message
+		end
+
 		describe "default type map" do
 			it "compiles prepared sql into plain sql" do
 				compiled = embed_params_and_check(<<~SQL, [1, "2", true, false, nil])
