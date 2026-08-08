@@ -5,7 +5,7 @@ require 'pg'
 $stdout.sync = true
 
 # This is a example of how to mix and match synchronous and async APIs. In this case,
-# the connection to the server is made syncrhonously, and then queries are
+# the connection to the server is made synchronously, and then queries are
 # asynchronous.
 
 TIMEOUT = 5.0 # seconds to wait for an async operation to complete

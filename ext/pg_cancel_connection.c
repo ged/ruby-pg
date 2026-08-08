@@ -6,7 +6,7 @@
  *
  * The class to represent a connection to cancel a query.
  *
- * On PostgreSQL-17+ client libaray this class is used to implement PG::Connection#cancel .
+ * On PostgreSQL-17+ client library this class is used to implement PG::Connection#cancel .
  * It works on older PostgreSQL server versions too.
  *
  * Available since PostgreSQL-17

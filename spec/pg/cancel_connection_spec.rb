@@ -6,7 +6,7 @@ require 'pg'
 
 if PG.library_version < 170000
 
-	context "query cancelation" do
+	context "query cancellation" do
 		it "shouldn't define PG::CancelConnection" do
 			expect( !defined?(PG::CancelConnection) )
 		end
