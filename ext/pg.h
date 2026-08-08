@@ -103,6 +103,8 @@ typedef struct {
 	VALUE notice_receiver;
 	/* Proc object that receives notices as String objects */
 	VALUE notice_processor;
+	/* Corresponding PG::Connection ruby object. Only used for the notice_receiver */
+	VALUE self;
 	/* Kind of PG::TypeMap object for casting query params */
 	VALUE type_map_for_queries;
 	/* Kind of PG::TypeMap object for casting result values */
