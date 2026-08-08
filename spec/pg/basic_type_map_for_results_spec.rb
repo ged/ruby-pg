@@ -244,12 +244,15 @@ describe 'Basic type mapping' do
 				it "should do format #{format} date type conversions" do
 					res = @conn.exec_params( "SELECT CAST('2113-12-31' AS DATE),
 																		CAST('1913-12-31' AS DATE),
+																		CAST('1581-12-15' AS DATE),
 																		CAST('infinity' AS DATE),
 																		CAST('-infinity' AS DATE)", [], format )
 					expect( res.getvalue(0,0) ).to eq( Date.new(2113, 12, 31) )
 					expect( res.getvalue(0,1) ).to eq( Date.new(1913, 12, 31) )
-					expect( res.getvalue(0,2) ).to eq( 'infinity' )
-					expect( res.getvalue(0,3) ).to eq( '-infinity' )
+					expect( res.getvalue(0,2) ).to eq( Date.new(1581, 12, 15, Date::GREGORIAN) )
+					expect( res.getvalue(0,2) ).to eq( Date.new(1581, 12, 5, Date::JULIAN) )
+					expect( res.getvalue(0,3) ).to eq( 'infinity' )
+					expect( res.getvalue(0,4) ).to eq( '-infinity' )
 				end
 			end
 

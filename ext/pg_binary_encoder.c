@@ -11,6 +11,8 @@
 #endif
 
 VALUE rb_mPG_BinaryEncoder;
+static ID s_id_gregorianP;
+static ID s_id_gregorian;
 static ID s_id_year;
 static ID s_id_month;
 static ID s_id_day;
@@ -272,6 +274,9 @@ pg_bin_enc_date(t_pg_coder *this, VALUE value, char *out, VALUE *intermediate, i
 				write_nbo32(PG_INT32_MIN, out);
 				return 4;
 		} {
+			/* Only create a new gregorian Date object if necessary */
+			if( rb_funcall(value, s_id_gregorianP, 0) != Qtrue )
+				value = rb_funcall(value, s_id_gregorian, 0);
 			VALUE year = rb_funcall(value, s_id_year, 0);
 			VALUE month = rb_funcall(value, s_id_month, 0);
 			VALUE day = rb_funcall(value, s_id_day, 0);
@@ -554,6 +559,8 @@ pg_bin_enc_from_base64(t_pg_coder *conv, VALUE value, char *out, VALUE *intermed
 void
 init_pg_binary_encoder(void)
 {
+	s_id_gregorianP = rb_intern("gregorian?");
+	s_id_gregorian = rb_intern("gregorian");
 	s_id_year = rb_intern("year");
 	s_id_month = rb_intern("month");
 	s_id_day = rb_intern("day");
