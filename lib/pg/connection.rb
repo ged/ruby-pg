@@ -671,6 +671,90 @@ class PG::Connection
 	end
 	alias async_cancel cancel
 
+	PLACEHOLDER_RE = /
+		'(?:''|[^'])*'                                             | # string literal
+		"(?:""|[^"])*"                                             | # quoted identifier
+		--[^\n]*                                                   | # line comment
+		\/\*.*?\*\/                                                | # block comment
+		\$\$.*?\$\$                                                | # dollar-quoted string. E.g. $$ $1 $$
+		\$(?<__dq_tag>[A-Za-z_][A-Za-z_0-9]*)\$.*?\$\k<__dq_tag>\$ | # named dollar-quoted string. E.g. $foo$ $1 $foo$
+		(?<placeholder>\$(?:[1-9]\d*))                               # placeholder we are interested in
+	/mx
+	private_constant :PLACEHOLDER_RE
+
+	# Compiles your prepared SQL statement and the given positional arguments into plain SQL string.
+	#
+	# The resulting SQL string can be used with +conn.exec+ like the prepared SQL statement and parameters with +conn.exec_params+.
+	# +conn.exec_params+ is usually preferred because it's faster and safer.
+	# +embed_params+ is intended for debugging messages with positional parameters.
+	# It avoids manual insertion for later inspection in +psql+ or so.
+	#
+	# When using PG::Connection#exec_params, it's possible to set the numeric database type OID of a parameter by either a hash with +:type+ key, or by PG::Coder#oid .
+	# +embed_params+ casts the parameter the same way, but needs the name of the type instead its OID.
+	# That name must be provided by either a +:typename+ key in addition to the +:type+ OID or by PG::Coder#name in addition to PG::Coder#oid.
+	#
+	# Only text parameter format can be embedded into SQL text.
+	# Binary data ( <tt>:format => 1</tt> or PG::Coder#format == 1 ) raises an ArgumentError.
+	# However the common pattern of sending BYTEA (OID 17) data as format 1, which avoids escapting large blobs, is recognized and probably escaped into the SQL result string.
+	#
+	# Example:
+	# 	conn.embed_params('SELECT $1 AS a, $2 AS b, $3 AS c', [1, 2, {value: "\0", type: 17, format: 1}])
+	# 	=> "SELECT '1' AS a, '2' AS b, '\\x00'::bytea AS c"
+	def embed_params(sql, params, type_map: type_map_for_queries)
+		return sql if params.empty?
+
+		oid_to_typecast = proc do |oid, tname, errtext|
+			if oid && oid > 0
+				if tname.to_s.empty?
+					raise(ArgumentError, "Database type name of OID #{oid.inspect} missing#{errtext}")
+				else
+					"::#{ tname }"
+				end
+			end
+		end
+
+		encoders = type_map.query_param_encoders(params)
+		params = encoders.map.with_index do |enc, i|
+			value = params[i]
+			case value
+			when NilClass
+				'NULL'
+			when PG::BasicTypeMapForQueries::BinaryData
+				"'#{ escape_bytea(value) }'"
+			else
+				if enc
+					raise ArgumentError, "binary encoded parameter from #{enc.inspect} cannot be inserted into SQL text" if enc.format != 0
+					"'#{escape(enc.encode(value))}'#{oid_to_typecast[enc.oid, enc.name, " - please set name of encoder #{enc.inspect}"]}"
+				elsif Hash === value
+					typename = value[:format] == 1 && value[:type] == 17 ?
+						"::bytea" : oid_to_typecast[value[:type], value[:typename], " - please set parameter key :typename"]
+
+					case value[:value]
+					when NilClass
+						"NULL#{typename}"
+					else
+						if value[:format] == 1
+							raise ArgumentError, "binary encoded parameter with OID #{value[:type].inspect} cannot be inserted into SQL text" if value[:type] && value[:type] != 17
+							"'#{escape_bytea(value[:value].to_s)}'#{typename}"
+						else
+							"'#{escape(value[:value].to_s)}'#{typename}"
+						end
+					end
+				else
+					"'#{escape(value.to_s)}'"
+				end
+			end
+		end
+
+		sql.gsub(PLACEHOLDER_RE).each do |matched|
+			placeholder = Regexp.last_match[:placeholder]
+			# Do not replace non-positional args string and pass it as is
+			next matched unless placeholder
+
+			params[placeholder[1..].to_i - 1]
+		end
+	end
+
 	module Pollable
 		# Track the progress of the connection, waiting for the socket to become readable/writable before polling it.
 		#

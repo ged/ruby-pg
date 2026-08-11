@@ -13,6 +13,7 @@ describe 'Basic type mapping' do
 			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn).freeze
 			tm = PG::BasicTypeMapBasedOnResult.new(maps)
 			expect( tm.rm_coder(0, 16) ).to be_kind_of(PG::TextEncoder::Boolean)
+			expect( tm.coder_maps_bundle ).to eq(maps)
 		end
 
 		it "can be initialized with a custom type registry" do

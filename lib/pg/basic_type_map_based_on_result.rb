@@ -64,4 +64,9 @@ class PG::BasicTypeMapBasedOnResult < PG::TypeMapByOid
 			add_coder(coder)
 		end
 	end
+
+	# Returns the PG::BasicTypeRegistry::CoderMapsBundle used to translate result OIDs to encoders.
+	def coder_maps_bundle
+		@coder_maps
+	end
 end

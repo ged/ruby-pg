@@ -57,6 +57,11 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		init_encoders
 	end
 
+	# Returns the PG::BasicTypeRegistry::CoderMapsBundle used to translate encoders to OIDs.
+	def coder_maps_bundle
+		@coder_maps
+	end
+
 	class UndefinedDefault
 		def self.call(oid_name, format)
 			raise UndefinedEncoder, "no encoder defined for type #{oid_name.inspect} format #{format}"
@@ -177,8 +182,8 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 	end
 
 	DEFAULT_TYPE_MAP = PG.make_shareable({
-		TrueClass => [1, 'bool', 'bool'],
-		FalseClass => [1, 'bool', 'bool'],
+		TrueClass => [0, 'bool', 'bool'],
+		FalseClass => [0, 'bool', 'bool'],
 		# We use text format and no type OID for numbers, because setting the OID can lead
 		# to unnecessary type conversions on server side.
 		Integer => [0, 'int8'],

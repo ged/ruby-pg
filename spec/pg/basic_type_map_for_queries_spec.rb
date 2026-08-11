@@ -39,6 +39,7 @@ describe 'Basic type mapping' do
 			maps = PG::BasicTypeRegistry::CoderMapsBundle.new(@conn).freeze
 			tm = PG::BasicTypeMapForQueries.new(maps)
 			expect( tm[Integer] ).to be_kind_of(PG::TextEncoder::Integer)
+			expect( tm.coder_maps_bundle ).to eq(maps)
 		end
 
 		it "can be initialized with a custom type registry" do
@@ -54,7 +55,7 @@ describe 'Basic type mapping' do
 			args = []
 			pr = proc { |*a| args << a }
 			PG::BasicTypeMapForQueries.new(@conn, registry: regi, if_undefined: pr)
-			expect( args.first ).to eq( ["bool", 1] )
+			expect( args.first ).to eq( ["bool", 0] )
 		end
 
 		it "raises UndefinedEncoder for undefined types" do

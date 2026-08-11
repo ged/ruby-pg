@@ -3054,6 +3054,212 @@ describe PG::Connection do
 		end
 	end
 
+	describe :embed_params do
+
+		def embed_params_and_check(sql, params, conn: @conn)
+			compiled = conn.embed_params(sql, params)
+
+			res = conn.exec(compiled)
+			res2 = conn.exec_params(sql, params)
+			expect( res.to_a ).to eq( res2.to_a ), compiled
+			expect( result_typenames(res) ).to eq( result_typenames(res2) ), compiled
+			compiled
+		end
+
+		def with_std_conf_strings(conn, onoff)
+			conn.exec("SET standard_conforming_strings = #{onoff}")
+			conn.exec("SET escape_string_warning = #{onoff}")
+			yield
+		ensure
+			conn.exec("SET standard_conforming_strings = on")
+			conn.exec("SET escape_string_warning = on")
+		end
+
+		it "ensures PostgreSQL string syntax does not change" do
+			require "net/http"
+			require "json"
+
+			latest_commit_uri = URI(
+				"https://api.github.com/repos/postgres/postgres/commits?sha=master&path=doc/src/sgml/syntax.sgml&per_page=1"
+			)
+			latest_commit_info = JSON.parse(Net::HTTP.get(latest_commit_uri), symbolize_names: true)
+			error_message = <<~TEXT
+				PostgreSQL syntax has changed. Please make sure no new string literals were added by inspecting changelog
+				https://www.postgresql.org/docs/current/release.html and syntax page
+				https://www.postgresql.org/docs/current/sql-syntax-lexical.html. Should you find any syntax changes in
+				string literals - please adjust PG::Connection::PLACEHOLDER_RE constant accordingly
+			TEXT
+			expect(latest_commit_info.dig(0, :sha)).to eq("45762084545ec14dbbe66ace1d69d7e89f8978ac"), error_message
+		end
+
+		describe "default type map" do
+			it "compiles prepared sql into plain sql" do
+				compiled = embed_params_and_check(<<~SQL, [1, "2", true, false, nil])
+					-- this is one: $1
+					/* this is another one: $1 */
+					select $1::int as a, $2 as b, $3 as c, $4 as d, $5 as e, '$5' as f, $$ $6 $$ as g, -- this is two: $2
+							$body$ $1 $body$ as h, t."$1", t."$2"
+					from (select 10 as "$1", 20 as "$2") as t
+				SQL
+
+				aggregate_failures do
+					expect(compiled).to include("-- this is one: $1")
+					expect(compiled).to include("/* this is another one: $1 */")
+					expect(compiled).to include("-- this is two: $2")
+				end
+			end
+
+			it "escapes strings properly" do
+				embed_params_and_check(<<~SQL, ["', '1"])
+					select $1 as one
+				SQL
+			end
+
+			context "with params as Hash" do
+
+				['on', 'off'].each do |stdconf|
+					it "encodes values properly with std conforming strings=#{stdconf}" do
+						with_std_conf_strings(@conn, stdconf) do
+							params = [
+								{value: "'\x1F\\".b, format: 1},
+								{value: "'\0\xff\r\n\t1'".b, format: 1, type: 17},
+								{value: "abc"},
+								{value: 4},
+								{value: 5, type: 23, typename: 'int'},
+								{value: "{ 6, 7}", type: 1007, typename: 'int[]'},
+								{value: false},
+								{value: "\\x000102ff", type: 17, typename: 'bytea'},
+								{value: nil, format: 1, type: 17},
+								{value: nil, format: 1},
+								{value: nil}
+								]
+							embed_params_and_check <<~SQL, params
+								select $1::bytea as a, $2 as b, $3 as c, $4 as d, $5 as e, $6 as f, $7 as g, $8 as h, $9 as i, $10 as j, $11 as k
+							SQL
+						end
+					end
+				end
+
+				it "doesn't cast value" do
+					res = @conn.embed_params("SELECT $1", [{value: "22"}])
+					expect( res ).to eq("SELECT '22'")
+				end
+
+				it "doesn't cast value even if name is given" do
+					res = @conn.embed_params("SELECT $1", [{value: "22", typename: 'int8'}])
+					expect( res ).to eq("SELECT '22'")
+				end
+
+				it "casts value" do
+					res = @conn.embed_params("SELECT $1", [value: "22", typename: 'int8', type: 20])
+					expect( res ).to eq("SELECT '22'::int8")
+				end
+
+				it "assumes bytea data when format: 1" do
+					res = @conn.embed_params("SELECT $1", [value: "\0", format: 1])
+					expect( res ).to eq("SELECT '\\x00'")
+				end
+
+				it "fails to encode binary format" do
+					expect do
+						@conn.embed_params("SELECT $1", [{value: "x", format: 1, type: 20, typename: "int8"}])
+					end.to raise_error(ArgumentError, /binary encoded parameter/)
+				end
+
+				it "fails to encode OID without name" do
+					expect do
+						@conn.embed_params("SELECT $1", [{value: "1", type: 20}])
+					end.to raise_error(ArgumentError, /OID 20 missing.*key :typename/)
+				end
+			end
+		end
+
+		describe "PG::TypeMapByClass type map" do
+			before do
+				@conn2 = PG.connect(@conninfo)
+				@conn2.type_map_for_queries = PG::BasicTypeMapForQueries.new(@conn2)
+				@conn2.type_map_for_results = PG::BasicTypeMapForResults.new(@conn2)
+			end
+
+			after do
+				@conn2.close
+			end
+
+			it "compiles prepared sql into plain sql" do
+				compiled = embed_params_and_check(<<~SQL, [1, "2", { foo: :bar }, [1], true, false, nil], conn: @conn2)
+					-- this is one: $1
+					/* this is another one: $1 */
+					select $1::int as a, $2 as b, $3::json as c, $4::int[] as d, '$5' as e, $$ $6 $$ as f,
+						$body$ $1 $body$ as g, -- this is two: $2
+						t."$1", t."$2", $5 as h, $6 as i, $7 j
+					from (select 10 as "$1", 20 as "$2") as t
+				SQL
+
+				aggregate_failures do
+					expect(compiled).to include("-- this is one: $1")
+					expect(compiled).to include("/* this is another one: $1 */")
+					expect(compiled).to include("-- this is two: $2")
+				end
+			end
+
+			it "escapes strings properly" do
+				embed_params_and_check(<<~SQL, ["', '1"], conn: @conn2)
+					select $1 as one
+				SQL
+			end
+
+			['on', 'off'].each do |stdconf|
+				it "encodes binary strings properly with std conforming strings=#{stdconf}" do
+					with_std_conf_strings(@conn, stdconf) do
+						binary = PG::BasicTypeMapForQueries::BinaryData.new("''\0\xff\r\n\t'".b)
+						embed_params_and_check(<<~SQL, [binary], conn: @conn2)
+							select $1::bytea as one
+						SQL
+					end
+				end
+			end
+		end
+
+		describe "with explicit :type_map" do
+			it "doesn't cast value" do
+				enc = PG::TextEncoder::Integer.new
+				tm = PG::TypeMapByColumn.new([enc])
+				res = @conn.embed_params("SELECT $1", ["22"], type_map: tm)
+				expect( res ).to eq("SELECT '22'")
+			end
+
+			it "doesn't cast value even if name is given" do
+				enc = PG::TextEncoder::Integer.new name: 'int8'
+				tm = PG::TypeMapByColumn.new([enc])
+				res = @conn.embed_params("SELECT $1", ["22"], type_map: tm)
+				expect( res ).to eq("SELECT '22'")
+			end
+
+			it "casts value" do
+				enc = PG::TextEncoder::Integer.new oid: 20, name: 'int8'
+				tm = PG::TypeMapByColumn.new([enc])
+				res = @conn.embed_params("SELECT $1", ["22"], type_map: tm)
+				expect( res ).to eq("SELECT '22'::int8")
+			end
+
+			it "fails to encode binary format" do
+				enc = PG::BinaryEncoder::Int4.new
+				tm = PG::TypeMapByColumn.new([enc])
+				expect do
+					@conn.embed_params("SELECT $1", ["x"], type_map: tm)
+				end.to raise_error(ArgumentError, /binary encoded parameter/)
+			end
+
+			it "fails to encode OID without name" do
+				enc = PG::TextEncoder::Integer.new oid: 20
+				tm = PG::TypeMapByColumn.new([enc])
+				expect do
+					@conn.embed_params("SELECT $1", ["y"], type_map: tm)
+				end.to raise_error(ArgumentError, /OID 20 missing.*name of encoder/)
+			end
+		end
+	end
+
 	describe "deprecated forms of methods" do
 		if PG::VERSION < "2"
 			it "should forward exec to exec_params" do

@@ -101,4 +101,9 @@ class PG::BasicTypeMapForResults < PG::TypeMapByOid
 		typenames = @coder_maps.typenames_by_oid
 		self.default_type_map = WarningTypeMap.new(typenames)
 	end
+
+	# Returns the PG::BasicTypeRegistry::CoderMapsBundle used to translate result OIDs to decoders.
+	def coder_maps_bundle
+		@coder_maps
+	end
 end
