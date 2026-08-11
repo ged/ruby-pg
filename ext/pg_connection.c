@@ -188,6 +188,7 @@ pgconn_gc_compact( void *_this )
 	pg_gc_location( this->socket_io );
 	pg_gc_location( this->notice_receiver );
 	pg_gc_location( this->notice_processor );
+	pg_gc_location( this->self );
 	pg_gc_location( this->type_map_for_queries );
 	pg_gc_location( this->type_map_for_results );
 	pg_gc_location( this->trace_stream );
@@ -260,6 +261,7 @@ pgconn_s_allocate( VALUE klass )
 	RB_OBJ_WRITE(self, &this->socket_io, Qnil);
 	RB_OBJ_WRITE(self, &this->notice_receiver, Qnil);
 	RB_OBJ_WRITE(self, &this->notice_processor, Qnil);
+	RB_OBJ_WRITE(self, &this->self, self);
 	RB_OBJ_WRITE(self, &this->type_map_for_queries, pg_typemap_all_strings);
 	RB_OBJ_WRITE(self, &this->type_map_for_results, pg_typemap_all_strings);
 	RB_OBJ_WRITE(self, &this->encoder_for_put_copy_data, Qnil);
@@ -2986,11 +2988,10 @@ pgconn_untrace(VALUE self)
 void
 notice_receiver_proxy(void *arg, const PGresult *pgresult)
 {
-	VALUE self = (VALUE)arg;
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = (t_pg_connection*)arg;
 
 	if (this->notice_receiver != Qnil) {
-		VALUE result = pg_new_result_autoclear( (PGresult *)pgresult, self );
+		VALUE result = pg_new_result_autoclear( (PGresult *)pgresult, this->self );
 
 		rb_funcall(this->notice_receiver, rb_intern("call"), 1, result);
 		pg_result_clear( result );
@@ -3045,7 +3046,7 @@ pgconn_set_notice_receiver(VALUE self)
 	old_proc = this->notice_receiver;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeReceiver(this->pgconn, gvl_notice_receiver_proxy, (void *)self);
+		PQsetNoticeReceiver(this->pgconn, gvl_notice_receiver_proxy, (void *)this);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;
@@ -3064,8 +3065,7 @@ pgconn_set_notice_receiver(VALUE self)
 void
 notice_processor_proxy(void *arg, const char *message)
 {
-	VALUE self = (VALUE)arg;
-	t_pg_connection *this = pg_get_connection( self );
+	t_pg_connection *this = (t_pg_connection*)arg;
 
 	if (this->notice_processor != Qnil) {
 		VALUE message_str = rb_str_new2(message);
@@ -3106,7 +3106,7 @@ pgconn_set_notice_processor(VALUE self)
 	old_proc = this->notice_processor;
 	if( rb_block_given_p() ) {
 		proc = rb_block_proc();
-		PQsetNoticeProcessor(this->pgconn, gvl_notice_processor_proxy, (void *)self);
+		PQsetNoticeProcessor(this->pgconn, gvl_notice_processor_proxy, (void *)this);
 	} else {
 		/* if no block is given, set back to default */
 		proc = Qnil;

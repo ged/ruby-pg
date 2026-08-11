@@ -42,6 +42,12 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 
 		CONN2 = PG.connect(@conninfo)
 		CONN2.type_map_for_results = PG::BasicTypeMapForResults.new(CONN2)
+		NOTI3 = []
+		CONN3 = PG.connect(@conninfo)
+		CONN3.set_notice_receiver { |res| NOTI3 << res.error_message }
+		NOTI4 = []
+		CONN4 = PG.connect(@conninfo)
+		CONN4.set_notice_processor { |res| NOTI4 << res }
 
 		RES1 = CONN2.exec("SELECT 234")
 
@@ -91,6 +97,16 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 		expect( TMBC.coders[0] ).to be_kind_of(PG::TextDecoder::Float)
 	end
 
+	it "should compact PG::Connection with set_notice_receiver" do
+		CONN3.exec("DO $$ BEGIN RAISE NOTICE 'hello'; END $$;")
+		expect( ["NOTICE:  hello\n"] ).to eq( NOTI3 )
+	end
+
+	it "should compact PG::Connection with set_notice_processor" do
+		CONN4.exec("DO $$ BEGIN RAISE NOTICE 'hello'; END $$;")
+		expect( ["NOTICE:  hello\n"] ).to eq( NOTI4 )
+	end
+
 	it "should compact PG::Result" do
 		expect( RES1.getvalue(0,0) ).to eq( 234 )
 	end
@@ -113,5 +129,7 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 
 	after :all do
 		CONN2.close
+		CONN3.close
+		CONN4.close
 	end
 end
