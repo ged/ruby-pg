@@ -10,7 +10,7 @@ module PG
 		# As soon as this class is used, it requires the ruby standard library 'json'.
 		class JSON < SimpleEncoder
 			def encode(value)
-				::JSON.generate(value, quirks_mode: true)
+				::JSON.generate(value)
 			end
 		end
 	end

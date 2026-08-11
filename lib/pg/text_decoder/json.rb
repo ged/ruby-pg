@@ -10,7 +10,7 @@ module PG
 		# As soon as this class is used, it requires the ruby standard library 'json'.
 		class JSON < SimpleDecoder
 			def decode(string, tuple=nil, field=nil)
-				::JSON.parse(string, quirks_mode: true)
+				::JSON.parse(string)
 			end
 		end
 	end
