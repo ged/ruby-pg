@@ -315,6 +315,28 @@ describe PG::Connection do
 				PG::Connection.class_eval("PROGRAM_NAME=PG.make_shareable(#{old_script_name.inspect})")
 			end
 		end
+
+		it "accepts a lambda as the :password key of a Hash parameter" do
+			optstring = described_class.parse_connect_args(
+				:dbname => 'db01',
+				:password => lambda { 'password_via_lambda' }
+				)
+
+			expect( optstring ).to be_a( String )
+			expect( optstring ).to match( /(^|\s)dbname='db01'/ )
+			expect( optstring ).to match( /(^|\s)password='password_via_lambda'/ )
+		end
+
+		it "accepts a Proc as the :password key of a Hash parameter" do
+			optstring = described_class.parse_connect_args(
+				:dbname => 'db01',
+				:password => Proc.new { 'password_via_Proc' }
+				)
+
+			expect( optstring ).to be_a( String )
+			expect( optstring ).to match( /(^|\s)dbname='db01'/ )
+			expect( optstring ).to match( /(^|\s)password='password_via_Proc'/ )
+		end
 	end
 
 	context "connect" do
