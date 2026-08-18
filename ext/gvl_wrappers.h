@@ -125,6 +125,12 @@ typedef struct pg_cancel_conn PGcancelConn;
 
 /*
  * Definitions of blocking functions and their parameters
+ *
+ * ATTENTION:
+ * Do not GVL-release functions that take pointers to ruby objects.
+ * If the ruby object is relocated by `GC.compact` from a second thread, before the pointer is used, it is no longer valid.
+ * That can lead to a crash or to wrong data.
+ * This issue has been raised in https://github.com/ged/ruby-pg/issues/738 and https://github.com/ged/ruby-pg/issues/721 .
  */
 
 #define FOR_EACH_PARAM_OF_PQconnectdb(param)
