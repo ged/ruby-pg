@@ -283,6 +283,7 @@ pgconn_s_sync_connect(int argc, VALUE *argv, VALUE klass)
 	this = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
 	this->pgconn = gvl_PQconnectdb(StringValueCStr(conninfo));
+	RB_GC_GUARD(conninfo);
 
 	if(this->pgconn == NULL)
 		rb_raise(rb_ePGerror, "PQconnectdb() unable to allocate PGconn structure");
@@ -331,6 +332,7 @@ pgconn_s_connect_start( int argc, VALUE *argv, VALUE klass )
 	this = pg_get_connection( rb_conn );
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
 	this->pgconn = gvl_PQconnectStart( StringValueCStr(conninfo) );
+	RB_GC_GUARD(conninfo);
 
 	if( this->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate PGconn structure");
@@ -352,6 +354,7 @@ pgconn_s_sync_ping( int argc, VALUE *argv, VALUE klass )
 
 	conninfo = rb_funcall2( klass, rb_intern("parse_connect_args"), argc, argv );
 	ping     = gvl_PQping( StringValueCStr(conninfo) );
+	RB_GC_GUARD(conninfo);
 
 	return INT2FIX((int)ping);
 }
@@ -580,6 +583,7 @@ pgconn_reset_start2( VALUE self, VALUE conninfo )
 
 	/* Start new connection */
 	this->pgconn = gvl_PQconnectStart( p_conninfo );
+	RB_GC_GUARD(conninfo);
 
 	if( this->pgconn == NULL )
 		rb_raise(rb_ePGerror, "PQconnectStart() unable to allocate PGconn structure");
