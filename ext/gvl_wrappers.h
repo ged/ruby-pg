@@ -133,66 +133,26 @@ typedef struct pg_cancel_conn PGcancelConn;
  * This issue has been raised in https://github.com/ged/ruby-pg/issues/738 and https://github.com/ged/ruby-pg/issues/721 .
  */
 
-#define FOR_EACH_PARAM_OF_PQconnectdb(param)
-
 #define FOR_EACH_PARAM_OF_PQconnectStart(param)
-
 #define FOR_EACH_PARAM_OF_PQconnectPoll(param)
 
-#define FOR_EACH_PARAM_OF_PQreset(param)
-
 #define FOR_EACH_PARAM_OF_PQresetStart(param)
-
 #define FOR_EACH_PARAM_OF_PQresetPoll(param)
 
 #define FOR_EACH_PARAM_OF_PQping(param)
 
-#define FOR_EACH_PARAM_OF_PQgetResult(param)
-
-#define FOR_EACH_PARAM_OF_PQputCopyEnd(param) \
-	param(PGconn *, conn)
-
-#define FOR_EACH_PARAM_OF_PQgetCopyData(param) \
-	param(PGconn *, conn) \
-	param(char **, buffer)
-
-#define FOR_EACH_PARAM_OF_PQnotifies(param)
-
-#define FOR_EACH_PARAM_OF_PQpipelineSync(param)
-
-#define FOR_EACH_PARAM_OF_PQsetClientEncoding(param) \
-	param(PGconn *, conn)
-
-#define FOR_EACH_PARAM_OF_PQisBusy(param)
-
-#define FOR_EACH_PARAM_OF_PQcancelBlocking(param)
 #define FOR_EACH_PARAM_OF_PQcancelStart(param)
 #define FOR_EACH_PARAM_OF_PQcancelPoll(param)
 
-#define FOR_EACH_PARAM_OF_PQcancel(param) \
-	param(PGcancel *, cancel) \
-	param(char *, errbuf)
-
 /* function( name, void_or_nonvoid, returntype, lastparamtype, lastparamname ) */
 #define FOR_EACH_BLOCKING_FUNCTION(function) \
-	function(PQconnectdb, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
 	function(PQconnectStart, GVL_TYPE_NONVOID, PGconn *, const char *, conninfo) \
 	function(PQconnectPoll, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGconn *, conn) \
-	function(PQreset, GVL_TYPE_VOID, void, PGconn *, conn) \
 	function(PQresetStart, GVL_TYPE_NONVOID, int, PGconn *, conn) \
 	function(PQresetPoll, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGconn *, conn) \
 	function(PQping, GVL_TYPE_NONVOID, PGPing, const char *, conninfo) \
-	function(PQgetResult, GVL_TYPE_NONVOID, PGresult *, PGconn *, conn) \
-	function(PQputCopyEnd, GVL_TYPE_NONVOID, int, const char *, errormsg) \
-	function(PQgetCopyData, GVL_TYPE_NONVOID, int, int, async) \
-	function(PQnotifies, GVL_TYPE_NONVOID, PGnotify *, PGconn *, conn) \
-	function(PQpipelineSync, GVL_TYPE_NONVOID, int, PGconn *, conn) \
-	function(PQsetClientEncoding, GVL_TYPE_NONVOID, int, const char *, encoding) \
-	function(PQisBusy, GVL_TYPE_NONVOID, int, PGconn *, conn) \
-	function(PQcancelBlocking, GVL_TYPE_NONVOID, int, PGcancelConn *, conn) \
 	function(PQcancelStart, GVL_TYPE_NONVOID, int, PGcancelConn *, conn) \
 	function(PQcancelPoll, GVL_TYPE_NONVOID, PostgresPollingStatusType, PGcancelConn *, conn) \
-	function(PQcancel, GVL_TYPE_NONVOID, int, int, errbufsize);
 
 FOR_EACH_BLOCKING_FUNCTION( DEFINE_GVL_STUB_DECL );
 

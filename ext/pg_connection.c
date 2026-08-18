@@ -282,7 +282,7 @@ pgconn_s_sync_connect(int argc, VALUE *argv, VALUE klass)
 
 	this = pg_get_connection( self );
 	conninfo = rb_funcall2( rb_cPGconn, rb_intern("parse_connect_args"), argc, argv );
-	this->pgconn = gvl_PQconnectdb(StringValueCStr(conninfo));
+	this->pgconn = PQconnectdb(StringValueCStr(conninfo));
 	RB_GC_GUARD(conninfo);
 
 	if(this->pgconn == NULL)
@@ -565,7 +565,7 @@ static VALUE
 pgconn_sync_reset( VALUE self )
 {
 	pgconn_close_socket_io( self );
-	gvl_PQreset( pg_get_pgconn(self) );
+	PQreset( pg_get_pgconn(self) );
 	return self;
 }
 
@@ -2309,7 +2309,7 @@ pgconn_sync_get_result(VALUE self)
 	PGresult *result;
 	VALUE rb_pgresult;
 
-	result = gvl_PQgetResult(conn);
+	result = PQgetResult(conn);
 	if(result == NULL)
 		return Qnil;
 	rb_pgresult = pg_new_result(result, self);
@@ -2351,7 +2351,7 @@ pgconn_consume_input(VALUE self)
 static VALUE
 pgconn_is_busy(VALUE self)
 {
-	return gvl_PQisBusy(pg_get_pgconn(self)) ? Qtrue : Qfalse;
+	return PQisBusy(pg_get_pgconn(self)) ? Qtrue : Qfalse;
 }
 
 static VALUE
@@ -2404,7 +2404,7 @@ pgconn_sync_cancel(VALUE self)
 	if(cancel == NULL)
 		pg_raise_conn_error( rb_ePGerror, self, "Invalid connection!");
 
-	ret = gvl_PQcancel(cancel, errbuf, sizeof(errbuf));
+	ret = PQcancel(cancel, errbuf, sizeof(errbuf));
 	if(ret == 1)
 		retval = Qnil;
 	else
@@ -2436,7 +2436,7 @@ pgconn_notifies(VALUE self)
 	sym_be_pid = ID2SYM(rb_intern("be_pid"));
 	sym_extra = ID2SYM(rb_intern("extra"));
 
-	notification = gvl_PQnotifies(this->pgconn);
+	notification = PQnotifies(this->pgconn);
 	if (notification == NULL) {
 		return Qnil;
 	}
@@ -2694,7 +2694,7 @@ pgconn_flush_data_set( VALUE self, VALUE enabled ){
 static void *
 notify_readable(PGconn *conn)
 {
-	return (void*)gvl_PQnotifies(conn);
+	return (void*)PQnotifies(conn);
 }
 
 /*
@@ -2816,7 +2816,7 @@ pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 	else
 		error_message = pg_cstr_enc(str, this->enc_idx, &transcoded_str);
 
-	ret = gvl_PQputCopyEnd(this->pgconn, error_message);
+	ret = PQputCopyEnd(this->pgconn, error_message);
 	if(ret == -1)
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
 
@@ -2846,7 +2846,7 @@ pgconn_sync_get_copy_data(int argc, VALUE *argv, VALUE self )
 		TypedData_Get_Struct(decoder, t_pg_coder, &pg_coder_type, p_coder);
 	}
 
-	ret = gvl_PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
+	ret = PQgetCopyData(this->pgconn, &buffer, RTEST(async_in));
 	if(ret == -2){ /* error */
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(this->pgconn));
 	}
@@ -3152,7 +3152,7 @@ pgconn_sync_set_client_encoding(VALUE self, VALUE str)
 	rb_check_frozen(self);
 	Check_Type(str, T_STRING);
 
-	if ( (gvl_PQsetClientEncoding(conn, StringValueCStr(str))) == -1 )
+	if ( (PQsetClientEncoding(conn, StringValueCStr(str))) == -1 )
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 
 	pgconn_set_internal_encoding_index( self );
@@ -3217,7 +3217,7 @@ pgconn_s_quote_ident(VALUE self, VALUE str_or_array)
 static void *
 get_result_readable(PGconn *conn)
 {
-	return gvl_PQisBusy(conn) ? NULL : (void*)1;
+	return PQisBusy(conn) ? NULL : (void*)1;
 }
 
 
@@ -3275,7 +3275,7 @@ pgconn_sync_get_last_result(VALUE self)
 
 
 	cur = prev = NULL;
-	while ((cur = gvl_PQgetResult(conn)) != NULL) {
+	while ((cur = PQgetResult(conn)) != NULL) {
 		int status;
 
 		if (prev) PQclear(prev);
@@ -3327,7 +3327,7 @@ pgconn_async_get_last_result(VALUE self)
 		 */
 		wait_socket_readable(self, NULL, get_result_readable);
 
-		cur = gvl_PQgetResult(conn);
+		cur = PQgetResult(conn);
 		if (cur == NULL)
 			break;
 
@@ -3384,7 +3384,7 @@ pgconn_discard_results(VALUE self)
 		/* pgconn_block() raises an exception in case of errors.
 		* To avoid this call pg_rb_io_wait() and PQconsumeInput() without rb_raise().
 		*/
-		while( gvl_PQisBusy(conn) ){
+		while( PQisBusy(conn) ){
 			int events;
 
 			switch( PQflush(conn) ) {
@@ -3403,20 +3403,20 @@ pgconn_discard_results(VALUE self)
 			}
 		}
 
-		cur = gvl_PQgetResult(conn);
+		cur = PQgetResult(conn);
 		if( cur == NULL) break;
 
 		status = PQresultStatus(cur);
 		PQclear(cur);
 		if (status == PGRES_COPY_IN){
-			while( gvl_PQputCopyEnd(conn, "COPY terminated by new query or discard_results") == 0 ){
+			while( PQputCopyEnd(conn, "COPY terminated by new query or discard_results") == 0 ){
 				pgconn_async_flush(self);
 			}
 		}
 		if (status == PGRES_COPY_OUT){
 			for(;;) {
 				char *buffer = NULL;
-				int st = gvl_PQgetCopyData(conn, &buffer, 1);
+				int st = PQgetCopyData(conn, &buffer, 1);
 				if( st == 0 ) {
 					/* would block -> wait for readable data */
 					pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
@@ -3898,7 +3898,7 @@ static VALUE
 pgconn_sync_pipeline_sync(VALUE self)
 {
 	PGconn *conn = pg_get_pgconn(self);
-	int res = gvl_PQpipelineSync(conn);
+	int res = PQpipelineSync(conn);
 	if( res != 1 )
 		pg_raise_conn_error( rb_ePGerror, self, "%s", PQerrorMessage(conn));
 
@@ -4364,7 +4364,7 @@ pgconn_internal_encoding_set(VALUE self, VALUE enc)
 		rb_encoding *rbenc = rb_to_encoding( enc );
 		const char *name = pg_get_rb_encoding_as_pg_encoding( rbenc );
 
-		if ( gvl_PQsetClientEncoding(pg_get_pgconn( self ), name) == -1 ) {
+		if ( PQsetClientEncoding(pg_get_pgconn( self ), name) == -1 ) {
 			VALUE server_encoding = pgconn_external_encoding( self );
 			rb_raise( rb_eEncCompatError, "incompatible character encodings: %s and %s",
 					  rb_enc_name(rb_to_encoding(server_encoding)), name );
