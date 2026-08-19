@@ -189,6 +189,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		Integer => [0, 'int8'],
 		Float => [0, 'float8'],
 		Time => [0, 'timestamptz'],
+		Date => [0, 'date'],
 		# We use text format and no type OID for IPAddr, because setting the OID can lead
 		# to unnecessary inet/cidr conversions on the server side.
 		IPAddr => [0, 'inet'],
@@ -205,6 +206,7 @@ class PG::BasicTypeMapForQueries < PG::TypeMapByClass
 		String => [0, '_text'],
 		Float => [0, '_float8'],
 		Time => [0, '_timestamptz'],
+		Date => [0, '_date'],
 		IPAddr => [0, '_inet'],
 	}.merge(has_bigdecimal ? {BigDecimal => [0, '_numeric']} : {}))
 	private_constant :DEFAULT_ARRAY_TYPE_MAP

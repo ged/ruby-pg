@@ -13,6 +13,7 @@
 
 VALUE rb_mPG_BinaryDecoder;
 static VALUE s_Date;
+static VALUE s_Date_GREGORIAN; /* Date::GREGORIAN */
 static ID s_id_new;
 
 
@@ -403,7 +404,7 @@ pg_bin_dec_date(t_pg_coder *conv, const char *val, int len, int tuple, int field
 		default:
 			j2date(date + POSTGRES_EPOCH_JDATE, &year, &month, &day);
 
-			return rb_funcall(s_Date, s_id_new, 3, INT2NUM(year), INT2NUM(month), INT2NUM(day));
+			return rb_funcall(s_Date, s_id_new, 4, INT2NUM(year), INT2NUM(month), INT2NUM(day), s_Date_GREGORIAN);
 	}
 }
 
@@ -412,8 +413,10 @@ static VALUE
 init_pg_bin_decoder_date(VALUE rb_mPG_BinaryDecoder)
 {
 	rb_require("date");
+	rb_gc_register_address(&s_Date);
+	rb_gc_register_address(&s_Date_GREGORIAN);
 	s_Date = rb_const_get(rb_cObject, rb_intern("Date"));
-	rb_gc_register_mark_object(s_Date);
+	s_Date_GREGORIAN = rb_const_get(s_Date, rb_intern("GREGORIAN"));
 	s_id_new = rb_intern("new");
 
 	/* dummy = rb_define_class_under( rb_mPG_BinaryDecoder, "Date", rb_cPG_SimpleDecoder ); */

@@ -11,7 +11,7 @@ module PG
 		class Date < SimpleDecoder
 			def decode(string, tuple=nil, field=nil)
 				if string =~ /\A(\d{4})-(\d\d)-(\d\d)\z/
-					::Date.new $1.to_i, $2.to_i, $3.to_i
+					::Date.new $1.to_i, $2.to_i, $3.to_i, ::Date::GREGORIAN
 				else
 					string
 				end
