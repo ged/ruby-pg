@@ -3089,7 +3089,11 @@ describe PG::Connection do
 				https://www.postgresql.org/docs/current/sql-syntax-lexical.html. Should you find any syntax changes in
 				string literals - please adjust PG::Connection::PLACEHOLDER_RE constant accordingly
 			TEXT
-			expect(latest_commit_info.dig(0, :sha)).to eq("45762084545ec14dbbe66ace1d69d7e89f8978ac"), error_message
+			expect(latest_commit_info).to be_kind_of(Array), latest_commit_info.to_s
+			expect(latest_commit_info[0]).to be_kind_of(Hash), latest_commit_info.to_s
+			expect(latest_commit_info[0][:sha]).to eq("45762084545ec14dbbe66ace1d69d7e89f8978ac"), error_message
+		rescue SocketError, JSON::ParserError => err
+			skip "cannot access PostgreSQL git repository: #{err}"
 		end
 
 		describe "default type map" do
