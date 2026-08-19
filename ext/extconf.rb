@@ -64,6 +64,12 @@ if gem_platform=with_config("cross-build")
 			self.activate
 			self
 		end
+
+		# Increase number of download retries; otherwise it fails often in CI
+		alias download_file_count_3 download_file
+		def download_file(url, full_path, count = 60)
+			download_file_count_3(url, full_path, count)
+		end
 	end
 
 	openssl_platform = with_config("openssl-platform")
