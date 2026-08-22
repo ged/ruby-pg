@@ -437,7 +437,7 @@ pg_text_enc_bytea(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		/* The output starts with "\x" and each character is converted to hex. */
 		if( size > INT_MAX / 2 - 2 )
 			rb_raise( rb_eArgError, "too large input string for PG::TextEncoder::Bytea: %ld", size );
-		return 2 + size * 2;
+		return (int)(2 + size * 2);
 	}
 }
 

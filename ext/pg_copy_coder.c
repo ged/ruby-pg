@@ -220,7 +220,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
 	t_pg_coder_enc_func enc_func;
 	t_pg_coder *p_elem_coder;
-	long i;
+	int i;
 	VALUE rb_typemap = this->typemap;
 	t_typemap *p_typemap;
 	char *current_out;
@@ -233,7 +233,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	PG_RB_STR_NEW( *intermediate, current_out, end_capa_ptr );
 	PG_ENCODING_SET_NOCHECK(*intermediate, enc_idx);
 
-	for( i=0; i<RARRAY_LEN(value); i++){
+	for( i=0; i<RARRAY_LENINT(value); i++){
 		char *ptr1;
 		char *ptr2;
 		int strlen;
@@ -367,7 +367,7 @@ static int
 pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate, int enc_idx)
 {
 	t_pg_copycoder *this = (t_pg_copycoder *)conv;
-	long i;
+	int i;
 	VALUE rb_typemap = this->typemap;
 	t_typemap *p_typemap;
 	char *current_out;
@@ -389,7 +389,7 @@ pg_bin_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediat
 	write_nbo16(RARRAY_LEN(value), current_out);
 	current_out += 2;
 
-	for( i=0; i<RARRAY_LEN(value); i++){
+	for( i=0; i<RARRAY_LENINT(value); i++){
 		int strlen;
 		VALUE subint;
 		VALUE entry;
