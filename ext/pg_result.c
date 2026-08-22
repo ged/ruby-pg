@@ -1618,12 +1618,12 @@ pgresult_stream_any(VALUE self, int (*yielder)(VALUE, int, int, void*), void* da
 			pgresult_clear( this );
 		}
 
-		if( gvl_PQisBusy(pgconn) ){
+		if( PQisBusy(pgconn) ){
 			/* wait for input (without blocking) before reading each result */
 			pgconn_block( 0, NULL, this->connection );
 		}
 
-		pgresult = gvl_PQgetResult(pgconn);
+		pgresult = PQgetResult(pgconn);
 		if( pgresult == NULL )
 			rb_raise( rb_eNoResultError, "no result received - possibly an intersection with another query");
 

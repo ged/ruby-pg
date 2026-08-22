@@ -810,6 +810,7 @@ describe PG::Connection do
 				EOSQL
 
 				conn.exec( "COPY copytable FROM STDOUT CSV" )
+
 				gate.stop
 
 				data = "x" * 1000 * 1000
@@ -898,7 +899,7 @@ describe PG::Connection do
 	end
 
 	it "connects without port and then retrieves the default port" do
-		gate = Helpers::TcpGateSwitcher.new(
+		gate = Helpers::TcpGateSwitcherProcess.new.bind(
 				external_host: 'localhost',
 				external_port: ENV['PGPORT'].to_i,
 				internal_host: "127.0.0.1",

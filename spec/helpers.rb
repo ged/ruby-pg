@@ -7,9 +7,10 @@ require 'pg'
 require 'openssl'
 require 'fileutils'
 require 'objspace'
-require_relative 'helpers/scheduler.rb'
-require_relative 'helpers/tcp_gate_scheduler.rb'
-require_relative 'helpers/tcp_gate_switcher.rb'
+require_relative 'helpers/scheduler'
+require_relative 'helpers/tcp_gate_scheduler'
+require_relative 'helpers/tcp_gate_switcher'
+require_relative 'helpers/tcp_gate_switcher_process'
 
 TEST_DIRECTORY = Pathname.new(ENV['RUBY_PG_TEST_DIR'] || Dir.pwd)
 DATA_OBJ_MEMSIZE = ObjectSpace.memsize_of(Object.new)
@@ -616,7 +617,7 @@ module PG::TestingHelpers
 
 	def gate_setup
 		# Run examples with gate
-		gate = Helpers::TcpGateSwitcher.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
+		gate = Helpers::TcpGateSwitcherProcess.new.bind(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
 		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{gate.internal_port}")
 
 		# Run examples without gate
