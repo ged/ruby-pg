@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "socket"
+
 # This is a transparent TCP proxy for testing blocking behaviour in a time insensitive way.
 #
 # It works as a gate between the client and the server, which is enabled or disabled by the spec.
@@ -135,8 +137,7 @@ class TcpGateSwitcher
 
 	UnknownConnection = Struct.new :fileno, :events
 
-	def initialize(external_host:, external_port:, internal_host: 'localhost', internal_port: 0, debug: false)
-		super()
+	def bind(external_host:, external_port:, internal_host: 'localhost', internal_port: 0, debug: false)
 		@connections = []
 		@server_io = TCPServer.new(internal_host, internal_port)
 		@external_host = external_host
@@ -146,6 +147,7 @@ class TcpGateSwitcher
 		puts "TcpGate server listening: #{@server_io.inspect}"
 
 		@th = run
+		self
 	end
 
 	def finish

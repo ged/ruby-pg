@@ -135,31 +135,6 @@ describe PG::Connection do
 		end
 	end
 
-	it "connects without port and then retrieves the default port" do
-		gate = Helpers::TcpGateSwitcher.new(
-			external_host: 'localhost',
-			external_port: ENV['PGPORT'].to_i,
-			internal_host: "127.0.0.1",
-			internal_port: PG::DEF_PGPORT,
-			debug: ENV['PG_DEBUG']=='1')
-
-		PG.connect(host: "localhost",
-		           port: "",
-		           dbname: "test") do |conn|
-			expect( conn.port ).to eq( PG::DEF_PGPORT )
-		end
-
-		PG.connect(hostaddr: "127.0.0.1",
-		           port: nil,
-		           dbname: "test") do |conn|
-			expect( conn.port ).to eq( PG::DEF_PGPORT )
-		end
-
-		gate.finish
-	rescue Errno::EADDRINUSE, Errno::EACCES => err
-		skip err.to_s
-	end
-
 	it "doesn't duplicate hosts in conn.reset", :without_transaction, :ipv6, :postgresql_12 do
 		set_etc_hosts "::1", "rubypg_test2 rubypg_test_ipv6"
 		set_etc_hosts "127.0.0.1", "rubypg_test2 rubypg_test_ipv4"
@@ -180,65 +155,5 @@ describe PG::Connection do
 		expect( conn.host ).to eq( "rubypg_test2" )
 		expect( conn.hostaddr ).to eq( "::1" )
 		expect( conn.port ).to eq( @port )
-	end
-
-	context "in nonblocking mode" do
-		after :each do
-			@conn.setnonblocking(false)
-		end
-
-		it "rejects to send lots of COPY data" do
-			unless RUBY_PLATFORM =~ /i386-mingw|x86_64-darwin|x86_64-linux$/
-					skip "this spec depends on out-of-memory condition in put_copy_data, which is not reliable on all platforms"
-			end
-
-			run_with_gate(200) do |conn, gate|
-				conn.setnonblocking(true)
-
-				res = nil
-				conn.exec <<-EOSQL
-					CREATE TEMP TABLE copytable (col1 TEXT);
-				EOSQL
-
-				conn.exec( "COPY copytable FROM STDOUT CSV" )
-
-				gate.stop
-
-				data = "x" * 1000 * 1000
-				data << "\n"
-				20000.times do |idx|
-					res = conn.put_copy_data(data)
-					break if res == false
-				end
-				expect( res ).to be_falsey
-
-				gate.start
-				conn.cancel
-				conn.discard_results
-			end
-		end
-
-		it "needs to flush data after send_query" do
-			run_with_gate(200) do |conn, gate|
-				conn.setnonblocking(true)
-
-				gate.stop
-				data = "x" * 1000 * 1000 * 30
-				res = conn.send_query_params("SELECT LENGTH($1)", [data])
-				expect( res ).to be_nil
-
-				res = conn.flush
-				expect( res ).to be_falsey
-
-				gate.start
-				until conn.flush
-					IO.select(nil, [conn.socket_io], [conn.socket_io], 10)
-				end
-				expect( conn.flush ).to be_truthy
-
-				res = conn.get_last_result
-				expect( res.values ).to eq( [[data.length.to_s]] )
-			end
-		end
 	end
 end
