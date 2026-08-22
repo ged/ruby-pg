@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "socket"
+
 # This is a transparent TCP proxy for testing blocking behaviour in a time insensitive way.
 #
 # It works as a gate between the client and the server, which is enabled or disabled by the spec.
@@ -146,12 +148,16 @@ class TcpGateSwitcher
 		puts "TcpGate server listening: #{@server_io.inspect}"
 
 		@th = run
+	rescue Exception
+		finish
+		raise
 	end
 
 	def finish
 		@finish = true
-		TCPSocket.new('localhost', internal_port).close
-		@th.join
+		TCPSocket.new('localhost', internal_port).close if @server_io
+		@th&.join
+		@server_io&.close
 	end
 
 	def internal_port

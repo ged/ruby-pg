@@ -7,9 +7,10 @@ require 'pg'
 require 'openssl'
 require 'fileutils'
 require 'objspace'
-require_relative 'helpers/scheduler.rb'
-require_relative 'helpers/tcp_gate_scheduler.rb'
-require_relative 'helpers/tcp_gate_switcher.rb'
+require_relative 'helpers/scheduler'
+require_relative 'helpers/tcp_gate_scheduler'
+require_relative 'helpers/tcp_gate_switcher'
+require_relative 'helpers/tcp_gate_switcher_process'
 
 TEST_DIRECTORY = Pathname.new(ENV['RUBY_PG_TEST_DIR'] || Dir.pwd)
 DATA_OBJ_MEMSIZE = ObjectSpace.memsize_of(Object.new)
@@ -608,7 +609,7 @@ module PG::TestingHelpers
 
 				yield conn
 			ensure
-				conn.finish if conn
+				conn&.finish
 				scheduler_stop
 			end
 		end
@@ -616,7 +617,7 @@ module PG::TestingHelpers
 
 	def gate_setup
 		# Run examples with gate
-		gate = Helpers::TcpGateSwitcher.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
+		gate = Helpers::TcpGateSwitcherProcess.new(external_host: 'localhost', external_port: ENV['PGPORT'].to_i, debug: ENV['PG_DEBUG']=='1')
 		@conninfo_gate = @conninfo.gsub(/(^| )port=\d+/, " port=#{gate.internal_port}")
 
 		# Run examples without gate
@@ -635,7 +636,8 @@ module PG::TestingHelpers
 
 			yield conn, gate
 
-			conn.finish
+		ensure
+			conn&.finish
 			gate_stop(gate)
 		end
 	end
@@ -681,10 +683,10 @@ RSpec.configure do |config|
 	config.filter_run_excluding( :postgresql_17 ) if PG.library_version < 170000
 	config.filter_run_excluding( :postgresql_18 ) if PG.library_version < 180000
 	config.filter_run_excluding( :unix_socket ) if RUBY_PLATFORM=~/mingw|mswin/i
-	config.filter_run_excluding( :scheduler ) if RUBY_VERSION < "3.0" || (RUBY_PLATFORM =~ /mingw|mswin/ && RUBY_VERSION < "3.1") || !Fiber.respond_to?(:scheduler)
+	config.filter_run_excluding( :scheduler ) if (RUBY_PLATFORM =~ /mingw|mswin/i && RUBY_VERSION < "3.1") || !Fiber.respond_to?(:scheduler)
 	config.filter_run_excluding( :scheduler_address_resolve ) if RUBY_VERSION < "3.1"
 	config.filter_run_excluding( :ipv6 ) if Addrinfo.getaddrinfo("localhost", nil, nil, :STREAM).size < 2
-	config.filter_run_excluding( :ractor ) unless defined?(Ractor) && RUBY_VERSION >= "4"
+	config.filter_run_excluding( :ractor ) if !defined?(Ractor) || (RUBY_PLATFORM =~ /mingw|mswin/i && RUBY_VERSION < "4.1")
 	begin
 		PG.require_bigdecimal_without_warning
 	rescue LoadError
