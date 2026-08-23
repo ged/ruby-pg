@@ -98,7 +98,7 @@ if gem_platform=with_config("cross-build")
 	end
 
 	if RUBY_PLATFORM =~ /linux|darwin/
-		krb5_recipe = BuildRecipe.new("krb5", KRB5_VERSION, [KRB5_SOURCE_URI]).tap do |recipe|
+		BuildRecipe.new("krb5", KRB5_VERSION, [KRB5_SOURCE_URI]).tap do |recipe|
 			class << recipe
 				def work_path
 					File.join(super, "src")
