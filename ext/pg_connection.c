@@ -4404,12 +4404,12 @@ pgconn_external_encoding(VALUE self)
 static VALUE
 pgconn_async_set_client_encoding(VALUE self, VALUE encname)
 {
-	VALUE query_format, query;
+	VALUE query;
 
 	rb_check_frozen(self);
 	Check_Type(encname, T_STRING);
-	query_format = rb_str_new_cstr("set client_encoding to '%s'");
-	query = rb_funcall(query_format, rb_intern("%"), 1, encname);
+	query = rb_str_new_cstr("set client_encoding to ");
+	rb_str_concat(query, pgconn_escape_literal(self, encname));
 
 	pgconn_async_exec(1, &query, self);
 	pgconn_set_internal_encoding_index( self );
