@@ -2824,6 +2824,31 @@ pgconn_sync_put_copy_end(int argc, VALUE *argv, VALUE self)
 	return (ret) ? Qtrue : Qfalse;
 }
 
+struct pgconn_copy_data {
+	t_pg_coder *coder;
+	char *buffer;
+	int length;
+	int enc_idx;
+};
+
+static VALUE
+pgconn_decode_copy_data(VALUE data_ptr)
+{
+	struct pgconn_copy_data *data = (struct pgconn_copy_data *)data_ptr;
+	t_pg_coder_dec_func dec_func = pg_coder_dec_func(data->coder, data->coder->format);
+
+	return dec_func(data->coder, data->buffer, data->length, 0, 0, data->enc_idx);
+}
+
+static VALUE
+pgconn_free_copy_data(VALUE data_ptr)
+{
+	struct pgconn_copy_data *data = (struct pgconn_copy_data *)data_ptr;
+
+	PQfreemem(data->buffer);
+	return Qnil;
+}
+
 static VALUE
 pgconn_sync_get_copy_data(int argc, VALUE *argv, VALUE self )
 {
@@ -2858,8 +2883,9 @@ pgconn_sync_get_copy_data(int argc, VALUE *argv, VALUE self )
 	}
 
 	if( p_coder ){
-		t_pg_coder_dec_func dec_func = pg_coder_dec_func( p_coder, p_coder->format );
-		result =  dec_func( p_coder, buffer, ret, 0, 0, this->enc_idx );
+		struct pgconn_copy_data data = { p_coder, buffer, ret, this->enc_idx };
+
+		return rb_ensure(pgconn_decode_copy_data, (VALUE)&data, pgconn_free_copy_data, (VALUE)&data);
 	} else {
 		result = rb_str_new(buffer, ret);
 	}
