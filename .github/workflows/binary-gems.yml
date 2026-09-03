@@ -138,7 +138,7 @@ jobs:
               param([string]$zipfile, [string]$outpath)
               [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath)
           }
-          $(new-object net.webclient).DownloadFile("http://get.enterprisedb.com/postgresql/postgresql-$env:PGVERSION-binaries.zip", "postgresql-binaries.zip")
+          $(new-object net.webclient).DownloadFile("https://get.enterprisedb.com/postgresql/postgresql-$env:PGVERSION-binaries.zip", "postgresql-binaries.zip")
           Unzip "postgresql-binaries.zip" "."
           echo "$pwd/pgsql/bin"  | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
