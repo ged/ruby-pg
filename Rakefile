@@ -166,6 +166,16 @@ task :update_error_codes do
 	ruby 'ext/errorcodes.rb', 'ext/errorcodes.txt', 'ext/errorcodes.def'
 end
 
+desc "Update list of OIDs => type names"
+task :update_well_known_oids do
+	URL_PG_TYPE_DAT = "https://raw.githubusercontent.com/postgres/postgres/refs/tags/REL_18_0/src/include/catalog/pg_type.dat"
+
+	PG_TYPE_DAT = "ext/pg_type.dat"
+	sh "wget #{URL_PG_TYPE_DAT.inspect} -O #{PG_TYPE_DAT.inspect} || curl #{URL_PG_TYPE_DAT.inspect} -o #{PG_TYPE_DAT.inspect}"
+
+	ruby 'ext/well_known_oids.rb', PG_TYPE_DAT, 'lib/pg/well_known_oids.rb'
+end
+
 file 'ext/pg_errors.c' => ['ext/errorcodes.def'] do
 	# trigger compilation of changed errorcodes.def
 	touch 'ext/pg_errors.c'
