@@ -3089,6 +3089,7 @@ describe PG::Connection do
 				https://www.postgresql.org/docs/current/sql-syntax-lexical.html. Should you find any syntax changes in
 				string literals - please adjust PG::Connection::PLACEHOLDER_RE constant accordingly
 			TEXT
+			skip "github API access failed: #{latest_commit_info[:message]}" if latest_commit_info.is_a?(Hash) && latest_commit_info[:message]
 			expect(latest_commit_info).to be_kind_of(Array), latest_commit_info.to_s
 			expect(latest_commit_info[0]).to be_kind_of(Hash), latest_commit_info.to_s
 			expect(latest_commit_info[0][:sha]).to eq("45762084545ec14dbbe66ace1d69d7e89f8978ac"), error_message
