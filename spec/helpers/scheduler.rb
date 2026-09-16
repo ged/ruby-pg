@@ -259,6 +259,15 @@ class Scheduler
 		io.write_nonblock('.')
 	end
 
+	def fiber_interrupt(target, _exception)
+		@lock.synchronize do
+			@ready << target
+		end
+
+		io = @urgent.last
+		io.write_nonblock('.')
+	end
+
 	def fiber(&block)
 		fiber = Fiber.new(blocking: false, &block)
 
