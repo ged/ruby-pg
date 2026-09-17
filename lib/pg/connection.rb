@@ -681,6 +681,17 @@ class PG::Connection
 		(?<placeholder>\$(?:[1-9]\d*))                               # placeholder we are interested in
 	/mx
 	private_constant :PLACEHOLDER_RE
+	SAFE_TYPE_NAME_PART_RE = /\A[A-Za-z_][A-Za-z0-9_$]*\z/
+	private_constant :SAFE_TYPE_NAME_PART_RE
+
+	private def quote_type_name(name)
+		name = name.to_s.dup
+		array_suffix = name.slice!(/(?:\[\])+\z/) || ""
+		name = name.split(".", -1).map do |part|
+			SAFE_TYPE_NAME_PART_RE.match?(part) ? part : quote_ident(part)
+		end.join(".")
+		name + array_suffix
+	end
 
 	# Compiles your prepared SQL statement and the given positional arguments into plain SQL string.
 	#
@@ -708,7 +719,7 @@ class PG::Connection
 				if tname.to_s.empty?
 					raise(ArgumentError, "Database type name of OID #{oid.inspect} missing#{errtext}")
 				else
-					"::#{ tname }"
+					"::#{quote_type_name(tname)}"
 				end
 			end
 		end
