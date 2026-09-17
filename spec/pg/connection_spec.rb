@@ -3160,6 +3160,11 @@ describe PG::Connection do
 					expect( res ).to eq("SELECT '22'::int8")
 				end
 
+				it "casts value with quotes" do
+					res = @conn.embed_params("SELECT $1", [value: "22", typename: 'schäma.int8; SELECT', type: 20])
+					expect( res ).to eq("SELECT '22'::\"schäma\".\"int8; SELECT\"")
+				end
+
 				it "assumes bytea data when format: 1" do
 					res = @conn.embed_params("SELECT $1", [value: "\0", format: 1])
 					expect( res ).to eq("SELECT '\\x00'")
