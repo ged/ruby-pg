@@ -219,6 +219,7 @@ pg_bin_dec_array(t_pg_coder *conv, const char *input_line, int len, int tuple, i
 		cur_ptr += 8;
 	}
 	nitems = (int)nitems32;
+	if (nitems > (line_end_ptr - cur_ptr) / 4) goto length_error;
 
 	dim = 0;
 	arrays[dim] = rb_ary_new2(ndim == 0 ? 0 : dim_sizes[dim]);
