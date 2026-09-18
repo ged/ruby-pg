@@ -535,6 +535,16 @@ describe PG::Result do
 	it "can retrieve field names" do
 		res = @conn.exec('SELECT 1 AS a, 2 AS "B"')
 		expect(res.fields).to eq(["a", "B"])
+		expect(res.fields).to all(be_frozen)
+	end
+
+	it "shares string field names across results" do
+		skip "requires ruby-3.0" if RUBY_VERSION < "3.0"
+
+		first = @conn.exec("SELECT 1 AS shared_column")
+		second = @conn.exec("SELECT 2 AS shared_column")
+
+		expect(first.fields.first).to equal(second.fields.first)
 	end
 
 	it "can retrieve field names as symbols" do

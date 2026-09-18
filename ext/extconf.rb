@@ -311,6 +311,7 @@ have_func 'PQencryptPasswordConn', 'libpq-fe.h' or # since PostgreSQL-10
 # optional headers/functions
 have_func 'PQresultMemorySize', 'libpq-fe.h' # since PostgreSQL-12
 have_func 'timegm'
+have_func 'rb_enc_interned_str' # since ruby-3.0
 have_func 'rb_io_wait' # since ruby-3.0
 have_func 'rb_io_descriptor' # since ruby-3.1
 have_func 'rb_hash_new_capa' # since ruby-3.2
