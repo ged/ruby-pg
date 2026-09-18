@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 require 'pg' unless defined?( PG )
-require 'io/wait' unless ::IO.public_instance_methods(false).include?(:wait_readable) # for ruby < 3.0
 require 'socket'
 
 # The PostgreSQL connection class. The interface for this class is based on
@@ -800,22 +799,13 @@ class PG::Connection
 					# If the socket needs to read, wait 'til it becomes readable to poll again
 					case poll_status
 					when PG::PGRES_POLLING_READING
-						if defined?(IO::READABLE) # ruby-3.0+
-							socket_io.wait(IO::READABLE | IO::PRIORITY, timeout)
-						else
-							IO.select([socket_io], nil, [socket_io], timeout)
-						end
+						socket_io.wait(IO::READABLE | IO::PRIORITY, timeout)
 
 					# ...and the same for when the socket needs to write
 					when PG::PGRES_POLLING_WRITING
-						if defined?(IO::WRITABLE) # ruby-3.0+
-							# Use wait instead of wait_readable, since connection errors are delivered as
-							# exceptional/priority events on Windows.
-							socket_io.wait(IO::WRITABLE | IO::PRIORITY, timeout)
-						else
-							# io#wait on ruby-2.x doesn't wait for priority, so fallback to IO.select
-							IO.select(nil, [socket_io], [socket_io], timeout)
-						end
+						# Use wait instead of wait_readable, since connection errors are delivered as
+						# exceptional/priority events on Windows.
+						socket_io.wait(IO::WRITABLE | IO::PRIORITY, timeout)
 					end
 				end
 
@@ -991,16 +981,7 @@ class PG::Connection
 
 			dests = ihosts.each_with_index.flat_map do |mhost, idx|
 				unless host_is_named_pipe?(mhost)
-					if Fiber.respond_to?(:scheduler) &&
-								Fiber.scheduler &&
-								RUBY_VERSION < '3.1.'
-
-						# Use a second thread to avoid blocking of the scheduler.
-						# `TCPSocket.gethostbyname` isn't fiber aware before ruby-3.1.
-						hostaddrs = Thread.new{ Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue [''] }.value
-					else
-						hostaddrs = Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue ['']
-					end
+					hostaddrs = Addrinfo.getaddrinfo(mhost, nil, nil, :STREAM).map(&:ip_address) rescue ['']
 				else
 					# No hostname to resolve (UnixSocket)
 					hostaddrs = [nil]

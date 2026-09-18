@@ -4,7 +4,7 @@
 # Tests to verify correct implementation of compaction callbacks in rb_data_type_t definitions.
 #
 # Compaction callbacks update moved VALUEs.
-# In ruby-2.7 they are invoked only while GC.compact or GC.verify_compaction_references.
+# In ruby-2.7+ they are invoked only while GC.compact or GC.verify_compaction_references.
 # Ruby constants are usually moved, but local variables are not.
 #
 # Effectiveness of the tests below should be verified by commenting the compact callback out like so:

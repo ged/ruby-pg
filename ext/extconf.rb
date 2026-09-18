@@ -191,8 +191,6 @@ if gem_platform=with_config("cross-build")
 	$LDFLAGS << " -L#{postgresql_recipe.path}/lib"
 	# Avoid dependency to external libgcc.dll on x86-mingw32
 	$LDFLAGS << " -static-libgcc" if RUBY_PLATFORM =~ /mingw|mswin/
-	# Avoid: "libpq.so: undefined reference to `dlopen'" in cross-ruby-2.7.8
-	$LDFLAGS << " -Wl,--no-as-needed" if RUBY_PLATFORM !~ /aarch64|arm64|darwin/
 	# Find libpq in the ports directory coming from lib/3.x
 	# It is shared between all compiled ruby versions.
 	$LDFLAGS << " '-Wl,-rpath=$$ORIGIN/../../ports/#{gem_platform}/lib'" if RUBY_PLATFORM =~ /linux/
@@ -311,13 +309,9 @@ have_func 'PQencryptPasswordConn', 'libpq-fe.h' or # since PostgreSQL-10
 # optional headers/functions
 have_func 'PQresultMemorySize', 'libpq-fe.h' # since PostgreSQL-12
 have_func 'timegm'
-have_func 'rb_enc_interned_str' # since ruby-3.0
-have_func 'rb_io_wait' # since ruby-3.0
-have_func 'rb_io_descriptor' # since ruby-3.1
 have_func 'rb_hash_new_capa' # since ruby-3.2
 
 have_header 'inttypes.h'
-have_header('ruby/fiber/scheduler.h') if RUBY_PLATFORM=~/mingw|mswin/
 
 checking_for "C99 variable length arrays" do
 	$defs.push( "-DHAVE_VARIABLE_LENGTH_ARRAYS" ) if try_compile('void test_vla(int l){ int vla[l]; }')

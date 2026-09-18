@@ -180,7 +180,7 @@ static const rb_data_type_t pgresult_type = {
 		pgresult_gc_compact,
 	},
 	0, 0,
-	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | PG_RUBY_TYPED_FROZEN_SHAREABLE,
+	RUBY_TYPED_FREE_IMMEDIATELY | RUBY_TYPED_WB_PROTECTED | RUBY_TYPED_FROZEN_SHAREABLE,
 };
 
 /* Needed by sequel_pg gem, do not delete */
@@ -474,14 +474,8 @@ static VALUE pg_cstr_to_sym(char *cstr, unsigned int flags, int enc_idx)
 			fname = rb_str_intern(fname);
 		}
 	} else {
-#ifdef HAVE_RB_ENC_INTERNED_STR
 		rb_encoding *enc = rb_enc_from_index(enc_idx);
 		fname = rb_enc_interned_str(cstr, strlen(cstr), enc);
-#else
-		fname = rb_str_new2(cstr);
-		PG_ENCODING_SET_NOCHECK(fname, enc_idx);
-		fname = rb_obj_freeze(fname);
-#endif
 	}
 	return fname;
 }

@@ -531,19 +531,15 @@ describe "PG::Type derivations" do
 		end
 
 		def expect_deprecated_coder_init
-			if RUBY_VERSION >= '3'
-				begin
-					prev_deprecated = Warning[:deprecated]
-					Warning[:deprecated] = true
+			begin
+				prev_deprecated = Warning[:deprecated]
+				Warning[:deprecated] = true
 
-					expect do
-						yield
-					end.to output(/deprecated.*type_spec.rb/).to_stderr
-				ensure
-					Warning[:deprecated] = prev_deprecated
-				end
-			else
-				yield
+				expect do
+					yield
+				end.to output(/deprecated.*type_spec.rb/).to_stderr
+			ensure
+				Warning[:deprecated] = prev_deprecated
 			end
 		end
 

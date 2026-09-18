@@ -45,7 +45,7 @@ Actionsのビルド状況](https://github.com/ged/ruby-pg/actions/workflows/sour
 
 ## 要件
 
-* Ruby 2.7かそれより新しいバージョン
+* Ruby 3.1かそれより新しいバージョン
 * PostgreSQL 10.x以降
 * ソースからgemをインストールする場合：-devのパッケージなど、ヘッダ付きのlibpq
 
@@ -262,7 +262,6 @@ PG には個々のスレッドないしファイバが個々の PG::Connection �
 ## Fiber IOスケジューラー対応
 
 pg-1.3.0以降で、PgはRuby-3.0で導入された`Fiber.scheduler`に完全に対応しています。
-Windowsでは、`Fiber.scheduler`対応はRuby-3.1以降で使えます。
 `Fiber.scheduler`が走らせているスレッドに登録されている場合、起こりうる全てのブロッキングIO操作はそのスケジューラーを経由します。
 同期的であったりブロックしたりするメソッド呼び出しについてもpgが内部的に非同期のlibpqインターフェースを使っているのはそれが理由です。
 またlibpqの組み込み関数に代えてRubyのDNS解決を使っています。
