@@ -27,7 +27,6 @@ jobs:
       matrix:
         include:
           - platform: "x64-mingw-ucrt"
-          - platform: "x64-mingw32"
           - platform: "x86_64-linux"
           - platform: "x86_64-linux-musl"
           - platform: "aarch64-linux"
@@ -39,7 +38,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.3"
+          ruby-version: "4.0"
       - run: bundle install
 
       - name: Create a dummy cert to satisfy the build
@@ -76,25 +75,25 @@ jobs:
             ruby: "4.0"
             platform: "x86_64-linux"
           - os: ubuntu-latest
-            ruby: "3.0"
+            ruby: "3.1"
             platform: "x86_64-linux"
           - os: ubuntu-24.04-arm
             ruby: "4.0"
             platform: "aarch64-linux"
           - os: ubuntu-24.04-arm
-            ruby: "3.0"
+            ruby: "3.1"
             platform: "aarch64-linux"
           - os: macos-latest
             ruby: "4.0"
             platform: "arm64-darwin"
           - os: macos-latest
-            ruby: "3.0"
+            ruby: "3.1"
             platform: "arm64-darwin"
           - os: macos-15-intel
             ruby: "4.0"
             platform: "x86_64-darwin"
           - os: macos-15-intel
-            ruby: "3.0"
+            ruby: "3.1"
             platform: "x86_64-darwin"
 
     runs-on: ${{ matrix.os }}
@@ -103,24 +102,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up Ruby
-        if: matrix.platform != 'x86-mingw32'
         uses: ruby/setup-ruby-pkgs@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           apt-get: "postgresql" # Ubuntu
           brew: "postgresql"    # macOS
           mingw: "postgresql"   # Windows mingw / mswin /ucrt
-
-      - name: Set up 32 bit x86 Ruby
-        if: matrix.platform == 'x86-mingw32'
-        run: |
-          $(new-object net.webclient).DownloadFile("https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-${{ matrix.ruby }}/rubyinstaller-${{ matrix.ruby }}-x86.exe", "$pwd/ruby-setup.exe")
-          cmd /c ruby-setup.exe /currentuser /verysilent /dir=C:/Ruby-${{ matrix.ruby }}
-          echo "c:/ruby-${{ matrix.ruby }}/bin"  | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-          c:/ruby-${{ matrix.ruby }}/bin/ridk enable
-          c:/msys64/usr/bin/bash -lc "pacman -S --noconfirm --needed make `${MINGW_PACKAGE_PREFIX}-pkgconf `${MINGW_PACKAGE_PREFIX}-libyaml `${MINGW_PACKAGE_PREFIX}-gcc `${MINGW_PACKAGE_PREFIX}-make"
-          echo "C:/msys64/$env:MSYSTEM_PREFIX/bin"  | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Download gem from build job
         uses: actions/download-artifact@v8

@@ -42,7 +42,7 @@ See the PG::Connection class for query methods and the PG::Result class for info
 
 ## Requirements
 
-* Ruby 2.7 or newer
+* Ruby 3.1 or newer
 * PostgreSQL 10.x or later
 * When installing the source gem: libpq with headers, -dev packages, etc.
 
@@ -237,7 +237,6 @@ If messages like the following are printed to stderr, you're probably using one 
 ## Fiber IO scheduler support
 
 Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0 since pg-1.3.0.
-On Windows support for `Fiber.scheduler` is available on Ruby-3.1 or newer.
 All possibly blocking IO operations are routed through the `Fiber.scheduler` if one is registered for the running thread.
 That is why pg internally uses the asynchronous libpq interface even for synchronous/blocking method calls.
 It also uses Ruby's DNS resolution instead of libpq's builtin functions.

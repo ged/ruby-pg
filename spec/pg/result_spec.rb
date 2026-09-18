@@ -539,8 +539,6 @@ describe PG::Result do
 	end
 
 	it "shares string field names across results" do
-		skip "requires ruby-3.0" if RUBY_VERSION < "3.0"
-
 		first = @conn.exec("SELECT 1 AS shared_column")
 		second = @conn.exec("SELECT 2 AS shared_column")
 

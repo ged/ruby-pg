@@ -154,8 +154,8 @@ msgstr "要件"
 
 #. type: Bullet: '* '
 #: ../README.md:48
-msgid "Ruby 2.7 or newer"
-msgstr "Ruby 2.7かそれより新しいバージョン"
+msgid "Ruby 3.1 or newer"
+msgstr "Ruby 3.1かそれより新しいバージョン"
 
 #. type: Bullet: '* '
 #: ../README.md:48
@@ -901,8 +901,7 @@ msgstr "Fiber IOスケジューラー対応"
 #: ../README.md:244
 msgid ""
 "Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0 since "
-"pg-1.3.0.  On Windows support for `Fiber.scheduler` is available on Ruby-3.1 "
-"or newer.  All possibly blocking IO operations are routed through the "
+"pg-1.3.0.  All possibly blocking IO operations are routed through the "
 "`Fiber.scheduler` if one is registered for the running thread.  That is why "
 "pg internally uses the asynchronous libpq interface even for synchronous/"
 "blocking method calls.  It also uses Ruby's DNS resolution instead of "
@@ -910,7 +909,6 @@ msgid ""
 msgstr ""
 "pg-1.3.0以降で、PgはRuby-3.0で導入された`Fiber.scheduler`に完全に対応していま"
 "す。\n"
-"Windowsでは、`Fiber.scheduler`対応はRuby-3.1以降で使えます。\n"
 "`Fiber.scheduler`が走らせているスレッドに登録されている場合、起こりうる全ての"
 "ブロッキングIO操作はそのスケジューラーを経由します。\n"
 "同期的であったりブロックしたりするメソッド呼び出しについてもpgが内部的に非同"

@@ -81,7 +81,7 @@ context "with a Fiber scheduler", :scheduler do
 			[{PGSERVICE: "mydb"}, {}],
 			[{PGHOTS: "ignored", PGPORT: "12345"}, { service: 'mydb', host: "scheduler-localhost" }],
 		].each do |env_hash, conn_hash|
-			it "connects with #{env_hash.merge(conn_hash)}", :scheduler_address_resolve do
+			it "connects with #{env_hash.merge(conn_hash)}", :scheduler do
 				run_with_scheduler do
 					vars = PG::Connection.conninfo_parse(@conninfo_gate).each_with_object({}){|h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
@@ -98,7 +98,7 @@ context "with a Fiber scheduler", :scheduler do
 			end
 		end
 
-		it "can connect with DNS lookup", :scheduler_address_resolve do
+		it "can connect with DNS lookup", :scheduler do
 			run_with_scheduler do
 				conninfo = @conninfo_gate.gsub(/(^| )host=\w+/, " host=scheduler-localhost")
 				conn = PG.connect(conninfo)

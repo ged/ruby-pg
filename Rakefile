@@ -47,7 +47,6 @@ CrossLibrary = Struct.new :platform, :openssl_config, :toolchain
 CrossLibraries = [
 	['aarch64-mingw-ucrt', 'mingwarm64', 'aarch64-w64-mingw32'],
 	['x64-mingw-ucrt', 'mingw64', 'x86_64-w64-mingw32'],
-	['x64-mingw32', 'mingw64', 'x86_64-w64-mingw32'],
 	['x86_64-linux', 'linux-x86_64', 'x86_64-linux-gnu'],
 	['x86_64-linux-musl', 'linux-x86_64', 'x86_64-unknown-linux-musl'],
 	['aarch64-linux', 'linux-aarch64', 'aarch64-linux-gnu'],
@@ -126,7 +125,7 @@ CrossLibraries.each do |xlib|
 			sudo apt-get update && sudo apt-get install -y bison flex &&
 			(cp build/gem/gem-*.pem ~/.gem/ || true) &&
 			bundle install --local &&
-			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEFLAGS="-j`nproc` V=1" RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>4.0", "~>3.0")}
+			rake native:#{platform} pkg/#{$gem_spec.full_name}-#{platform}.gem MAKEFLAGS="-j`nproc` V=1" RUBY_CC_VERSION=#{RakeCompilerDock.ruby_cc_version("~>4.0", "~>3.1")}
 		EOT
 	end
 	desc "Build the native binary gems"

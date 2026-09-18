@@ -2456,33 +2456,13 @@ pgconn_notifies(VALUE self)
 	return hash;
 }
 
-#ifndef HAVE_RB_IO_DESCRIPTOR
-static int
-rb_io_descriptor(VALUE io)
-{
-	rb_io_t *fptr;
-	Check_Type(io, T_FILE);
-	fptr = RFILE(io)->fptr;
-	rb_io_check_closed(fptr);
-	return fptr->fd;
-}
-#endif
-
 #if defined(_WIN32)
 
 /* We use a specialized implementation of rb_io_wait() on Windows.
  * This is because rb_io_wait() and rb_wait_for_single_fd() are very slow on Windows.
  */
 
-#if defined(HAVE_RUBY_FIBER_SCHEDULER_H)
 #include <ruby/fiber/scheduler.h>
-#endif
-
-typedef enum {
-    PG_RUBY_IO_READABLE = RB_WAITFD_IN,
-    PG_RUBY_IO_WRITABLE = RB_WAITFD_OUT,
-    PG_RUBY_IO_PRIORITY = RB_WAITFD_PRI,
-} pg_rb_io_event_t;
 
 int rb_w32_wait_events( HANDLE *events, int num, DWORD timeout );
 
@@ -2506,9 +2486,9 @@ pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
 		timeradd(&currtime, &ptimeout, &aborttime);
 	}
 
-	if(rb_events & PG_RUBY_IO_READABLE) w32_events |= FD_READ | FD_ACCEPT | FD_CLOSE;
-	if(rb_events & PG_RUBY_IO_WRITABLE) w32_events |= FD_WRITE | FD_CONNECT;
-	if(rb_events & PG_RUBY_IO_PRIORITY) w32_events |= FD_OOB;
+	if(rb_events & RUBY_IO_READABLE) w32_events |= FD_READ | FD_ACCEPT | FD_CLOSE;
+	if(rb_events & RUBY_IO_WRITABLE) w32_events |= FD_WRITE | FD_CONNECT;
+	if(rb_events & RUBY_IO_PRIORITY) w32_events |= FD_OOB;
 
 	for(;;) {
 		if ( WSAEventSelect(_get_osfhandle(rb_io_descriptor(io)), hEvent, w32_events) == SOCKET_ERROR ) {
@@ -2552,49 +2532,20 @@ pg_rb_thread_io_wait(VALUE io, VALUE events, VALUE timeout) {
 
 static VALUE
 pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
-#if defined(HAVE_RUBY_FIBER_SCHEDULER_H)
-	/* We don't support Fiber.scheduler on Windows ruby-3.0 because there is no fast way to check whether a scheduler is active.
-	 * Fortunately ruby-3.1 offers a C-API for it.
-	 */
+	/* Avoid slow rb_io_wait() on Windows, if no scheduler is active. */
 	VALUE scheduler = rb_fiber_scheduler_current();
 
 	if (!NIL_P(scheduler)) {
 		return rb_io_wait(io, events, timeout);
 	}
-#endif
 	return pg_rb_thread_io_wait(io, events, timeout);
 }
 
-#elif defined(HAVE_RB_IO_WAIT)
-
-/* Use our own function and constants names, to avoid conflicts with truffleruby-head on its road to ruby-3.0 compatibility. */
-#define pg_rb_io_wait rb_io_wait
-#define PG_RUBY_IO_READABLE RUBY_IO_READABLE
-#define PG_RUBY_IO_WRITABLE RUBY_IO_WRITABLE
-#define PG_RUBY_IO_PRIORITY RUBY_IO_PRIORITY
-
 #else
-/* For compat with ruby < 3.0 */
 
-typedef enum {
-    PG_RUBY_IO_READABLE = RB_WAITFD_IN,
-    PG_RUBY_IO_WRITABLE = RB_WAITFD_OUT,
-    PG_RUBY_IO_PRIORITY = RB_WAITFD_PRI,
-} pg_rb_io_event_t;
+/* Use rb_io_wait on non-Windows systems */
+#define pg_rb_io_wait rb_io_wait
 
-static VALUE
-pg_rb_io_wait(VALUE io, VALUE events, VALUE timeout) {
-	struct timeval waittime;
-	int res;
-
-	if( !NIL_P(timeout) ){
-		waittime.tv_sec = (time_t)(NUM2DBL(timeout));
-		waittime.tv_usec = (time_t)((NUM2DBL(timeout) - (double)waittime.tv_sec) * 1e6);
-	}
-	res = rb_wait_for_single_fd(rb_io_descriptor(io), NUM2UINT(events), NIL_P(timeout) ? NULL : &waittime);
-
-	return UINT2NUM(res);
-}
 #endif
 
 static void *
@@ -2629,7 +2580,7 @@ wait_socket_readable( VALUE self, struct timeval *ptimeout, void *(*is_readable)
 
 			socket_io = pgconn_socket_io(self);
 			/* Wait for the socket to become readable before checking again */
-			ret = pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), wait_timeout);
+			ret = pg_rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), wait_timeout);
 		} else {
 			ret = Qfalse;
 		}
@@ -2666,9 +2617,9 @@ pgconn_async_flush(VALUE self)
 		/* wait for the socket to become read- or write-ready */
 		int events;
 		VALUE socket_io = pgconn_socket_io(self);
-		events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE | PG_RUBY_IO_WRITABLE), Qnil));
+		events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE | RUBY_IO_WRITABLE), Qnil));
 
-		if (events & PG_RUBY_IO_READABLE){
+		if (events & RUBY_IO_READABLE){
 			pgconn_consume_input(self);
 		}
 	}
@@ -3415,13 +3366,13 @@ pgconn_discard_results(VALUE self)
 
 			switch( PQflush(conn) ) {
 				case 1:
-					events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE | PG_RUBY_IO_WRITABLE), Qnil));
-					if (events & PG_RUBY_IO_READABLE){
+					events = RB_NUM2INT(pg_rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE | RUBY_IO_WRITABLE), Qnil));
+					if (events & RUBY_IO_READABLE){
 						if ( PQconsumeInput(conn) == 0 ) goto error;
 					}
 					break;
 				case 0:
-					pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
+					pg_rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
 					if ( PQconsumeInput(conn) == 0 ) goto error;
 					break;
 				default:
@@ -3445,7 +3396,7 @@ pgconn_discard_results(VALUE self)
 				int st = PQgetCopyData(conn, &buffer, 1);
 				if( st == 0 ) {
 					/* would block -> wait for readable data */
-					pg_rb_io_wait(socket_io, RB_INT2NUM(PG_RUBY_IO_READABLE), Qnil);
+					pg_rb_io_wait(socket_io, RB_INT2NUM(RUBY_IO_READABLE), Qnil);
 					if ( PQconsumeInput(conn) == 0 ) goto error;
 				} else if( st > 0 ) {
 					/* some data retrieved -> discard it */
