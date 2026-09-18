@@ -20,4 +20,5 @@ group :test do
   # With bigdecimal commented out here, corresponding tests are omitted on ruby-3.4+ but are executed on ruby < 3.4.
   # That way we can check both situations in CI.
   # gem "bigdecimal", "~> 3.0"
+  gem "drb"
 end

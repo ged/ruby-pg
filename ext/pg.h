@@ -82,6 +82,8 @@ typedef long suseconds_t;
 
 #define pg_gc_location(x) x = rb_gc_location(x)
 
+extern int ruby_native_thread_p(void);
+
 /* For compatibility with ruby < 3.0 */
 #ifndef RUBY_TYPED_FROZEN_SHAREABLE
 #define PG_RUBY_TYPED_FROZEN_SHAREABLE 0

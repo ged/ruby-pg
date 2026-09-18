@@ -155,7 +155,7 @@ pg_cancon_initialize(VALUE self, VALUE rb_conn)
  *
  * Requests that the server abandons processing of the current command in a blocking manner.
  *
- * This method directly calls +PQcancelBlocking+ of libpq, so that it doesn't respond to ruby interrupts and doesn't trigger the +Thread.scheduler+ .
+ * This method directly calls +PQcancelBlocking+ of libpq, so that it doesn't allow parallel threads, doesn't respond to ruby interrupts and doesn't trigger the +Thread.scheduler+ .
  * It is threrfore recommended to call #cancel instead.
  *
  */
@@ -165,7 +165,7 @@ pg_cancon_sync_cancel(VALUE self)
 	PGcancelConn *conn = pg_cancon_get_conn(self);
 
 	pg_cancon_close_socket_io( self );
-	if(gvl_PQcancelBlocking(conn) == 0)
+	if(PQcancelBlocking(conn) == 0)
 		pg_raise_conn_error( rb_eConnectionBad, self, "PQcancelBlocking %s", PQcancelErrorMessage(conn));
 	return Qnil;
 }

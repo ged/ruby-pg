@@ -810,6 +810,7 @@ describe PG::Connection do
 				EOSQL
 
 				conn.exec( "COPY copytable FROM STDOUT CSV" )
+
 				gate.stop
 
 				data = "x" * 1000 * 1000
@@ -898,7 +899,7 @@ describe PG::Connection do
 	end
 
 	it "connects without port and then retrieves the default port" do
-		gate = Helpers::TcpGateSwitcher.new(
+		gate = Helpers::TcpGateSwitcherProcess.new(
 				external_host: 'localhost',
 				external_port: ENV['PGPORT'].to_i,
 				internal_host: "127.0.0.1",
@@ -917,9 +918,10 @@ describe PG::Connection do
 			expect( conn.port ).to eq( PG::DEF_PGPORT )
 		end
 
-		gate.finish
-	rescue Errno::EADDRINUSE, Errno::EACCES => err
+	rescue Errno::EADDRINUSE, Errno::EACCES, DRb::DRbConnError => err
 		skip err.to_s
+	ensure
+		gate&.finish
 	end
 
 	it "can retrieve hostaddr for the established connection", :postgresql_12 do
