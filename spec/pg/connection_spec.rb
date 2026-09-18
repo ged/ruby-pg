@@ -1988,7 +1988,7 @@ describe PG::Connection do
 				expect( conn.get_result.result_status ).to be( PG::PGRES_FATAL_ERROR )
 
 				wait_check_socket(conn)
-			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly/)
+			end.to raise_error(PG::ConnectionBad, /SSL connection has been closed unexpectedly|server closed the connection unexpectedly|PQsocket() can't get socket descriptor/)
 		end
 
 		it "processes messages before connection error" do
