@@ -28,13 +28,13 @@ if gem_platform=with_config("cross-build")
 	require 'mini_portile2'
 
 	OPENSSL_VERSION = ENV['OPENSSL_VERSION'] || '3.6.0'
-	OPENSSL_SOURCE_URI = "http://www.openssl.org/source/openssl-#{OPENSSL_VERSION}.tar.gz"
+	OPENSSL_SOURCE_URI = "https://www.openssl.org/source/openssl-#{OPENSSL_VERSION}.tar.gz"
 
 	KRB5_VERSION = ENV['KRB5_VERSION'] || '1.22.1'
-	KRB5_SOURCE_URI = "http://kerberos.org/dist/krb5/#{KRB5_VERSION[/^(\d+\.\d+)/]}/krb5-#{KRB5_VERSION}.tar.gz"
+	KRB5_SOURCE_URI = "https://kerberos.org/dist/krb5/#{KRB5_VERSION[/^(\d+\.\d+)/]}/krb5-#{KRB5_VERSION}.tar.gz"
 
 	POSTGRESQL_VERSION = ENV['POSTGRESQL_VERSION'] || '18.1'
-	POSTGRESQL_SOURCE_URI = "http://ftp.postgresql.org/pub/source/v#{POSTGRESQL_VERSION}/postgresql-#{POSTGRESQL_VERSION}.tar.bz2"
+	POSTGRESQL_SOURCE_URI = "https://ftp.postgresql.org/pub/source/v#{POSTGRESQL_VERSION}/postgresql-#{POSTGRESQL_VERSION}.tar.bz2"
 
 	class BuildRecipe < MiniPortile
 		def initialize(name, version, files)
