@@ -707,6 +707,10 @@ module PG::TestingHelpers
 			res.body = %!{"access_token":"yes","token_type":""}!
 		end
 		Thread.new { server.start }
+		# Wait for the server is running, otherwise server.shutdown is a no-op
+		until server.status == :Running
+			sleep 0.01
+		end
 		server
 	end
 end
