@@ -320,6 +320,7 @@ auth_data_hook_proxy(PGauthData type, PGconn *pgconn, void *data)
 	return RTEST(ret);
 }
 
+#ifdef HAVE_ST_TABLE_SIZE
 /*
  * call-seq:
  *    PG.pgconn2value_size -> Integer
@@ -329,6 +330,7 @@ pg_oauth_pgconn2value_size_get(VALUE self)
 {
 	return SIZET2NUM(st_table_size(pgconn2value));
 }
+#endif
 
 
 void
@@ -341,7 +343,9 @@ init_pg_auth_hooks(void)
 	PQsetAuthDataHook(gvl_auth_data_hook_proxy); // TODO: Add some safeguards?
 
 	/* rb_mPG = rb_define_module("PG") */
+	#ifdef HAVE_ST_TABLE_SIZE
 	rb_define_private_method(rb_singleton_class(rb_mPG), "pgconn2value_size", pg_oauth_pgconn2value_size_get, 0);
+	#endif
 
 	rb_cPromptOAuthDevice = rb_define_class_under(rb_mPG, "PromptOAuthDevice", rb_cObject);
 	rb_undef_alloc_func(rb_cPromptOAuthDevice);

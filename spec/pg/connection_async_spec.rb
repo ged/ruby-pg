@@ -254,6 +254,7 @@ describe PG::Connection do
 
 		it "should garbage collect PG::Connection after use" do
 			skip "Truffleruby's garbage collector works differently" if RUBY_ENGINE=="truffleruby"
+			skip "test requires ruby-3.2" unless PG.singleton_class.private_method_defined?(:pgconn2value_size)
 
 			hook = proc do |conn, data|
 				case data
