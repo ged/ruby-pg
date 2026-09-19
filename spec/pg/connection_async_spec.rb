@@ -166,6 +166,23 @@ describe PG::Connection do
 			@old_env, ENV["PGOAUTHDEBUG"] = ENV["PGOAUTHDEBUG"], "UNSAFE"
 		end
 
+		it "should work with no hook" do
+			oauth_server = start_fake_oauth(@port + 3)
+
+			begin
+				PG.connect("host=localhost port=#{@port} dbname=test user=testuseroauth oauth_issuer=http://localhost:#{@port + 3} oauth_client_id=foo") do |conn|
+					conn.exec("SELECT 1")
+				end
+			rescue PG::ConnectionBad => e
+				if e.message =~ /no OAuth flows are available/
+					skip "requires libpq-oauth to be installed"
+				end
+				raise
+			ensure
+				oauth_server.shutdown
+			end
+		end
+
 		it "should call prompt oauth device hook" do
 			oauth_server = start_fake_oauth(@port + 3)
 
