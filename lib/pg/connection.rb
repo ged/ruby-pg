@@ -951,8 +951,8 @@ class PG::Connection
 		#   It's still possible to do load balancing with +load_balance_hosts+ set to +random+ and to increase the number of connections a node gets, when the hostname is provided multiple times in the host string.
 		#   This is because in non-timeout cases the host is tried multiple times.
 		#
-		def new(*args)
-			conn = connect_to_hosts(*args)
+		def new(*args, **kwargs)
+			conn = connect_to_hosts(*args, **kwargs)
 
 			if block_given?
 				begin
@@ -997,8 +997,8 @@ class PG::Connection
 		RESOLUTION_KEYS = [:host, :hostaddr, :port].freeze
 		private_constant :RESOLUTION_KEYS
 
-		private def connect_to_hosts(*args)
-			option_string = parse_connect_args(*args)
+		private def connect_to_hosts(*args, set_auth_data_hook: nil, **kwargs)
+			option_string = parse_connect_args(*args, **kwargs)
 			iopts = PG::Connection.conninfo_parse(option_string).each_with_object({}) { |h, o| o[h[:keyword].to_sym] = h[:val] if h[:val] }
 
 			has_explicit_host = (!iopts[:host].to_s.empty? || !iopts[:hostaddr].to_s.empty?) && !iopts[:port].to_s.empty?
@@ -1036,6 +1036,12 @@ class PG::Connection
 			end
 			conn = connect_start(iopts) or
 										raise(PG::Error, "Unable to create a new connection")
+
+			if conn.respond_to?(:auth_data_hook)
+				conn.auth_data_hook = set_auth_data_hook
+			elsif set_auth_data_hook
+				raise ArgumentError, "invalid option set_auth_data_hook"
+			end
 
 			raise PG::ConnectionBad, conn.error_message if conn.status == PG::CONNECTION_BAD
 
