@@ -1,3 +1,40 @@
+
+Added:
+
+- Add PG::Connection#embed_params and keyword :typename for its parameter casting. [#726](https://github.com/ged/ruby-pg/pull/726)
+  This allows to generate SQL strings with embedded parameters for easier debugging.
+- Add PG::TypeMap#query_param_encoders to retrieve encoders. [#726](https://github.com/ged/ruby-pg/pull/726)
+- Deduplicate result field name strings for better performance. [#750](https://github.com/ged/ruby-pg/pull/750)
+
+Removed:
+
+- Remove GLV unlocking at all functions which process data modifiable in a second thread. [#721](https://github.com/ged/ruby-pg/pull/721)
+  This avoids possible premature garbage collection of query parameters and possible VM crash due to concurrent data manipulation.
+- Remove :static_symbol result field names. [#691](https://github.com/ged/ruby-pg/pull/691)
+- Remove compatibility to ruby < 3.1 and drops support of ruby-2.7 and ruby-3.0. [#749](https://github.com/ged/ruby-pg/pull/749)
+
+Fixes:
+
+- Limit memory allocation on invalid input into PG::BinaryDecoder::Array. [#743](https://github.com/ged/ruby-pg/pull/743)
+- Free COPY buffers when decoders raise to avoid possible memory leak in get_copy_data. [#742](https://github.com/ged/ruby-pg/pull/742)
+- Prevent SQL injection in set_client_encoding. [#741](https://github.com/ged/ruby-pg/pull/741)
+- Add GC_GUARD to temporary ruby objects for conninfo string to avoid it's GC'ed prematurely. [#739](https://github.com/ged/ruby-pg/pull/739)
+- Remove option "quirks_mode" from JSON en/decoder to fix compat with json-3.0 gem. [#737](https://github.com/ged/ruby-pg/pull/737)
+- Respect calendar type of Ruby and PostgreSQL. [#725](https://github.com/ged/ruby-pg/pull/725)
+- Fix broken set_notice_(receiver|processor) callback after GC.compact. [#734](https://github.com/ged/ruby-pg/pull/734)
+- Disable DNS resolution in ruby when a service file is used, so that the priority of parameters is equal to libpq. [#635](https://github.com/ged/ruby-pg/pull/635)
+- Use RARRAY_LENINT to avoid possible overflow. [#728](https://github.com/ged/ruby-pg/pull/728)
+- Fix possible integer overflow at PG::BinaryEncoder::CopyRow and PG::TextEncoder::CopyRow. [#714](https://github.com/ged/ruby-pg/pull/714), [#715](https://github.com/ged/ruby-pg/pull/715)
+- Avoid possible integer overflow in query parameter encoding. [#719](https://github.com/ged/ruby-pg/pull/719)
+- Ensure conninfo is a valid C string before closing the connection to avoid a double free of PGconn. [#709](https://github.com/ged/ruby-pg/pull/709)
+- Raise on a too large input string to PG::TextEncoder::Bytea. [#717](https://github.com/ged/ruby-pg/pull/717)
+- Check PG::BinaryEncoder::CopyRow array input size instead of producing an invalid output.
+- Remove accidentally copied "static" keyword from Copy and Record encoder. [#711](https://github.com/ged/ruby-pg/pull/711)
+- Avoid possibility to replace typemap while being used in Copy and Record encoders and decoders. [#707](https://github.com/ged/ruby-pg/pull/707)
+- Add GC_GUARD's for encoding converted strings sent to the server. [#705](https://github.com/ged/ruby-pg/pull/705)
+- Fix incomplete transaction commit when thread is shutdown ungracefully. [#704](https://github.com/ged/ruby-pg/pull/704)
+
+
 ## v1.6.3 [2025-12-29] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
