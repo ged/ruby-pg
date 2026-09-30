@@ -682,8 +682,8 @@ module PG::TestingHelpers
 		skip "requires a PostgreSQL 18 cluster" unless $pg_server.version >= 18
 		skip "TODO: fix build of dummy_validator extension on platform #{RUBY_PLATFORM}" if ENV['BROKEN_PGXS'] == "yes"
 
-		system "make", "-C", (TEST_DIRECTORY + "spec/oauth").to_s, "WINDRES=windres"
-		raise "Building OAuth validator library failed!" unless $?.success?
+		out = `rake compile:oauth 2>&1`
+		raise "Failed to compile oauth validator. Output of 'rake compile:oauth' : #{out}" unless $?.success?
 
 		require 'webrick'
 

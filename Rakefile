@@ -182,3 +182,13 @@ task :translate do
 		sh "po4a po4a.cfg"
 	end
 end
+
+desc "Compile dummy validator for OAUTH"
+task "compile:oauth" do
+	if ENV['BROKEN_PGXS'] == "yes"
+		put "TODO: fix build of dummy_validator extension on platform #{RUBY_PLATFORM}"
+	else
+		sh "make", "-C", "spec/oauth", "WINDRES=windres"
+	end
+end
+task spec: "compile:oauth"
