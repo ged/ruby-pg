@@ -4,7 +4,7 @@ Added:
 
 - Add PG::Connection#embed_params and keyword `:typename` for its parameter casting. [#726](https://github.com/ged/ruby-pg/pull/726)
   This allows to generate SQL strings with embedded parameters for easier debugging.
-- Add PG:Connection#full_protocol_version which is new in PostgreSQL-18 [#695](https://github.com/ged/ruby-pg/pull/695)
+- Add PG::Connection#full_protocol_version which is new in PostgreSQL-18 [#695](https://github.com/ged/ruby-pg/pull/695)
 - Add PG::Result#each_tuple [#675](https://github.com/ged/ruby-pg/pull/675)
 - Add PG::TypeMap#query_param_encoders to retrieve encoders. [#726](https://github.com/ged/ruby-pg/pull/726)
 - Deduplicate result field name strings for better performance. [#750](https://github.com/ged/ruby-pg/pull/750)
