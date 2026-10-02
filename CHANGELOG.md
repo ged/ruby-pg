@@ -1,17 +1,21 @@
+## v1.7.0 [2026-10-02] Lars Kanis <lars@greiz-reinsdorf.de>
 
 Added:
 
-- Add PG::Connection#embed_params and keyword :typename for its parameter casting. [#726](https://github.com/ged/ruby-pg/pull/726)
+- Add PG::Connection#embed_params and keyword `:typename` for its parameter casting. [#726](https://github.com/ged/ruby-pg/pull/726)
   This allows to generate SQL strings with embedded parameters for easier debugging.
+- Add PG:Connection#full_protocol_version which is new in PostgreSQL-18 [#695](https://github.com/ged/ruby-pg/pull/695)
+- Add PG::Result#each_tuple [#675](https://github.com/ged/ruby-pg/pull/675)
 - Add PG::TypeMap#query_param_encoders to retrieve encoders. [#726](https://github.com/ged/ruby-pg/pull/726)
 - Deduplicate result field name strings for better performance. [#750](https://github.com/ged/ruby-pg/pull/750)
 
 Removed:
 
+- Remove compatibility to ruby < 3.1 and drops support of ruby-2.7 and ruby-3.0. [#749](https://github.com/ged/ruby-pg/pull/749)
 - Remove GLV unlocking at all functions which process data modifiable in a second thread. [#721](https://github.com/ged/ruby-pg/pull/721)
   This avoids possible premature garbage collection of query parameters and possible VM crash due to concurrent data manipulation.
-- Remove :static_symbol result field names. [#691](https://github.com/ged/ruby-pg/pull/691)
-- Remove compatibility to ruby < 3.1 and drops support of ruby-2.7 and ruby-3.0. [#749](https://github.com/ged/ruby-pg/pull/749)
+- Remove `:static_symbol` result field names. [#691](https://github.com/ged/ruby-pg/pull/691)
+- Remove enforced rpath addition when no rpath is configured in rbconfig. [#699](https://github.com/ged/ruby-pg/pull/699)
 
 Fixes:
 
@@ -33,6 +37,8 @@ Fixes:
 - Avoid possibility to replace typemap while being used in Copy and Record encoders and decoders. [#707](https://github.com/ged/ruby-pg/pull/707)
 - Add GC_GUARD's for encoding converted strings sent to the server. [#705](https://github.com/ged/ruby-pg/pull/705)
 - Fix incomplete transaction commit when thread is shutdown ungracefully. [#704](https://github.com/ged/ruby-pg/pull/704)
+- Assign VALUE after registration per rb_gc_register_address() [#703](https://github.com/ged/ruby-pg/pull/703)
+- Update dependencies for binary gems to PostgreSQL-18.6, OpenSSL-3.6.5, krb5-1.22.2 [#752](https://github.com/ged/ruby-pg/pull/752)
 
 
 ## v1.6.3 [2025-12-29] Lars Kanis <lars@greiz-reinsdorf.de>
