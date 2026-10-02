@@ -887,6 +887,8 @@ pgconn_protocol_version(VALUE self)
  * The 3.0 protocol is supported by PostgreSQL server versions 7.4 and above.
  *
  * PG::ConnectionBad is raised if the connection is bad.
+ *
+ * Available since PostgreSQL-18.
  */
 static VALUE
 pgconn_full_protocol_version(VALUE self)

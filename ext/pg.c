@@ -384,14 +384,10 @@ Init_pg_ext(void)
 	rb_define_const(rb_mPGconstants, "CONNECTION_SSL_STARTUP", INT2FIX(CONNECTION_SSL_STARTUP));
 	/* Internal state - PG.connect() needed. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_NEEDED", INT2FIX(CONNECTION_NEEDED));
-#if PG_MAJORVERSION_NUM >= 10
-	/* Checking if session is read-write. Available since PostgreSQL-10. */
+	/* Checking if session is read-write. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CHECK_WRITABLE", INT2FIX(CONNECTION_CHECK_WRITABLE));
-#endif
-#if PG_MAJORVERSION_NUM >= 10
-	/* Consuming any extra messages. Available since PostgreSQL-10. */
+	/* Consuming any extra messages. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_CONSUME", INT2FIX(CONNECTION_CONSUME));
-#endif
 #if PG_MAJORVERSION_NUM >= 12
 	/* Negotiating GSSAPI. Available since PostgreSQL-12. */
 	rb_define_const(rb_mPGconstants, "CONNECTION_GSS_STARTUP", INT2FIX(CONNECTION_GSS_STARTUP));
