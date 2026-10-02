@@ -2848,14 +2848,8 @@ describe PG::Connection do
 		end
 
 		it "shouldn't type map params unless requested" do
-			if @conn.server_version < 100000
-				expect{
-					@conn.exec_params( "SELECT $1", [5] )
-				}.to raise_error(PG::IndeterminateDatatype){|err| expect(err).to have_attributes(connection: @conn) }
-			else
-				# PostgreSQL-10 maps to TEXT type (OID 25)
-				expect( @conn.exec_params( "SELECT $1", [5] ).ftype(0)).to eq(25)
-			end
+			# PostgreSQL maps to TEXT type (OID 25)
+			expect( @conn.exec_params( "SELECT $1", [5] ).ftype(0)).to eq(25)
 		end
 
 		it "should raise an error on invalid encoder to put_copy_data" do

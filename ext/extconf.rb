@@ -304,8 +304,9 @@ if /mingw/ =~ RUBY_PLATFORM && RbConfig::MAKEFILE_CONFIG['CC'] =~ /gcc/
 end
 
 have_func 'PQencryptPasswordConn', 'libpq-fe.h' or # since PostgreSQL-10
-	abort "Your PostgreSQL is too old. Either install an older version " +
-	      "of this gem or upgrade your database to at least PostgreSQL-10."
+	abort "Your PostgreSQL client library (libpq) is too old. " +
+				"Either install an older version of this gem " +
+				"or upgrade your database to at least PostgreSQL-10."
 # optional headers/functions
 have_func 'PQresultMemorySize', 'libpq-fe.h' # since PostgreSQL-12
 have_func 'timegm'

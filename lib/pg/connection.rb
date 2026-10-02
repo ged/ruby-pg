@@ -551,33 +551,30 @@ class PG::Connection
 		alias async_pipeline_sync pipeline_sync
 	end
 
-	if method_defined? :sync_encrypt_password
-		# call-seq:
-		#    conn.encrypt_password( password, username, algorithm=nil ) -> String
-		#
-		# This function is intended to be used by client applications that wish to send commands like <tt>ALTER USER joe PASSWORD 'pwd'</tt>.
-		# It is good practice not to send the original cleartext password in such a command, because it might be exposed in command logs, activity displays, and so on.
-		# Instead, use this function to convert the password to encrypted form before it is sent.
-		#
-		# The +password+ and +username+ arguments are the cleartext password, and the SQL name of the user it is for.
-		# +algorithm+ specifies the encryption algorithm to use to encrypt the password.
-		# Currently supported algorithms are +md5+ and +scram-sha-256+ (+on+ and +off+ are also accepted as aliases for +md5+, for compatibility with older server versions).
-		# Note that support for +scram-sha-256+ was introduced in PostgreSQL version 10, and will not work correctly with older server versions.
-		# If algorithm is omitted or +nil+, this function will query the server for the current value of the +password_encryption+ setting.
-		# That can block, and will fail if the current transaction is aborted, or if the connection is busy executing another query.
-		# If you wish to use the default algorithm for the server but want to avoid blocking, query +password_encryption+ yourself before calling #encrypt_password, and pass that value as the algorithm.
-		#
-		# Return value is the encrypted password.
-		# The caller can assume the string doesn't contain any special characters that would require escaping.
-		#
-		# Available since PostgreSQL-10.
-		# See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN].
-		def encrypt_password( password, username, algorithm=nil )
-			algorithm ||= exec("SHOW password_encryption").getvalue(0,0)
-			sync_encrypt_password(password, username, algorithm)
-		end
-		alias async_encrypt_password encrypt_password
+	# call-seq:
+	#    conn.encrypt_password( password, username, algorithm=nil ) -> String
+	#
+	# This function is intended to be used by client applications that wish to send commands like <tt>ALTER USER joe PASSWORD 'pwd'</tt>.
+	# It is good practice not to send the original cleartext password in such a command, because it might be exposed in command logs, activity displays, and so on.
+	# Instead, use this function to convert the password to encrypted form before it is sent.
+	#
+	# The +password+ and +username+ arguments are the cleartext password, and the SQL name of the user it is for.
+	# +algorithm+ specifies the encryption algorithm to use to encrypt the password.
+	# Currently supported algorithms are +md5+ and +scram-sha-256+ (+on+ and +off+ are also accepted as aliases for +md5+, for compatibility with older server versions).
+	# Note that support for +scram-sha-256+ was introduced in PostgreSQL version 10, and will not work correctly with older server versions.
+	# If algorithm is omitted or +nil+, this function will query the server for the current value of the +password_encryption+ setting.
+	# That can block, and will fail if the current transaction is aborted, or if the connection is busy executing another query.
+	# If you wish to use the default algorithm for the server but want to avoid blocking, query +password_encryption+ yourself before calling #encrypt_password, and pass that value as the algorithm.
+	#
+	# Return value is the encrypted password.
+	# The caller can assume the string doesn't contain any special characters that would require escaping.
+	#
+	# See also corresponding {libpq function}[https://www.postgresql.org/docs/current/libpq-misc.html#LIBPQ-PQENCRYPTPASSWORDCONN].
+	def encrypt_password( password, username, algorithm=nil )
+		algorithm ||= exec("SHOW password_encryption").getvalue(0,0)
+		sync_encrypt_password(password, username, algorithm)
 	end
+	alias async_encrypt_password encrypt_password
 
 	# call-seq:
 	#   conn.reset()
@@ -971,7 +968,6 @@ class PG::Connection
 
 		# Resolve DNS in Ruby to avoid blocking state while connecting.
 		# Multiple comma-separated values are generated, if the hostname resolves to both IPv4 and IPv6 addresses.
-		# This requires PostgreSQL-10+, so no DNS resolving is done on earlier versions.
 		private def resolve_hosts(iopts)
 			ihosts = iopts[:host].split(",", -1)
 			iports = iopts[:port].split(",", -1)
@@ -1027,8 +1023,8 @@ class PG::Connection
 				# So, pass params through and let libpq resolve the service, possibly blocking the Thread.scheduler.
 				# This ensures the processing order of libpq which is:
 				# connection string => service file => environment variable => compiled default
-			elsif iopts_with_defaults[:host] && !iopts_with_defaults[:host].empty? && PG.library_version >= 100000
-				# Do host resolution to avoid blocking Thread.scheduler while DNS queries.
+			elsif iopts_with_defaults[:host] && !iopts_with_defaults[:host].empty?
+				# Do host resolution in Ruby to avoid blocking Thread.scheduler while DNS queries in libpq.
 				iopts_for_reset = iopts_with_defaults
 				iopts = resolve_hosts(iopts_with_defaults)
 			else
