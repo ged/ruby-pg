@@ -3063,12 +3063,20 @@ describe PG::Connection do
 		end
 
 		def with_std_conf_strings(conn, onoff)
-			conn.exec("SET standard_conforming_strings = #{onoff}")
-			conn.exec("SET escape_string_warning = #{onoff}")
-			yield
-		ensure
-			conn.exec("SET standard_conforming_strings = on")
-			conn.exec("SET escape_string_warning = on")
+			# PostgreSQL-19 rejects standard_conforming_strings=off and removed escape_string_warning
+			if conn.server_version >= 190000
+				skip "standard_conforming_strings=off is not supported by the server" if onoff == "off"
+				return yield
+			end
+
+			begin
+				conn.exec("SET standard_conforming_strings = #{onoff}")
+				conn.exec("SET escape_string_warning = #{onoff}")
+				yield
+			ensure
+				conn.exec("SET standard_conforming_strings = on")
+				conn.exec("SET escape_string_warning = on")
+			end
 		end
 
 		it "ensures PostgreSQL string syntax does not change" do
