@@ -253,7 +253,7 @@ static VALUE
 pg_tuple_fetch(int argc, VALUE *argv, VALUE self)
 {
 	VALUE key;
-	long block_given;
+	int block_given;
 	VALUE index;
 	int field_num;
 	t_pg_tuple *this = pg_tuple_get_this(self);

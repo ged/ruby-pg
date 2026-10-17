@@ -103,7 +103,7 @@ pg_text_dec_string(t_pg_coder *conv, const char *val, int len, int tuple, int fi
 static VALUE
 pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	long i;
+	rb_len_t i;
 	int max_len;
 
 	if( sizeof(i) >= 8 && FIXNUM_MAX >= 1000000000000000000LL ){

@@ -3088,7 +3088,7 @@ describe PG::Connection do
 			skip "github API access failed: #{latest_commit_info[:message]}" if latest_commit_info.is_a?(Hash) && latest_commit_info[:message]
 			expect(latest_commit_info).to be_kind_of(Array), latest_commit_info.to_s
 			expect(latest_commit_info[0]).to be_kind_of(Hash), latest_commit_info.to_s
-			expect(latest_commit_info[0][:sha]).to eq("45762084545ec14dbbe66ace1d69d7e89f8978ac"), error_message
+			expect(latest_commit_info[0][:sha]).to eq("0a38a8ff3fb560ec9302cf06616ab4a4e6027c40"), error_message
 		rescue SocketError, JSON::ParserError => err
 			skip "cannot access PostgreSQL git repository: #{err}"
 		end

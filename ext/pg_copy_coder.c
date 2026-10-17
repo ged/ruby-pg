@@ -692,7 +692,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 		}
 
 		if (!found_delim && cur_ptr < line_end_ptr)
-			rb_raise( rb_eArgError, "trailing data after linefeed at position: %ld", (long)(cur_ptr - input_line) + 1 );
+			rb_raise( rb_eArgError, "trailing data after linefeed at position: %lld", (long long)(cur_ptr - input_line) + 1 );
 
 
 		/* Check whether raw input matched null marker */
@@ -881,13 +881,13 @@ pg_bin_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tupl
 	}
 
 	if (cur_ptr < line_end_ptr)
-		rb_raise( rb_eArgError, "trailing data after row data at position: %ld", (long)(cur_ptr - input_line) + 1 );
+		rb_raise( rb_eArgError, "trailing data after row data at position: %lld", (long long)(cur_ptr - input_line) + 1 );
 
 	RB_GC_GUARD(rb_typemap);
 	return array;
 
 length_error:
-	rb_raise( rb_eArgError, "premature end of COPY data at position: %ld", (long)(cur_ptr - input_line) + 1 );
+	rb_raise( rb_eArgError, "premature end of COPY data at position: %lld", (long long)(cur_ptr - input_line) + 1 );
 }
 
 void

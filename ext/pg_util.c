@@ -22,10 +22,10 @@ rbpg_base64_encode( char *out, const char *in, int len)
 	int part_len = len % 3;
 
 	if( part_len > 0 ){
-		long byte2 = 0;
-		long byte1 = part_len > 1 ? *--in_ptr : 0;
-		long byte0 = *--in_ptr;
-		long triple = (byte0 << 16) + (byte1 << 8) + byte2;
+		int byte2 = 0;
+		int byte1 = part_len > 1 ? *--in_ptr : 0;
+		int byte0 = *--in_ptr;
+		int triple = (byte0 << 16) + (byte1 << 8) + byte2;
 
 		*--out_ptr = '=';
 		*--out_ptr = part_len > 1 ? base64_encode_table[(triple >> 1 * 6) & 0x3F] : '=';
@@ -34,10 +34,10 @@ rbpg_base64_encode( char *out, const char *in, int len)
 	}
 
 	while( out_ptr > out ){
-		long byte2 = *--in_ptr;
-		long byte1 = *--in_ptr;
-		long byte0 = *--in_ptr;
-		long triple = (byte0 << 16) + (byte1 << 8) + byte2;
+		int byte2 = *--in_ptr;
+		int byte1 = *--in_ptr;
+		int byte0 = *--in_ptr;
+		int triple = (byte0 << 16) + (byte1 << 8) + byte2;
 
 		*--out_ptr = base64_encode_table[(triple >> 0 * 6) & 0x3F];
 		*--out_ptr = base64_encode_table[(triple >> 1 * 6) & 0x3F];

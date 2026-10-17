@@ -263,7 +263,7 @@ pg_tmbc_allocate(void)
 static VALUE
 pg_tmbc_init(VALUE self, VALUE conv_ary)
 {
-	long i;
+	int i;
 	t_tmbc *this;
 	int conv_ary_len;
 

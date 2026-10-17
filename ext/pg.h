@@ -80,6 +80,11 @@ typedef long suseconds_t;
 #define rb_hash_new_capa(x) rb_hash_new()
 #endif
 
+#ifndef HAVE_RB_LEN_T
+typedef long rb_len_t;
+typedef unsigned long rb_ulen_t;
+#endif
+
 #define pg_gc_location(x) x = rb_gc_location(x)
 
 extern int ruby_native_thread_p(void);
