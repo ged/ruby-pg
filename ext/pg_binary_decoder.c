@@ -275,12 +275,12 @@ pg_bin_dec_array(t_pg_coder *conv, const char *input_line, int len, int tuple, i
 	}
 
 	if (cur_ptr < line_end_ptr)
-		rb_raise( rb_eArgError, "trailing data after binary array data at position: %td", (cur_ptr - input_line) + 1 );
+		rb_raise( rb_eArgError, "trailing data after binary array data at position: %lld", (long long)(cur_ptr - input_line) + 1 );
 
 	return arrays[0];
 
 length_error:
-	rb_raise( rb_eArgError, "premature end of binary array data at position: %td", (cur_ptr - input_line) + 1 );
+	rb_raise( rb_eArgError, "premature end of binary array data at position: %lld", (long long)(cur_ptr - input_line) + 1 );
 }
 
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
