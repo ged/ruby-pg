@@ -430,7 +430,7 @@ pg_text_enc_bytea(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 		}
 		return (int)(optr - out);
 	}else{
-		long size;
+		rb_len_t size;
 		*intermediate = rb_obj_as_string(value);
 		size = RSTRING_LEN(*intermediate);
 
@@ -653,8 +653,8 @@ quote_identifier( VALUE value, VALUE out_string, char *current_out ){
 static char *
 pg_text_enc_array_identifier(VALUE value, VALUE string, char *out, int enc_idx)
 {
-	long i;
-	long nr_elems;
+	rb_len_t i;
+	rb_len_t nr_elems;
 
 	Check_Type(value, T_ARRAY);
 	nr_elems = RARRAY_LEN(value);
