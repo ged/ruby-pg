@@ -34,6 +34,7 @@ CLEAN.include "lib/pg_ext.*"
 CLEAN.include "lib/pg/postgresql_lib_path.rb"
 CLEAN.include "ports/*.installed"
 CLEAN.include "ports/*mingw*", "ports/*linux*", "ports/*darwin*"
+CLEAN.include "spec/oauth/*.o", "spec/oauth/*.so", "spec/oauth/*.dll",  "spec/oauth/*.a"
 
 PgGemHelper.install_tasks
 $gem_spec = Bundler.load_gemspec(GEMSPEC)
@@ -181,3 +182,13 @@ task :translate do
 		sh "po4a po4a.cfg"
 	end
 end
+
+desc "Compile dummy validator for OAUTH"
+task "compile:oauth" do
+	if ENV['BROKEN_PGXS'] == "yes"
+		put "TODO: fix build of dummy_validator extension on platform #{RUBY_PLATFORM}"
+	else
+		sh "make", "-C", "spec/oauth", "WINDRES=windres"
+	end
+end
+task spec: "compile:oauth"
