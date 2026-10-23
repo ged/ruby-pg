@@ -234,6 +234,35 @@ describe "PG::Type derivations" do
 				end
 			end
 
+			context 'dates' do
+				let(:textdec_date) { PG::TextDecoder::Date.new }
+
+				it 'decodes ISO dates' do
+					expect( textdec_date.decode('2016-01-02') ).to eq( Date.new(2016, 1, 2) )
+					expect( textdec_date.decode('0001-12-31') ).to eq( Date.new(1, 12, 31, Date::GREGORIAN) )
+				end
+				it 'decodes dates in the proleptic gregorian calendar' do
+					expect( textdec_date.decode('1581-12-15').start ).to eq( Date::GREGORIAN )
+				end
+				it 'returns special values, BC dates and years beyond 9999 as string' do
+					%w[infinity -infinity].each do |value|
+						expect( textdec_date.decode(value) ).to eq( value )
+					end
+					expect( textdec_date.decode('0044-03-15 BC') ).to eq( '0044-03-15 BC' )
+					expect( textdec_date.decode('10000-01-01') ).to eq( '10000-01-01' )
+				end
+				it 'returns dates in other formats as string' do
+					%w[01/02/2016 02.01.2016 2016-1-02 2016-01-2 2016/01/02 2016-01ª0].each do |value|
+						expect( textdec_date.decode(value) ).to eq( value )
+					end
+					expect( textdec_date.decode(' 2016-01-02') ).to eq( ' 2016-01-02' )
+					expect( textdec_date.decode('2016-01-02 ') ).to eq( '2016-01-02 ' )
+				end
+				it 'raises on invalid dates' do
+					expect{ textdec_date.decode('2016-02-30') }.to raise_error( Date::Error )
+				end
+			end
+
 			context 'identifier quotation' do
 				it 'should build an array out of an quoted identifier string' do
 					quoted_type = PG::TextDecoder::Identifier.new
