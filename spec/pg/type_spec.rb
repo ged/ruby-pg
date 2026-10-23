@@ -1375,7 +1375,7 @@ describe "PG::Type derivations" do
 					expect( v ).to eq( "Héllo\n".encode(Encoding::ISO_8859_1) )
 				end
 
-				it "should encode big strings without crash" do
+				it "should encode big strings without crash", :arch64 do
 					skip if RUBY_ENGINE=="truffleruby"
 					n = 1 << 30
 					small = "A" * 100
@@ -1459,7 +1459,7 @@ describe "PG::Type derivations" do
 					expect( v.b ).to eq( "\x00\x01\x00\x00\x00\x05H\xE9llo".b )
 				end
 
-				it "should encode big strings without crash" do
+				it "should encode big strings without crash", :arch64 do
 					skip if RUBY_ENGINE=="truffleruby"
 					n = 2_147_483_644
 					wrapped = ((n + 4 + (1 << 31)) % (1 << 32)) - (1 << 31)

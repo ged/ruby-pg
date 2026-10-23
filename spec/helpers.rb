@@ -11,6 +11,7 @@ require_relative 'helpers/scheduler'
 require_relative 'helpers/tcp_gate_scheduler'
 require_relative 'helpers/tcp_gate_switcher'
 require_relative 'helpers/tcp_gate_switcher_process'
+require 'rbconfig/sizeof'
 
 TEST_DIRECTORY = Pathname.new(ENV['RUBY_PG_TEST_DIR'] || Dir.pwd)
 DATA_OBJ_MEMSIZE = ObjectSpace.memsize_of(Object.new)
@@ -691,6 +692,7 @@ RSpec.configure do |config|
 	rescue LoadError
 		config.filter_run_excluding( :bigdecimal )
 	end
+	config.filter_run_excluding( :arch64 ) if RbConfig::SIZEOF["void*"] < 8
 
 	### Automatically set up and tear down the database
 	config.before(:suite) do |*args|
