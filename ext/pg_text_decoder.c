@@ -49,6 +49,8 @@ static ID s_id_utc;
 static ID s_id_getlocal;
 static ID s_id_BigDecimal;
 
+static VALUE s_Date;
+static VALUE s_Date_GREGORIAN; /* Date::GREGORIAN */
 static VALUE s_IPAddr;
 static VALUE s_vmasks4;
 static VALUE s_vmasks6;
@@ -937,6 +939,51 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 	return ip;
 }
 
+/*
+ * Document-class: PG::TextDecoder::Date < PG::SimpleDecoder
+ *
+ * This is a decoder class for conversion of PostgreSQL date type to Ruby Date values.
+ *
+ * Dates are expected in ISO format (+YYYY-MM-DD+), which is PostgreSQL's default DateStyle.
+ * Other formats, BC dates, years beyond 9999 and the special values +infinity+ and +-infinity+
+ * are returned as String.
+ *
+ * As soon as this class is used, it requires the ruby standard library 'date'.
+ */
+static VALUE
+pg_text_dec_date(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
+{
+	if (len == 10
+		&& isdigit(val[0]) && isdigit(val[1]) && isdigit(val[2]) && isdigit(val[3])
+		&& val[4] == '-' && isdigit(val[5]) && isdigit(val[6])
+		&& val[7] == '-' && isdigit(val[8]) && isdigit(val[9])
+	) {
+		int year = str2_to_int(val) * 100 + str2_to_int(val + 2);
+		int mon = str2_to_int(val + 5);
+		int day = str2_to_int(val + 8);
+
+		return rb_funcall(s_Date, s_id_new, 4, INT2NUM(year), INT2NUM(mon), INT2NUM(day), s_Date_GREGORIAN);
+	}
+
+	return pg_text_dec_string(conv, val, len, tuple, field, enc_idx);
+}
+
+/* called per autoload when TextDecoder::Date is used */
+static VALUE
+init_pg_text_decoder_date(VALUE rb_mPG_TextDecoder)
+{
+	rb_require("date");
+	rb_gc_register_address(&s_Date);
+	rb_gc_register_address(&s_Date_GREGORIAN);
+	s_Date = rb_const_get(rb_cObject, rb_intern("Date"));
+	s_Date_GREGORIAN = rb_const_get(s_Date, rb_intern("GREGORIAN"));
+
+	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Date", rb_cPG_SimpleDecoder ); */
+	pg_define_coder( "Date", pg_text_dec_date, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
+
+	return Qnil;
+}
+
 /* called per autoload when TextDecoder::Inet is used */
 static VALUE
 init_pg_text_decoder_inet(VALUE rb_mPG_TextDecoder)
@@ -982,6 +1029,7 @@ init_pg_text_decoder(void)
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
+	rb_define_private_method(rb_singleton_class(rb_mPG_TextDecoder), "init_date", init_pg_text_decoder_date, 0);
 	rb_define_private_method(rb_singleton_class(rb_mPG_TextDecoder), "init_inet", init_pg_text_decoder_inet, 0);
 	rb_define_private_method(rb_singleton_class(rb_mPG_TextDecoder), "init_numeric", init_pg_text_decoder_numeric, 0);
 
