@@ -2916,7 +2916,7 @@ describe PG::Connection do
 				end
 			end
 
-			it "should encode big strings with typecasting without overflow" do
+			it "should encode big strings with typecasting without overflow", :arch64 do
 				big_count = 100
 				step = 42_949_673
 				big_len = (step - 3) / 2
