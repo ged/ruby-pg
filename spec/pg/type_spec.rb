@@ -188,6 +188,12 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamp.decode('1998-12-31 23:59:60.1234') ).
 						to be_within(0.000001).of( Time.new(1998,12,31, 23, 59, 60.1234) )
 				end
+				it 'decodes nanoseconds regardless of the year' do
+					expect( textdec_timestamputc.decode('1000-03-15 12:00:00.123456789').nsec ).to eq( 123456789 )
+					expect( textdec_timestamputc.decode('0044-03-15 12:00:00.123456789 BC').nsec ).to eq( 123456789 )
+					expect( textdec_timestamptz.decode('0044-03-15 12:00:00.123456789+02 BC').nsec ).to eq( 123456789 )
+					expect( textdec_timestamptz.decode('294276-12-31 23:58:59.123456789+03').nsec ).to eq( 123456789 )
+				end
 
 				def textdec_timestamptz_decode_should_fail(str)
 					expect(textdec_timestamptz.decode(str)).to eq(str)

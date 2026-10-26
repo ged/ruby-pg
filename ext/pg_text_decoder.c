@@ -622,6 +622,27 @@ static int parse_year(const char **str) {
 	return year;
 }
 
+/*
+ * Seconds since 1970-01-01 00:00:00 UTC in the proleptic Gregorian calendar.
+ *
+ * Replaces timegm(), which macOS implements as a binary search over gmtime() taking ~3.4µs per call.
+ * Days are counted per http://howardhinnant.github.io/date_algorithms.html#days_from_civil
+ */
+static int64_t seconds_since_epoch(int year, int mon, int day, int hour, int min, int sec)
+{
+	int64_t era, days;
+	int year_of_era, day_of_year, day_of_era;
+
+	year -= mon <= 2;
+	era = (year >= 0 ? year : year - 399) / 400;
+	year_of_era = (int)(year - era * 400);
+	day_of_year = (153 * (mon > 2 ? mon - 3 : mon + 9) + 2) / 5 + day - 1;
+	day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+	days = era * 146097 + day_of_era - 719468;
+
+	return days * 86400 + hour * 3600 + min * 60 + sec;
+}
+
 #define TZ_NEG 1
 #define TZ_POS 2
 
@@ -710,7 +731,6 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			VALUE gmt_offset_value;
 			VALUE res;
 
-#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(HAVE_TIMEGM)
 			/* Fast path for time conversion */
 			struct tm tm;
 			struct timespec ts;
@@ -724,38 +744,39 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 
 			if (tz_given) {
 				/* with timezone */
-				time_t time = timegm(&tm);
-				if (time != -1){
-					int gmt_offset;
+				int gmt_offset;
+				int64_t time;
 
-					gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-					if (tz_given == TZ_NEG)
-					{
-						gmt_offset = - gmt_offset;
-					}
-					ts.tv_sec = time - gmt_offset;
-					ts.tv_nsec = nsec;
+				gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+				if (tz_given == TZ_NEG)
+				{
+					gmt_offset = - gmt_offset;
+				}
+				time = seconds_since_epoch(year, mon, day, hour, min, sec) - gmt_offset;
+				ts.tv_sec = (time_t)time;
+				ts.tv_nsec = nsec;
+				/* A 32 bit time_t can't hold every PostgreSQL timestamp */
+				if (ts.tv_sec == time) {
 					return rb_time_timespec_new(&ts, gmt_offset);
 				}
 			} else {
 				/* without timezone */
-				time_t time;
+				int64_t time;
 
 				if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
 					time = mktime(&tm);
 				} else {
-					time = timegm(&tm);
+					time = seconds_since_epoch(year, mon, day, hour, min, sec);
 				}
-				if (time != -1){
-					ts.tv_sec = time;
-					ts.tv_nsec = nsec;
+				ts.tv_sec = (time_t)time;
+				ts.tv_nsec = nsec;
+				if (time != -1 && ts.tv_sec == time){
 					return rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
 				}
 			}
-			/* Some libc implementations fail to convert certain values,
+			/* mktime() fails on some values with some libc implementations,
 			* so that we fall through to the slow path.
 			*/
-#endif
 			if (nsec) {
 				int sec_numerator = sec * 1000000 + nsec / 1000;
 				int sec_denominator = 1000000;
