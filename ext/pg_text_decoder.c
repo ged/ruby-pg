@@ -767,9 +767,13 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			* and a 32 bit time_t can't hold every PostgreSQL timestamp,
 			* so that we fall through to the slow path.
 			*/
-			if (nsec) {
+			if (nsec % 1000) {
 				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
 						LL2NUM((LONG_LONG)sec * 1000000000 + nsec), INT2NUM(1000000000));
+			} else if (nsec) {
+				/* Counted in microseconds, the numerator stays a Fixnum where long is 32 bit, like on Windows */
+				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
+						INT2NUM(sec * 1000000 + nsec / 1000), INT2NUM(1000000));
 			} else {
 				sec_value = INT2NUM(sec);
 			}
