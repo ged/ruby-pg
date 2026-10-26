@@ -285,6 +285,10 @@ length_error:
 
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
+#define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
+#define USECS_PER_DAY	86400000000LL
+
+void j2date(int jd, int *year, int *month, int *day);
 
 /*
  * Document-class: PG::BinaryDecoder::Timestamp < PG::SimpleDecoder
@@ -340,8 +344,22 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 			}
 #endif
 			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
-				/* interpret it as local time */
-				t = rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
+				/* interpret it as local time: Time.local resolves DST gaps and overlaps like PostgreSQL does */
+				int64_t days = timestamp / USECS_PER_DAY;
+				int64_t usecs = timestamp % USECS_PER_DAY;
+				int year, month, day, secs;
+
+				if( usecs < 0 ){
+					usecs += USECS_PER_DAY;
+					days--;
+				}
+				secs = (int)(usecs / 1000000);
+				j2date((int)(days + POSTGRES_EPOCH_JDATE), &year, &month, &day);
+				t = rb_funcall(rb_cTime, rb_intern("local"), 7, INT2NUM(year), INT2NUM(month), INT2NUM(day),
+						INT2NUM(secs / 3600), INT2NUM(secs / 60 % 60), INT2NUM(secs % 60), INT2NUM((int)(usecs % 1000000)));
+				if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
+					t = rb_funcall(t, rb_intern("utc"), 0);
+				}
 			}
 			return t;
 	}
@@ -349,7 +367,6 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 
 #define PG_INT32_MIN    (-0x7FFFFFFF-1)
 #define PG_INT32_MAX    (0x7FFFFFFF)
-#define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
 #define MONTHS_PER_YEAR 12
 
 /* taken from PostgreSQL sources at src/backend/utils/adt/datetime.c */
