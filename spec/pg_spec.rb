@@ -78,6 +78,16 @@ describe PG do
 		expect(cext_text).not_to match(/home\//) # there should be no path to /home/ or so
 	end
 
+	it "C-ext sources don't call ctype.h functions, which are undefined for bytes >= 0x80 in a plain char" do
+		calls = Dir[File.expand_path("../ext/*.[ch]", __dir__)].flat_map do |fname|
+			File.readlines(fname).each_with_index.filter_map do |line, index|
+				next if line =~ %r{\A\s*(/?\*|//)}
+				"#{File.basename(fname)}:#{index + 1}" if line =~ /(?<!\w)(is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)|to(lower|upper))\s*\(/
+			end
+		end
+		expect(calls).to be_empty, "use the rb_is*() functions of ruby.h instead: #{calls.join(", ")}"
+	end
+
 	it "native gem's libpq file shouldn't contain any rpath or other build-related paths" do
 		skip "applies to native binary gems only" unless PG::IS_BINARY_GEM
 
