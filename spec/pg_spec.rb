@@ -80,7 +80,7 @@ describe PG do
 
 	it "C-ext sources don't call ctype.h functions, which are undefined for bytes >= 0x80 in a plain char" do
 		calls = Dir[File.expand_path("../ext/*.[ch]", __dir__)].flat_map do |fname|
-			File.readlines(fname).each_with_index.filter_map do |line, index|
+			File.binread(fname).lines.each_with_index.filter_map do |line, index|
 				next if line =~ %r{\A\s*(/?\*|//)}
 				"#{File.basename(fname)}:#{index + 1}" if line =~ /(?<!\w)(is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)|to(lower|upper))\s*\(/
 			end
