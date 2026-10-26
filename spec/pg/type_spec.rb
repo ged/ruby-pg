@@ -207,6 +207,14 @@ describe "PG::Type derivations" do
 					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:2:21')
 					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:2')
 				end
+				it 'fails when the timestamp contains non-ASCII characters where digits are expected' do
+					textdec_timestamptz_decode_should_fail('²016-01-02 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-0²-02 23:23:59.123456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.²23456+00:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+0²:25:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:²5:21')
+					textdec_timestamptz_decode_should_fail('2016-01-02 23:23:59.123456+00:25:²1')
+				end
 				it 'fails when the timestamp contains values with more digits than expected' do
 					textdec_timestamptz_decode_should_fail('2016-011-02 23:23:59.123456+00:25:21')
 					textdec_timestamptz_decode_should_fail('2016-01-022 23:23:59.123456+00:25:21')
@@ -252,7 +260,7 @@ describe "PG::Type derivations" do
 					expect( textdec_date.decode('10000-01-01') ).to eq( '10000-01-01' )
 				end
 				it 'returns dates in other formats as string' do
-					%w[01/02/2016 02.01.2016 2016-1-02 2016-01-2 2016/01/02 2016-01ª0].each do |value|
+					%w[01/02/2016 02.01.2016 2016-1-02 2016-01-2 2016/01/02 2016-01ª0 ²016-01-02 2016-0²-02].each do |value|
 						expect( textdec_date.decode(value) ).to eq( value )
 					end
 					expect( textdec_date.decode(' 2016-01-02') ).to eq( ' 2016-01-02' )
