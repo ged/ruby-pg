@@ -34,7 +34,6 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-#include <ctype.h>
 #include <time.h>
 #if !defined(_WIN32)
 #include <arpa/inet.h>
@@ -614,7 +613,7 @@ static int parse_year(const char **str) {
 	int i;
 	const char * p = *str;
 
-	for(i = 0; isdigit(*p) && i < 7; i++, p++) {
+	for(i = 0; rb_isdigit(*p) && i < 7; i++, p++) {
 		year = 10 * year + char_to_digit(*p);
 	}
 
@@ -656,11 +655,11 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 	year = parse_year(&str);
 
 	if ( year > 0
-		&& str[0] == '-' && isdigit(str[1]) && isdigit(str[2])
-		&& str[3] == '-' && isdigit(str[4]) && isdigit(str[5])
-		&& str[6] == ' ' && isdigit(str[7]) && isdigit(str[8])
-		&& str[9] == ':' && isdigit(str[10]) && isdigit(str[11])
-		&& str[12] == ':' && isdigit(str[13]) && isdigit(str[14])
+		&& str[0] == '-' && rb_isdigit(str[1]) && rb_isdigit(str[2])
+		&& str[3] == '-' && rb_isdigit(str[4]) && rb_isdigit(str[5])
+		&& str[6] == ' ' && rb_isdigit(str[7]) && rb_isdigit(str[8])
+		&& str[9] == ':' && rb_isdigit(str[10]) && rb_isdigit(str[11])
+		&& str[12] == ':' && rb_isdigit(str[13]) && rb_isdigit(str[14])
 	) {
 
 		mon = str2_to_int(str+1); str += 3;
@@ -669,7 +668,7 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 		min = str2_to_int(str+1); str += 3;
 		sec = str2_to_int(str+1); str += 3;
 
-		if (str[0] == '.' && isdigit(str[1])) {
+		if (str[0] == '.' && rb_isdigit(str[1])) {
 			/* nano second part, up to 9 digits */
 			static const int coef[9] = {
 				100000000, 10000000, 1000000,
@@ -678,23 +677,23 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			int i;
 
 			str++;
-			for (i = 0; i < 9 && isdigit(*str); i++)
+			for (i = 0; i < 9 && rb_isdigit(*str); i++)
 			{
 				nsec += coef[i] * char_to_digit(*str++);
 			}
 			/* consume digits smaller than nsec */
-			while(isdigit(*str)) str++;
+			while(rb_isdigit(*str)) str++;
 		}
 
-		if ((str[0] == '+' || str[0] == '-') && isdigit(str[1]) && isdigit(str[2])) {
+		if ((str[0] == '+' || str[0] == '-') && rb_isdigit(str[1]) && rb_isdigit(str[2])) {
 			tz_given = str[0] == '-' ? TZ_NEG : TZ_POS;
 			tz_hour = str2_to_int(str+1); str += 3;
 
-			if (str[0] == ':' && isdigit(str[1]) && isdigit(str[2]))
+			if (str[0] == ':' && rb_isdigit(str[1]) && rb_isdigit(str[2]))
 			{
 				tz_min = str2_to_int(str+1); str += 3;
 			}
-			if (str[0] == ':' && isdigit(str[1]) && isdigit(str[2]))
+			if (str[0] == ':' && rb_isdigit(str[1]) && rb_isdigit(str[2]))
 			{
 				tz_sec = str2_to_int(str+1); str += 3;
 			}
@@ -954,9 +953,9 @@ static VALUE
 pg_text_dec_date(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len == 10
-		&& isdigit(val[0]) && isdigit(val[1]) && isdigit(val[2]) && isdigit(val[3])
-		&& val[4] == '-' && isdigit(val[5]) && isdigit(val[6])
-		&& val[7] == '-' && isdigit(val[8]) && isdigit(val[9])
+		&& rb_isdigit(val[0]) && rb_isdigit(val[1]) && rb_isdigit(val[2]) && rb_isdigit(val[3])
+		&& val[4] == '-' && rb_isdigit(val[5]) && rb_isdigit(val[6])
+		&& val[7] == '-' && rb_isdigit(val[8]) && rb_isdigit(val[9])
 	) {
 		int year = str2_to_int(val) * 100 + str2_to_int(val + 2);
 		int mon = str2_to_int(val + 5);
