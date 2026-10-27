@@ -188,6 +188,20 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamp.decode('1998-12-31 23:59:60.1234') ).
 						to be_within(0.000001).of( Time.new(1998,12,31, 23, 59, 60.1234) )
 				end
+				it 'decodes nanoseconds regardless of the year' do
+					expect( textdec_timestamputc.decode('1000-03-15 12:00:00.123456789').nsec ).to eq( 123456789 )
+					expect( textdec_timestamp.decode('1000-03-15 12:00:00.123456789').nsec ).to eq( 123456789 )
+					expect( textdec_timestamputc.decode('0044-03-15 12:00:00.123456789 BC').nsec ).to eq( 123456789 )
+					expect( textdec_timestamptz.decode('0044-03-15 12:00:00.123456789+02 BC').nsec ).to eq( 123456789 )
+					expect( textdec_timestamptz.decode('294276-12-31 23:58:59.123456789+03').nsec ).to eq( 123456789 )
+				end
+				it 'decodes timestamps around february, leap years and centuries' do
+					[[2000, 2, 29], [2016, 2, 15], [2024, 1, 31], [2024, 3, 1], [1900, 2, 28], [1900, 3, 1], [2100, 3, 1], [1600, 2, 29], [-43, 2, 28], [-43, 3, 1]].each do |year, month, day|
+						text = year > 0 ? format("%04d-%02d-%02d 12:34:56", year, month, day) : format("%04d-%02d-%02d 12:34:56 BC", 1 - year, month, day)
+						expect( textdec_timestamputc.decode(text) ).to eq( Time.utc(year, month, day, 12, 34, 56) )
+						expect( textdec_timestamptz.decode("#{text.delete_suffix(" BC")}+05#{" BC" if year <= 0}") ).to eq( Time.new(year, month, day, 12, 34, 56, "+05:00") )
+					end
+				end
 
 				def textdec_timestamptz_decode_should_fail(str)
 					expect(textdec_timestamptz.decode(str)).to eq(str)
@@ -219,8 +233,10 @@ describe "PG::Type derivations" do
 				end
 				it 'fails when the timestamp contains values with invalid characters' do
 					str = '2013-01-02 23:23:59.123456+00:25:21'
-					str.length.times do |i|
-						textdec_timestamptz_decode_should_fail(str[0,i] + "x" + str[i+1..-1])
+					["x", "²", "\xB2".b].each do |invalid|
+						str.length.times do |i|
+							textdec_timestamptz_decode_should_fail(str[0,i] + invalid + str[i+1..-1])
+						end
 					end
 				end
 				it 'fails when the timestamp contains leading characters' do
@@ -281,7 +297,7 @@ describe "PG::Type derivations" do
 					expect( textdec_date.decode('10000-01-01') ).to eq( '10000-01-01' )
 				end
 				it 'returns dates in other formats as string' do
-					%w[01/02/2016 02.01.2016 2016-1-02 2016-01-2 2016/01/02 2016-01ª0].each do |value|
+					%w[01/02/2016 02.01.2016 2016-1-02 2016-01-2 2016/01/02 2016-01ª0 ²16-01-02 2016-²-02 2016-01-²].push("2016-01-0\xB2".b).each do |value|
 						expect( textdec_date.decode(value) ).to eq( value )
 					end
 					expect( textdec_date.decode(' 2016-01-02') ).to eq( ' 2016-01-02' )

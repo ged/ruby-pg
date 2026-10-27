@@ -28,13 +28,11 @@
  *
  */
 
-#include "ruby/version.h"
 #include "pg.h"
 #include "pg_util.h"
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-#include <ctype.h>
 #include <time.h>
 #if !defined(_WIN32)
 #include <arpa/inet.h>
@@ -614,12 +612,31 @@ static int parse_year(const char **str) {
 	int i;
 	const char * p = *str;
 
-	for(i = 0; isdigit(*p) && i < 7; i++, p++) {
+	for(i = 0; rb_isdigit(*p) && i < 7; i++, p++) {
 		year = 10 * year + char_to_digit(*p);
 	}
 
 	*str = p;
 	return year;
+}
+
+/*
+ * Seconds since 1970-01-01 00:00:00 UTC in the proleptic Gregorian calendar, like timegm() but much faster on macOS.
+ * Days are counted per http://howardhinnant.github.io/date_algorithms.html#days_from_civil
+ */
+static int64_t seconds_since_epoch(int year, int mon, int day, int hour, int min, int sec)
+{
+	int64_t era, days;
+	int year_of_era, day_of_year, day_of_era;
+
+	year -= mon <= 2;
+	era = (year >= 0 ? year : year - 399) / 400;
+	year_of_era = (int)(year - era * 400);
+	day_of_year = (153 * (mon > 2 ? mon - 3 : mon + 9) + 2) / 5 + day - 1;
+	day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+	days = era * 146097 + day_of_era - 719468;
+
+	return days * 86400 + hour * 3600 + min * 60 + sec;
 }
 
 #define TZ_NEG 1
@@ -656,11 +673,11 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 	year = parse_year(&str);
 
 	if ( year > 0
-		&& str[0] == '-' && isdigit(str[1]) && isdigit(str[2])
-		&& str[3] == '-' && isdigit(str[4]) && isdigit(str[5])
-		&& str[6] == ' ' && isdigit(str[7]) && isdigit(str[8])
-		&& str[9] == ':' && isdigit(str[10]) && isdigit(str[11])
-		&& str[12] == ':' && isdigit(str[13]) && isdigit(str[14])
+		&& str[0] == '-' && rb_isdigit(str[1]) && rb_isdigit(str[2])
+		&& str[3] == '-' && rb_isdigit(str[4]) && rb_isdigit(str[5])
+		&& str[6] == ' ' && rb_isdigit(str[7]) && rb_isdigit(str[8])
+		&& str[9] == ':' && rb_isdigit(str[10]) && rb_isdigit(str[11])
+		&& str[12] == ':' && rb_isdigit(str[13]) && rb_isdigit(str[14])
 	) {
 
 		mon = str2_to_int(str+1); str += 3;
@@ -669,7 +686,7 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 		min = str2_to_int(str+1); str += 3;
 		sec = str2_to_int(str+1); str += 3;
 
-		if (str[0] == '.' && isdigit(str[1])) {
+		if (str[0] == '.' && rb_isdigit(str[1])) {
 			/* nano second part, up to 9 digits */
 			static const int coef[9] = {
 				100000000, 10000000, 1000000,
@@ -678,23 +695,23 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			int i;
 
 			str++;
-			for (i = 0; i < 9 && isdigit(*str); i++)
+			for (i = 0; i < 9 && rb_isdigit(*str); i++)
 			{
 				nsec += coef[i] * char_to_digit(*str++);
 			}
 			/* consume digits smaller than nsec */
-			while(isdigit(*str)) str++;
+			while(rb_isdigit(*str)) str++;
 		}
 
-		if ((str[0] == '+' || str[0] == '-') && isdigit(str[1]) && isdigit(str[2])) {
+		if ((str[0] == '+' || str[0] == '-') && rb_isdigit(str[1]) && rb_isdigit(str[2])) {
 			tz_given = str[0] == '-' ? TZ_NEG : TZ_POS;
 			tz_hour = str2_to_int(str+1); str += 3;
 
-			if (str[0] == ':' && isdigit(str[1]) && isdigit(str[2]))
+			if (str[0] == ':' && rb_isdigit(str[1]) && rb_isdigit(str[2]))
 			{
 				tz_min = str2_to_int(str+1); str += 3;
 			}
-			if (str[0] == ':' && isdigit(str[1]) && isdigit(str[2]))
+			if (str[0] == ':' && rb_isdigit(str[1]) && rb_isdigit(str[2]))
 			{
 				tz_sec = str2_to_int(str+1); str += 3;
 			}
@@ -709,71 +726,59 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			VALUE sec_value;
 			VALUE gmt_offset_value;
 			VALUE res;
-
-#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(HAVE_TIMEGM)
-			/* Fast path for time conversion */
-			struct tm tm;
 			struct timespec ts;
-			tm.tm_year = year - 1900;
-			tm.tm_mon = mon - 1;
-			tm.tm_mday = day;
-			tm.tm_hour = hour;
-			tm.tm_min = min;
-			tm.tm_sec = sec;
-			tm.tm_isdst = -1;
+			int gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
 
-			if (tz_given) {
-				/* with timezone */
-				time_t time = timegm(&tm);
-				if (time != -1){
-					int gmt_offset;
+			if (tz_given == TZ_NEG)
+			{
+				gmt_offset = - gmt_offset;
+			}
 
-					gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-					if (tz_given == TZ_NEG)
-					{
-						gmt_offset = - gmt_offset;
-					}
-					ts.tv_sec = time - gmt_offset;
-					ts.tv_nsec = nsec;
-					return rb_time_timespec_new(&ts, gmt_offset);
-				}
-			} else {
-				/* without timezone */
-				time_t time;
+			/* Fast path for time conversion */
+			ts.tv_nsec = nsec;
+			if (!tz_given && (conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL)) {
+				/* without timezone, interpreted as local time */
+#ifndef _WIN32
+				/* Windows' mktime() fails on certain dates, so it takes the slow path */
+				struct tm tm;
+				tm.tm_year = year - 1900;
+				tm.tm_mon = mon - 1;
+				tm.tm_mday = day;
+				tm.tm_hour = hour;
+				tm.tm_min = min;
+				tm.tm_sec = sec;
+				tm.tm_isdst = -1;
 
-				if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
-					time = mktime(&tm);
-				} else {
-					time = timegm(&tm);
-				}
-				if (time != -1){
-					ts.tv_sec = time;
-					ts.tv_nsec = nsec;
+				ts.tv_sec = mktime(&tm);
+				if (ts.tv_sec != -1) {
 					return rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
 				}
+#endif
+			} else {
+				/* with timezone, or without timezone interpreted as UTC */
+				int64_t time = seconds_since_epoch(year, mon, day, hour, min, sec) - gmt_offset;
+				ts.tv_sec = (time_t)time;
+				if (ts.tv_sec == time) {
+					return rb_time_timespec_new(&ts, tz_given ? gmt_offset : conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+				}
 			}
-			/* Some libc implementations fail to convert certain values,
+			/* mktime() fails on some values with some libc implementations,
+			* and a 32 bit time_t can't hold every PostgreSQL timestamp,
 			* so that we fall through to the slow path.
 			*/
-#endif
-			if (nsec) {
-				int sec_numerator = sec * 1000000 + nsec / 1000;
-				int sec_denominator = 1000000;
+			if (nsec % 1000) {
 				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
-						INT2NUM(sec_numerator), INT2NUM(sec_denominator));
+						LL2NUM((LONG_LONG)sec * 1000000000 + nsec), INT2NUM(1000000000));
+			} else if (nsec) {
+				/* Counted in microseconds, the numerator stays a Fixnum where long is 32 bit, like on Windows */
+				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
+						INT2NUM(sec * 1000000 + nsec / 1000), INT2NUM(1000000));
 			} else {
 				sec_value = INT2NUM(sec);
 			}
 
 			if (tz_given) {
 				/* with timezone */
-				int gmt_offset;
-
-				gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-				if (tz_given == TZ_NEG)
-				{
-					gmt_offset = - gmt_offset;
-				}
 				gmt_offset_value = INT2NUM(gmt_offset);
 			} else {
 				/* without timezone */
@@ -954,9 +959,9 @@ static VALUE
 pg_text_dec_date(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
 	if (len == 10
-		&& isdigit(val[0]) && isdigit(val[1]) && isdigit(val[2]) && isdigit(val[3])
-		&& val[4] == '-' && isdigit(val[5]) && isdigit(val[6])
-		&& val[7] == '-' && isdigit(val[8]) && isdigit(val[9])
+		&& rb_isdigit(val[0]) && rb_isdigit(val[1]) && rb_isdigit(val[2]) && rb_isdigit(val[3])
+		&& val[4] == '-' && rb_isdigit(val[5]) && rb_isdigit(val[6])
+		&& val[7] == '-' && rb_isdigit(val[8]) && rb_isdigit(val[9])
 	) {
 		int year = str2_to_int(val) * 100 + str2_to_int(val + 2);
 		int mon = str2_to_int(val + 5);

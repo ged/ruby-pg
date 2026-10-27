@@ -4,7 +4,6 @@
  *
  */
 
-#include "ruby/version.h"
 #include "pg.h"
 #include "pg_util.h"
 #ifdef HAVE_INTTYPES_H
@@ -351,7 +350,7 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 			sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
 			nsec = (timestamp % 1000000) * 1000;
 
-#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(NEGATIVE_TIME_T) && defined(SIZEOF_TIME_T) && SIZEOF_TIME_T >= 8
+#if defined(NEGATIVE_TIME_T) && defined(SIZEOF_TIME_T) && SIZEOF_TIME_T >= 8
 			/* Fast path for time conversion */
 			{
 				struct timespec ts = {sec, nsec};
