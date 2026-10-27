@@ -243,10 +243,6 @@ describe "PG::Type derivations" do
 					ENV['TZ'] = tz
 				end
 
-				def binary_timestamp(*wall_clock)
-					[((Time.utc(*wall_clock) - Time.utc(2000)) * 1_000_000).round].pack("q>")
-				end
-
 				it 'decodes wall clocks around DST changes like Time.local and PostgreSQL' do
 					decoder = PG::BinaryDecoder::TimestampLocal.new
 					[
@@ -254,14 +250,14 @@ describe "PG::Type derivations" do
 						[2024, 3, 31, 1, 30], [2024, 3, 31, 2, 30], [2024, 3, 31, 3, 30],
 						[2024, 10, 27, 1, 30], [2024, 10, 27, 2, 30], [2024, 10, 27, 3, 30],
 					].each do |wall_clock|
-						time = decoder.decode(binary_timestamp(*wall_clock))
+						time = decoder.decode(binaryenc_timestamputc.encode(Time.utc(*wall_clock)))
 						expected = Time.local(*wall_clock)
 						expect( [time, time.utc_offset] ).to eq( [expected, expected.utc_offset] )
 					end
 				end
 				it 'decodes wall clocks to UTC with TIMESTAMP_DB_LOCAL alone' do
 					decoder = PG::BinaryDecoder::Timestamp.new(flags: PG::Coder::TIMESTAMP_DB_LOCAL)
-					time = decoder.decode(binary_timestamp(2024, 7, 1, 12, 0))
+					time = decoder.decode(binaryenc_timestamputc.encode(Time.utc(2024, 7, 1, 12, 0)))
 					expect( time ).to eq( Time.local(2024, 7, 1, 12, 0) )
 					expect( time ).to be_utc
 				end
