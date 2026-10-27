@@ -285,9 +285,85 @@ length_error:
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
 #define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
+#define UNIX_EPOCH_JDATE   2440588 /* == date2j(1970, 1, 1) */
 #define USECS_PER_DAY	86400000000LL
+#define SECS_PER_DAY	86400
 
 void j2date(int jd, int *year, int *month, int *day);
+int date2j(int year, int month, int day);
+
+/*
+ * Get the UTC offset of the local time zone at the given instant.
+ * Returns 0 when the C library can't convert it.
+ */
+static int
+local_utc_offset(int64_t seconds, int *offset)
+{
+	time_t time = (time_t)seconds;
+	struct tm tm;
+
+	if( time != seconds || localtime_r(&time, &tm) == NULL ) return 0;
+	*offset = (int)((date2j(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday) - UNIX_EPOCH_JDATE) * (int64_t)SECS_PER_DAY
+			+ tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec - seconds);
+	return 1;
+}
+
+/*
+ * Get the UTC offset to interpret a wall clock as local time, given as seconds since 1970-01-01 00:00:00.
+ * Like PostgreSQL's DetermineTimeZoneOffset(), a wall clock in a DST gap or overlap takes the later instant.
+ * Returns 0 when the C library can't convert it.
+ */
+static int
+wall_clock_utc_offset(int64_t wall_clock, int *offset)
+{
+	int offset_before, offset_after, offset_at_before, offset_at_after;
+
+#ifdef _WIN32
+	_tzset();
+#else
+	tzset();
+#endif
+	if( !local_utc_offset(wall_clock - SECS_PER_DAY, &offset_before) ||
+			!local_utc_offset(wall_clock + SECS_PER_DAY, &offset_after) ) return 0;
+
+	if( offset_before == offset_after ){
+		*offset = offset_before;
+		return 1;
+	}
+
+	/* A transition within a day: keep the only interpretation that gives back the wall clock, if any */
+	if( !local_utc_offset(wall_clock - offset_before, &offset_at_before) ||
+			!local_utc_offset(wall_clock - offset_after, &offset_at_after) ) return 0;
+	if( (offset_at_before == offset_before) != (offset_at_after == offset_after) ){
+		*offset = offset_at_before == offset_before ? offset_before : offset_after;
+	} else {
+		*offset = offset_before < offset_after ? offset_before : offset_after;
+	}
+	return 1;
+}
+
+/* Interpret the timestamp as local time through Time.local, when the C library can't convert it */
+static VALUE
+time_local_from_timestamp(t_pg_coder *conv, int64_t timestamp)
+{
+	int64_t days = timestamp / USECS_PER_DAY;
+	int64_t usecs = timestamp % USECS_PER_DAY;
+	int year, month, day, secs;
+	VALUE t;
+
+	if( usecs < 0 ){
+		usecs += USECS_PER_DAY;
+		days--;
+	}
+	secs = (int)(usecs / 1000000);
+	j2date((int)(days + POSTGRES_EPOCH_JDATE), &year, &month, &day);
+	t = rb_funcall(rb_cTime, rb_intern("local"), 7, INT2NUM(year), INT2NUM(month), INT2NUM(day),
+			INT2NUM(secs / 3600), INT2NUM(secs / 60 % 60), INT2NUM(secs % 60), INT2NUM((int)(usecs % 1000000)));
+	if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
+		t = rb_funcall(t, rb_intern("getutc"), 0);
+	}
+	return t;
+}
 
 /*
  * Document-class: PG::BinaryDecoder::Timestamp < PG::SimpleDecoder
@@ -325,30 +401,20 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 		case PG_INT64_MIN:
 			return rb_str_new2("-infinity");
 		default:
-			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
-				/* interpret it as local time: Time.local resolves DST gaps and overlaps like PostgreSQL does */
-				int64_t days = timestamp / USECS_PER_DAY;
-				int64_t usecs = timestamp % USECS_PER_DAY;
-				int year, month, day, secs;
-
-				if( usecs < 0 ){
-					usecs += USECS_PER_DAY;
-					days--;
-				}
-				secs = (int)(usecs / 1000000);
-				j2date((int)(days + POSTGRES_EPOCH_JDATE), &year, &month, &day);
-				t = rb_funcall(rb_cTime, rb_intern("local"), 7, INT2NUM(year), INT2NUM(month), INT2NUM(day),
-						INT2NUM(secs / 3600), INT2NUM(secs / 60 % 60), INT2NUM(secs % 60), INT2NUM((int)(usecs % 1000000)));
-				if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
-					t = rb_funcall(t, rb_intern("utc"), 0);
-				}
-				return t;
-			}
-
 			/* PostgreSQL's timestamp is based on year 2000 and Ruby's time is based on 1970.
 			 * Adjust the 30 years difference. */
 			sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
 			nsec = (timestamp % 1000000) * 1000;
+
+			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
+				/* interpret it as local time */
+				int offset;
+
+				if( !wall_clock_utc_offset(sec - (nsec < 0), &offset) ){
+					return time_local_from_timestamp(conv, timestamp);
+				}
+				sec -= offset;
+			}
 
 #if defined(NEGATIVE_TIME_T) && defined(SIZEOF_TIME_T) && SIZEOF_TIME_T >= 8
 			/* Fast path for time conversion */
