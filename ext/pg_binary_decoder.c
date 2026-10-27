@@ -284,13 +284,7 @@ length_error:
 
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
-#define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
-#define UNIX_EPOCH_JDATE   2440588 /* == date2j(1970, 1, 1) */
-#define USECS_PER_DAY	86400000000LL
 #define SECS_PER_DAY	86400
-
-void j2date(int jd, int *year, int *month, int *day);
-int date2j(int year, int month, int day);
 
 /*
  * Get the UTC offset of the local time zone at the given instant.
@@ -300,11 +294,17 @@ static int
 local_utc_offset(int64_t seconds, int *offset)
 {
 	time_t time = (time_t)seconds;
+	int64_t utc_days = seconds / SECS_PER_DAY - (seconds % SECS_PER_DAY < 0);
+	int utc_weekday = (int)(((utc_days + 4) % 7 + 7) % 7); /* 1970-01-01 was a Thursday */
+	int local_days_ahead;
 	struct tm tm;
 
 	if( time != seconds || localtime_r(&time, &tm) == NULL ) return 0;
-	*offset = (int)((date2j(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday) - UNIX_EPOCH_JDATE) * (int64_t)SECS_PER_DAY
-			+ tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec - seconds);
+	/* local and UTC dates are at most a day apart */
+	local_days_ahead = (tm.tm_wday - utc_weekday + 7) % 7;
+	if( local_days_ahead == 6 ) local_days_ahead = -1;
+	*offset = local_days_ahead * SECS_PER_DAY + tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec
+			- (int)(seconds - utc_days * SECS_PER_DAY);
 	return 1;
 }
 
@@ -317,6 +317,9 @@ static int
 wall_clock_utc_offset(int64_t wall_clock, int *offset)
 {
 	int offset_before, offset_after, offset_at_before, offset_at_after;
+
+	/* Before 1901-12-14, Ruby on macOS renders local times without the LMT offsets of the C library */
+	if( wall_clock < (int64_t)INT32_MIN + SECS_PER_DAY ) return 0;
 
 #ifdef _WIN32
 	_tzset();
@@ -342,23 +345,16 @@ wall_clock_utc_offset(int64_t wall_clock, int *offset)
 	return 1;
 }
 
-/* Interpret the timestamp as local time through Time.local, when the C library can't convert it */
+/*
+ * Interpret the wall clock with the UTC offset Ruby gives to it read as UTC, when the C library can't convert it.
+ * That's off by the DST shift within the offset's distance of a DST change, which doesn't happen before 1901.
+ */
 static VALUE
-time_local_from_timestamp(t_pg_coder *conv, int64_t timestamp)
+time_local_from_wall_clock(t_pg_coder *conv, int64_t sec, int64_t nsec)
 {
-	int64_t days = timestamp / USECS_PER_DAY;
-	int64_t usecs = timestamp % USECS_PER_DAY;
-	int year, month, day, secs;
-	VALUE t;
+	VALUE t = rb_funcall(rb_cTime, rb_intern("at"), 3, LL2NUM(sec), LL2NUM(nsec), ID2SYM(rb_intern("nsec")));
 
-	if( usecs < 0 ){
-		usecs += USECS_PER_DAY;
-		days--;
-	}
-	secs = (int)(usecs / 1000000);
-	j2date((int)(days + POSTGRES_EPOCH_JDATE), &year, &month, &day);
-	t = rb_funcall(rb_cTime, rb_intern("local"), 7, INT2NUM(year), INT2NUM(month), INT2NUM(day),
-			INT2NUM(secs / 3600), INT2NUM(secs / 60 % 60), INT2NUM(secs % 60), INT2NUM((int)(usecs % 1000000)));
+	t = rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
 	if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
 		t = rb_funcall(t, rb_intern("getutc"), 0);
 	}
@@ -411,7 +407,7 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 				int offset;
 
 				if( !wall_clock_utc_offset(sec - (nsec < 0), &offset) ){
-					return time_local_from_timestamp(conv, timestamp);
+					return time_local_from_wall_clock(conv, sec, nsec);
 				}
 				sec -= offset;
 			}
@@ -434,6 +430,7 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 
 #define PG_INT32_MIN    (-0x7FFFFFFF-1)
 #define PG_INT32_MAX    (0x7FFFFFFF)
+#define POSTGRES_EPOCH_JDATE   2451545 /* == date2j(2000, 1, 1) */
 #define MONTHS_PER_YEAR 12
 
 /* taken from PostgreSQL sources at src/backend/utils/adt/datetime.c */
