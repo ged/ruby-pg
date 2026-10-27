@@ -188,6 +188,20 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamp.decode('1998-12-31 23:59:60.1234') ).
 						to be_within(0.000001).of( Time.new(1998,12,31, 23, 59, 60.1234) )
 				end
+				it 'decodes nanoseconds regardless of the year' do
+					expect( textdec_timestamputc.decode('1000-03-15 12:00:00.123456789').nsec ).to eq( 123456789 )
+					expect( textdec_timestamp.decode('1000-03-15 12:00:00.123456789').nsec ).to eq( 123456789 )
+					expect( textdec_timestamputc.decode('0044-03-15 12:00:00.123456789 BC').nsec ).to eq( 123456789 )
+					expect( textdec_timestamptz.decode('0044-03-15 12:00:00.123456789+02 BC').nsec ).to eq( 123456789 )
+					expect( textdec_timestamptz.decode('294276-12-31 23:58:59.123456789+03').nsec ).to eq( 123456789 )
+				end
+				it 'decodes timestamps around february, leap years and centuries' do
+					[[2000, 2, 29], [2016, 2, 15], [2024, 1, 31], [2024, 3, 1], [1900, 2, 28], [1900, 3, 1], [2100, 3, 1], [1600, 2, 29], [-43, 2, 28], [-43, 3, 1]].each do |year, month, day|
+						text = year > 0 ? format("%04d-%02d-%02d 12:34:56", year, month, day) : format("%04d-%02d-%02d 12:34:56 BC", 1 - year, month, day)
+						expect( textdec_timestamputc.decode(text) ).to eq( Time.utc(year, month, day, 12, 34, 56) )
+						expect( textdec_timestamptz.decode("#{text.delete_suffix(" BC")}+05#{" BC" if year <= 0}") ).to eq( Time.new(year, month, day, 12, 34, 56, "+05:00") )
+					end
+				end
 
 				def textdec_timestamptz_decode_should_fail(str)
 					expect(textdec_timestamptz.decode(str)).to eq(str)

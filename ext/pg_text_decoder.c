@@ -28,7 +28,6 @@
  *
  */
 
-#include "ruby/version.h"
 #include "pg.h"
 #include "pg_util.h"
 #ifdef HAVE_INTTYPES_H
@@ -621,6 +620,25 @@ static int parse_year(const char **str) {
 	return year;
 }
 
+/*
+ * Seconds since 1970-01-01 00:00:00 UTC in the proleptic Gregorian calendar, like timegm() but much faster on macOS.
+ * Days are counted per http://howardhinnant.github.io/date_algorithms.html#days_from_civil
+ */
+static int64_t seconds_since_epoch(int year, int mon, int day, int hour, int min, int sec)
+{
+	int64_t era, days;
+	int year_of_era, day_of_year, day_of_era;
+
+	year -= mon <= 2;
+	era = (year >= 0 ? year : year - 399) / 400;
+	year_of_era = (int)(year - era * 400);
+	day_of_year = (153 * (mon > 2 ? mon - 3 : mon + 9) + 2) / 5 + day - 1;
+	day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+	days = era * 146097 + day_of_era - 719468;
+
+	return days * 86400 + hour * 3600 + min * 60 + sec;
+}
+
 #define TZ_NEG 1
 #define TZ_POS 2
 
@@ -708,71 +726,59 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			VALUE sec_value;
 			VALUE gmt_offset_value;
 			VALUE res;
-
-#if (RUBY_API_VERSION_MAJOR > 2 || (RUBY_API_VERSION_MAJOR == 2 && RUBY_API_VERSION_MINOR >= 3)) && defined(HAVE_TIMEGM)
-			/* Fast path for time conversion */
-			struct tm tm;
 			struct timespec ts;
-			tm.tm_year = year - 1900;
-			tm.tm_mon = mon - 1;
-			tm.tm_mday = day;
-			tm.tm_hour = hour;
-			tm.tm_min = min;
-			tm.tm_sec = sec;
-			tm.tm_isdst = -1;
+			int gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
 
-			if (tz_given) {
-				/* with timezone */
-				time_t time = timegm(&tm);
-				if (time != -1){
-					int gmt_offset;
+			if (tz_given == TZ_NEG)
+			{
+				gmt_offset = - gmt_offset;
+			}
 
-					gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-					if (tz_given == TZ_NEG)
-					{
-						gmt_offset = - gmt_offset;
-					}
-					ts.tv_sec = time - gmt_offset;
-					ts.tv_nsec = nsec;
-					return rb_time_timespec_new(&ts, gmt_offset);
-				}
-			} else {
-				/* without timezone */
-				time_t time;
+			/* Fast path for time conversion */
+			ts.tv_nsec = nsec;
+			if (!tz_given && (conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL)) {
+				/* without timezone, interpreted as local time */
+#ifndef _WIN32
+				/* Windows' mktime() fails on certain dates, so it takes the slow path */
+				struct tm tm;
+				tm.tm_year = year - 1900;
+				tm.tm_mon = mon - 1;
+				tm.tm_mday = day;
+				tm.tm_hour = hour;
+				tm.tm_min = min;
+				tm.tm_sec = sec;
+				tm.tm_isdst = -1;
 
-				if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
-					time = mktime(&tm);
-				} else {
-					time = timegm(&tm);
-				}
-				if (time != -1){
-					ts.tv_sec = time;
-					ts.tv_nsec = nsec;
+				ts.tv_sec = mktime(&tm);
+				if (ts.tv_sec != -1) {
 					return rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
 				}
+#endif
+			} else {
+				/* with timezone, or without timezone interpreted as UTC */
+				int64_t time = seconds_since_epoch(year, mon, day, hour, min, sec) - gmt_offset;
+				ts.tv_sec = (time_t)time;
+				if (ts.tv_sec == time) {
+					return rb_time_timespec_new(&ts, tz_given ? gmt_offset : conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+				}
 			}
-			/* Some libc implementations fail to convert certain values,
+			/* mktime() fails on some values with some libc implementations,
+			* and a 32 bit time_t can't hold every PostgreSQL timestamp,
 			* so that we fall through to the slow path.
 			*/
-#endif
-			if (nsec) {
-				int sec_numerator = sec * 1000000 + nsec / 1000;
-				int sec_denominator = 1000000;
+			if (nsec % 1000) {
 				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
-						INT2NUM(sec_numerator), INT2NUM(sec_denominator));
+						LL2NUM((LONG_LONG)sec * 1000000000 + nsec), INT2NUM(1000000000));
+			} else if (nsec) {
+				/* Counted in microseconds, the numerator stays a Fixnum where long is 32 bit, like on Windows */
+				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
+						INT2NUM(sec * 1000000 + nsec / 1000), INT2NUM(1000000));
 			} else {
 				sec_value = INT2NUM(sec);
 			}
 
 			if (tz_given) {
 				/* with timezone */
-				int gmt_offset;
-
-				gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
-				if (tz_given == TZ_NEG)
-				{
-					gmt_offset = - gmt_offset;
-				}
 				gmt_offset_value = INT2NUM(gmt_offset);
 			} else {
 				/* without timezone */
