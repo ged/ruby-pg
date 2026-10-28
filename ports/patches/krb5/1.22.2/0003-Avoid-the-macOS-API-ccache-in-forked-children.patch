@@ -1,4 +1,4 @@
-From 87d0303eb17df767d234e0bee684084141303a8f Mon Sep 17 00:00:00 2001
+From 4efc55a4fcd8d2d88192553cfbf39e7aadaa7b7d Mon Sep 17 00:00:00 2001
 From: Douglas Eichelberger <d@eic.email>
 Date: Tue, 27 Oct 2026 18:55:48 -0700
 Subject: [PATCH] Avoid the macOS API ccache in forked children
@@ -11,25 +11,27 @@ xpc_connection_resume() under get_primary_name() when it forks and
 connects again.
 
 Record the pid of the first API ccache use.  In a child forked after
-that, report the API collection as empty and fail cache resolution with
-KRB5_FCC_NOFILE before calling the CCAPI framework or XPC.
+that, report the API collection as empty, treat caches as not found
+(KRB5_FCC_NOFILE), and leave CCAPI objects inherited from the parent
+unreleased, so the child never calls the CCAPI framework or XPC.
 ---
- lib/krb5/ccache/cc_api_macos.c | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ lib/krb5/ccache/cc_api_macos.c | 63 ++++++++++++++++++++++++++++------
+ 1 file changed, 53 insertions(+), 10 deletions(-)
 
 diff --git a/lib/krb5/ccache/cc_api_macos.c b/lib/krb5/ccache/cc_api_macos.c
-index 34b1c350f..78b764be1 100644
+index 34b1c350f..a7184546a 100644
 --- a/lib/krb5/ccache/cc_api_macos.c
 +++ b/lib/krb5/ccache/cc_api_macos.c
-@@ -64,6 +64,29 @@ struct api_macos_ptcursor {
+@@ -64,6 +64,30 @@ struct api_macos_ptcursor {
      cc_ccache_iterator_t iter;
  };
  
 +/*
 + * The CCAPI framework and XPC are not safe to use in a child process forked
 + * after the parent used them; calling them there can crash the child.  Record
-+ * the pid of the first use, and in a forked child report the collection as
-+ * empty instead of contacting the credential cache service.
++ * the pid of the first use.  In a forked child, report the collection as empty
++ * and caches as not found instead of contacting the credential cache service,
++ * and leave CCAPI objects inherited from the parent unreleased.
 + */
 +static k5_once_t first_use_once = K5_ONCE_INIT;
 +static pid_t first_use_pid;
@@ -51,7 +53,7 @@ index 34b1c350f..78b764be1 100644
  /* Map a CCAPI error code to a com_err code. */
  static krb5_error_code
  ccerr2mit(uint32_t err)
-@@ -96,6 +119,8 @@ make_cache(const char *residual, cc_context_t cc_context,
+@@ -96,6 +120,8 @@ make_cache(const char *residual, cc_context_t cc_context,
      *ccache_out = NULL;
  
      if (cc_context == NULL) {
@@ -60,7 +62,16 @@ index 34b1c350f..78b764be1 100644
          err = cc_initialize(&cc_context, ccapi_version_max, NULL, NULL);
          if (err != ccNoError)
              return KRB5_FCC_INTERNAL;
-@@ -171,6 +196,9 @@ get_primary_name(krb5_context context, char **name_out)
+@@ -133,6 +159,8 @@ oom:
+ static uint32_t
+ open_cache(struct api_macos_cache_data *data)
+ {
++    if (in_forked_child())
++        return ccErrCCacheNotFound;
+     if (data->cache != NULL)
+         return ccNoError;
+     return cc_context_open_ccache(data->cc_context, data->residual,
+@@ -171,6 +199,9 @@ get_primary_name(krb5_context context, char **name_out)
  
      *name_out = NULL;
  
@@ -70,7 +81,7 @@ index 34b1c350f..78b764be1 100644
      if (uname(&un) == 0) {
          release = strtol(un.release, &end, 10);
          if (end != un.release && release < 20) {
-@@ -253,6 +281,9 @@ api_macos_gen_new(krb5_context context, krb5_ccache *cache_out)
+@@ -253,6 +284,9 @@ api_macos_gen_new(krb5_context context, krb5_ccache *cache_out)
  
      *cache_out = NULL;
  
@@ -80,7 +91,52 @@ index 34b1c350f..78b764be1 100644
      err = cc_initialize(&cc_context, ccapi_version_max, NULL, NULL);
      if (err)
          goto cleanup;
-@@ -576,6 +607,8 @@ api_macos_ptcursor_next(krb5_context context, krb5_cc_ptcursor ptcursor,
+@@ -291,6 +325,9 @@ api_macos_initialize(krb5_context context, krb5_ccache cache,
+     uint32_t err;
+     char *princstr = NULL, *prefix_name = NULL;
+ 
++    if (in_forked_child())
++        return KRB5_FCC_NOFILE;
++
+     /* Apple's cc_context_create_ccache() requires a name with type prefix. */
+     if (asprintf(&prefix_name, "API:%s", data->residual) < 0)
+         return ENOMEM;
+@@ -319,9 +356,11 @@ api_macos_close(krb5_context context, krb5_ccache cache)
+ {
+     struct api_macos_cache_data *data = cache->data;
+ 
+-    if (data->cache != NULL)
+-        cc_ccache_release(data->cache);
+-    cc_context_release(data->cc_context);
++    if (!in_forked_child()) {
++        if (data->cache != NULL)
++            cc_ccache_release(data->cache);
++        cc_context_release(data->cc_context);
++    }
+     free(data->residual);
+     free(data);
+     free(cache);
+@@ -333,8 +372,7 @@ api_macos_destroy(krb5_context context, krb5_ccache cache)
+ {
+     struct api_macos_cache_data *data = cache->data;
+ 
+-    open_cache(data);
+-    if (data->cache != NULL) {
++    if (open_cache(data) == ccNoError) {
+         cc_ccache_destroy(data->cache);
+         data->cache = NULL;
+     }
+@@ -441,7 +479,8 @@ api_macos_end_seq_get(krb5_context context, krb5_ccache cache,
+ {
+     cc_credentials_iterator_t iter = *cursor;
+ 
+-    cc_credentials_iterator_release(iter);
++    if (!in_forked_child())
++        cc_credentials_iterator_release(iter);
+     *cursor = NULL;
+     return 0;
+ }
+@@ -576,6 +615,8 @@ api_macos_ptcursor_next(krb5_context context, krb5_cc_ptcursor ptcursor,
      defname = krb5_cc_default_name(context);
      if (defname == NULL || strncmp(defname, "API:", 4) != 0)
          return 0;
@@ -89,6 +145,23 @@ index 34b1c350f..78b764be1 100644
      defresidual = defname + 4;
  
      /* If the default cache name is a subsidiary cache, yield that cache if it
+@@ -640,10 +681,12 @@ api_macos_ptcursor_free(krb5_context context, krb5_cc_ptcursor *ptcursor)
+     struct api_macos_ptcursor *apt = (*ptcursor)->data;
+ 
+     if (apt != NULL) {
+-        if (apt->iter != NULL)
+-            cc_ccache_iterator_release(apt->iter);
+-        if (apt->cc_context != NULL)
+-            cc_context_release(apt->cc_context);
++        if (!in_forked_child()) {
++            if (apt->iter != NULL)
++                cc_ccache_iterator_release(apt->iter);
++            if (apt->cc_context != NULL)
++                cc_context_release(apt->cc_context);
++        }
+         free(apt->primary);
+         free(apt);
+     }
 -- 
 2.56.0
 
