@@ -39,7 +39,11 @@
 #include <sys/socket.h>
 #endif
 #include <string.h>
+#include "ruby/ractor.h"
 #include "ruby/thread_native.h"
+#if !defined(_WIN32)
+#include <pthread.h>
+#endif
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_Rational;
@@ -159,7 +163,7 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
 }
 
 #define NUMERIC_CACHE_SLOT_BITS 12
-/* Up to 8 characters covers 0.00, VAT rates and prices like 1299.00, and fits the key into one uint64_t. */
+/* Up to 8 characters covers values like 0.00, 19.90 or 1299.00, and fits the key into one uint64_t. */
 #define NUMERIC_CACHE_MAX_LENGTH 8
 
 typedef struct {
@@ -173,12 +177,11 @@ static rb_nativethread_lock_t numeric_cache_lock;
 static VALUE numeric_cache_marker;
 
 static void
-numeric_cache_mark(void *_cache)
+numeric_cache_mark(void *_unused)
 {
-	t_numeric_cache_slot *cache = _cache;
 	size_t i;
 	for( i = 0; i < sizeof(numeric_cache) / sizeof(*numeric_cache); i++ ){
-		rb_gc_mark(cache[i].value);
+		rb_gc_mark(numeric_cache[i].value);
 	}
 }
 
@@ -187,6 +190,16 @@ static const rb_data_type_t numeric_cache_type = {
 	{ numeric_cache_mark, NULL, NULL },
 	0, 0, 0,
 };
+
+#if !defined(_WIN32)
+/* Another Ractor may have held the lock or been writing a slot when the process forked. */
+static void
+numeric_cache_reset_in_child(void)
+{
+	rb_nativethread_lock_initialize(&numeric_cache_lock);
+	memset(numeric_cache, 0, sizeof(numeric_cache));
+}
+#endif
 
 static VALUE
 pg_text_dec_numeric_uncached(const char *val, int len)
@@ -214,7 +227,8 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	t_numeric_cache_slot *slot;
 	VALUE value;
 
-	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > NUMERIC_CACHE_MAX_LENGTH ){
+	/* NaN and Infinity don't end with a digit. They stay uncached to honor BigDecimal.mode exceptions. */
+	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > NUMERIC_CACHE_MAX_LENGTH || !rb_isdigit(val[len - 1]) ){
 		return pg_text_dec_numeric_uncached(val, len);
 	}
 
@@ -228,8 +242,8 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	if( value != Qundef ) return value;
 
 	value = pg_text_dec_numeric_uncached(val, len);
-	/* Rows and Ractors share cached objects. bigdecimal makes frozen BigDecimals Ractor-shareable. */
-	if( RB_OBJ_FROZEN(value) ){
+	/* Rows and Ractors share cached objects. */
+	if( rb_ractor_shareable_p(value) ){
 		rb_nativethread_lock_lock(&numeric_cache_lock);
 		slot->text = text;
 		slot->len = len;
@@ -245,9 +259,6 @@ init_pg_text_decoder_numeric(VALUE rb_mPG_TextDecoder)
 {
 	rb_funcall(rb_mPG, rb_intern("require_bigdecimal_without_warning"), 0);
 	s_id_BigDecimal = rb_intern("BigDecimal");
-	rb_nativethread_lock_initialize(&numeric_cache_lock);
-	rb_gc_register_address(&numeric_cache_marker);
-	numeric_cache_marker = TypedData_Wrap_Struct(0, &numeric_cache_type, numeric_cache);
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Numeric", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Numeric", pg_text_dec_numeric, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
@@ -1090,6 +1101,14 @@ init_pg_text_decoder(void)
 	s_nan = rb_eval_string("0.0/0.0");
 	s_pos_inf = rb_eval_string("1.0/0.0");
 	s_neg_inf = rb_eval_string("-1.0/0.0");
+
+	rb_nativethread_lock_initialize(&numeric_cache_lock);
+#if !defined(_WIN32)
+	pthread_atfork(NULL, NULL, numeric_cache_reset_in_child);
+#endif
+	rb_gc_register_address(&numeric_cache_marker);
+	/* The GC skips dmark for a NULL data pointer, so it must point somewhere. */
+	numeric_cache_marker = TypedData_Wrap_Struct(0, &numeric_cache_type, numeric_cache);
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );

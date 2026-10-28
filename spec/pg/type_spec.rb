@@ -264,9 +264,18 @@ describe "PG::Type derivations" do
 					expect( textdec_numeric.decode('1299.00') ).not_to equal( textdec_numeric.decode('1299.0') )
 				end
 				it 'keeps cached objects alive across GC' do
-					textdec_numeric.decode('7.77')
+					cached_object_id = textdec_numeric.decode('7.77').object_id
 					GC.start
-					expect( textdec_numeric.decode('7.77') ).to eq( BigDecimal('7.77') )
+					expect( textdec_numeric.decode('7.77').object_id ).to eq( cached_object_id )
+				end
+				it 'raises on NaN and Infinity in BigDecimal exception mode' do
+					textdec_numeric.decode('NaN')
+					textdec_numeric.decode('Infinity')
+					BigDecimal.save_exception_mode do
+						BigDecimal.mode(BigDecimal::EXCEPTION_NaN | BigDecimal::EXCEPTION_INFINITY, true)
+						expect{ textdec_numeric.decode('NaN') }.to raise_error( FloatDomainError )
+						expect{ textdec_numeric.decode('Infinity') }.to raise_error( FloatDomainError )
+					end
 				end
 				it 'returns a new object for values longer than 8 characters' do
 					expect( textdec_numeric.decode('123456789') ).not_to equal( textdec_numeric.decode('123456789') )
@@ -281,6 +290,7 @@ describe "PG::Type derivations" do
 					end
 				end
 				it 'decodes in parallel Ractors', :ractor do
+					PG::TextDecoder::Numeric # autoload from the main Ractor
 					ractors = 4.times.map do
 						Ractor.new do
 							decoder = PG::TextDecoder::Numeric.new
