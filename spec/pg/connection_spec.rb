@@ -579,6 +579,22 @@ describe PG::Connection do
 				end
 			end
 		end
+
+		it "in a forked child after the parent connected" do
+			skip "applies to native binary gems only" unless PG::IS_BINARY_GEM
+			skip "requires fork" unless Process.respond_to?(:fork)
+
+			described_class.connect( @conninfo ) { |conn| conn.exec("SELECT 1") }
+			pid = fork do
+				described_class.connect( @conninfo ) { |conn| conn.exec("SELECT 1") }
+				exit!(0)
+			rescue Exception
+				exit!(1)
+			end
+			Process.wait( pid )
+			expect( $?.termsig ).to be_nil
+			expect( $?.exitstatus ).to eq( 0 )
+		end
 	end
 
 	context "connect_start" do
