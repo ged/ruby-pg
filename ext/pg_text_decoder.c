@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #endif
 #include <string.h>
+#include "ruby/thread_native.h"
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_Rational;
@@ -157,6 +158,42 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	return rb_cstr2inum(val, 10);
 }
 
+#define NUMERIC_CACHE_SLOT_BITS 12
+/* Up to 8 characters covers 0.00, VAT rates and prices like 1299.00, and fits the key into one uint64_t. */
+#define NUMERIC_CACHE_MAX_LENGTH 8
+
+typedef struct {
+	uint64_t text;
+	int len;
+	VALUE value;
+} t_numeric_cache_slot;
+
+static t_numeric_cache_slot numeric_cache[1 << NUMERIC_CACHE_SLOT_BITS];
+static rb_nativethread_lock_t numeric_cache_lock;
+static VALUE numeric_cache_marker;
+
+static void
+numeric_cache_mark(void *_cache)
+{
+	t_numeric_cache_slot *cache = _cache;
+	size_t i;
+	for( i = 0; i < sizeof(numeric_cache) / sizeof(*numeric_cache); i++ ){
+		rb_gc_mark(cache[i].value);
+	}
+}
+
+static const rb_data_type_t numeric_cache_type = {
+	"PG::TextDecoder::Numeric cache",
+	{ numeric_cache_mark, NULL, NULL },
+	0, 0, 0,
+};
+
+static VALUE
+pg_text_dec_numeric_uncached(const char *val, int len)
+{
+	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
+}
+
 /*
  * Document-class: PG::TextDecoder::Numeric < PG::SimpleDecoder
  *
@@ -165,11 +202,41 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
  *
  * As soon as this class is used, it requires the 'bigdecimal' gem.
  *
+ * Short values like +0.00+ or +19.90+ repeat a lot, so their frozen BigDecimal objects are
+ * cached process-wide and the same object is returned for equal values.
+ * Set the flag PG::Coder::NUMERIC_UNCACHED to get a new object for every value.
+ *
  */
 static VALUE
 pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
+	uint64_t text = 0;
+	t_numeric_cache_slot *slot;
+	VALUE value;
+
+	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > NUMERIC_CACHE_MAX_LENGTH ){
+		return pg_text_dec_numeric_uncached(val, len);
+	}
+
+	memcpy(&text, val, len);
+	slot = &numeric_cache[(text * UINT64_C(0x9E3779B97F4A7C15)) >> (64 - NUMERIC_CACHE_SLOT_BITS)];
+
+	/* The lock guards against Ractors running in parallel. It is never held across BigDecimal(), which can raise. */
+	rb_nativethread_lock_lock(&numeric_cache_lock);
+	value = slot->len == len && slot->text == text ? slot->value : Qundef;
+	rb_nativethread_lock_unlock(&numeric_cache_lock);
+	if( value != Qundef ) return value;
+
+	value = pg_text_dec_numeric_uncached(val, len);
+	/* Rows and Ractors share cached objects. bigdecimal makes frozen BigDecimals Ractor-shareable. */
+	if( RB_OBJ_FROZEN(value) ){
+		rb_nativethread_lock_lock(&numeric_cache_lock);
+		slot->text = text;
+		slot->len = len;
+		slot->value = value;
+		rb_nativethread_lock_unlock(&numeric_cache_lock);
+	}
+	return value;
 }
 
 /* called per autoload when TextDecoder::Numeric is used */
@@ -178,6 +245,9 @@ init_pg_text_decoder_numeric(VALUE rb_mPG_TextDecoder)
 {
 	rb_funcall(rb_mPG, rb_intern("require_bigdecimal_without_warning"), 0);
 	s_id_BigDecimal = rb_intern("BigDecimal");
+	rb_nativethread_lock_initialize(&numeric_cache_lock);
+	rb_gc_register_address(&numeric_cache_marker);
+	numeric_cache_marker = TypedData_Wrap_Struct(0, &numeric_cache_type, numeric_cache);
 
 	/* dummy = rb_define_class_under( rb_mPG_TextDecoder, "Numeric", rb_cPG_SimpleDecoder ); */
 	pg_define_coder( "Numeric", pg_text_dec_numeric, rb_cPG_SimpleDecoder, rb_mPG_TextDecoder );
