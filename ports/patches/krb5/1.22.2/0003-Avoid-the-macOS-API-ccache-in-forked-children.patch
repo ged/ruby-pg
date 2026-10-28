@@ -1,59 +1,64 @@
-From 4efc55a4fcd8d2d88192553cfbf39e7aadaa7b7d Mon Sep 17 00:00:00 2001
+From 492efc330a8c25e3dde03fc06d39c187fbb1e192 Mon Sep 17 00:00:00 2001
 From: Douglas Eichelberger <d@eic.email>
-Date: Tue, 27 Oct 2026 18:55:48 -0700
+Date: Tue, 27 Oct 2026 20:22:52 -0700
 Subject: [PATCH] Avoid the macOS API ccache in forked children
 
 The macOS API ccache module talks to the credential cache service
-through the CCAPI framework and XPC.  In a child forked from a process
-that already used them, those calls can crash the child: a Ruby
-process using libpq with the default gssencmode=prefer crashes in
-xpc_connection_resume() under get_primary_name() when it forks and
-connects again.
+through the CCAPI framework and XPC.  Neither is safe to use in a child
+forked from a multithreaded process, which every Ruby process is.  A
+child that connects with libpq and the default gssencmode=prefer
+crashes in xpc_connection_resume() under get_primary_name() if the
+parent used the API ccache before forking, and the objc runtime aborts
+it in cc_initialize() if the parent did not.
 
-Record the pid of the first API ccache use.  In a child forked after
+Record the pid when the library loads.  In a process forked after
 that, report the API collection as empty, treat caches as not found
 (KRB5_FCC_NOFILE), and leave CCAPI objects inherited from the parent
 unreleased, so the child never calls the CCAPI framework or XPC.
+Destroying an inherited cache handle leaves the parent's cache in
+place.
+
+Upstream: https://github.com/krb5/krb5/pull/1558 records the pid at
+the first API ccache use, so it covers only children forked after the
+parent used it.
 ---
- lib/krb5/ccache/cc_api_macos.c | 63 ++++++++++++++++++++++++++++------
- 1 file changed, 53 insertions(+), 10 deletions(-)
+ lib/krb5/ccache/cc_api_macos.c | 61 ++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 10 deletions(-)
 
 diff --git a/lib/krb5/ccache/cc_api_macos.c b/lib/krb5/ccache/cc_api_macos.c
-index 34b1c350f..a7184546a 100644
+index 34b1c350f..59e36fa86 100644
 --- a/lib/krb5/ccache/cc_api_macos.c
 +++ b/lib/krb5/ccache/cc_api_macos.c
-@@ -64,6 +64,30 @@ struct api_macos_ptcursor {
+@@ -64,6 +64,28 @@ struct api_macos_ptcursor {
      cc_ccache_iterator_t iter;
  };
  
 +/*
 + * The CCAPI framework and XPC are not safe to use in a child process forked
-+ * after the parent used them; calling them there can crash the child.  Record
-+ * the pid of the first use.  In a forked child, report the collection as empty
-+ * and caches as not found instead of contacting the credential cache service,
-+ * and leave CCAPI objects inherited from the parent unreleased.
++ * from a multithreaded parent: depending on what the parent did, the child
++ * crashes in XPC or the objc runtime aborts it.  Record the pid when the
++ * library loads.  In a process forked after that, report the collection as
++ * empty and caches as not found instead of contacting the credential cache
++ * service, and leave CCAPI objects inherited from the parent unreleased.
 + */
-+static k5_once_t first_use_once = K5_ONCE_INIT;
-+static pid_t first_use_pid;
++static pid_t load_pid;
 +
-+static void
-+record_first_use(void)
++static void __attribute__((constructor))
++record_load_pid(void)
 +{
-+    first_use_pid = getpid();
++    load_pid = getpid();
 +}
 +
 +static krb5_boolean
 +in_forked_child(void)
 +{
-+    if (k5_once(&first_use_once, record_first_use) != 0)
-+        return FALSE;
-+    return first_use_pid != getpid();
++    return load_pid != getpid();
 +}
 +
  /* Map a CCAPI error code to a com_err code. */
  static krb5_error_code
  ccerr2mit(uint32_t err)
-@@ -96,6 +120,8 @@ make_cache(const char *residual, cc_context_t cc_context,
+@@ -96,6 +118,8 @@ make_cache(const char *residual, cc_context_t cc_context,
      *ccache_out = NULL;
  
      if (cc_context == NULL) {
@@ -62,7 +67,7 @@ index 34b1c350f..a7184546a 100644
          err = cc_initialize(&cc_context, ccapi_version_max, NULL, NULL);
          if (err != ccNoError)
              return KRB5_FCC_INTERNAL;
-@@ -133,6 +159,8 @@ oom:
+@@ -133,6 +157,8 @@ oom:
  static uint32_t
  open_cache(struct api_macos_cache_data *data)
  {
@@ -71,7 +76,7 @@ index 34b1c350f..a7184546a 100644
      if (data->cache != NULL)
          return ccNoError;
      return cc_context_open_ccache(data->cc_context, data->residual,
-@@ -171,6 +199,9 @@ get_primary_name(krb5_context context, char **name_out)
+@@ -171,6 +197,9 @@ get_primary_name(krb5_context context, char **name_out)
  
      *name_out = NULL;
  
@@ -81,7 +86,7 @@ index 34b1c350f..a7184546a 100644
      if (uname(&un) == 0) {
          release = strtol(un.release, &end, 10);
          if (end != un.release && release < 20) {
-@@ -253,6 +284,9 @@ api_macos_gen_new(krb5_context context, krb5_ccache *cache_out)
+@@ -253,6 +282,9 @@ api_macos_gen_new(krb5_context context, krb5_ccache *cache_out)
  
      *cache_out = NULL;
  
@@ -91,7 +96,7 @@ index 34b1c350f..a7184546a 100644
      err = cc_initialize(&cc_context, ccapi_version_max, NULL, NULL);
      if (err)
          goto cleanup;
-@@ -291,6 +325,9 @@ api_macos_initialize(krb5_context context, krb5_ccache cache,
+@@ -291,6 +323,9 @@ api_macos_initialize(krb5_context context, krb5_ccache cache,
      uint32_t err;
      char *princstr = NULL, *prefix_name = NULL;
  
@@ -101,7 +106,7 @@ index 34b1c350f..a7184546a 100644
      /* Apple's cc_context_create_ccache() requires a name with type prefix. */
      if (asprintf(&prefix_name, "API:%s", data->residual) < 0)
          return ENOMEM;
-@@ -319,9 +356,11 @@ api_macos_close(krb5_context context, krb5_ccache cache)
+@@ -319,9 +354,11 @@ api_macos_close(krb5_context context, krb5_ccache cache)
  {
      struct api_macos_cache_data *data = cache->data;
  
@@ -116,7 +121,7 @@ index 34b1c350f..a7184546a 100644
      free(data->residual);
      free(data);
      free(cache);
-@@ -333,8 +372,7 @@ api_macos_destroy(krb5_context context, krb5_ccache cache)
+@@ -333,8 +370,7 @@ api_macos_destroy(krb5_context context, krb5_ccache cache)
  {
      struct api_macos_cache_data *data = cache->data;
  
@@ -126,7 +131,7 @@ index 34b1c350f..a7184546a 100644
          cc_ccache_destroy(data->cache);
          data->cache = NULL;
      }
-@@ -441,7 +479,8 @@ api_macos_end_seq_get(krb5_context context, krb5_ccache cache,
+@@ -441,7 +477,8 @@ api_macos_end_seq_get(krb5_context context, krb5_ccache cache,
  {
      cc_credentials_iterator_t iter = *cursor;
  
@@ -136,7 +141,7 @@ index 34b1c350f..a7184546a 100644
      *cursor = NULL;
      return 0;
  }
-@@ -576,6 +615,8 @@ api_macos_ptcursor_next(krb5_context context, krb5_cc_ptcursor ptcursor,
+@@ -576,6 +613,8 @@ api_macos_ptcursor_next(krb5_context context, krb5_cc_ptcursor ptcursor,
      defname = krb5_cc_default_name(context);
      if (defname == NULL || strncmp(defname, "API:", 4) != 0)
          return 0;
@@ -145,7 +150,7 @@ index 34b1c350f..a7184546a 100644
      defresidual = defname + 4;
  
      /* If the default cache name is a subsidiary cache, yield that cache if it
-@@ -640,10 +681,12 @@ api_macos_ptcursor_free(krb5_context context, krb5_cc_ptcursor *ptcursor)
+@@ -640,10 +679,12 @@ api_macos_ptcursor_free(krb5_context context, krb5_cc_ptcursor *ptcursor)
      struct api_macos_ptcursor *apt = (*ptcursor)->data;
  
      if (apt != NULL) {
