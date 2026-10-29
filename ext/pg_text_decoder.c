@@ -163,12 +163,9 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
 }
 
 #define NUMERIC_CACHE_SLOT_BITS 12
-/* Up to 8 characters covers values like 0.00, 19.90 or 1299.00, and fits the key into one uint64_t. */
-#define NUMERIC_CACHE_MAX_LENGTH 8
 
 typedef struct {
 	uint64_t text;
-	int len;
 	VALUE value;
 } t_numeric_cache_slot;
 
@@ -181,14 +178,23 @@ numeric_cache_mark(void *_unused)
 {
 	size_t i;
 	for( i = 0; i < sizeof(numeric_cache) / sizeof(*numeric_cache); i++ ){
-		rb_gc_mark(numeric_cache[i].value);
+		rb_gc_mark_movable(numeric_cache[i].value);
+	}
+}
+
+static void
+numeric_cache_compact(void *_unused)
+{
+	size_t i;
+	for( i = 0; i < sizeof(numeric_cache) / sizeof(*numeric_cache); i++ ){
+		pg_gc_location(numeric_cache[i].value);
 	}
 }
 
 static const rb_data_type_t numeric_cache_type = {
 	"PG::TextDecoder::Numeric cache",
-	{ numeric_cache_mark, NULL, NULL },
-	0, 0, 0,
+	{ numeric_cache_mark, NULL, NULL, numeric_cache_compact },
+	0, 0, RUBY_TYPED_WB_PROTECTED,
 };
 
 #if !defined(_WIN32)
@@ -227,8 +233,9 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	t_numeric_cache_slot *slot;
 	VALUE value;
 
-	/* NaN and Infinity don't end with a digit. They stay uncached to honor BigDecimal.mode exceptions. */
-	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > NUMERIC_CACHE_MAX_LENGTH || !rb_isdigit(val[len - 1]) ){
+	/* NaN and Infinity don't end with a digit. They stay uncached to honor BigDecimal.mode exceptions.
+	 * Up to 8 characters covers values like 0.00, 19.90 or 1299.00, and fits the key into one uint64_t. */
+	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > (int)sizeof(text) || !rb_isdigit(val[len - 1]) ){
 		return pg_text_dec_numeric_uncached(val, len);
 	}
 
@@ -237,7 +244,7 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 
 	/* The lock guards against Ractors running in parallel. It is never held across BigDecimal(), which can raise. */
 	rb_nativethread_lock_lock(&numeric_cache_lock);
-	value = slot->len == len && slot->text == text ? slot->value : Qundef;
+	value = slot->text == text ? slot->value : Qundef;
 	rb_nativethread_lock_unlock(&numeric_cache_lock);
 	if( value != Qundef ) return value;
 
@@ -246,8 +253,7 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	if( rb_ractor_shareable_p(value) ){
 		rb_nativethread_lock_lock(&numeric_cache_lock);
 		slot->text = text;
-		slot->len = len;
-		slot->value = value;
+		RB_OBJ_WRITE(numeric_cache_marker, &slot->value, value);
 		rb_nativethread_lock_unlock(&numeric_cache_lock);
 	}
 	return value;
