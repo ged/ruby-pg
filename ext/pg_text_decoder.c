@@ -738,8 +738,6 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			ts.tv_nsec = nsec;
 			if (!tz_given && (conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL)) {
 				/* without timezone, interpreted as local time */
-#ifndef _WIN32
-				/* Windows' mktime() fails on certain dates, so it takes the slow path */
 				struct tm tm;
 				tm.tm_year = year - 1900;
 				tm.tm_mon = mon - 1;
@@ -753,7 +751,6 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 				if (ts.tv_sec != -1) {
 					return rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
 				}
-#endif
 			} else {
 				/* with timezone, or without timezone interpreted as UTC */
 				int64_t time = seconds_since_epoch(year, mon, day, hour, min, sec) - gmt_offset;
@@ -766,16 +763,8 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			* and a 32 bit time_t can't hold every PostgreSQL timestamp,
 			* so that we fall through to the slow path.
 			*/
-			if (nsec % 1000) {
-				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
-						LL2NUM((LONG_LONG)sec * 1000000000 + nsec), INT2NUM(1000000000));
-			} else if (nsec) {
-				/* Counted in microseconds, the numerator stays a Fixnum where long is 32 bit, like on Windows */
-				sec_value = rb_funcall(Qnil, s_id_Rational, 2,
-						INT2NUM(sec * 1000000 + nsec / 1000), INT2NUM(1000000));
-			} else {
-				sec_value = INT2NUM(sec);
-			}
+			sec_value = rb_funcall(Qnil, s_id_Rational, 2,
+					LL2NUM((long long)sec * 1000000000 + nsec), INT2NUM(1000000000));
 
 			if (tz_given) {
 				/* with timezone */
