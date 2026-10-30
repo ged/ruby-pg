@@ -195,6 +195,7 @@ typedef VALUE (* t_pg_typecast_copy_get)( t_typemap *, VALUE, int, int, int );
 #define PG_CODER_FORMAT_ERROR_TO_RAISE 0x4
 #define PG_CODER_FORMAT_ERROR_TO_STRING 0x8
 #define PG_CODER_FORMAT_ERROR_TO_PARTIAL 0xc
+#define PG_CODER_NUMERIC_UNCACHED 0x10
 
 struct pg_coder {
 	t_pg_coder_enc_func enc_func;

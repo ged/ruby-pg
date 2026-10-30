@@ -250,6 +250,57 @@ describe "PG::Type derivations" do
 				end
 			end
 
+			context 'numerics', :bigdecimal do
+				let(:textdec_numeric) { PG::TextDecoder::Numeric.new }
+
+				it 'decodes like BigDecimal()' do
+					['0', '0.00', '-0', '1.200', '1299.00', '12345678', '123456789', 'NaN', 'Infinity', '-Infinity'].each do |value|
+						expect( textdec_numeric.decode(value)._dump ).to eq( BigDecimal(value)._dump )
+					end
+				end
+				it 'returns the same frozen object for equal short values' do
+					expect( textdec_numeric.decode('1299.00') ).to be_frozen
+					expect( textdec_numeric.decode('1299.00') ).to equal( textdec_numeric.decode('1299.00') )
+					expect( textdec_numeric.decode('1299.00') ).not_to equal( textdec_numeric.decode('1299.0') )
+				end
+				it 'keeps cached objects alive across GC' do
+					cached_object_id = textdec_numeric.decode('7.77').object_id
+					GC.start
+					expect( textdec_numeric.decode('7.77').object_id ).to eq( cached_object_id )
+				end
+				it 'raises on NaN and Infinity in BigDecimal exception mode' do
+					textdec_numeric.decode('NaN')
+					textdec_numeric.decode('Infinity')
+					BigDecimal.save_exception_mode do
+						BigDecimal.mode(BigDecimal::EXCEPTION_NaN | BigDecimal::EXCEPTION_INFINITY, true)
+						expect{ textdec_numeric.decode('NaN') }.to raise_error( FloatDomainError )
+						expect{ textdec_numeric.decode('Infinity') }.to raise_error( FloatDomainError )
+					end
+				end
+				it 'returns a new object for values longer than 8 characters' do
+					expect( textdec_numeric.decode('123456789') ).not_to equal( textdec_numeric.decode('123456789') )
+				end
+				it 'returns a new object with NUMERIC_UNCACHED' do
+					textdec_numeric.flags = PG::Coder::NUMERIC_UNCACHED
+					expect( textdec_numeric.decode('0.00') ).not_to equal( textdec_numeric.decode('0.00') )
+				end
+				it 'raises on invalid input like BigDecimal()' do
+					['', '-', '1.5x', "1\0002"].each do |value|
+						2.times { expect{ textdec_numeric.decode(value) }.to raise_error( ArgumentError ) }
+					end
+				end
+				it 'decodes in parallel Ractors', :ractor do
+					PG::TextDecoder::Numeric # autoload from the main Ractor
+					ractors = 4.times.map do
+						Ractor.new do
+							decoder = PG::TextDecoder::Numeric.new
+							10_000.times.all? { |i| decoder.decode("#{i % 2000}.00") == i % 2000 }
+						end
+					end
+					expect( ractors.map(&:value) ).to all( be true )
+				end
+			end
+
 			context 'dates' do
 				let(:textdec_date) { PG::TextDecoder::Date.new }
 

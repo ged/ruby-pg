@@ -627,6 +627,7 @@ init_pg_coder(void)
 	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_TO_RAISE", INT2NUM(PG_CODER_FORMAT_ERROR_TO_RAISE));
 	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_TO_STRING", INT2NUM(PG_CODER_FORMAT_ERROR_TO_STRING));
 	rb_define_const( rb_cPG_Coder, "FORMAT_ERROR_TO_PARTIAL", INT2NUM(PG_CODER_FORMAT_ERROR_TO_PARTIAL));
+	rb_define_const( rb_cPG_Coder, "NUMERIC_UNCACHED", INT2NUM(PG_CODER_NUMERIC_UNCACHED));
 
 	/*
 	 * Name of the coder or the corresponding data type.

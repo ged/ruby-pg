@@ -39,6 +39,11 @@
 #include <sys/socket.h>
 #endif
 #include <string.h>
+#include "ruby/ractor.h"
+#include "ruby/thread_native.h"
+#if !defined(_WIN32)
+#include <pthread.h>
+#endif
 
 VALUE rb_mPG_TextDecoder;
 static ID s_id_Rational;
@@ -157,6 +162,57 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	return rb_cstr2inum(val, 10);
 }
 
+#define NUMERIC_CACHE_SLOT_BITS 12
+
+typedef struct {
+	uint64_t text;
+	VALUE value;
+} t_numeric_cache_slot;
+
+static t_numeric_cache_slot numeric_cache[1 << NUMERIC_CACHE_SLOT_BITS];
+static rb_nativethread_lock_t numeric_cache_lock;
+static VALUE numeric_cache_marker;
+
+static void
+numeric_cache_mark(void *_unused)
+{
+	size_t i;
+	for( i = 0; i < sizeof(numeric_cache) / sizeof(*numeric_cache); i++ ){
+		rb_gc_mark_movable(numeric_cache[i].value);
+	}
+}
+
+static void
+numeric_cache_compact(void *_unused)
+{
+	size_t i;
+	for( i = 0; i < sizeof(numeric_cache) / sizeof(*numeric_cache); i++ ){
+		pg_gc_location(numeric_cache[i].value);
+	}
+}
+
+static const rb_data_type_t numeric_cache_type = {
+	"PG::TextDecoder::Numeric cache",
+	{ numeric_cache_mark, NULL, NULL, numeric_cache_compact },
+	0, 0, RUBY_TYPED_WB_PROTECTED,
+};
+
+#if !defined(_WIN32)
+/* Another Ractor may have held the lock or been writing a slot when the process forked. */
+static void
+numeric_cache_reset_in_child(void)
+{
+	rb_nativethread_lock_initialize(&numeric_cache_lock);
+	memset(numeric_cache, 0, sizeof(numeric_cache));
+}
+#endif
+
+static VALUE
+pg_text_dec_numeric_uncached(const char *val, int len)
+{
+	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
+}
+
 /*
  * Document-class: PG::TextDecoder::Numeric < PG::SimpleDecoder
  *
@@ -165,11 +221,47 @@ pg_text_dec_integer(t_pg_coder *conv, const char *val, int len, int tuple, int f
  *
  * As soon as this class is used, it requires the 'bigdecimal' gem.
  *
+ * Short values like +0.00+ or +19.90+ repeat a lot, so their frozen BigDecimal objects are
+ * cached process-wide and the same object is returned for equal values.
+ * Set the flag PG::Coder::NUMERIC_UNCACHED to get a new object for every value.
+ *
  */
 static VALUE
 pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int field, int enc_idx)
 {
-	return rb_funcall(rb_cObject, s_id_BigDecimal, 1, rb_str_new(val, len));
+	uint64_t text = 0;
+	t_numeric_cache_slot *slot;
+	VALUE value;
+
+	/* NaN and Infinity don't end with a digit. They stay uncached to honor BigDecimal.mode exceptions.
+	 * Up to 8 characters covers values like 0.00, 19.90 or 1299.00, and fits the key into one uint64_t. */
+	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > (int)sizeof(text) || !rb_isdigit(val[len - 1]) ){
+		return pg_text_dec_numeric_uncached(val, len);
+	}
+
+	memcpy(&text, val, len);
+	slot = &numeric_cache[(text * UINT64_C(0x9E3779B97F4A7C15)) >> (64 - NUMERIC_CACHE_SLOT_BITS)];
+
+	/* The lock guards against Ractors running in parallel. It is never held across BigDecimal(), which can raise. */
+	rb_nativethread_lock_lock(&numeric_cache_lock);
+	value = slot->text == text ? slot->value : Qundef;
+	rb_nativethread_lock_unlock(&numeric_cache_lock);
+	if( value != Qundef ) return value;
+
+	value = pg_text_dec_numeric_uncached(val, len);
+	/* Rows and Ractors share cached objects. */
+#ifdef HAVE_RB_RACTOR_SHAREABLE_P
+	if( rb_ractor_shareable_p(value) ){
+#else
+	rb_obj_freeze(value);
+	{
+#endif
+		rb_nativethread_lock_lock(&numeric_cache_lock);
+		slot->text = text;
+		RB_OBJ_WRITE(numeric_cache_marker, &slot->value, value);
+		rb_nativethread_lock_unlock(&numeric_cache_lock);
+	}
+	return value;
 }
 
 /* called per autoload when TextDecoder::Numeric is used */
@@ -1020,6 +1112,14 @@ init_pg_text_decoder(void)
 	s_nan = rb_eval_string("0.0/0.0");
 	s_pos_inf = rb_eval_string("1.0/0.0");
 	s_neg_inf = rb_eval_string("-1.0/0.0");
+
+	rb_nativethread_lock_initialize(&numeric_cache_lock);
+#if !defined(_WIN32)
+	pthread_atfork(NULL, NULL, numeric_cache_reset_in_child);
+#endif
+	rb_gc_register_address(&numeric_cache_marker);
+	/* The GC skips dmark for a NULL data pointer, so it must point somewhere. */
+	numeric_cache_marker = TypedData_Wrap_Struct(0, &numeric_cache_type, numeric_cache);
 
 	/* This module encapsulates all decoder classes with text input format */
 	rb_mPG_TextDecoder = rb_define_module_under( rb_mPG, "TextDecoder" );
