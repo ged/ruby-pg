@@ -167,6 +167,9 @@ describe "PG::Type derivations" do
 						expect( textdec_timestamptz.decode(text).iso8601(6) ).to eq( instant.iso8601(6) )
 						expect( textdec_timestampul.decode(text).iso8601(6) ).to eq( instant.getlocal.iso8601(6) )
 					end
+				end
+				it 'keeps a timezone offset just under a day' do
+					skip "TruffleRuby's Time doesn't accept this offset" if RUBY_ENGINE=="truffleruby"
 					expect( textdec_timestamptz.decode('2024-01-02 11:59:59+23:59:59').utc_offset ).to eq( 86399 )
 				end
 				it 'decodes timestamps with date before 1823' do
