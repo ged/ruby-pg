@@ -249,8 +249,16 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	if( value != Qundef ) return value;
 
 	value = pg_text_dec_numeric_uncached(val, len);
-	/* Rows and Ractors share cached objects. */
+
+#ifdef HAVE_RB_RACTOR_SHAREABLE_P
+	/* Write cache only if value can be shared across ractors. */
 	if( rb_ractor_shareable_p(value) ){
+#else
+	/* Truffleruby doesn't support ractor.
+	 * Cache the frozen value. */
+	rb_obj_freeze(value);
+	{
+#endif
 		rb_nativethread_lock_lock(&numeric_cache_lock);
 		slot->text = text;
 		RB_OBJ_WRITE(numeric_cache_marker, &slot->value, value);
