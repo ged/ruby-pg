@@ -250,6 +250,45 @@ describe "PG::Type derivations" do
 				end
 			end
 
+			context 'binary local timestamps' do
+				around do |example|
+					tz = ENV['TZ']
+					ENV['TZ'] = 'Europe/Paris'
+					example.run
+				ensure
+					ENV['TZ'] = tz
+				end
+				before do
+					skip "Europe/Paris isn't available as TZ" unless Time.local(2024, 7, 1).utc_offset == 7200
+				end
+
+				# Instants given by PostgreSQL for `wall_clock::timestamp AT TIME ZONE 'Europe/Paris'`
+				{
+					[2024, 1, 15, 12, 0] => Time.utc(2024, 1, 15, 11, 0),
+					[2024, 7, 1, 12, 0, Rational(123456, 1000000)] => Time.utc(2024, 7, 1, 10, 0, Rational(123456, 1000000)),
+					[2024, 3, 31, 1, 30] => Time.utc(2024, 3, 31, 0, 30),
+					[2024, 3, 31, 2, 30] => Time.utc(2024, 3, 31, 1, 30), # DST gap
+					[2024, 3, 31, 3, 30] => Time.utc(2024, 3, 31, 1, 30),
+					[2024, 10, 27, 1, 30] => Time.utc(2024, 10, 26, 23, 30),
+					[2024, 10, 27, 2, 30] => Time.utc(2024, 10, 27, 1, 30), # DST overlap
+					[2024, 10, 27, 3, 30] => Time.utc(2024, 10, 27, 2, 30),
+					[2038, 10, 31, 2, 30] => Time.utc(2038, 10, 31, 1, 30), # DST overlap beyond 32 bit time_t
+					[2040, 3, 25, 2, 30] => Time.utc(2040, 3, 25, 1, 30), # DST gap beyond 32 bit time_t
+				}.each do |wall_clock, instant|
+					it "decodes #{wall_clock.first(5)} as local time like PostgreSQL" do
+						wire = binaryenc_timestamputc.encode(Time.utc(*wall_clock))
+
+						time = PG::BinaryDecoder::TimestampLocal.new.decode(wire)
+						expect( time ).to eq( instant )
+						expect( time.utc? ).to be false
+
+						time = PG::BinaryDecoder::Timestamp.new(flags: PG::Coder::TIMESTAMP_DB_LOCAL).decode(wire)
+						expect( time ).to eq( instant )
+						expect( time.utc? ).to be true
+					end
+				end
+			end
+
 			context 'dates' do
 				let(:textdec_date) { PG::TextDecoder::Date.new }
 
