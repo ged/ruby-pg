@@ -579,6 +579,65 @@ describe PG::Connection do
 				end
 			end
 		end
+
+		it "in a forked child after the parent connected" do
+			skip "applies to native binary gems only" unless PG::IS_BINARY_GEM
+			skip "requires fork" unless Process.respond_to?(:fork)
+
+			conninfo = "#{@conninfo} gssencmode=prefer"
+			pid = nil
+			with_env_vars( KRB5CCNAME: nil, KRB5_CONFIG: nil ) do
+				described_class.connect( conninfo ) { |conn| conn.exec("SELECT 1") }
+				pid = fork do
+					described_class.connect( conninfo ) { |conn| conn.exec("SELECT 1") }
+					# exit! skips the finalizers that would close the parent's connections.
+					exit!(0)
+				rescue Exception => e
+					$stderr.puts e.full_message
+					exit!(1)
+				end
+			end
+			_, status = Timeout.timeout(60) { Process.wait2( pid ) }
+			expect( status ).to be_success
+		ensure
+			if pid && !status
+				Process.kill( :KILL, pid )
+				Process.wait( pid )
+			end
+		end
+
+		it "in a forked child of a process that never connected" do
+			skip "applies to native binary gems only" unless PG::IS_BINARY_GEM
+			skip "requires fork" unless Process.respond_to?(:fork)
+
+			# This process has connected already, so fork from a fresh one.
+			# OBJC_DISABLE_INITIALIZE_FORK_SAFETY would hide the objc abort on macOS.
+			script = <<~RUBY
+				require "pg"
+				pid = fork do
+					PG.connect( ARGV[0] ) { |conn| conn.exec("SELECT 1") }
+					exit!(0)
+				rescue Exception => e
+					$stderr.puts e.full_message
+					exit!(1)
+				end
+				_, status = Process.wait2( pid )
+				puts status.inspect
+				exit( status.success? ? 0 : 1 )
+			RUBY
+			env = { "OBJC_DISABLE_INITIALIZE_FORK_SAFETY" => nil, "KRB5CCNAME" => nil, "KRB5_CONFIG" => nil }
+			# This process's load path, so that the new one loads the same pg extension.
+			load_path = $LOAD_PATH.flat_map { |dir| ["-I", dir.to_s] }
+			io = IO.popen( [env, RbConfig.ruby, *load_path, "-e", script, "#{@conninfo} gssencmode=prefer"], err: [:child, :out] )
+			output = Timeout.timeout(60) { io.read }
+			io.close
+			expect( $? ).to be_success, output
+		ensure
+			if io && !io.closed?
+				Process.kill( :KILL, io.pid )
+				io.close
+			end
+		end
 	end
 
 	context "connect_start" do
