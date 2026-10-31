@@ -157,6 +157,21 @@ describe "PG::Type derivations" do
 					expect( textdec_timestamptz.decode('1916-01-01 00:00:00-00:25:21') ).
 						to be_within(0.000001).of( Time.new(1916, 1, 1, 0, 0, 0, "-00:25:21") )
 				end
+				it 'decodes timestamps with a timezone offset of a day or more' do
+					# SET TIME ZONE 30; -- PostgreSQL accepts offsets up to 167:59:59
+					# SELECT '2024-01-01 12:00:00+00'::timestamptz;
+					# -- "2024-01-02 18:00:00+30"
+					instant = Time.utc(2024, 1, 1, 12, 0, 0.123456r)
+					['2024-01-02 18:00:00.123456+30', '2024-01-02 12:00:00.123456+24', '2024-01-05 16:00:00.123456+100',
+					 '2024-01-08 11:59:59.123456+167:59:59', '2023-12-31 11:59:59.123456-24:00:01'].each do |text|
+						expect( textdec_timestamptz.decode(text).iso8601(6) ).to eq( instant.iso8601(6) )
+						expect( textdec_timestampul.decode(text).iso8601(6) ).to eq( instant.getlocal.iso8601(6) )
+					end
+				end
+				it 'keeps a timezone offset just under a day' do
+					skip "TruffleRuby's Time doesn't accept this offset" if RUBY_ENGINE=="truffleruby"
+					expect( textdec_timestamptz.decode('2024-01-02 11:59:59+23:59:59').utc_offset ).to eq( 86399 )
+				end
 				it 'decodes timestamps with date before 1823' do
 					expect( textdec_timestamp.decode('1822-01-02 23:23:59.123456').iso8601(5) ).
 						to eq( Time.new(1822,01,02, 23, 23, 59.123456).iso8601(5) )
