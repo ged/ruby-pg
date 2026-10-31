@@ -223,7 +223,7 @@ pg_text_dec_numeric_uncached(const char *val, int len)
  *
  * Short values like +0.00+ or +19.90+ repeat a lot, so their frozen BigDecimal objects are
  * cached process-wide and the same object is returned for equal values.
- * Set the flag PG::Coder::NUMERIC_UNCACHED to get a new object for every value.
+ * Set the flag PG::Coder::DISABLE_CACHE to get a new object for every value.
  *
  */
 static VALUE
@@ -235,7 +235,7 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 
 	/* NaN and Infinity don't end with a digit. They stay uncached to honor BigDecimal.mode exceptions.
 	 * Up to 8 characters covers values like 0.00, 19.90 or 1299.00, and fits the key into one uint64_t. */
-	if( (conv->flags & PG_CODER_NUMERIC_UNCACHED) || len < 1 || len > (int)sizeof(text) || !rb_isdigit(val[len - 1]) ){
+	if( (conv->flags & PG_CODER_DISABLE_CACHE) || len < 1 || len > (int)sizeof(text) || !rb_isdigit(val[len - 1]) ){
 		return pg_text_dec_numeric_uncached(val, len);
 	}
 

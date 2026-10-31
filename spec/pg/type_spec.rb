@@ -280,8 +280,8 @@ describe "PG::Type derivations" do
 				it 'returns a new object for values longer than 8 characters' do
 					expect( textdec_numeric.decode('123456789') ).not_to equal( textdec_numeric.decode('123456789') )
 				end
-				it 'returns a new object with NUMERIC_UNCACHED' do
-					textdec_numeric.flags = PG::Coder::NUMERIC_UNCACHED
+				it 'returns a new object with DISABLE_CACHE' do
+					textdec_numeric.flags = PG::Coder::DISABLE_CACHE
 					expect( textdec_numeric.decode('0.00') ).not_to equal( textdec_numeric.decode('0.00') )
 				end
 				it 'raises on invalid input like BigDecimal()' do
