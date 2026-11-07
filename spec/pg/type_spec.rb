@@ -253,7 +253,8 @@ describe "PG::Type derivations" do
 			context 'binary local timestamps' do
 				around do |example|
 					tz = ENV['TZ']
-					ENV['TZ'] = 'Europe/Paris'
+					# Windows compatible form of 'Europe/Paris'
+					ENV['TZ'] = 'CET-1CEST,M3.5.0,M10.5.0/3'
 					example.run
 				ensure
 					ENV['TZ'] = tz
