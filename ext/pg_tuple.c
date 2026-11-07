@@ -552,6 +552,7 @@ init_pg_tuple(void)
 {
 	rb_cPG_Tuple = rb_define_class_under( rb_mPG, "Tuple", rb_cObject );
 	rb_define_alloc_func( rb_cPG_Tuple, pg_tuple_s_allocate );
+	rb_undef_method(rb_singleton_class(rb_cPG_Tuple), "new");
 	rb_include_module(rb_cPG_Tuple, rb_mEnumerable);
 
 	rb_define_method(rb_cPG_Tuple, "fetch", pg_tuple_fetch, -1);

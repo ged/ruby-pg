@@ -26,7 +26,12 @@ describe PG::Tuple do
 	let!(:tuple2) { result2x3cast.tuple(0).freeze }
 	let!(:tuple2sym) { result2x3symcast.tuple(0).freeze }
 	let!(:tuple3) { str = Marshal.dump(result2x3cast.tuple(1).freeze); Marshal.load(str) }
-	let!(:tuple_empty) { PG::Tuple.new.freeze }
+
+	describe "new" do
+		it "is not defined" do
+			expect { PG::Tuple.new }.to raise_error(NoMethodError)
+		end
+	end
 
 	describe "[]" do
 		it "returns nil for invalid keys" do
@@ -35,7 +40,6 @@ describe PG::Tuple do
 			expect( tuple0[2] ).to be_nil
 			expect( tuple0[-3] ).to be_nil
 			expect( tuple2[-4] ).to be_nil
-			expect{ tuple_empty[0] }.to raise_error(TypeError)
 		end
 
 		it "supports array like access" do
@@ -114,7 +118,6 @@ describe PG::Tuple do
 			expect{ tuple0.fetch(-3) }.to raise_error(IndexError)
 			expect{ tuple0.fetch(-3) }.to raise_error(IndexError)
 			expect{ tuple2.fetch(-4) }.to raise_error(IndexError)
-			expect{ tuple_empty[0] }.to raise_error(TypeError)
 		end
 
 		it "supports array like access" do
@@ -158,7 +161,6 @@ describe PG::Tuple do
 			expect( tuple1.each.to_a ).to eq( [["column1", "2"], ["column2", "b"]] )
 			expect( tuple2.each.to_a ).to eq( [["a", 1], ["b", true], ["b", "3"]] )
 			expect( tuple3.each.to_a ).to eq( [["a", 2], ["b", false], ["b", "4"]] )
-			expect{ tuple_empty.each }.to raise_error(TypeError)
 		end
 
 		it "can be used as an enumerator with symbols" do
@@ -183,7 +185,6 @@ describe PG::Tuple do
 			expect( tuple1.each_value.to_a ).to eq( ["2", "b"] )
 			expect( tuple2.each_value.to_a ).to eq( [1, true, "3"] )
 			expect( tuple3.each_value.to_a ).to eq( [2, false, "4"] )
-			expect{ tuple_empty.each_value }.to raise_error(TypeError)
 		end
 
 		it "can be used with block" do
@@ -198,7 +199,6 @@ describe PG::Tuple do
 	it "responds to values" do
 		expect( tuple0.values ).to eq( ["1", "a"] )
 		expect( tuple3.values ).to eq( [2, false, "4"] )
-		expect{ tuple_empty.values }.to raise_error(TypeError)
 	end
 
 	it "responds to key?" do
@@ -294,10 +294,6 @@ describe PG::Tuple do
 		expect( t2.instance_variable_get("@a") ).to eq( 4711 )
 	end
 
-	it "can't be marshaled when empty" do
-		expect{ Marshal.dump(tuple_empty) }.to raise_error(TypeError)
-	end
-
 	it "should be shareable for Ractor", :ractor do
 		res = @conn.exec("SELECT 1").tuple(0)
 		Ractor.make_shareable(res)
@@ -322,14 +318,12 @@ describe PG::Tuple do
 
 	it "should give account about memory usage" do
 		expect( ObjectSpace.memsize_of(tuple0) ).to be > DATA_OBJ_MEMSIZE
-		expect( ObjectSpace.memsize_of(tuple_empty) ).to be > 0
 	end
 
 	it "should override #inspect" do
 		expect( tuple1.inspect ).to eq('#<PG::Tuple column1: "2", column2: "b">')
 		expect( tuple2.inspect ).to eq('#<PG::Tuple a: 1, b: true, b: "3">')
 		expect( tuple2sym.inspect ).to eq('#<PG::Tuple a: 1, b: true, b: "3">')
-		expect{ tuple_empty.inspect }.to raise_error(TypeError)
 	end
 
 	context "with cleared result" do
