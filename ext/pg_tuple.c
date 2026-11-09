@@ -547,14 +547,30 @@ pg_tuple_load(VALUE self, VALUE a)
 	return self;
 }
 
+/*
+ * call-seq:
+ *    res.freeze
+ *
+ * Freeze the PG::Tuple object and materialize all fields, so that it can be safely shared across ractors.
+ *
+ */
+static VALUE
+pg_tuple_freeze(VALUE self)
+{
+	pg_tuple_materialize(self);
+	return rb_call_super(0, NULL);
+}
+
 void
 init_pg_tuple(void)
 {
 	rb_cPG_Tuple = rb_define_class_under( rb_mPG, "Tuple", rb_cObject );
 	rb_define_alloc_func( rb_cPG_Tuple, pg_tuple_s_allocate );
+	rb_undef_method(rb_singleton_class(rb_cPG_Tuple), "new");
 	rb_include_module(rb_cPG_Tuple, rb_mEnumerable);
 
 	rb_define_method(rb_cPG_Tuple, "fetch", pg_tuple_fetch, -1);
+	rb_define_method(rb_cPG_Tuple, "freeze", pg_tuple_freeze, 0 );
 	rb_define_method(rb_cPG_Tuple, "[]", pg_tuple_aref, 1);
 	rb_define_method(rb_cPG_Tuple, "each", pg_tuple_each, 0);
 	rb_define_method(rb_cPG_Tuple, "each_value", pg_tuple_each_value, 0);
