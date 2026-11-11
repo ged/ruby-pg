@@ -747,6 +747,10 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 				tm.tm_sec = sec;
 				tm.tm_isdst = -1;
 
+#ifdef _WIN32
+				/* Windows' mktime() reads TZ only once, unlike POSIX: pick up a TZ changed since */
+				_tzset();
+#endif
 				ts.tv_sec = mktime(&tm);
 				if (ts.tv_sec != -1) {
 					return rb_time_timespec_new(&ts, conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
