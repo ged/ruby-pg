@@ -45,6 +45,7 @@ static ID s_id_Rational;
 static ID s_id_new;
 static ID s_id_utc;
 static ID s_id_getlocal;
+static ID s_id_minus;
 static ID s_id_BigDecimal;
 
 static VALUE s_Date;
@@ -654,6 +655,9 @@ static int64_t seconds_since_epoch(int year, int mon, int day, int hour, int min
  * * +PG::Coder::TIMESTAMP_APP_UTC+ : Return timestamp as UTC time (default)
  * * +PG::Coder::TIMESTAMP_APP_LOCAL+ : Return timestamp as local time
  *
+ * The +TIMESTAMP_APP_*+ flags also apply to timezone offsets of a day or more,
+ * which Ruby's Time can't carry (PostgreSQL accepts up to 167 hours).
+ *
  * Example:
  *   deco = PG::TextDecoder::Timestamp.new(flags: PG::Coder::TIMESTAMP_DB_UTC | PG::Coder::TIMESTAMP_APP_LOCAL)
  *   deco.decode("2000-01-01 00:00:00")  # => 2000-01-01 01:00:00 +0100
@@ -706,6 +710,8 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 		if ((str[0] == '+' || str[0] == '-') && rb_isdigit(str[1]) && rb_isdigit(str[2])) {
 			tz_given = str[0] == '-' ? TZ_NEG : TZ_POS;
 			tz_hour = str2_to_int(str+1); str += 3;
+			/* SET TIME ZONE accepts offsets up to 167 hours */
+			if (tz_hour >= 10 && rb_isdigit(str[0])) tz_hour = tz_hour * 10 + char_to_digit(*str++);
 
 			if (str[0] == ':' && rb_isdigit(str[1]) && rb_isdigit(str[2]))
 			{
@@ -728,11 +734,14 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 			VALUE res;
 			struct timespec ts;
 			int gmt_offset = tz_hour * 3600 + tz_min * 60 + tz_sec;
+			/* Ruby's Time can't carry an offset of a day or more, so those values keep only their instant */
+			int offset_kept;
 
 			if (tz_given == TZ_NEG)
 			{
 				gmt_offset = - gmt_offset;
 			}
+			offset_kept = tz_given && gmt_offset > -86400 && gmt_offset < 86400;
 
 			/* Fast path for time conversion */
 			ts.tv_nsec = nsec;
@@ -756,7 +765,7 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 				int64_t time = seconds_since_epoch(year, mon, day, hour, min, sec) - gmt_offset;
 				ts.tv_sec = (time_t)time;
 				if (ts.tv_sec == time) {
-					return rb_time_timespec_new(&ts, tz_given ? gmt_offset : conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
+					return rb_time_timespec_new(&ts, offset_kept ? gmt_offset : conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ? INT_MAX : INT_MAX-1);
 				}
 			}
 			/* mktime() fails on some values with some libc implementations,
@@ -768,7 +777,7 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 
 			if (tz_given) {
 				/* with timezone */
-				gmt_offset_value = INT2NUM(gmt_offset);
+				gmt_offset_value = INT2NUM(offset_kept ? gmt_offset : 0);
 			} else {
 				/* without timezone */
 				gmt_offset_value = conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ? Qnil : INT2NUM(0);
@@ -785,16 +794,16 @@ static VALUE pg_text_dec_timestamp(t_pg_coder *conv, const char *val, int len, i
 
 			if (tz_given) {
 				/* with timezone */
-				return res;
-			} else {
+				if (offset_kept) return res;
+				res = rb_funcall(res, s_id_minus, 1, INT2NUM(gmt_offset));
+			} else if( (conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL) && (conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
 				/* without timezone */
-				if( (conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL) && (conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
-					return res;
-				} else if( conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ) {
-					return rb_funcall(res, s_id_getlocal, 0);
-				} else {
-					return rb_funcall(res, s_id_utc, 0);
-				}
+				return res;
+			}
+			if( conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL ) {
+				return rb_funcall(res, s_id_getlocal, 0);
+			} else {
+				return rb_funcall(res, s_id_utc, 0);
 			}
 		}
 	}
@@ -1013,6 +1022,7 @@ init_pg_text_decoder(void)
 	s_id_new = rb_intern("new");
 	s_id_utc = rb_intern("utc");
 	s_id_getlocal = rb_intern("getlocal");
+	s_id_minus = rb_intern("-");
 
 	rb_gc_register_address(&s_nan);
 	rb_gc_register_address(&s_pos_inf);
