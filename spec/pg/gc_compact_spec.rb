@@ -67,6 +67,7 @@ describe "GC.compact", if: GC.respond_to?(:compact) do
 			TEXTDEC_NUMERIC = PG::TextDecoder::Numeric.new
 		rescue LoadError
 		else
+			TEXTDEC_NUMERIC.decode('1299.00') # cached the second time it's seen
 			BIGDECIMAL = TEXTDEC_NUMERIC.decode('1299.00')
 		end
 

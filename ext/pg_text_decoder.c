@@ -222,7 +222,7 @@ pg_text_dec_numeric_uncached(const char *val, int len)
  * As soon as this class is used, it requires the 'bigdecimal' gem.
  *
  * Short values like +0.00+ or +19.90+ repeat a lot, so their frozen BigDecimal objects are
- * cached process-wide and the same object is returned for equal values.
+ * cached process-wide once seen twice in a row, and the same object is returned for the same text.
  * Set the flag PG::Coder::DISABLE_CACHE to get a new object for every value.
  *
  */
@@ -243,10 +243,19 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	slot = &numeric_cache[(text * UINT64_C(0x9E3779B97F4A7C15)) >> (64 - NUMERIC_CACHE_SLOT_BITS)];
 
 	/* The lock guards against Ractors running in parallel. It is never held across BigDecimal(), which can raise. */
+	/* A text is cached the second time it's seen in a row in its slot. Texts seen only once only leave their key,
+	 * which spares them rb_ractor_shareable_p() and a promotion to the old generation. */
 	rb_nativethread_lock_lock(&numeric_cache_lock);
-	value = slot->text == text ? slot->value : Qundef;
+	if( slot->text == text ){
+		value = slot->value;
+	} else {
+		value = Qundef;
+		slot->text = text;
+		slot->value = Qnil;
+	}
 	rb_nativethread_lock_unlock(&numeric_cache_lock);
-	if( value != Qundef ) return value;
+	if( value != Qundef && value != Qnil ) return value;
+	if( value == Qundef ) return pg_text_dec_numeric_uncached(val, len);
 
 	value = pg_text_dec_numeric_uncached(val, len);
 
@@ -260,8 +269,7 @@ pg_text_dec_numeric(t_pg_coder *conv, const char *val, int len, int tuple, int f
 	{
 #endif
 		rb_nativethread_lock_lock(&numeric_cache_lock);
-		slot->text = text;
-		RB_OBJ_WRITE(numeric_cache_marker, &slot->value, value);
+		if( slot->text == text ) RB_OBJ_WRITE(numeric_cache_marker, &slot->value, value);
 		rb_nativethread_lock_unlock(&numeric_cache_lock);
 	}
 	return value;

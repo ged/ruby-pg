@@ -263,7 +263,14 @@ describe "PG::Type derivations" do
 					expect( textdec_numeric.decode('1299.00') ).to equal( textdec_numeric.decode('1299.00') )
 					expect( textdec_numeric.decode('1299.00') ).not_to equal( textdec_numeric.decode('1299.0') )
 				end
+				it 'returns a new object for a value seen only once' do
+					first = textdec_numeric.decode('31.4159')
+					cached = textdec_numeric.decode('31.4159')
+					expect( cached ).not_to equal( first )
+					expect( textdec_numeric.decode('31.4159') ).to equal( cached )
+				end
 				it 'keeps cached objects alive across GC' do
+					textdec_numeric.decode('7.77')
 					cached_object_id = textdec_numeric.decode('7.77').object_id
 					GC.start
 					expect( textdec_numeric.decode('7.77').object_id ).to eq( cached_object_id )
