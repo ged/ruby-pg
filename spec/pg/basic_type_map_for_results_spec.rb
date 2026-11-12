@@ -351,6 +351,9 @@ describe 'Basic type mapping' do
 						'1234:3456:5678:789a:9abc:bced:edf0:f012/32',
 						'1234:3456:5678:789a:9abc:bced:edf0:f012/64',
 						'1234:3456:5678:789a:9abc:bced:edf0:f012/96',
+						'::ffff:1.2.3.4',
+						'::ffff:1.2.3.4/120',
+						'::1.2.3.4',
 					]
 					sql_vals = vals.map{|v| "CAST('#{v}' AS inet)"}
 					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )
@@ -374,6 +377,7 @@ describe 'Basic type mapping' do
 						'1234:3456:5678:789a::/64',
 						'1234:3456:5678:789a:9abc:bced::/96',
 						'1234:3456:5678:789a:9abc:bced:edf0:f012/128',
+						'::ffff:1.2.3.0/120',
 					]
 					sql_vals = vals.map { |v| "CAST('#{v}' AS cidr)" }
 					res = @conn.exec_params(("SELECT " + sql_vals.join(', ')), [], format )

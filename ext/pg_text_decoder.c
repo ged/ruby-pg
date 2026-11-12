@@ -823,7 +823,7 @@ pg_text_dec_inet(t_pg_coder *conv, const char *val, int len, int tuple, int fiel
 	VALUE vmasks;
 	char dst[16];
 	char buf[64];
-	int af = strchr(val, '.') ? AF_INET : AF_INET6;
+	int af = strchr(val, ':') ? AF_INET6 : AF_INET;
 	int mask = -1;
 
 	if (len >= 64) {
