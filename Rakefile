@@ -181,3 +181,10 @@ task :translate do
 		sh "po4a po4a.cfg"
 	end
 end
+
+begin
+	require "duel/rake_task"
+	Duel::RakeTask.new
+rescue LoadError
+	# Duel requires Ruby 3.4 or later, and the Gemfile's optional duel group
+end
