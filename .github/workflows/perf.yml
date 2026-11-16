@@ -1,5 +1,14 @@
 name: Perf
 
+# Duel's performance regression guards (see Duel's docs/ci.md), on
+# Linux, macOS and Windows, as pg's code paths differ on each. On Linux
+# and macOS, Duel's reusable workflow runs them, which this one calls
+# with what .duel.rb sets that it needs. Its steps are Unix shell's, so
+# the Windows job does the same steps itself, in bash. Each says what it
+# found in a report of its own, and the Perf comment workflow comments
+# with all three. Each compares a pull request with the branch it
+# targets, a merge queue's group with the queue's base, a push with what
+# was there before, and on a schedule, the last release (slow creep).
 on:
   pull_request:
   merge_group: # (a merge queue's)
@@ -16,39 +25,79 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# The Duel job runs the branch's code (its benchmarks too), so it only
-# reads. Commenting on a commit is the Comment on the commit job's, which
-# runs none of it, and commenting on a pull request is the Perf comment
-# workflow's.
-permissions:
-  contents: read
-  pull-requests: read # for the pull request's labels (see c.accept_label)
+permissions: {}
 
 jobs:
-  duel:
-    name: Duel
-    runs-on: ubuntu-latest
-    # Whether to comment (post, change or none), the run's status (passed,
-    # failed or neutral), and whether to mark a push passed (true, or
-    # nothing), from Duel.
-    outputs:
-      comment: ${{ steps.compare.outputs.comment }}
-      status: ${{ steps.compare.outputs.status }}
-      passed: ${{ steps.compare.outputs.passed }}
+  # PostgreSQL, for the server each Duel worker starts (its programs in
+  # /usr/lib/postgresql/*/bin, where duel-postgresql looks, with
+  # pg_stat_statements), and libpq's headers, to build each version's C
+  # extension (c.build in .duel.rb). The Gemfile's optional group has
+  # Duel and its PostgreSQL plugin.
+  linux:
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.2.0
+    # (Its Duel job, which runs the branch's code, only reads: the
+    # workflow keeps it to contents: read. GitHub checks what each of its
+    # jobs asks for against what's granted here, run or not, and those
+    # that comment on a pushed commit, mark a push passed or keep a badge,
+    # none of which this workflow turns on, ask for contents: write.)
+    permissions:
+      contents: write
+      pull-requests: read # for the pull request's labels (see c.accept_label)
+    with:
+      report: linux
+      ruby-version: "4.0" # the newest Ruby, which those who care most about speed run
+      setup: |
+        sudo apt-get install -y postgresql libpq-dev
+        echo "BUNDLE_WITH=duel" >> "$GITHUB_ENV"
+      accept-label: "duel: accept"
+
+  # Homebrew's PostgreSQL, on the PATH (where duel-postgresql looks for
+  # its programs, and pg's build for pg_config), which Homebrew doesn't
+  # link it onto.
+  macos:
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.2.0
+    permissions:
+      contents: write # (as Linux's)
+      pull-requests: read
+    with:
+      report: macos
+      runs-on: macos-latest
+      ruby-version: "4.0"
+      setup: |
+        brew install postgresql@17
+        echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
+        echo "BUNDLE_WITH=duel" >> "$GITHUB_ENV"
+      accept-label: "duel: accept"
+
+  # The reusable workflow's Duel job's steps, in bash, with what pg's
+  # build needs on Windows, as source-gem.yml has it: MSYS2's gcc, and
+  # PostgreSQL's binaries (for libpq), on the PATH. The server each
+  # worker starts (with pg_ctl, there) is the runner's own PostgreSQL's,
+  # in PGBIN, whose initdb drops the rights of the runner's user, an
+  # administrator, as postgres needs: the binaries' doesn't.
+  windows:
+    name: Duel (windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read # for the pull request's labels (see c.accept_label)
     env:
       BUNDLE_WITH: duel # the Gemfile's optional group, with Duel and its PostgreSQL plugin
+      PGVERSION: 18.0-1-windows-x64
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the baseline comes from history, tags included
           persist-credentials: false
       # The labels of the pull request (or for a push, of the one that
-      # merged it), for c.accept_label in .duel.rb, as a JSON array. They're
-      # read as the job runs, and adding the label (or taking it off) runs
-      # the job again: see the Perf comment workflow.
-      # On a schedule, the last commit since the last release that merged a
-      # pull request with the label (ACCEPT_LABEL, as .duel.rb names it):
-      # what that slowed down was accepted, so it's compared with instead.
+      # merged it), for c.accept_label in .duel.rb, as a JSON array. On a
+      # schedule, the last commit since the last release that merged a
+      # pull request with the label: what that slowed down was accepted,
+      # so it's compared with instead.
       - name: Find the pull request's labels
         id: labels
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule'
@@ -57,7 +106,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           QUEUED: ${{ github.event.merge_group.head_ref }}
-          ACCEPT_LABEL: 'duel: accept'
+          ACCEPT_LABEL: "duel: accept"
           RELEASE_TAGS: "v*"
         run: |
           if [ "$GITHUB_EVENT_NAME" = schedule ]; then
@@ -81,22 +130,26 @@ jobs:
             labels=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '[.[0].labels[]?.name]')
           fi
           echo "labels=$labels" >> "$GITHUB_OUTPUT"
-      # PostgreSQL, for the server each Duel worker starts (its programs in
-      # /usr/lib/postgresql/*/bin, where duel-postgresql looks, with
-      # pg_stat_statements), and libpq's headers, to build each version's
-      # C extension (c.build in .duel.rb).
-      - run: sudo apt-get install -y postgresql libpq-dev
+      # (The bundle once gcc and libpq are there, below.)
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "4.0" # the newest Ruby, which those who care most about speed run
-          bundler-cache: true
-      # Against the branch it targets for a pull request, the queue's base
-      # for a merge queue, what was there before for a push (or as
-      # c.push_base in .duel.rb says, the last commit Duel passed), and the
-      # last release on a schedule (slow creep). Duel adds its report to
-      # the job's summary, writes it to duel.md for the comment, and sets
-      # the step's outputs to say whether to comment, as c.comment in
-      # .duel.rb says, whatever the outcome.
+          ruby-version: "4.0"
+      - name: Install MSYS2's gcc
+        shell: cmd
+        run: ridk exec sh -c "pacman --sync --needed --noconfirm ${MINGW_PACKAGE_PREFIX}-gcc"
+      - name: Download PostgreSQL
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $(new-object net.webclient).DownloadFile("https://get.enterprisedb.com/postgresql/postgresql-$env:PGVERSION-binaries.zip", "$env:RUNNER_TEMP/postgresql-binaries.zip")
+          [System.IO.Compression.ZipFile]::ExtractToDirectory("$env:RUNNER_TEMP/postgresql-binaries.zip", "$env:RUNNER_TEMP")
+          echo "$env:RI_DEVKIT$env:MINGW_PREFIX/bin;$env:RI_DEVKIT/usr/bin;$env:RUNNER_TEMP/pgsql/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Use the runner's PostgreSQL for the servers
+        run: echo "DUEL_POSTGRESQL_BIN=$PGBIN" >> "$GITHUB_ENV"
+      - run: bundle install
+      # As on Linux and macOS: Duel adds its report to the job's summary,
+      # writes it to duel.md for the comment, and sets the step's outputs
+      # to say whether to comment, as c.comment in .duel.rb says.
       - name: Compare
         id: compare
         env:
@@ -118,12 +171,12 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/duel"
           printf 'pr=%s\ncomment=%s\nstatus=%s\n' "$PR" "$COMMENT" "$STATUS" > "$RUNNER_TEMP/duel/comment.env"
-      # The report, for the comments.
+      # The report, for the comments, beside Linux's and macOS's.
       - name: Keep the report
         if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'push') }}
         uses: actions/upload-artifact@v7
         with:
-          name: duel-report
+          name: duel-report-windows
           path: ${{ runner.temp }}/duel/
           if-no-files-found: ignore # none when Duel didn't get to compare
           retention-days: 1

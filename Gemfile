@@ -19,8 +19,8 @@ end
 group :duel, optional: true do
   # Duel requires Ruby 3.4 or later
   if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.4")
-    gem "duel", "~> 0.1.8"
-    gem "duel-postgresql", "~> 0.1.5"
+    gem "duel", "~> 0.2.0"
+    gem "duel-postgresql", "~> 0.2.0"
     gem "pg", force_ruby_platform: true
   end
   gem "stackprof", platforms: :mri
