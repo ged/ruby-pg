@@ -84,8 +84,8 @@ module PG
 
 
   ### Convenience alias for PG::Connection.new.
-  def self.connect( *args, &block )
-    Connection.new( *args, &block )
+  def self.connect( *args, **kwargs, &block )
+    Connection.new( *args, **kwargs, &block )
   end
 
   if defined?(Ractor.make_shareable)

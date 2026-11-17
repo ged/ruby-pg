@@ -54,6 +54,7 @@ jobs:
             ruby: "mswin"
             PGVERSION: 18.0-1-windows-x64
             PGVER: "18"
+            BROKEN_PGXS: yes
           - os: ubuntu
             ruby: "head"
             PGVER: "18"
@@ -74,12 +75,14 @@ jobs:
             ruby: "head"
             PGVERSION: 18.0-2-osx
             PGVER: "18"
+            BROKEN_PGXS: yes
 
     runs-on: ${{ matrix.os }}-${{ matrix.os_ver || 'latest' }}
     env:
       PGVERSION: ${{ matrix.PGVERSION }}
       PGVER: ${{ matrix.PGVER }}
       MAKE: make -j2 V=1
+      BROKEN_PGXS: ${{ matrix.BROKEN_PGXS }}
 
     steps:
       - uses: actions/checkout@v7
@@ -127,8 +130,13 @@ jobs:
           sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVER" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get -y update
-          sudo apt-get -y --allow-downgrades install postgresql-$PGVER libpq5=$PGVER* libpq-dev=$PGVER*
+          sudo apt-get -y --allow-downgrades install postgresql-$PGVER libpq5=$PGVER* libpq-dev=$PGVER* postgresql-server-dev-$PGVER libkrb5-dev
           echo /usr/lib/postgresql/$PGVER/bin >> $GITHUB_PATH
+
+      - name: Download OAuth support Ubuntu
+        if: matrix.os == 'ubuntu' && matrix.PGVER >= 18
+        run: |
+          sudo apt-get -y --allow-downgrades install libpq-oauth=$PGVER*
 
       - name: Download PostgreSQL Macos
         if: matrix.os == 'macos'
@@ -137,7 +145,8 @@ jobs:
           sudo mkdir -p /Library/PostgreSQL && \
           sudo unzip postgresql-$PGVERSION-binaries.zip -d /Library/PostgreSQL/$PGVER && \
           sudo mv /Library/PostgreSQL/$PGVER/pgsql/* /Library/PostgreSQL/$PGVER/ && \
-          echo /Library/PostgreSQL/$PGVER/bin >> $GITHUB_PATH
+          echo /Library/PostgreSQL/$PGVER/bin >> $GITHUB_PATH && \
+          xcrun -sdk macosx --show-sdk-path
 
       - run: echo $env:PATH
       - run: gem install --local *.gem --verbose
