@@ -22,7 +22,7 @@ permissions: {}
 
 jobs:
   comment:
-    uses: sferik/duel-ruby/.github/workflows/duel-comment.yml@v0.2.0
+    uses: sferik/duel-ruby/.github/workflows/duel-comment.yml@v0.3.0
     permissions:
       actions: write # to get the report from the Perf run, and run its Duel job again
       pull-requests: write # to comment on the pull request with the report

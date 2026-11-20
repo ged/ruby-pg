@@ -12,8 +12,9 @@ Duel.configure do |c|
 	# c.library = "pg"
 
 	# Builds each version's C extension, so that each is measured with its
-	# own build.
-	c.build = "bundle exec rake compile"
+	# own build: with this, by default, for a project with ext/ and a
+	# Rakefile.
+	# c.build = "bundle exec rake compile"
 
 	# A PostgreSQL server of each worker's own, and the queries, rows and
 	# server time that each benchmark took of it.
@@ -32,7 +33,7 @@ Duel.configure do |c|
 
 	# A label that accepts a regression in a pull request, for a change
 	# that's slower on purpose (nil for none).
-	c.accept_label = "duel: accept"
+	# c.accept_label = "duel: accept"
 
 	# What the workflow compares a push with: :before (the commit before it),
 	# or :last_passed (the last commit Duel passed, which a branch,
