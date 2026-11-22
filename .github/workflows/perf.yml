@@ -34,7 +34,7 @@ jobs:
   # Duel and its PostgreSQL plugin. (The Duel jobs run the branch's code,
   # so they only read.)
   linux:
-    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.0
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.1
     permissions:
       contents: read
       pull-requests: read # for the pull request's labels (see c.accept_label)
@@ -47,12 +47,9 @@ jobs:
 
   # Homebrew's PostgreSQL, on the PATH (where duel-postgresql looks for
   # its programs, and pg's build for pg_config), which Homebrew doesn't
-  # link it onto. And 6 workers of each version, not Duel's 12: each
-  # worker's server takes a System V shared memory segment, and macOS
-  # allows 32 in all, which 24 servers, and those that build their
-  # clusters, can run out of.
+  # link it onto.
   macos:
-    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.0
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.1
     permissions:
       contents: read
       pull-requests: read
@@ -64,7 +61,6 @@ jobs:
         brew install postgresql@17
         echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
         echo "BUNDLE_WITH=duel" >> "$GITHUB_ENV"
-        echo "DUEL_PROCESSES=6" >> "$GITHUB_ENV"
 
   # What pg's build needs on Windows, as source-gem.yml has it: MSYS2's
   # gcc, and PostgreSQL's binaries (for libpq), on the PATH, after the
@@ -73,7 +69,7 @@ jobs:
   # rights of the runner's user, an administrator, as postgres needs:
   # the binaries' doesn't.
   windows:
-    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.0
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.1
     permissions:
       contents: read
       pull-requests: read
@@ -98,7 +94,7 @@ jobs:
   linux-push:
     needs: linux
     if: ${{ !cancelled() && github.event_name == 'push' }}
-    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.0
+    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.1
     permissions:
       contents: write # to comment on the commit, and move the passed branch
     with:
@@ -111,7 +107,7 @@ jobs:
   macos-push:
     needs: macos
     if: ${{ !cancelled() && github.event_name == 'push' }}
-    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.0
+    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.1
     permissions:
       contents: write # to comment on the commit, and move the passed branch
     with:
@@ -124,7 +120,7 @@ jobs:
   windows-push:
     needs: windows
     if: ${{ !cancelled() && github.event_name == 'push' }}
-    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.0
+    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.1
     permissions:
       contents: write # to comment on the commit, and move the passed branch
     with:
