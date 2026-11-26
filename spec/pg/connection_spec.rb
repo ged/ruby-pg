@@ -433,6 +433,58 @@ describe PG::Connection do
 			end
 		end
 
+		it "times out after connect_timeout when the host name is resolved by libpq" do
+			allow( Addrinfo ).to receive( :getaddrinfo ).and_raise( SocketError, "getaddrinfo: Name or service not known" )
+			PG::TestingHelpers::ListenSocket.new do |sock|
+				start_time = Time.now
+				expect {
+					Timeout.timeout(10) do
+						described_class.connect(
+							host: 'localhost',
+							port: sock.port,
+							connect_timeout: 1,
+							dbname: "test")
+					end
+				}.to raise_error( PG::ConnectionBad, /timeout expired/ )
+				expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+			end
+		end
+
+		it "succeeds with second host after connect_timeout when the host names are resolved by libpq" do
+			allow( Addrinfo ).to receive( :getaddrinfo ).and_raise( SocketError, "getaddrinfo: Name or service not known" )
+			PG::TestingHelpers::ListenSocket.new do |sock|
+				start_time = Time.now
+				conn = Timeout.timeout(10) do
+					described_class.connect(
+						host: '127.0.0.1,127.0.0.1',
+						port: "#{sock.port},#{@port}",
+						connect_timeout: 1,
+						dbname: "test")
+				end
+
+				expect( conn.port ).to eq( @port )
+				expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+			ensure
+				conn&.finish
+			end
+		end
+
+		it "times out after connect_timeout when hostaddr differs from the form libpq reports" do
+			PG::TestingHelpers::ListenSocket.new do |sock|
+				start_time = Time.now
+				expect {
+					Timeout.timeout(10) do
+						described_class.connect(
+							hostaddr: '127.1',
+							port: sock.port,
+							connect_timeout: 1,
+							dbname: "test")
+					end
+				}.to raise_error( PG::ConnectionBad, /timeout expired/ )
+				expect( Time.now - start_time ).to be_between(0.9, 10).inclusive
+			end
+		end
+
 		context "with multiple PostgreSQL servers", :without_transaction do
 			before :all do
 				@port_ro = @port + 1
