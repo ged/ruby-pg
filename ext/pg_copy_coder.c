@@ -8,6 +8,28 @@
 
 #define ISOCTAL(c) (((c) >= '0') && ((c) <= '7'))
 #define OCTVALUE(c) ((c) - '0')
+#define IS_HIGHBIT_SET(c) (((unsigned char)(c)) & 0x80)
+
+/*
+ * Client encodings like SJIS, BIG5, GBK and GB18030 allow ASCII bytes (for
+ * instance 0x5C backslash) as the trail byte of a multibyte character. Such
+ * bytes must not be escaped or treated as special when generating or parsing
+ * COPY text, otherwise the escaping is shifted by one byte. PostgreSQL itself
+ * therefore walks whole characters in these encodings (see
+ * CopyAttributeOutText() and encoding_embeds_ascii in copyto.c).
+ *
+ * Returns the encoding to walk character-wise or NULL for single byte
+ * encodings and UTF-8, whose multibyte characters never contain ASCII bytes.
+ */
+static rb_encoding *
+pg_copy_mb_encoding(int enc_idx)
+{
+	rb_encoding *enc;
+	if( enc_idx == rb_utf8_encindex() ) return NULL;
+	enc = rb_enc_from_index(enc_idx);
+	if( enc == NULL || rb_enc_mbmaxlen(enc) == 1 ) return NULL;
+	return enc;
+}
 
 VALUE rb_cPG_CopyCoder;
 VALUE rb_cPG_CopyEncoder;
@@ -225,6 +247,7 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	t_typemap *p_typemap;
 	char *current_out;
 	char *end_capa_ptr;
+	rb_encoding *mbenc = pg_copy_mb_encoding(enc_idx);
 
 	p_typemap = RTYPEDDATA_DATA( rb_typemap );
 	p_typemap->funcs.fit_to_query( rb_typemap, value );
@@ -269,12 +292,19 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					PG_RB_STR_ENSURE_CAPA( *intermediate, (size_t)strlen * 2, current_out, end_capa_ptr );
 
 					/* Copy string from subint with backslash escaping */
-					for(ptr1 = RSTRING_PTR(subint); ptr1 < RSTRING_PTR(subint) + strlen; ptr1++) {
+					ptr2 = RSTRING_PTR(subint) + strlen;
+					for(ptr1 = RSTRING_PTR(subint); ptr1 < ptr2; ) {
+						if( mbenc && IS_HIGHBIT_SET(*ptr1) ){
+							/* Copy a multibyte character unchanged, including ASCII trail bytes. */
+							int l = rb_enc_mbclen(ptr1, ptr2, mbenc);
+							while( l-- > 0 ) *current_out++ = *ptr1++;
+							continue;
+						}
 						/* Escape backslash itself, newline, carriage return, and the current delimiter character. */
 						if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
 							*current_out++ = '\\';
 						}
-						*current_out++ = *ptr1;
+						*current_out++ = *ptr1++;
 					}
 				} else {
 					/* 2nd pass for writing the data to prepared buffer */
@@ -288,23 +318,40 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 					ptr2 = current_out + strlen;
 
 					/* count required backlashs */
-					for(backslashes = 0; ptr1 != ptr2; ptr1++) {
+					for(backslashes = 0; ptr1 < ptr2; ) {
+						if( mbenc && IS_HIGHBIT_SET(*ptr1) ){
+							ptr1 += rb_enc_mbclen(ptr1, ptr2, mbenc);
+							continue;
+						}
 						/* Escape backslash itself, newline, carriage return, and the current delimiter character. */
 						if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
 							backslashes++;
 						}
+						ptr1++;
 					}
 
-					ptr1 = current_out + strlen;
-					ptr2 = current_out + strlen + backslashes;
-					current_out = ptr2;
 
-					/* Then store the escaped string on the final position, walking
-					 * right to left, until all backslashes are placed. */
-					while( ptr1 != ptr2 ) {
-						*--ptr2 = *--ptr1;
-						if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
-							*--ptr2 = '\\';
+					if( backslashes == 0 ){
+						current_out += strlen;
+					} else {
+						/* Move the unescaped string behind the space needed for the
+						* backslashes, then copy it forward to the final position while
+						* inserting them. Walking forward is required to find character
+						* boundaries; the write position never overtakes the read position. */
+						ptr1 = current_out + backslashes;
+						ptr2 = ptr1 + strlen;
+						memmove( ptr1, current_out, strlen );
+
+						while( ptr1 < ptr2 ) {
+							if( mbenc && IS_HIGHBIT_SET(*ptr1) ){
+								int l = rb_enc_mbclen(ptr1, ptr2, mbenc);
+								while( l-- > 0 ) *current_out++ = *ptr1++;
+								continue;
+							}
+							if(*ptr1 == '\\' || *ptr1 == '\n' || *ptr1 == '\r' || *ptr1 == this->delimiter){
+								*current_out++ = '\\';
+							}
+							*current_out++ = *ptr1++;
 						}
 					}
 				}
@@ -532,6 +579,7 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 	VALUE field_str;
 
 	char delimc = this->delimiter;
+	rb_encoding *mbenc = pg_copy_mb_encoding(enc_idx);
 	int fieldno;
 	int expected_fields;
 	char *output_ptr;
@@ -587,6 +635,14 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 			if (cur_ptr >= line_end_ptr)
 				break;
 			c = *cur_ptr++;
+			if (mbenc && IS_HIGHBIT_SET(c)){
+				/* Take a multibyte character literally, including ASCII trail bytes. */
+				int l = rb_enc_mbclen(cur_ptr - 1, line_end_ptr, mbenc);
+				PG_RB_STR_ENSURE_CAPA( field_str, l, output_ptr, end_capa_ptr );
+				*output_ptr++ = c;
+				while( --l > 0 ) *output_ptr++ = *cur_ptr++;
+				continue;
+			}
 			if (c == delimc){
 				found_delim = 1;
 				break;
