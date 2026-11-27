@@ -810,7 +810,8 @@ class PG::Connection
 				# connection to server on socket "/var/run/postgresql/.s.PGSQL.5433" failed: No such file or directory
 				unless event
 					connection_errors << (error_message + "timeout expired")
-					if hostcnt > 0
+					time_left = !stop_time || Process.clock_gettime(Process::CLOCK_MONOTONIC) < stop_time
+					if hostcnt > 0 && time_left
 						reset_start2(self.class.parse_connect_args(iopts))
 						# Restart polling with waiting for writable.
 						# Otherwise "not connected" error is raised on Windows.
@@ -848,7 +849,7 @@ class PG::Connection
 
 			idx = (ihosts || ihostaddrs || iports).index.with_index do |_, i|
 				(ihosts ? ihosts[i] == host : true) &&
-				(ihostaddrs && respond_to?(:hostaddr, true) ? ihostaddrs[i] == hostaddr : true) &&
+				(ihostaddrs && respond_to?(:hostaddr, true) ? ihostaddrs[i].to_s.empty? || ihostaddrs[i] == hostaddr : true) &&
 				(iports ? iports[i].to_i == port : true)
 			end
 
