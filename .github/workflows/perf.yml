@@ -1,0 +1,132 @@
+name: Perf
+
+# Duel's performance regression guards (see Duel's docs/ci.md), on
+# Linux, macOS and Windows, as pg's code paths differ on each, each run
+# by a call of Duel's reusable workflow, which reads .duel.rb itself.
+# Each says what it found in a report of its own, and the Perf comment
+# workflow comments with all three. Each compares a pull request with
+# the branch it targets, a merge queue's group with the queue's base, a
+# push with what was there before, and on a schedule, the last release
+# (slow creep).
+on:
+  pull_request:
+  merge_group: # (a merge queue's)
+  push:
+    branches: [master]
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+# A pull request's newer push cancels its run, if that's still going, as
+# only its newest commit's result counts. Every other run (a push's, say)
+# runs to the end, so that each push is compared.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  # PostgreSQL, for the server each Duel worker starts (its programs in
+  # /usr/lib/postgresql/*/bin, where duel-postgresql looks, with
+  # pg_stat_statements), and libpq's headers, to build each version's C
+  # extension (c.build in .duel.rb). The Gemfile's optional group has
+  # Duel and its PostgreSQL plugin. (The Duel jobs run the branch's code,
+  # so they only read.)
+  linux:
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.1
+    permissions:
+      contents: read
+      pull-requests: read # for the pull request's labels (see c.accept_label)
+    with:
+      report: linux
+      ruby-version: "4.0" # the newest Ruby, which those who care most about speed run
+      setup: |
+        sudo apt-get install -y postgresql libpq-dev
+        echo "BUNDLE_WITH=duel" >> "$GITHUB_ENV"
+
+  # Homebrew's PostgreSQL, on the PATH (where duel-postgresql looks for
+  # its programs, and pg's build for pg_config), which Homebrew doesn't
+  # link it onto.
+  macos:
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.1
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      report: macos
+      runs-on: macos-latest
+      ruby-version: "4.0"
+      setup: |
+        brew install postgresql@17
+        echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
+        echo "BUNDLE_WITH=duel" >> "$GITHUB_ENV"
+
+  # What pg's build needs on Windows, as source-gem.yml has it: MSYS2's
+  # gcc, and PostgreSQL's binaries (for libpq), on the PATH, after the
+  # devkit's. The server each worker starts (with pg_ctl, there) is the
+  # runner's own PostgreSQL's postgres, in PGBIN, whose initdb drops the
+  # rights of the runner's user, an administrator, as postgres needs:
+  # the binaries' doesn't.
+  windows:
+    uses: sferik/duel-ruby/.github/workflows/duel.yml@v0.3.1
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      report: windows
+      runs-on: windows-latest
+      ruby-version: "4.0"
+      timeout-minutes: 60
+      setup: |
+        echo "BUNDLE_WITH=duel" >> "$GITHUB_ENV"
+        echo "DUEL_POSTGRESQL_SERVER=$PGBIN\postgres.exe" >> "$GITHUB_ENV"
+        temp=$(cygpath -u "$RUNNER_TEMP")
+        curl -sSfL -o "$temp/postgresql-binaries.zip" https://get.enterprisedb.com/postgresql/postgresql-18.0-1-windows-x64-binaries.zip
+        unzip -q "$temp/postgresql-binaries.zip" -d "$temp"
+      setup-after-ruby: |
+        pacman --sync --needed --noconfirm "${MINGW_PACKAGE_PREFIX}-gcc"
+        echo "$RI_DEVKIT$MINGW_PREFIX/bin;$RI_DEVKIT/usr/bin;$RUNNER_TEMP/pgsql/bin" >> "$GITHUB_PATH"
+
+  # For a push, the jobs that comment on the commit (or mark it passed),
+  # as each Duel job says, which run none of the code. They write, so
+  # they're calls of their own, and run only for a push.
+  linux-push:
+    needs: linux
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.1
+    permissions:
+      contents: write # to comment on the commit, and move the passed branch
+    with:
+      comment: ${{ needs.linux.outputs.comment }}
+      status: ${{ needs.linux.outputs.status }}
+      passed: ${{ needs.linux.outputs.passed }}
+      result: ${{ needs.linux.result }}
+      report: linux
+
+  macos-push:
+    needs: macos
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.1
+    permissions:
+      contents: write # to comment on the commit, and move the passed branch
+    with:
+      comment: ${{ needs.macos.outputs.comment }}
+      status: ${{ needs.macos.outputs.status }}
+      passed: ${{ needs.macos.outputs.passed }}
+      result: ${{ needs.macos.result }}
+      report: macos
+
+  windows-push:
+    needs: windows
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    uses: sferik/duel-ruby/.github/workflows/duel-push.yml@v0.3.1
+    permissions:
+      contents: write # to comment on the commit, and move the passed branch
+    with:
+      comment: ${{ needs.windows.outputs.comment }}
+      status: ${{ needs.windows.outputs.status }}
+      passed: ${{ needs.windows.outputs.passed }}
+      result: ${{ needs.windows.result }}
+      report: windows
+
