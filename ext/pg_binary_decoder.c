@@ -284,6 +284,82 @@ length_error:
 
 #define PG_INT64_MIN	(-0x7FFFFFFFFFFFFFFFL - 1)
 #define PG_INT64_MAX	0x7FFFFFFFFFFFFFFFL
+#define SECS_PER_DAY	86400
+
+/*
+ * Get the UTC offset of the local time zone at the given instant.
+ * Returns 0 when the C library can't convert it.
+ */
+static int
+local_utc_offset(int64_t seconds, int *offset)
+{
+	time_t time = (time_t)seconds;
+	int64_t utc_days = seconds / SECS_PER_DAY - (seconds % SECS_PER_DAY < 0);
+	int utc_weekday = (int)(((utc_days + 4) % 7 + 7) % 7); /* 1970-01-01 was a Thursday */
+	int local_days_ahead;
+	struct tm tm;
+
+	if( time != seconds || localtime_r(&time, &tm) == NULL ) return 0;
+	/* local and UTC dates are at most a day apart */
+	local_days_ahead = (tm.tm_wday - utc_weekday + 7) % 7;
+	if( local_days_ahead == 6 ) local_days_ahead = -1;
+	*offset = local_days_ahead * SECS_PER_DAY + tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec
+			- (int)(seconds - utc_days * SECS_PER_DAY);
+	return 1;
+}
+
+/*
+ * Get the UTC offset to interpret a wall clock as local time, given as seconds since 1970-01-01 00:00:00.
+ * Like PostgreSQL's DetermineTimeZoneOffset(), a wall clock in a DST gap or overlap takes the later instant.
+ * Returns 0 when the C library can't convert it.
+ */
+static int
+wall_clock_utc_offset(int64_t wall_clock, int *offset)
+{
+	int offset_before, offset_after, offset_at_before, offset_at_after;
+
+	/* Before 1901-12-14, Ruby on macOS renders local times without the LMT offsets of the C library */
+	if( wall_clock < (int64_t)INT32_MIN + SECS_PER_DAY ) return 0;
+
+#ifdef _WIN32
+	_tzset();
+#else
+	tzset();
+#endif
+	if( !local_utc_offset(wall_clock - SECS_PER_DAY, &offset_before) ||
+			!local_utc_offset(wall_clock + SECS_PER_DAY, &offset_after) ) return 0;
+
+	if( offset_before == offset_after ){
+		*offset = offset_before;
+		return 1;
+	}
+
+	/* A transition within a day: keep the only interpretation that gives back the wall clock, if any */
+	if( !local_utc_offset(wall_clock - offset_before, &offset_at_before) ||
+			!local_utc_offset(wall_clock - offset_after, &offset_at_after) ) return 0;
+	if( (offset_at_before == offset_before) != (offset_at_after == offset_after) ){
+		*offset = offset_at_before == offset_before ? offset_before : offset_after;
+	} else {
+		*offset = offset_before < offset_after ? offset_before : offset_after;
+	}
+	return 1;
+}
+
+/*
+ * Interpret the wall clock with the UTC offset Ruby gives to it read as UTC, when the C library can't convert it.
+ * That's off by the DST shift within the offset's distance of a DST change, which doesn't happen before 1901.
+ */
+static VALUE
+time_local_from_wall_clock(t_pg_coder *conv, int64_t sec, int64_t nsec)
+{
+	VALUE t = rb_funcall(rb_cTime, rb_intern("at"), 3, LL2NUM(sec), LL2NUM(nsec), ID2SYM(rb_intern("nsec")));
+
+	t = rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
+	if( !(conv->flags & PG_CODER_TIMESTAMP_APP_LOCAL) ) {
+		t = rb_funcall(t, rb_intern("getutc"), 0);
+	}
+	return t;
+}
 
 /*
  * Document-class: PG::BinaryDecoder::Timestamp < PG::SimpleDecoder
@@ -326,6 +402,16 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 			sec = (timestamp / 1000000) + 10957L * 24L * 3600L;
 			nsec = (timestamp % 1000000) * 1000;
 
+			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
+				/* interpret it as local time */
+				int offset;
+
+				if( !wall_clock_utc_offset(sec - (nsec < 0), &offset) ){
+					return time_local_from_wall_clock(conv, sec, nsec);
+				}
+				sec -= offset;
+			}
+
 #if defined(NEGATIVE_TIME_T) && SIZEOF_TIME_T >= 8
 			/* Fast path for time conversion */
 			{
@@ -338,10 +424,6 @@ pg_bin_dec_timestamp(t_pg_coder *conv, const char *val, int len, int tuple, int 
 				t = rb_funcall(t, rb_intern("utc"), 0);
 			}
 #endif
-			if( conv->flags & PG_CODER_TIMESTAMP_DB_LOCAL ) {
-				/* interpret it as local time */
-				t = rb_funcall(t, rb_intern("-"), 1, rb_funcall(t, rb_intern("utc_offset"), 0));
-			}
 			return t;
 	}
 }
