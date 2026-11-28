@@ -83,6 +83,58 @@ pg_copycoder_decoder_allocate( VALUE klass )
 }
 
 /*
+ * Raise an error if encoding isn't safe to walk byte-wise.
+ *
+ * Safe encodings are single byte encodings or UTF-8, whose multibyte characters never contain ASCII bytes.
+ *
+ * Client encodings like SJIS, BIG5, GBK and GB18030 allow ASCII bytes (for instance 0x5C backslash) as the trail byte of a multibyte character.
+ * Such bytes must not be escaped or treated as special when generating or parsing SQL/COPY text, otherwise the escaping is shifted by one byte.
+ * For these reasons PostgreSQL doesn't allow them as server/database encoding, but it allows them as client/connection encodings.
+ */
+static void validate_safe_ascii_scanning_encoding(int encidx) {
+	rb_encoding *enc;
+	const char *name;
+
+	/* Fast path for UTF-8, US-ASCII, and ASCII-8BIT (BINARY / SQL_ASCII) */
+	if (encidx == rb_utf8_encindex() ||
+		encidx == rb_usascii_encindex() ||
+		encidx == rb_ascii8bit_encindex()) {
+		return;
+	}
+
+	enc = rb_enc_from_index(encidx);
+	if (!enc) {
+		rb_raise(rb_eArgError, "Invalid encoding index: %d", encidx);
+	}
+
+	/* Single-byte ASCII-compatible encodings (e.g., LATIN1..10, WIN1250..1258, KOI8R/U) are safe */
+	if (rb_enc_asciicompat(enc) && rb_enc_mbmaxlen(enc) == 1) {
+		return;
+	}
+
+	/*
+	 * Allow only PostgreSQL-supported EUC multibyte encodings whose trailing bytes
+	 * are guaranteed to be >= 0x80:
+	 */
+	name = rb_enc_name(enc);
+	if (rbpg_strncasecmp(name, "EUC-JP", 7) == 0 ||
+		rbpg_strncasecmp(name, "EUC-JIS-2004", 13) == 0 ||
+		rbpg_strncasecmp(name, "EUC-KR", 7) == 0 ||
+		rbpg_strncasecmp(name, "EUC-TW", 7) == 0 ||
+		rbpg_strncasecmp(name, "GB2312", 7) == 0 ||
+		rbpg_strncasecmp(name, "EUC-CN", 7) == 0) {
+		return;
+	}
+
+	/* Reject all other multibyte encodings (SJIS, SHIFT_JIS_2004, GBK, GB18030, BIG5, UHC, JOHAB, etc.) */
+	rb_raise(
+		rb_eEncodingError,
+		"Unsupported encoding '%s': multibyte encodings that may contain ASCII byte values in trailing bytes are not allowed for CopyRow",
+		name
+	);
+}
+
+/*
  * call-seq:
  *    coder.delimiter = String
  *
@@ -225,6 +277,8 @@ pg_text_enc_copy_row(t_pg_coder *conv, VALUE value, char *out, VALUE *intermedia
 	t_typemap *p_typemap;
 	char *current_out;
 	char *end_capa_ptr;
+
+	validate_safe_ascii_scanning_encoding(enc_idx);
 
 	p_typemap = RTYPEDDATA_DATA( rb_typemap );
 	p_typemap->funcs.fit_to_query( rb_typemap, value );
@@ -540,6 +594,8 @@ pg_text_dec_copy_row(t_pg_coder *conv, const char *input_line, int len, int _tup
 	char *end_capa_ptr;
 	VALUE rb_typemap = this->typemap;
 	t_typemap *p_typemap;
+
+	validate_safe_ascii_scanning_encoding(enc_idx);
 
 	p_typemap = RTYPEDDATA_DATA( rb_typemap );
 	expected_fields = p_typemap->funcs.fit_to_copy_get( rb_typemap );
