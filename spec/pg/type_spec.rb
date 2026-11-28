@@ -951,6 +951,11 @@ describe "PG::Type derivations" do
 					array_type = PG::TextDecoder::Array.new elements_type: nil
 					expect( array_type.decode(%[{3,4}]) ).to eq( ['3','4'] )
 				end
+
+				it "should reject incomplete multibyte character encodings" do
+					expect{ textdec_string_array.decode("abc".encode("Big5")) }
+						.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
+				end
 			end
 
 			describe '#encode' do
@@ -1272,6 +1277,11 @@ describe "PG::Type derivations" do
 				expect{ t.dimensions = 1 }.to raise_error(FrozenError)
 			end
 
+			it "should reject incomplete multibyte character encodings" do
+				expect{ textenc_string_array.encode(["abc"], "Big5") }
+				.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
+			end
+
 			it "should be shareable for Ractor", :ractor do
 				t = PG::TextEncoder::Array.new.freeze
 				Ractor.make_shareable(t)
@@ -1429,6 +1439,16 @@ describe "PG::Type derivations" do
 				rescue ArgumentError
 					# ignore "negative expanding string size" error
 				end
+
+				it "should not escape ASCII trail bytes of multibyte characters" do
+					# U+30BD is 0x83 0x5C in SJIS, U+4E48 is 0xA4 0x5C in BIG5, U+4E57 is 0x81 0x5C in GBK and GB18030
+					{
+						"Windows-31J" => "\u30BD", "Big5" => "\u4E48", "GBK" => "\u4E57", "GB18030" => "\u4E57"
+					}.each do |enc, c|
+						expect{ encoder.encode(["#{c}\t#{c}\n#{c}\\", c], enc) }
+							.to raise_error(EncodingError, /Unsupported encoding.*#{enc}/)
+					end
+				end
 			end
 
 			context "with TypeMapByClass" do
@@ -1565,6 +1585,15 @@ describe "PG::Type derivations" do
 						expect( v ).to eq("Héllo".encode("EUC-JP"))
 						expect( v.length ).to eq(5)
 					end
+
+					it "should not treat ASCII trail bytes of multibyte characters as escape" do
+						{
+							"Windows-31J" => "\u30BD", "Big5" => "\u4E48", "GBK" => "\u4E57", "GB18030" => "\u4E57"
+						}.each do |enc, c|
+							expect{ decoder.decode("#{c}\t#{c}\\t\n".encode(enc)) }
+								.to raise_error(EncodingError, /Unsupported encoding.*#{enc}/)
+						end
+					end
 				end
 			end
 
@@ -1682,6 +1711,11 @@ describe "PG::Type derivations" do
 					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
 					expect( v ).to eq( '("Héllo")'.encode(Encoding::ISO_8859_1) )
 				end
+
+				it "should reject incomplete multibyte character encodings" do
+					expect{ encoder.encode(["abc"], "Big5") }
+					.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
+				end
 			end
 
 			context "with TypeMapByClass" do
@@ -1750,6 +1784,11 @@ describe "PG::Type derivations" do
 						expect{ decoder.decode('(') }.to raise_error(ArgumentError, /"\(" - Unexpected end of input/)
 						expect{ decoder.decode('(\\') }.to raise_error(ArgumentError, /"\(\\" - Unexpected end of input/)
 						expect{ decoder.decode('()x') }.to raise_error(ArgumentError, /"\(\)x" - Junk after right parenthesis/)
+					end
+
+					it "should reject incomplete multibyte character encodings" do
+						expect{ decoder.decode("abc".encode("Big5")) }
+							.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
 					end
 				end
 			end

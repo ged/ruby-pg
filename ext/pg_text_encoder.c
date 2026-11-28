@@ -610,6 +610,8 @@ pg_text_enc_array(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate,
 	char *end_ptr;
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 
+	pg_validate_safe_ascii_scanning_encoding(enc_idx);
+
 	if( TYPE(value) == T_ARRAY){
 		VALUE out_str = rb_str_new(NULL, 0);
 		PG_ENCODING_SET_NOCHECK(out_str, enc_idx);
@@ -763,6 +765,7 @@ pg_text_enc_quoted_literal(t_pg_coder *conv, VALUE value, char *out, VALUE *inte
 {
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 	VALUE out_str = rb_str_new(NULL, 0);
+	pg_validate_safe_ascii_scanning_encoding(enc_idx);
 	PG_ENCODING_SET_NOCHECK(out_str, enc_idx);
 
 	out = RSTRING_PTR(out_str);
