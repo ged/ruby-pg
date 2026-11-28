@@ -186,6 +186,8 @@ pg_text_enc_record(t_pg_coder *conv, VALUE value, char *out, VALUE *intermediate
 	char *current_out;
 	char *end_capa_ptr;
 
+	pg_validate_safe_ascii_scanning_encoding(enc_idx);
+
 	p_typemap = RTYPEDDATA_DATA( rb_typemap );
 	p_typemap->funcs.fit_to_query( rb_typemap, value );
 
@@ -391,6 +393,8 @@ pg_text_dec_record(t_pg_coder *conv, char *input_line, int len, int _tuple, int 
 	char *end_capa_ptr;
 	VALUE rb_typemap = this->typemap;
 	t_typemap *p_typemap;
+
+	pg_validate_safe_ascii_scanning_encoding(enc_idx);
 
 	p_typemap = RTYPEDDATA_DATA( rb_typemap );
 	expected_fields = p_typemap->funcs.fit_to_copy_get( rb_typemap );

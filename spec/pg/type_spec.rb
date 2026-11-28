@@ -951,6 +951,11 @@ describe "PG::Type derivations" do
 					array_type = PG::TextDecoder::Array.new elements_type: nil
 					expect( array_type.decode(%[{3,4}]) ).to eq( ['3','4'] )
 				end
+
+				it "should reject incomplete multibyte character encodings" do
+					expect{ textdec_string_array.decode("abc".encode("Big5")) }
+						.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
+				end
 			end
 
 			describe '#encode' do
@@ -1270,6 +1275,11 @@ describe "PG::Type derivations" do
 				expect{ t.delimiter = ","  }.to raise_error(FrozenError)
 				expect{ t.elements_type = nil }.to raise_error(FrozenError)
 				expect{ t.dimensions = 1 }.to raise_error(FrozenError)
+			end
+
+			it "should reject incomplete multibyte character encodings" do
+				expect{ textenc_string_array.encode(["abc"], "Big5") }
+				.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
 			end
 
 			it "should be shareable for Ractor", :ractor do
@@ -1701,6 +1711,11 @@ describe "PG::Type derivations" do
 					expect( v.encoding ).to eq( Encoding::ISO_8859_1 )
 					expect( v ).to eq( '("Héllo")'.encode(Encoding::ISO_8859_1) )
 				end
+
+				it "should reject incomplete multibyte character encodings" do
+					expect{ encoder.encode(["abc"], "Big5") }
+					.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
+				end
 			end
 
 			context "with TypeMapByClass" do
@@ -1769,6 +1784,11 @@ describe "PG::Type derivations" do
 						expect{ decoder.decode('(') }.to raise_error(ArgumentError, /"\(" - Unexpected end of input/)
 						expect{ decoder.decode('(\\') }.to raise_error(ArgumentError, /"\(\\" - Unexpected end of input/)
 						expect{ decoder.decode('()x') }.to raise_error(ArgumentError, /"\(\)x" - Junk after right parenthesis/)
+					end
+
+					it "should reject incomplete multibyte character encodings" do
+						expect{ decoder.decode("abc".encode("Big5")) }
+							.to raise_error(EncodingError, /Unsupported encoding.*Big5/)
 					end
 				end
 			end

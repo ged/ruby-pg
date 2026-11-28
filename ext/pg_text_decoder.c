@@ -417,6 +417,8 @@ pg_text_dec_array(t_pg_coder *conv, const char *c_pg_array_string, int array_str
 	VALUE ret;
 	t_pg_composite_coder *this = (t_pg_composite_coder *)conv;
 
+	pg_validate_safe_ascii_scanning_encoding(enc_idx);
+
 	/*
 	 * If the input string starts with dimension info, read and use that.
 	 * Otherwise, we require the input to be in curly-brace style, and we
